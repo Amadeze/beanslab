@@ -1,0 +1,509 @@
+// =============================================================================
+// ROASTERY OPERATING SYSTEM (ROS) — NALWENG ROASTERY
+// schema.prisma · PostgreSQL · Prisma ORM
+// =============================================================================
+// Arsitektur: 14 tabel inti, immutable transactions, ledger-driven stock.
+// Stok TIDAK PERNAH diubah manual — hanya via mutasi transaksi.
+// Koreksi dilakukan via VOID, bukan UPDATE.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum UserRole {
+  OWNER     // full access
+  MANAGER   // semua modul, tanpa user management
+  OPERATOR  // input transaksi hulu & tengah
+  CASHIER   // input penjualan & payment
+}
+
+enum ProductType {
+  GREEN_BEAN    // biji kopi mentah
+  ROASTED_BEAN  // biji kopi yang sudah di-roast
+  FINISHED_GOODS // produk jadi siap jual
+}
+
+enum RoastLevel {
+  LIGHT
+  MEDIUM
+  MEDIUM_DARK
+  DARK
+}
+
+enum PurchaseType {
+  GREEN_BEAN // pembelian biji kopi mentah
+  PACKAGING  // pembelian bahan kemasan
+}
+
+enum TransactionStatus {
+  PENDING   // belum dieksekusi / dalam proses
+  COMPLETED // selesai, stok sudah dimutasi
+  VOID      // dibatalkan, mutasi stok sudah dibalik
+}
+
+enum InvoiceStatus {
+  DRAFT   // nota belum diterbitkan
+  ISSUED  // nota diterbitkan, belum bayar
+  PARTIAL // bayar sebagian
+  PAID    // lunas
+  VOID    // dibatalkan
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  QRIS
+  CREDIT // piutang / COD jatuh tempo
+}
+
+enum LedgerEntryType {
+  IN  // stok masuk
+  OUT // stok keluar
+}
+
+/// Jenis transaksi asal untuk audit trail di InventoryLedger
+enum LedgerRefType {
+  PURCHASE_GB       // Green Bean masuk via Purchase
+  PURCHASE_PKG      // Packaging masuk via Purchase
+  ROASTING_GB_OUT   // Green Bean keluar ke roasting
+  ROASTING_RB_IN    // Roasted Bean masuk dari roasting
+  PRODUCTION_RB_OUT // Roasted Bean keluar ke produksi
+  PRODUCTION_PKG_OUT // Packaging keluar ke produksi
+  PRODUCTION_FG_IN  // Finished Goods masuk dari produksi
+  SALE_FG_OUT       // Finished Goods keluar via penjualan
+  VOID_REVERSAL     // entri kebalikan saat VOID
+}
+
+// =============================================================================
+// TABLE 1 · User
+// =============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String   // bcrypt hash
+  role      UserRole @default(OPERATOR)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchases         Purchase[]
+  roastingBatches   RoastingBatch[]
+  productionBatches ProductionBatch[]
+  invoices          Invoice[]
+  payments          Payment[]
+  ledgerEntries     InventoryLedger[]
+
+  @@map("users")
+}
+
+// =============================================================================
+// TABLE 2 · Customer
+// =============================================================================
+
+model Customer {
+  id        String   @id @default(cuid())
+  code      String   @unique // e.g., "CST-001"
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoices Invoice[]
+
+  @@map("customers")
+}
+
+// =============================================================================
+// TABLE 3 · Supplier
+// =============================================================================
+
+model Supplier {
+  id        String   @id @default(cuid())
+  code      String   @unique // e.g., "SUP-001"
+  name      String
+  phone     String?
+  address   String?
+  region    String?  // wilayah asal (Gayo, Toraja, Flores, dsb.)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchases Purchase[]
+
+  @@map("suppliers")
+}
+
+// =============================================================================
+// TABLE 4 · Product
+// Mewakili semua jenis kopi: Green Bean, Roasted Bean, dan Finished Goods.
+// Stok dihitung dari agregasi InventoryLedger, BUKAN disimpan di sini.
+// =============================================================================
+
+model Product {
+  id          String      @id @default(cuid())
+  code        String      @unique // e.g., "GB-GAYO-001", "RB-ETHIOPIA-MED", "FG-BLEND-250"
+  name        String
+  type        ProductType
+  origin      String?     // asal kopi: "Gayo", "Ethiopia Yirgacheffe", dsb.
+  roastLevel  RoastLevel? // hanya relevan untuk ROASTED_BEAN
+  description String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relasi transaksi hulu
+  purchases            Purchase[]
+  roastingInputs       RoastingBatch[] @relation("RoastingInput")
+  roastingOutputs      RoastingBatch[] @relation("RoastingOutput")
+
+  // Relasi resep & produksi
+  recipeItems          RecipeItem[]
+  recipes              Recipe[]
+  productionBatches    ProductionBatch[]
+
+  // Relasi hilir
+  invoiceItems         InvoiceItem[]
+
+  // Ledger
+  ledgerEntries        InventoryLedger[]
+
+  @@map("products")
+}
+
+// =============================================================================
+// TABLE 5 · Packaging
+// Kemasan fisik: zipper bag, kraft box, dll.
+// Stok dihitung dari InventoryLedger, BUKAN disimpan di kolom ini.
+// =============================================================================
+
+model Packaging {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g., "PKG-ZIPPER-250"
+  name        String   // "Zipper Bag 250g", "Kraft Box 1kg"
+  weightGrams Decimal  @db.Decimal(8, 2)  // berat kemasan kosong (gram)
+  costPerUnit Decimal  @db.Decimal(12, 2) // HPP kemasan per unit
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  purchases         Purchase[]
+  recipeItems       RecipeItem[]
+  recipes           Recipe[]
+  productionBatches ProductionBatch[]
+  ledgerEntries     InventoryLedger[]
+
+  @@map("packagings")
+}
+
+// =============================================================================
+// TABLE 6 · Recipe
+// Template formula satu SKU Finished Goods: komposisi RB + kemasan + gramasi.
+// =============================================================================
+
+model Recipe {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g., "RCP-HOUSE-BLEND-250"
+  name        String   // "House Blend 250g"
+  productId   String   // FK → Product (type = FINISHED_GOODS)
+  packagingId String   // FK → Packaging default untuk resep ini
+  outputGrams Decimal  @db.Decimal(8, 2) // gram kopi bersih per unit output
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product           Product           @relation(fields: [productId], references: [id])
+  packaging         Packaging         @relation(fields: [packagingId], references: [id])
+  items             RecipeItem[]
+  productionBatches ProductionBatch[]
+
+  @@map("recipes")
+}
+
+// =============================================================================
+// TABLE 7 · RecipeItem
+// Komponen Roasted Bean dalam sebuah resep (bisa blending multi-origin).
+// ratioPercent: persentase dalam blend (semua item dalam 1 recipe harus = 100%).
+// gramsPerUnit: gram RB untuk 1 unit output (= outputGrams * ratioPercent / 100).
+// =============================================================================
+
+model RecipeItem {
+  id           String  @id @default(cuid())
+  recipeId     String
+  productId    String  // FK → Product (type = ROASTED_BEAN)
+  ratioPercent Decimal @db.Decimal(5, 2)  // % kontribusi dalam blend
+  gramsPerUnit Decimal @db.Decimal(8, 3)  // gram RB per 1 unit output
+
+  recipe  Recipe  @relation(fields: [recipeId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  // Satu jenis RB hanya boleh muncul sekali per resep
+  @@unique([recipeId, productId])
+  @@map("recipe_items")
+}
+
+// =============================================================================
+// TABLE 8 · Purchase (Barang Datang)
+// Mencatat penerimaan Green Bean ATAU Packaging dari supplier.
+// type = GREEN_BEAN → productId wajib, packagingId null.
+// type = PACKAGING  → packagingId wajib, productId null.
+// Saat status → COMPLETED: InventoryLedger IN di-insert otomatis oleh server.
+// Saat VOID: InventoryLedger OUT (reversal) di-insert otomatis.
+// =============================================================================
+
+model Purchase {
+  id            String            @id @default(cuid())
+  code          String            @unique // e.g., "PUR-2024-001"
+  type          PurchaseType
+
+  supplierId    String
+  productId     String?           // wajib jika type = GREEN_BEAN
+  packagingId   String?           // wajib jika type = PACKAGING
+
+  weightKg      Decimal?          @db.Decimal(10, 3) // GREEN_BEAN: berat masuk (kg)
+  quantityUnits Int?              // PACKAGING: jumlah unit masuk
+
+  pricePerUnit  Decimal           @db.Decimal(12, 2) // per kg (GB) atau per unit (PKG)
+  totalCost     Decimal           @db.Decimal(14, 2) // = qty * pricePerUnit (dihitung server)
+
+  status        TransactionStatus @default(PENDING)
+  receivedAt    DateTime          @default(now())
+  notes         String?
+  voidReason    String?
+  voidAt        DateTime?
+
+  createdById   String
+  createdAt     DateTime          @default(now())
+
+  supplier    Supplier   @relation(fields: [supplierId], references: [id])
+  product     Product?   @relation(fields: [productId], references: [id])
+  packaging   Packaging? @relation(fields: [packagingId], references: [id])
+  createdBy   User       @relation(fields: [createdById], references: [id])
+
+  @@map("purchases")
+}
+
+// =============================================================================
+// TABLE 9 · RoastingBatch
+// Proses roasting: Green Bean (input) → Roasted Bean (output).
+// roastLossPercent = (inputWeightKg - outputWeightKg) / inputWeightKg * 100.
+// Saat COMPLETED: Ledger GB OUT + Ledger RB IN di-insert otomatis.
+// Saat VOID: reversal ledger otomatis.
+// =============================================================================
+
+model RoastingBatch {
+  id                String            @id @default(cuid())
+  code              String            @unique // e.g., "RST-2024-001"
+
+  inputProductId    String            // FK → Product (type = GREEN_BEAN)
+  inputWeightKg     Decimal           @db.Decimal(10, 3)
+
+  outputProductId   String            // FK → Product (type = ROASTED_BEAN)
+  outputWeightKg    Decimal           @db.Decimal(10, 3)
+
+  roastLossPercent  Decimal           @db.Decimal(5, 2)  // dihitung server: % susut roasting
+  roastDurationMin  Int?              // durasi roasting dalam menit
+
+  status            TransactionStatus @default(COMPLETED)
+  roastedAt         DateTime          @default(now())
+  notes             String?
+  voidReason        String?
+  voidAt            DateTime?
+
+  createdById       String
+  createdAt         DateTime          @default(now())
+
+  inputProduct  Product @relation("RoastingInput",  fields: [inputProductId],  references: [id])
+  outputProduct Product @relation("RoastingOutput", fields: [outputProductId], references: [id])
+  createdBy     User    @relation(fields: [createdById], references: [id])
+
+  @@map("roasting_batches")
+}
+
+// =============================================================================
+// TABLE 10 · ProductionBatch (Blending + Packaging → Finished Goods)
+// Mengeksekusi sebuah Recipe untuk N unit output.
+// Server otomatis menghitung & mengkonsumsi: RB (per RecipeItem) + Packaging.
+// hppPerUnit = (total HPP RB terpakai + total HPP packaging) / unitsProduced.
+// Saat COMPLETED: Ledger RB OUT + PKG OUT + FG IN di-insert otomatis.
+// Saat VOID: reversal otomatis.
+// =============================================================================
+
+model ProductionBatch {
+  id              String            @id @default(cuid())
+  code            String            @unique // e.g., "PRD-2024-001"
+
+  recipeId        String
+  outputProductId String            // FK → Product (type = FINISHED_GOODS)
+  packagingId     String            // bisa berbeda dari default resep (misal: kehabisan stok)
+
+  unitsProduced   Int               // jumlah unit yang diproduksi
+  totalRbUsedKg   Decimal           @db.Decimal(10, 3) // total RB terpakai (kg), dihitung server
+  hppPerUnit      Decimal           @db.Decimal(12, 2) // HPP per unit, snapshot saat produksi
+
+  status          TransactionStatus @default(COMPLETED)
+  producedAt      DateTime          @default(now())
+  notes           String?
+  voidReason      String?
+  voidAt          DateTime?
+
+  createdById     String
+  createdAt       DateTime          @default(now())
+
+  recipe        Recipe    @relation(fields: [recipeId], references: [id])
+  outputProduct Product   @relation(fields: [outputProductId], references: [id])
+  packaging     Packaging @relation(fields: [packagingId], references: [id])
+  createdBy     User      @relation(fields: [createdById], references: [id])
+
+  @@map("production_batches")
+}
+
+// =============================================================================
+// TABLE 11 · Invoice (Nota Penjualan)
+// Header nota. Status naik otomatis saat Payment masuk.
+// VOID membalik semua mutasi stok dari InvoiceItem.
+// =============================================================================
+
+model Invoice {
+  id          String        @id @default(cuid())
+  code        String        @unique // e.g., "INV-2024-001"
+
+  customerId  String
+
+  subtotal    Decimal       @db.Decimal(14, 2) // sebelum diskon & pajak
+  discount    Decimal       @db.Decimal(14, 2) @default(0)
+  tax         Decimal       @db.Decimal(14, 2) @default(0)
+  grandTotal  Decimal       @db.Decimal(14, 2) // = subtotal - discount + tax
+
+  paidAmount  Decimal       @db.Decimal(14, 2) @default(0) // diupdate server tiap Payment masuk
+  status      InvoiceStatus @default(DRAFT)
+
+  issuedAt    DateTime      @default(now())
+  dueDate     DateTime?
+
+  notes       String?
+  voidReason  String?
+  voidAt      DateTime?
+
+  createdById String
+  createdAt   DateTime      @default(now())
+
+  customer  Customer      @relation(fields: [customerId], references: [id])
+  createdBy User          @relation(fields: [createdById], references: [id])
+  items     InvoiceItem[]
+  payments  Payment[]
+
+  @@map("invoices")
+}
+
+// =============================================================================
+// TABLE 12 · InvoiceItem
+// Line item per SKU dalam nota. Immutable setelah Invoice di-ISSUED.
+// hpp: snapshot HPP dari ProductionBatch terakhir saat Invoice dibuat.
+// margin = (unitPrice - discount) - hpp  →  dihitung di query/laporan.
+// =============================================================================
+
+model InvoiceItem {
+  id         String  @id @default(cuid())
+  invoiceId  String
+  productId  String  // FK → Product (type = FINISHED_GOODS)
+
+  quantity   Int
+  unitPrice  Decimal @db.Decimal(12, 2)
+  discount   Decimal @db.Decimal(12, 2) @default(0) // diskon per unit
+  subtotal   Decimal @db.Decimal(14, 2) // = (unitPrice - discount) * quantity, dihitung server
+  hpp        Decimal @db.Decimal(12, 2) // snapshot HPP per unit saat transaksi
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("invoice_items")
+}
+
+// =============================================================================
+// TABLE 13 · Payment
+// Pembayaran atas sebuah Invoice. Immutable. Koreksi via VOID.
+// Server update Invoice.paidAmount & Invoice.status setelah tiap Payment.
+// =============================================================================
+
+model Payment {
+  id          String        @id @default(cuid())
+  code        String        @unique // e.g., "PAY-2024-001"
+
+  invoiceId   String
+
+  amount      Decimal       @db.Decimal(14, 2)
+  method      PaymentMethod @default(CASH)
+  reference   String?       // no. referensi transfer / QRIS
+  paidAt      DateTime      @default(now())
+
+  notes       String?
+  voidReason  String?
+  voidAt      DateTime?
+
+  createdById String
+  createdAt   DateTime      @default(now())
+
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  createdBy User    @relation(fields: [createdById], references: [id])
+
+  @@map("payments")
+}
+
+// =============================================================================
+// TABLE 14 · InventoryLedger  ★ PUSAT MUTASI STOK ★
+// Satu baris = satu event perubahan stok. Append-only. TIDAK PERNAH diedit.
+// Koreksi via VOID_REVERSAL (entri baru dengan nilai negatif/berlawanan).
+//
+// Aturan pengisian:
+//   • Entri kopi (GB/RB/FG) → productId diisi, packagingId null
+//   • Entri kemasan (PKG)   → packagingId diisi, productId null
+//   • quantityKg  → untuk GB dan RB (satuan kilogram)
+//   • quantityUnit → untuk FG dan Packaging (satuan unit/pcs)
+// =============================================================================
+
+model InventoryLedger {
+  id           String          @id @default(cuid())
+
+  productId    String?         // FK → Product (GB / RB / FG)
+  packagingId  String?         // FK → Packaging
+
+  entryType    LedgerEntryType // IN | OUT
+  refType      LedgerRefType   // jenis transaksi asal
+  refId        String          // ID transaksi asal (Purchase.id, RoastingBatch.id, dsb.)
+
+  quantityKg   Decimal?        @db.Decimal(10, 3) // diisi untuk GB & RB
+  quantityUnit Int?            // diisi untuk FG & Packaging
+
+  notes        String?
+
+  createdById  String
+  createdAt    DateTime        @default(now())
+
+  product   Product?   @relation(fields: [productId], references: [id])
+  packaging Packaging? @relation(fields: [packagingId], references: [id])
+  createdBy User       @relation(fields: [createdById], references: [id])
+
+  // Index untuk kalkulasi stok realtime per produk/packaging
+  @@index([productId, createdAt])
+  @@index([packagingId, createdAt])
+  // Index untuk audit trail per transaksi
+  @@index([refType, refId])
+
+  @@map("inventory_ledger")
+}
