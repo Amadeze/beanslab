@@ -35,16 +35,7 @@ logs/
 *.sqlite
 
 # Graphify cache (regenerable, changes frequently)
-graphify-out/cache/
-graphify-out/.graphify_*.json
-graphify-out/chunk_files_*.json
-graphify-out/.vocab.txt
-graphify-out/2026-*/
-graphify-out/graph.html
-graphify-out/graph.json
-graphify-out/GRAPH_REPORT.md
-graphify-out/manifest.json
-graphify-out/cost.json
+graphify-out/
 
 # Test artifacts
 test-results/
