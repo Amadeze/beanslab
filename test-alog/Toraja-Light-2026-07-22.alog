@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<roast>
+  <title>Toraja Light Roast</title>
+  <beans>Toraja Sapan - Washed</beans>
+  <notes>Light roast profile untuk test</notes>
+  <weight green="150" roasted="130" loss="13.3" />
+  <time charge="01:00" drop="10:30" total="09:30" />
+  <events>
+    <event name="CHARGE" time="01:00" tempBT="188.5" tempET="218.0" />
+    <event name="TP" time="02:45" tempBT="148.2" tempET="198.5" />
+    <event name="FCs" time="07:15" tempBT="192.5" tempET="210.2" />
+    <event name="FCe" time="07:50" tempBT="195.8" tempET="212.0" />
+    <event name="DROP" time="10:30" tempBT="202.0" tempET="215.5" />
+  </events>
+  <curve>
+    <point time="00:00" bt="21.8" et="21.5" />
+    <point time="00:10" bt="22.0" et="21.8" />
+    <point time="00:20" bt="22.5" et="22.2" />
+    <point time="00:30" bt="23.2" et="22.8" />
+    <point time="00:40" bt="24.5" et="23.5" />
+    <point time="00:50" bt="26.0" et="24.5" />
+    <point time="01:00" bt="188.5" et="218.0" />
+    <point time="01:10" bt="180.0" et="215.0" />
+    <point time="01:20" bt="173.5" et="212.0" />
+    <point time="01:30" bt="168.0" et="209.5" />
+    <point time="01:40" bt="163.5" et="207.5" />
+    <point time="01:50" bt="160.0" et="206.0" />
+    <point time="02:00" bt="157.0" et="204.5" />
+    <point time="02:10" bt="154.5" et="203.5" />
+    <point time="02:20" bt="152.5" et="202.5" />
+    <point time="02:30" bt="151.0" et="201.8" />
+    <point time="02:40" bt="150.0" et="201.2" />
+    <point time="02:45" bt="148.2" et="198.5" />
+    <point time="02:50" bt="149.0" et="199.0" />
+    <point time="03:00" bt="150.5" et="199.8" />
+    <point time="03:10" bt="152.5" et="200.5" />
+    <point time="03:20" bt="155.0" et="201.5" />
+    <point time="03:30" bt="157.5" et="202.5" />
+    <point time="03:40" bt="160.0" et="203.5" />
+    <point time="03:50" bt="162.5" et="204.5" />
+    <point time="04:00" bt="165.0" et="205.5" />
+    <point time="04:10" bt="167.5" et="206.5" />
+    <point time="04:20" bt="170.0" et="207.5" />
+    <point time="04:30" bt="172.5" et="208.5" />
+    <point time="04:40" bt="175.0" et="209.5" />
+    <point time="04:50" bt="177.5" et="210.5" />
+    <point time="05:00" bt="180.0" et="211.5" />
+    <point time="05:10" bt="182.0" et="212.0" />
+    <point time="05:20" bt="184.0" et="212.5" />
+    <point time="05:30" bt="186.0" et="213.0" />
+    <point time="05:40" bt="188.0" et="213.5" />
+    <point time="05:50" bt="189.5" et="214.0" />
+    <point time="06:00" bt="191.0" et="214.5" />
+    <point time="06:10" bt="192.0" et="215.0" />
+    <point time="06:20" bt="193.0" et="215.5" />
+    <point time="06:30" bt="193.5" et="216.0" />
+    <point time="06:40" bt="194.0" et="216.5" />
+    <point time="06:50" bt="194.5" et="217.0" />
+    <point time="07:00" bt="195.0" et="217.5" />
+    <point time="07:10" bt="195.5" et="218.0" />
+    <point time="07:15" bt="192.5" et="210.2" />
+    <point time="07:20" bt="193.0" et="210.5" />
+    <point time="07:30" bt="194.0" et="211.0" />
+    <point time="07:40" bt="195.0" et="211.5" />
+    <point time="07:50" bt="195.8" et="212.0" />
+    <point time="08:00" bt="196.5" et="212.5" />
+    <point time="08:10" bt="197.2" et="213.0" />
+    <point time="08:20" bt="198.0" et="213.5" />
+    <point time="08:30" bt="198.5" et="214.0" />
+    <point time="08:40" bt="199.0" et="214.5" />
+    <point time="08:50" bt="199.5" et="215.0" />
+    <point time="09:00" bt="200.0" et="215.5" />
+    <point time="09:10" bt="200.5" et="216.0" />
+    <point time="09:20" bt="201.0" et="216.5" />
+    <point time="09:30" bt="201.5" et="217.0" />
+    <point time="09:40" bt="202.0" et="217.5" />
+    <point time="09:50" bt="202.0" et="217.5" />
+    <point time="10:00" bt="202.0" et="217.5" />
+    <point time="10:10" bt="202.0" et="217.5" />
+    <point time="10:20" bt="202.0" et="217.5" />
+    <point time="10:30" bt="202.0" et="215.5" />
+  </curve>
+  <metadata>
+    <roaster>Ikawa Pro</roaster>
+    <profile>Light</profile>
+    <ambientTemp>24.0</ambientTemp>
+    <ambientHumidity>60</ambientHumidity>
+    <softwareVersion>Artisan v2.8.0</softwareVersion>
+  </metadata>
+</roast>

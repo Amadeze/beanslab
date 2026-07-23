@@ -1,0 +1,67 @@
+{
+  "name": "artisan-sync",
+  "version": "1.0.0",
+  "description": "Artisan Coffee Roaster desktop sync for Roastery OS",
+  "main": "dist/main/index.js",
+  "author": "Roastery OS",
+  "license": "MIT",
+  "scripts": {
+    "dev": "tsc && xcopy src\\renderer\\index.html dist\\renderer\\ /Y && electron dist/main/index.js",
+    "build": "tsc && xcopy src\\renderer\\index.html dist\\renderer\\ /Y",
+    "start": "electron dist/main/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "npm run build && electron-builder --win",
+    "package:dir": "npm run build && electron-builder --win --dir",
+    "package:portable": "npm run build && electron-builder --win portable"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.10"
+  },
+  "build": {
+    "appId": "com.roasteryos.artisan-sync",
+    "productName": "Artisan Sync",
+    "copyright": "Copyright © 2026 Roastery OS",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "ArtisanSync-${version}-Setup.${ext}",
+      "signAndEditExecutable": false,
+      "sign": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Artisan Sync",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "publish": null
+  }
+}
