@@ -61,7 +61,12 @@ nul
 # PowerShell scripts (utility)
 *.ps1
 
-# Subagent configs (tool-specific)
+# Tool configs (agent/tool specific)
+.agents/
+.kilo/
+.mimocode/
+
+# Subagent configs
 subagents_args*.json
 system_prompt.txt
 
