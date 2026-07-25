@@ -195,7 +195,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                         size="sm"
                         onClick={() => handleApprove(inv)}
                         disabled={isApproving === inv.id}
-                        className="h-7 rounded-lg border border-amber-200 bg-amber-100 px-2.5 text-[11px] font-bold uppercase tracking-wide text-amber-800 shadow-sm hover:bg-amber-200"
+                        className="h-7 border border-domain-sales/25 bg-domain-sales/8 px-2.5 text-[11px] font-bold uppercase tracking-wide text-domain-sales shadow-sm hover:bg-domain-sales/15"
                       >
                         {isApproving === inv.id ? "Memproses..." : "Approve"}
                       </Button>
@@ -204,7 +204,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                       <Button
                         size="sm"
                         onClick={() => setPayTarget(inv)}
-                        className="h-7 gap-1 px-2.5 text-[11px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200 rounded-lg shadow-sm"
+                        className="h-7 gap-1 border border-domain-finance/25 bg-domain-finance/8 px-2.5 text-[11px] font-bold uppercase tracking-wide text-domain-finance shadow-sm hover:bg-domain-finance/15"
                       >
                         <Banknote size={12} />
                         Bayar
@@ -214,7 +214,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                       <Button
                         size="sm"
                         onClick={() => setResiTarget(inv)}
-                        className="h-7 gap-1 px-2.5 text-[11px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200 rounded-lg shadow-sm"
+                        className="h-7 gap-1 border border-domain-production/25 bg-domain-production/8 px-2.5 text-[11px] font-bold uppercase tracking-wide text-domain-production shadow-sm hover:bg-domain-production/15"
                       >
                         <Truck size={12} />
                         Resi
@@ -284,16 +284,16 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                     size="sm"
                     onClick={() => handleApprove(inv)}
                     disabled={isApproving === inv.id}
-                    className="h-7 rounded-lg border border-amber-200 bg-amber-100 px-2.5 text-[11px] font-bold uppercase tracking-wide text-amber-800 shadow-sm hover:bg-amber-200"
+                    className="h-7 border border-domain-sales/25 bg-domain-sales/8 px-2.5 text-[11px] font-bold uppercase tracking-wide text-domain-sales shadow-sm hover:bg-domain-sales/15"
                   >
                     {isApproving === inv.id ? "Memproses..." : "Approve"}
                   </Button>
                 )}
                 {(inv.status === "ISSUED" || inv.status === "PARTIAL") && (
-                  <Button size="sm" onClick={() => setPayTarget(inv)} className="h-7 px-2 bg-emerald-100 text-emerald-700">Bayar</Button>
+                  <Button size="sm" onClick={() => setPayTarget(inv)} className="h-7 bg-domain-finance px-2 text-white hover:bg-domain-finance/90">Bayar</Button>
                 )}
                 {(inv.shippingMethod && inv.shippingMethod !== "PICKUP") && (
-                  <Button size="sm" onClick={() => setResiTarget(inv)} className="h-7 px-2 bg-amber-100 text-amber-700">Resi</Button>
+                  <Button size="sm" onClick={() => setResiTarget(inv)} className="h-7 bg-domain-production/10 px-2 text-domain-production hover:bg-domain-production/15">Resi</Button>
                 )}
                 <button onClick={() => triggerSilentPrint(`/nota/${inv.id}?print=true`)} className="inline-flex items-center justify-center h-7 px-2.5 rounded-lg border border-slate-300 text-[11px] font-bold uppercase text-slate-600 hover:bg-slate-900 hover:text-white bg-white/40 shadow-sm">
                   Print

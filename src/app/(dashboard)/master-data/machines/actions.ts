@@ -49,6 +49,7 @@ export async function createMachine(data: unknown): Promise<MachineActionResult>
     });
 
     revalidatePath("/master-data/machines");
+    revalidatePath("/settings/machines");
     return { success: true };
   } catch (err) {
     console.error("[createMachine]", err);
@@ -96,6 +97,7 @@ export async function updateMachine(
     });
 
     revalidatePath("/master-data/machines");
+    revalidatePath("/settings/machines");
     return { success: true };
   } catch (err) {
     console.error("[updateMachine]", err);
@@ -127,6 +129,7 @@ export async function toggleMachineActive(
     });
 
     revalidatePath("/master-data/machines");
+    revalidatePath("/settings/machines");
     return { success: true };
   } catch (err) {
     console.error("[toggleMachineActive]", err);

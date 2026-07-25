@@ -1,11 +1,9 @@
 import { AppShell } from "@/components/layout/AppShell";
 import { getTenantAccessRecord, requireCurrentUser } from "@/lib/auth";
 import { AppToastProvider } from "@/components/AppToastProvider";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-/**
- * Layout untuk semua halaman yang memerlukan sidebar (route group dashboard).
- * Halaman login/auth berada di luar route group ini dan tidak mendapat sidebar.
- */
 export default async function DashboardLayout({
   children,
 }: {
@@ -13,6 +11,17 @@ export default async function DashboardLayout({
 }) {
   const user = await requireCurrentUser();
   const tenant = await getTenantAccessRecord(user.tenantId);
+
+  if (!tenant?.setupCompletedAt) {
+    const headerList = await headers();
+    const pathname = headerList.get("x-pathname") || "/dashboard";
+    if (
+      !pathname.startsWith("/onboarding") &&
+      !pathname.startsWith("/settings")
+    ) {
+      redirect("/onboarding");
+    }
+  }
 
   return (
     <AppToastProvider>

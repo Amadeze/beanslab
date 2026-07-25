@@ -1,0 +1,148 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+import {
+  Boxes,
+  ClipboardList,
+  Factory,
+  Flame,
+  History,
+  ReceiptText,
+  ShoppingCart,
+  Truck,
+  Users,
+  Waves,
+} from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
+type WorkspaceKind = "supply" | "roastery" | "sales";
+
+const WORKSPACES = {
+  supply: [
+    {
+      label: "Posisi stok",
+      href: "/inventory",
+      query: "view=stock",
+      icon: Boxes,
+    },
+    {
+      label: "Pembelian",
+      href: "/inventory",
+      query: "view=po",
+      icon: ClipboardList,
+    },
+    {
+      label: "Penerimaan",
+      href: "/inventory",
+      query: "view=receiving",
+      icon: Truck,
+    },
+    {
+      label: "Mutasi",
+      href: "/inventory",
+      query: "view=mutations",
+      icon: History,
+    },
+    { label: "Supplier", href: "/inventory/suppliers", icon: Users },
+  ],
+  roastery: [
+    { label: "Batch roasting", href: "/roasting", icon: Flame },
+    {
+      label: "Profil & log",
+      href: "/roasting",
+      query: "tab=profiles",
+      icon: Waves,
+    },
+    { label: "Produksi & packing", href: "/produksi", icon: Factory },
+  ],
+  sales: [
+    { label: "Invoice & pesanan", href: "/penjualan", icon: ReceiptText },
+    { label: "Kasir", href: "/kasir", icon: ShoppingCart },
+    { label: "Pelanggan", href: "/penjualan/pelanggan", icon: Users },
+  ],
+} as const;
+
+export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const workspaceTone = {
+    supply: {
+      active: "border-[#2B7567] bg-[#2B7567] text-white",
+      icon: "border-white/10 bg-white/10 text-white",
+      idleIcon: "text-[#87CDBC]",
+    },
+    roastery: {
+      active: "border-[#B65331] bg-[#B65331] text-white",
+      icon: "border-white/10 bg-white/10 text-white",
+      idleIcon: "text-[#E9A17F]",
+    },
+    sales: {
+      active: "border-[#6F4A6A] bg-[#6F4A6A] text-white",
+      icon: "border-white/10 bg-white/10 text-white",
+      idleIcon: "text-[#C7A8C4]",
+    },
+  }[kind];
+
+  return (
+    <nav
+      className="overflow-x-auto border-b border-white/10 bg-[#05090D]"
+      aria-label={`Navigasi workspace ${kind}`}
+    >
+      <div className="mx-auto flex w-max min-w-full max-w-[1600px] gap-1 px-4 py-2 md:px-6 lg:px-8">
+        {WORKSPACES[kind].map((item) => {
+          const Icon = item.icon;
+          const expectedQuery = "query" in item ? item.query : undefined;
+          const currentView = searchParams.get("view");
+          const currentTab = searchParams.get("tab");
+          const active =
+            pathname === item.href &&
+            (expectedQuery === "view=stock"
+              ? !currentView || currentView === "stock"
+              : expectedQuery === "view=po"
+                ? currentView === "po"
+                : expectedQuery === "view=receiving"
+                  ? currentView === "receiving"
+                  : expectedQuery === "view=mutations"
+                    ? currentView === "mutations"
+                    : expectedQuery === "tab=profiles"
+                      ? currentTab === "profiles"
+                      : !currentTab);
+          const href = expectedQuery
+            ? `${item.href}?${expectedQuery}`
+            : item.href;
+
+          return (
+            <Link
+              key={`${item.href}-${expectedQuery ?? "root"}`}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "inline-flex min-h-9 shrink-0 items-center gap-2 rounded-[8px] border px-2.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C8DF]",
+                active
+                  ? workspaceTone.active
+                  : "border-transparent text-white/46 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-[6px] border",
+                  active
+                    ? workspaceTone.icon
+                    : cn(
+                        "border-white/10 bg-white/[0.04]",
+                        workspaceTone.idleIcon,
+                      ),
+                )}
+              >
+                <Icon size={12} strokeWidth={2} />
+              </span>
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

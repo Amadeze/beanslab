@@ -26,7 +26,7 @@ export async function loginAction(email: string, password: string): Promise<Logi
     await enforceRateLimit({
       scope: "login",
       identifier: `${requestIdentifier(requestHeaders)}:${email.toLowerCase().trim()}`,
-      limit: 10,
+      limit: 5,
       windowSeconds: 15 * 60,
     });
 
@@ -49,6 +49,9 @@ export async function loginAction(email: string, password: string): Promise<Logi
     }
 
     // Compare password using bcrypt
+    if (!user.password) {
+      return { success: false, error: "Email atau password salah." };
+    }
     const valid = await bcrypt.compare(password, user.password);
 
     if (!valid) {

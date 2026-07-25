@@ -1,21 +1,14 @@
-import { StandardPageLayout } from "@/components/StandardPageLayout";
-import { Button } from "@/components/ui/button";
-import { Factory } from "lucide-react";
+import { PageHeaderSkeleton } from "@/components/layout/PageHeader";
 
 export default function ProduksiLoading() {
   return (
-    <StandardPageLayout
-      title="Produksi"
-      description="Memuat data..."
-      isLoading
-      actionButton={
-        <Button size="sm" disabled className="gap-1.5 bg-zinc-900 text-white opacity-50">
-          <Factory size={14} />
-          Batch Baru
-        </Button>
-      }
-    >
-      <></>
-    </StandardPageLayout>
+    <div className="flex min-h-0 flex-1 flex-col" aria-busy="true" aria-label="Memuat produksi">
+      <PageHeaderSkeleton stage />
+      <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+        <div className="mx-auto max-w-[1600px] space-y-4">
+          <div className="h-64 animate-pulse rounded-[1.25rem] bg-[var(--glass-bg)]" />
+        </div>
+      </div>
+    </div>
   );
 }

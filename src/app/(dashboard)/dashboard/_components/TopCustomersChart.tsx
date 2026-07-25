@@ -13,46 +13,45 @@ import {
 import type { TopCustomer } from "../actions";
 import { formatRupiah } from "@/lib/format";
 
+const COLORS = ["#6F4A6A", "#B65331", "#2B7567", "#A66F12", "#4B6B3C"];
+
 export function TopCustomersChart({ data }: { data: TopCustomer[] }) {
   if (data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[320px] rounded-[1.5rem] md:rounded-3xl border border-white/60 bg-white/40 shadow-lg shadow-slate-200/30 backdrop-blur-xl p-5 text-center">
-        <p className="text-sm font-semibold text-slate-500 mt-2">Belum ada data pelanggan</p>
+      <div className="flex flex-col items-center justify-center h-[320px] glass-card-static p-5 text-center">
+        <p className="text-sm font-semibold text-[var(--text-secondary)] mt-2">Belum ada data pelanggan</p>
       </div>
     );
   }
 
-  // Warm, premium color palette for customers
-  const colors = ["#f59e0b", "#f97316", "#ef4444", "#ec4899", "#d946ef"];
-
   return (
-    <div className="flex flex-col h-[320px] rounded-[1.5rem] md:rounded-3xl border border-white/60 bg-white/40 shadow-lg shadow-slate-200/30 backdrop-blur-xl p-5">
+    <div className="flex flex-col h-[320px] glass-card-static p-5">
       <div className="mb-4">
-        <h2 className="text-sm font-bold text-slate-800 tracking-tight">Top Pelanggan</h2>
-        <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+        <h2 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">Top Pelanggan</h2>
+        <p className="mt-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
           5 Pelanggan dengan Belanja Terbanyak
         </p>
       </div>
       <div className="flex-1 min-h-0 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.4)" />
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--glass-border)" />
             <XAxis type="number" hide />
-            <YAxis 
-              dataKey="name" 
-              type="category" 
-              axisLine={false} 
+            <YAxis
+              dataKey="name"
+              type="category"
+              axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 10, fill: '#475569', fontWeight: 600 }}
+              tick={{ fontSize: 10, fill: "var(--text-tertiary)", fontWeight: 600 }}
               width={100}
             />
             <Tooltip
-              cursor={{ fill: "rgba(255,255,255,0.4)" }}
+              cursor={{ fill: "var(--glass-bg)" }}
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="rounded-xl border border-white/60 bg-white/70 backdrop-blur-xl p-3 shadow-lg">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    <div className="rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg-hover)] p-3 shadow-[var(--glass-shadow-lg)]">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">
                         {payload[0].payload.name}
                       </p>
                       <p className="text-sm font-black text-amber-600">
@@ -66,7 +65,7 @@ export function TopCustomersChart({ data }: { data: TopCustomer[] }) {
             />
             <Bar dataKey="totalSpent" radius={[0, 4, 4, 0]} animationDuration={1000} barSize={24}>
               {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Bar>
           </BarChart>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createTenant } from "../actions";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
-import { Plus, X, Server, User as UserIcon, Link2 } from "lucide-react";
+import { Plus, X, Server, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function TenantForm() {
@@ -46,7 +46,7 @@ export function TenantForm() {
     return (
       <Button 
         onClick={() => setIsOpen(true)} 
-        className="bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold px-6 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-amber-500/20"
+        className="flex min-h-11 items-center gap-2 px-5 font-bold"
       >
         <Plus size={18} /> New Outlet
       </Button>
@@ -54,83 +54,83 @@ export function TenantForm() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Server size={20} className="text-amber-500" /> Register New Outlet
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#080B0C]/75 p-4 backdrop-blur-sm">
+      <div className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto border border-border bg-card shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border p-5 sm:p-6">
+          <h2 className="flex items-center gap-2 text-xl font-black">
+            <Server size={20} className="text-domain-roasting" /> Register new roastery
           </h2>
-          <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white">
+          <button onClick={() => setIsOpen(false)} aria-label="Tutup" className="flex size-11 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground">
             <X size={20} />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 border-b border-slate-800 pb-2">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6 p-5 sm:p-6">
+          <div className="flex flex-col gap-4">
+            <h3 className="flex items-center gap-2 border-b border-border pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
               <Server size={14} /> Outlet Details
             </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Outlet Code</label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold">Outlet code</label>
                 <input 
                   type="text" required value={code} onChange={e => setCode(e.target.value)}
                   placeholder="e.g. NAL-001"
-                  className="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500 text-white placeholder:text-slate-600 outline-none"
+                  className="h-11 w-full border border-input bg-white px-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Outlet Name</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold">Outlet name</label>
                 <input 
                   type="text" required value={name} onChange={e => setName(e.target.value)}
-                  placeholder="Beanslab Roastery"
-                  className="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500 text-white placeholder:text-slate-600 outline-none"
+                  placeholder="Kopi Timur Roastery"
+                  className="h-11 w-full border border-input bg-white px-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Subdomain</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold">Subdomain</label>
               <div className="flex">
                 <input 
                   type="text" required value={subdomain} onChange={e => setSubdomain(e.target.value)}
-                  placeholder="beanslab"
-                  className="w-full h-10 px-3 bg-slate-950 border border-slate-800 border-r-0 rounded-l-xl text-sm focus:border-amber-500 text-white placeholder:text-slate-600 outline-none"
+                  placeholder="kopitimur"
+                  className="h-11 w-full min-w-0 border border-input border-r-0 bg-white px-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
                 />
-                <div className="h-10 px-4 bg-slate-900 border border-slate-800 rounded-r-xl flex items-center text-sm text-slate-500 font-medium">
+                <div className="flex h-11 items-center border border-input bg-muted px-3 text-xs font-medium text-muted-foreground sm:px-4 sm:text-sm">
                   .localhost:3000
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 border-b border-slate-800 pb-2 mt-2">
+          <div className="flex flex-col gap-4">
+            <h3 className="mt-2 flex items-center gap-2 border-b border-border pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
               <UserIcon size={14} /> Owner Details
             </h3>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Admin Name</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold">Admin name</label>
               <input 
                 type="text" required value={adminName} onChange={e => setAdminName(e.target.value)}
                 placeholder="Budi Santoso"
-                className="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500 text-white placeholder:text-slate-600 outline-none"
+                className="h-11 w-full border border-input bg-white px-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
               />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Admin Email</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold">Admin email</label>
               <input 
                 type="email" required value={adminEmail} onChange={e => setAdminEmail(e.target.value)}
-                placeholder="budi@beanslab.com"
-                className="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500 text-white placeholder:text-slate-600 outline-none"
+                placeholder="owner@kopitimur.id"
+                className="h-11 w-full border border-input bg-white px-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
               />
             </div>
-            <p className="text-xs text-amber-500 bg-amber-500/10 p-3 rounded-lg border border-amber-500/20 font-medium">
+            <p className="border border-domain-production/20 bg-domain-production/8 p-3 text-xs font-medium text-domain-production">
               Owner akan menerima tautan aman untuk membuat password pertama. Tautan berlaku selama 24 jam.
             </p>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
-            <Button type="button" onClick={() => setIsOpen(false)} variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800">Cancel</Button>
-            <Button type="submit" disabled={loading} className="bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold px-6">
+          <div className="flex justify-end gap-3 border-t border-border pt-4">
+            <Button type="button" onClick={() => setIsOpen(false)} variant="ghost">Batal</Button>
+            <Button type="submit" disabled={loading} className="px-6 font-bold">
               {loading ? "Creating..." : "Create Outlet"}
             </Button>
           </div>

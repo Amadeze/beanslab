@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { TenantPortalClient } from "./_components/TenantPortalClient";
 import { getTenantAccessState } from "@/lib/subscription";
 import { planHasFeature } from "@/lib/plans";
+import { resolveTenantPortalTheme } from "@/features/portal-theme/resolver";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ interface TenantPageProps {
   params: Promise<{
     subdomain: string;
   }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({ params }: TenantPageProps): Promise<Metadata> {
@@ -32,13 +34,16 @@ export async function generateMetadata({ params }: TenantPageProps): Promise<Met
   };
 }
 
-export default async function TenantB2BPortal({ params }: TenantPageProps) {
+export default async function TenantB2BPortal({ params, searchParams }: TenantPageProps) {
   const resolvedParams = await params;
   const subdomain = resolvedParams.subdomain;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const isPreviewMode = resolvedSearchParams?.preview === "1" || resolvedSearchParams?.preview === "true";
   
   const tenant = await prisma.tenant.findUnique({
     where: { subdomain },
     select: {
+      id: true,
       name: true,
       subdomain: true,
       themeColor: true,
@@ -111,6 +116,29 @@ export default async function TenantB2BPortal({ params }: TenantPageProps) {
 
   // Next.js App Router Server -> Client serialization doesn't support Prisma Decimal
   // Only storefront fields are serialized; internal costs and credentials stay server-side.
+
+  // Fetch PortalTheme for block-based customizer (graceful fallback if table not yet migrated)
+  let portalTheme: { draftConfig: unknown; publishedConfig: unknown; publishedAt: Date | null } | null = null;
+  try {
+    portalTheme = await prisma.portalTheme.findUnique({
+      where: { tenantId: tenant.id },
+      select: {
+        draftConfig: true,
+        publishedConfig: true,
+        publishedAt: true,
+      },
+    });
+  } catch {
+    // portal_themes table not yet migrated — fall back to legacy rendering
+  }
+
+  // Resolve the active theme config (draft for preview, published for public view)
+  const resolvedThemeConfig = resolveTenantPortalTheme({
+    portalTheme,
+    legacyTenantFields: tenant as Record<string, unknown>,
+    mode: isPreviewMode ? "customizer" : "public",
+  });
+
   const serializedTenant = {
     name: tenant.name,
     subdomain: tenant.subdomain,
@@ -140,6 +168,7 @@ export default async function TenantB2BPortal({ params }: TenantPageProps) {
     animationDirection: tenant.animationDirection,
     iconStyle: tenant.iconStyle,
     themeConfig: tenant.themeConfig,
+    portalThemeConfig: resolvedThemeConfig,
     products: tenant.products.map(product => ({
       ...product,
       price: product.price ? Number(product.price) : null,
@@ -150,7 +179,11 @@ export default async function TenantB2BPortal({ params }: TenantPageProps) {
     }))
   };
 
-  // Type cast back to any or specific shape since Client component expects Decimal type structurally 
+  // Type cast back to any or specific shape since Client component expects Decimal type structurally
   // (Prisma types on client actually accept numbers for Decimals usually, or we can just cast to any)
-  return <TenantPortalClient tenant={serializedTenant as any} />;
+  return (
+    <TenantPortalClient
+      tenant={serializedTenant as any}
+    />
+  );
 }

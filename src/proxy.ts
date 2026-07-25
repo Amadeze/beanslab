@@ -10,9 +10,11 @@ const PUBLIC_ROUTES = [
   "/api/cron",
   "/api/webhooks",
   "/api/integrations",
+  "/api/auth",
 ];
 
 function isPublicRoute(pathname: string): boolean {
+  if (pathname === "/") return true;
   if (pathname.startsWith("/tenant/")) return true;
   if (pathname.startsWith("/api/tenant/")) return true;
   for (const route of PUBLIC_ROUTES) {
@@ -34,7 +36,7 @@ export function proxy(request: NextRequest) {
 
   if (!sessionCookie) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
+    loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
   }
 

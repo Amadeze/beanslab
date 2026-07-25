@@ -15,106 +15,144 @@ interface SuperadminData {
   recentTenants: any[];
 }
 
-function KpiCard({ label, value, sub, icon, isAmber = false }: { label: string, value: string, sub: string, icon: React.ReactNode, isAmber?: boolean }) {
+const tones = {
+  copper: {
+    shell: "border-domain-roasting/25 bg-domain-roasting/7",
+    icon: "border-domain-roasting/20 bg-domain-roasting/10 text-domain-roasting",
+    value: "text-domain-roasting",
+  },
+  verdigris: {
+    shell: "border-domain-inventory/25 bg-domain-inventory/7",
+    icon: "border-domain-inventory/20 bg-domain-inventory/10 text-domain-inventory",
+    value: "text-domain-inventory",
+  },
+  plum: {
+    shell: "border-domain-sales/25 bg-domain-sales/7",
+    icon: "border-domain-sales/20 bg-domain-sales/10 text-domain-sales",
+    value: "text-domain-sales",
+  },
+  brass: {
+    shell: "border-domain-production/25 bg-domain-production/7",
+    icon: "border-domain-production/20 bg-domain-production/10 text-domain-production",
+    value: "text-domain-production",
+  },
+};
+
+function KpiCard({
+  label,
+  value,
+  sub,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  icon: React.ReactNode;
+  tone: keyof typeof tones;
+}) {
+  const style = tones[tone];
   return (
     <motion.div 
-      variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } }} 
-      className={`relative overflow-hidden flex flex-col gap-4 rounded-3xl border ${isAmber ? 'border-primary-container/40 bg-primary-container/10' : 'border-white/5 bg-surface/40'} p-6 shadow-xl backdrop-blur-2xl transition-all hover:bg-white/5 hover:shadow-2xl`}
+      variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } }} 
+      className={`relative flex min-h-44 flex-col justify-between overflow-hidden border p-5 ${style.shell}`}
     >
-      <div className="flex items-start justify-between relative z-10">
-        <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest leading-none">
+      <div className="relative z-10 flex items-start justify-between">
+        <p className="max-w-40 text-[10px] font-bold uppercase leading-relaxed tracking-[0.18em] text-muted-foreground">
           {label}
         </p>
-        <span className={`flex h-10 w-10 items-center justify-center rounded-xl shadow-inner border ${isAmber ? 'border-primary-container/50 bg-primary-container/20 text-primary-container' : 'border-white/10 bg-white/5 text-white'}`}>
+        <span className={`flex size-10 items-center justify-center border ${style.icon}`}>
           {icon}
         </span>
       </div>
       <div className="relative z-10">
-        <p className={`font-headline-md text-3xl font-bold tabular-nums leading-none ${isAmber ? 'text-primary-container' : 'text-white'}`}>
+        <p className={`text-3xl font-black tabular-nums leading-none tracking-[-0.04em] ${style.value}`}>
           {value}
         </p>
-        <div className="mt-2 text-xs font-medium text-on-surface-variant/70">{sub}</div>
+        <div className="mt-2 text-xs leading-relaxed text-muted-foreground">{sub}</div>
       </div>
-      
-      {/* Decorative Glow */}
-      {isAmber && (
-        <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-primary-container/20 rounded-full blur-3xl pointer-events-none" />
-      )}
     </motion.div>
   );
 }
 
 export function SuperadminShell({ data }: { data: SuperadminData }) {
   return (
-    <div className="flex h-full flex-col overflow-hidden text-on-background">
-      {/* Header */}
-      <header className="flex h-20 shrink-0 items-center justify-between border-b border-white/5 bg-surface/30 px-8 backdrop-blur-2xl">
-        <div>
-          <h1 className="font-headline-md text-2xl font-bold tracking-tight text-white">System Overview</h1>
-          <p className="mt-1 text-xs font-medium text-on-surface-variant">Manage your SaaS platform metrics and growth.</p>
+    <div className="flex min-h-full flex-col text-foreground">
+      <header className="border-b border-border bg-card px-5 py-7 md:px-8">
+        <div className="mx-auto flex max-w-7xl items-end justify-between gap-4">
+          <div>
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.24em] text-primary">Platform intelligence</p>
+            <h1 className="text-3xl font-black tracking-[-0.045em] md:text-4xl">System overview</h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Kesehatan jaringan roastery, pendapatan platform, dan pertumbuhan tenant dalam satu meja kontrol.</p>
+          </div>
+          <span className="hidden items-center gap-2 border border-[#15B8C6]/20 bg-[#15B8C6]/8 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#00668E] sm:flex">
+            <span className="size-1.5 rounded-full bg-[#15B8C6]" />
+            Live telemetry
+          </span>
         </div>
       </header>
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-8 space-y-8">
-        
-        {/* KPI Cards */}
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-7 p-5 md:p-8">
         <motion.div 
           initial="hidden" 
           animate="show" 
           variants={{ show: { transition: { staggerChildren: 0.1 } } }} 
-          className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6"
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
         >
           <KpiCard
-            label="Est. Monthly Revenue (MRR)"
+            label="Monthly recurring revenue"
             value={`$${data.mrr.toLocaleString()}`}
-            sub="Based on active subscriptions"
+            sub="Estimasi dari subscription aktif"
             icon={<DollarSign size={20} />}
-            isAmber={true}
+            tone="copper"
           />
           <KpiCard
-            label="Total Platform GMV"
+            label="Gross merchandise value"
             value={`Rp ${(data.totalGmv / 1000000).toFixed(1)}M`}
-            sub="Gross merchandise value across all tenants"
+            sub="Akumulasi transaksi seluruh tenant"
             icon={<TrendingUp size={20} />}
+            tone="plum"
           />
           <KpiCard
-            label="Active Tenants"
+            label="Active roasteries"
             value={`${data.activeTenants} / ${data.totalTenants}`}
-            sub="Merchants currently active"
+            sub="Tenant yang sedang beroperasi"
             icon={<ShieldCheck size={20} />}
+            tone="verdigris"
           />
           <KpiCard
-            label="New Signups"
+            label="New this month"
             value={`+${data.newTenantsThisMonth}`}
-            sub="New merchants this month"
+            sub="Roastery baru dalam bulan berjalan"
             icon={<Users size={20} />}
+            tone="brass"
           />
         </motion.div>
 
-        {/* Charts & Lists */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <div className="h-full rounded-3xl border border-white/5 bg-surface/40 p-6 backdrop-blur-2xl shadow-xl flex flex-col">
+            <div className="flex h-full flex-col border border-border bg-card p-5 md:p-6">
               <div className="mb-6">
-                <h3 className="font-headline-md text-lg font-bold text-white flex items-center gap-2">
-                  <Activity size={18} className="text-primary-container" /> Tenant Growth
+                <p className="mb-2 text-[9px] font-black uppercase tracking-[0.22em] text-domain-inventory">Network signal</p>
+                <h3 className="flex items-center gap-2 text-lg font-black text-foreground">
+                  <Activity size={18} className="text-domain-inventory" /> Pertumbuhan tenant
                 </h3>
-                <p className="text-xs text-on-surface-variant mt-1">Number of registered roasteries over the last 6 months.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Jumlah roastery terdaftar dalam enam bulan terakhir.</p>
               </div>
-              <div className="flex-1 min-h-[300px]">
+              <div className="min-h-72 flex-1">
                 <TenantGrowthChart data={data.growthData} />
               </div>
             </div>
           </div>
           
           <div className="lg:col-span-1">
-            <div className="h-full rounded-3xl border border-white/5 bg-surface/40 p-6 backdrop-blur-2xl shadow-xl flex flex-col">
+            <div className="flex h-full flex-col border border-border bg-card p-5 md:p-6">
               <div className="mb-6">
-                <h3 className="font-headline-md text-lg font-bold text-white flex items-center gap-2">
-                  <Building2 size={18} className="text-primary-container" /> Recent Signups
+                <p className="mb-2 text-[9px] font-black uppercase tracking-[0.22em] text-domain-roasting">Latest intake</p>
+                <h3 className="flex items-center gap-2 text-lg font-black text-foreground">
+                  <Building2 size={18} className="text-domain-roasting" /> Roastery terbaru
                 </h3>
-                <p className="text-xs text-on-surface-variant mt-1">Latest outlets to join the platform.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Tenant terakhir yang masuk ke jaringan.</p>
               </div>
               <div className="flex-1">
                 <RecentTenants tenants={data.recentTenants} />
@@ -122,7 +160,6 @@ export function SuperadminShell({ data }: { data: SuperadminData }) {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

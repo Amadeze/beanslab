@@ -258,7 +258,7 @@ export function TerimaPaymentDialog({
                         className={[
                           "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
                           active
-                            ? "border-amber-700 bg-amber-700 text-white"
+                            ? "border-primary bg-primary text-primary-foreground"
                             : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50",
                         ].join(" ")}
                       >
@@ -336,7 +336,7 @@ export function TerimaPaymentDialog({
             form="payment-form"
             size="sm"
             disabled={isSubmitting}
-            className="gap-1.5 bg-amber-700 text-white hover:bg-amber-800 shadow-md font-bold rounded-xl disabled:opacity-60"
+            className="gap-1.5 rounded-[9px] bg-primary font-bold text-primary-foreground shadow-md hover:bg-primary/90 disabled:opacity-60"
           >
             {isSubmitting && <Loader2 size={13} className="animate-spin" />}
             {isSubmitting ? "Menyimpan..." : "Catat Pembayaran"}

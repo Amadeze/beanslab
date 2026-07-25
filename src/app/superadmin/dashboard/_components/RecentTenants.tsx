@@ -5,37 +5,37 @@ import { Coffee, ExternalLink } from "lucide-react";
 
 export function RecentTenants({ tenants }: { tenants: any[] }) {
   if (tenants.length === 0) {
-    return <p className="text-sm text-on-surface-variant">No tenants found.</p>;
+    return <p className="text-sm text-muted-foreground">Belum ada roastery.</p>;
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col">
       {tenants.map((tenant, idx) => (
         <motion.div 
           key={tenant.id}
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: idx * 0.1 }}
-          className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors"
+          className="flex items-center justify-between border-b border-border px-1 py-4 transition-colors last:border-b-0 hover:bg-muted/60"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-surface border border-white/10 flex items-center justify-center shrink-0">
-              <Coffee size={16} className="text-primary-container" />
+            <div className="flex size-10 shrink-0 items-center justify-center border border-domain-inventory/20 bg-domain-inventory/8">
+              <Coffee size={16} className="text-domain-inventory" />
             </div>
             <div>
-              <p className="font-bold text-white text-sm">{tenant.name}</p>
+              <p className="text-sm font-bold text-foreground">{tenant.name}</p>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-primary-container bg-primary-container/10 px-1.5 rounded-sm">
+                <span className="bg-domain-production/10 px-1.5 text-[10px] font-bold uppercase tracking-wider text-domain-production">
                   {tenant.tier}
                 </span>
-                <span className="text-xs text-on-surface-variant font-mono">{tenant.subdomain}</span>
+                <span className="font-mono text-xs text-muted-foreground">{tenant.subdomain}</span>
               </div>
             </div>
           </div>
           <a 
             href={`${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/tenant/${tenant.subdomain}`} 
             target="_blank" rel="noreferrer"
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 text-on-surface-variant hover:text-white transition-colors"
+            className="flex size-10 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
           >
             <ExternalLink size={14} />
           </a>

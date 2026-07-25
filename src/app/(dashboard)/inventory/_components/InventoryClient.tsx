@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Boxes, History, ClipboardList, Download, FileText, FileSpreadsheet, Loader2, MoreHorizontal, Package, Plus, Settings2, Truck, ArrowDownCircle, ArrowUpCircle, AlertTriangle, XCircle, Clock, CheckCircle2, Ban, CircleDot } from "lucide-react";
+import { motion } from "framer-motion";
+import { Boxes, History, ClipboardList, Download, FileText, FileSpreadsheet, Loader2, MoreHorizontal, Package, Plus, Settings2, Truck, ArrowDownCircle, ArrowUpCircle, AlertTriangle, XCircle, Clock, CheckCircle2, CircleDot } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StandardPageLayout } from "@/components/StandardPageLayout";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { StandardDrawer } from "@/components/StandardDrawer";
 import { StockTable } from "./StockTable";
 import { PurchaseForm } from "./PurchaseForm";
@@ -15,7 +16,10 @@ import { POList } from "./POList";
 import { PODetail } from "./PODetail";
 import { POForm } from "./POForm";
 import { ReceivingList } from "./ReceivingList";
-import { InventoryMetricCard } from "./InventoryMetricCard";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
+import { KpiRibbon, KpiCard } from "@/components/layout/KpiCards";
+import { OperatingHero } from "@/components/layout/OperatingHero";
 import { SupplierForm } from "../../master-data/_components/SupplierForm";
 import type {
   GBProductOption,
@@ -151,7 +155,7 @@ function ExportMenu({ onExportPDF, onExportExcel }: { onExportPDF: () => void; o
 
 // ── Actions dropdown ──
 
-function ActionsDropdown({ onStockOpname, onKemasanDatang }: { onStockOpname: () => void; onKemasanDatang: () => void }) {
+function ActionsDropdown({ onStockOpname }: { onStockOpname: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -165,18 +169,15 @@ function ActionsDropdown({ onStockOpname, onKemasanDatang }: { onStockOpname: ()
   }, [open]);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative z-50">
       <button onClick={() => setOpen((p) => !p)} className="flex h-8 items-center gap-1 rounded-lg border border-slate-200/60 bg-white/50 px-2.5 text-xs font-medium text-slate-600 hover:bg-white/70 transition-colors" aria-label="Aksi lainnya">
-        <MoreHorizontal size={14} />
-        <span className="hidden sm:inline">Aksi</span>
+        <Settings2 size={14} />
+        <span className="hidden sm:inline">Opname</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-slate-200 bg-white shadow-lg py-0.5">
-          <button onClick={() => { onStockOpname(); setOpen(false); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-            <Settings2 size={12} className="text-slate-400" /> Stock Opname
-          </button>
-          <button onClick={() => { onKemasanDatang(); setOpen(false); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-            <Package size={12} className="text-slate-400" /> Kemasan Datang
+        <div className="absolute right-0 top-full mt-1 w-44 rounded-xl border border-slate-200 bg-white shadow-xl py-1 overflow-hidden animate-in slide-in-from-top-1 fade-in">
+          <button onClick={() => { onStockOpname(); setOpen(false); }} className="flex w-full items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left">
+            <Settings2 size={14} className="text-slate-400" /> Stock Opname
           </button>
         </div>
       )}
@@ -184,16 +185,57 @@ function ActionsDropdown({ onStockOpname, onKemasanDatang }: { onStockOpname: ()
   );
 }
 
+// ── Barang Datang Popup ──
+
+function BarangDatangPopup({ onGBDatang, onKemasanDatang }: { onGBDatang: () => void; onKemasanDatang: () => void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <button onClick={() => setOpen(true)} className="flex h-9 items-center gap-1.5 rounded-[9px] bg-primary px-3 text-xs font-bold text-primary-foreground shadow-[0_8px_20px_-14px_rgba(91,32,17,.65)] transition-colors hover:bg-primary/90" aria-label="Barang Datang">
+        <Plus size={14} />
+        <span>Barang Datang</span>
+      </button>
+      <DialogContent className="sm:max-w-md border border-[var(--glass-border)] bg-white/95 shadow-2xl p-6 rounded-2xl">
+        <DialogHeader className="mb-4">
+          <DialogTitle className="text-xl font-bold text-slate-800">Barang apa yang datang?</DialogTitle>
+          <DialogDescription className="text-sm text-slate-500">Pilih jenis persediaan yang baru saja diterima.</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button 
+            onClick={() => { setOpen(false); onGBDatang(); }} 
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-slate-100 bg-white hover:border-amber-500 hover:bg-amber-50 hover:shadow-md transition-all group"
+          >
+            <div className="p-3 rounded-full bg-amber-100 text-amber-600 group-hover:scale-110 transition-transform">
+              <Boxes size={28} />
+            </div>
+            <div className="text-center">
+              <div className="font-bold text-slate-800">Green Bean (GB)</div>
+              <div className="text-xs text-slate-500 mt-1">Bahan baku mentah</div>
+            </div>
+          </button>
+          
+          <button 
+            onClick={() => { setOpen(false); onKemasanDatang(); }} 
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-slate-100 bg-white hover:border-orange-500 hover:bg-orange-50 hover:shadow-md transition-all group"
+          >
+            <div className="p-3 rounded-full bg-orange-100 text-orange-600 group-hover:scale-110 transition-transform">
+              <Package size={28} />
+            </div>
+            <div className="text-center">
+              <div className="font-bold text-slate-800">Kemasan Kosong</div>
+              <div className="text-xs text-slate-500 mt-1">Gelas, box, plastik, dll</div>
+            </div>
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Workspace tabs ──
 
 type WorkspaceTab = "stock" | "po" | "receiving" | "mutations";
-
-const WORKSPACE_TABS: Array<{ id: WorkspaceTab; label: string; icon: typeof Boxes }> = [
-  { id: "stock", label: "Stok", icon: Boxes },
-  { id: "po", label: "Purchase Order", icon: ClipboardList },
-  { id: "receiving", label: "Penerimaan", icon: Truck },
-  { id: "mutations", label: "Mutasi Stok", icon: History },
-];
 
 // ── Main component ──
 
@@ -240,15 +282,6 @@ export function InventoryClient({
   const activeView: WorkspaceTab =
     viewParam === "po" || viewParam === "receiving" || viewParam === "mutations" ? viewParam : "stock";
 
-  const setActiveView = useCallback((view: WorkspaceTab) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("view", view);
-    params.delete("metric");
-    params.delete("category");
-    params.delete("status");
-    router.push(`?${params.toString()}`, { scroll: false });
-  }, [router, searchParams]);
-
   const toggleMetric = useCallback((metric: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (params.get("metric") === metric) {
@@ -286,25 +319,33 @@ export function InventoryClient({
   }, [gbStocks, rbStocks, fgStocks, pkgStocks, productReorderSummaries, packagingReorderSummaries]);
 
   const poMetrics = useMemo(() => {
-    if (!poSummary) return { active: 0, waiting: 0, partial: 0, overdue: 0 };
+    if (!poSummary) return { active: 0, waiting: 0, partial: 0 };
     return {
       active: (poSummary.sent ?? 0) + (poSummary.partial ?? 0),
       waiting: poSummary.sent ?? 0,
       partial: poSummary.partial ?? 0,
-      overdue: 0, // will be computed from data if available
     };
   }, [poSummary]);
 
   const receivingMetrics = useMemo(() => {
     const sent = poSummary?.sent ?? 0;
     const partial = poSummary?.partial ?? 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const receivedToday = new Set(
+      ledgerEntries
+        .filter((entry) =>
+          entry.entryType === "IN" &&
+          entry.refType.startsWith("PURCHASE") &&
+          new Date(entry.createdAt) >= today,
+        )
+        .map((entry) => entry.refId),
+    ).size;
     return {
       waitingToReceive: sent + partial,
-      receivedToday: 0, // computed from ledger if needed
-      withDiscrepancy: 0, // not available yet
-      withoutPO: 0, // not available yet
+      receivedToday,
     };
-  }, [poSummary]);
+  }, [ledgerEntries, poSummary]);
 
   const mutationMetrics = useMemo(() => {
     const today = new Date();
@@ -322,10 +363,45 @@ export function InventoryClient({
     switch (activeView) {
       case "stock": return { label: "Barang Datang", icon: <Plus size={14} />, onClick: () => setGbDrawerOpen(true) };
       case "po": return { label: "Buat PO", icon: <Plus size={14} />, onClick: () => setPoDrawerOpen(true) };
-      case "receiving": return { label: "Catat Penerimaan", icon: <Truck size={14} />, onClick: () => setAdjDrawerOpen(true) };
+      case "receiving": return { label: "Catat Penerimaan", icon: <Truck size={14} />, onClick: () => setGbDrawerOpen(true) };
       case "mutations": return null;
     }
   }, [activeView]);
+
+  const heroContent = useMemo(() => {
+    switch (activeView) {
+      case "stock":
+        return {
+          headline: stockMetrics.outOfStockCount > 0
+            ? `${stockMetrics.outOfStockCount} item kosong sedang memutus aliran operasi.`
+            : "Persediaan siap menopang aliran operasi hari ini.",
+          description: "Prioritaskan item habis, lalu pastikan setiap penerimaan dan koreksi stok tercatat.",
+          signal: stockMetrics.outOfStockCount > 0 ? `${stockMetrics.outOfStockCount} habis` : "Terkendali",
+          critical: stockMetrics.outOfStockCount > 0,
+        };
+      case "po":
+        return {
+          headline: `${poMetrics.active} pesanan pembelian sedang menjaga pasokan berikutnya.`,
+          description: "Pantau komitmen supplier, jumlah datang, dan sisa penerimaan dalam satu alur.",
+          signal: poMetrics.active > 0 ? `${poMetrics.active} PO aktif` : "Belum ada PO",
+          critical: poMetrics.waiting > 0,
+        };
+      case "receiving":
+        return {
+          headline: `${receivingMetrics.waitingToReceive} kiriman menunggu menjadi stok nyata.`,
+          description: "Cocokkan jumlah fisik dengan pesanan sebelum kiriman masuk ke stok.",
+          signal: receivingMetrics.waitingToReceive > 0 ? "Perlu diterima" : "Tidak ada antrean",
+          critical: receivingMetrics.waitingToReceive > 0,
+        };
+      case "mutations":
+        return {
+          headline: `${mutationMetrics.total} pergerakan stok membentuk operasi hari ini.`,
+          description: "Telusuri stok masuk, keluar, dan koreksi beserta sumber transaksinya.",
+          signal: `${mutationMetrics.total} mutasi`,
+          critical: false,
+        };
+    }
+  }, [activeView, mutationMetrics, poMetrics, receivingMetrics, stockMetrics]);
 
   const mobileFabItems = useMemo(() => {
     switch (activeView) {
@@ -347,99 +423,130 @@ export function InventoryClient({
 
   return (
     <>
-      <StandardPageLayout
-        title="Inventory"
-        description="Pusat kendali persediaan — stok real-time dari agregasi mutasi transaksi"
-        actionButton={
-          <div className="flex items-center gap-1.5">
-            <ExportMenu
-              onExportPDF={() => exportPDF(isMutations, gbStocks, filteredLedger)}
-              onExportExcel={() => exportExcel(isMutations, gbStocks, filteredLedger)}
-            />
-            <ActionsDropdown onStockOpname={() => setAdjDrawerOpen(true)} onKemasanDatang={() => setPkgDrawerOpen(true)} />
-            {primaryAction && (
-              <Button size="sm" className="gap-1.5 bg-amber-700 text-white hover:bg-amber-800 font-semibold rounded-lg h-8 text-xs" onClick={primaryAction.onClick}>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <PageHeader
+          title="Pasokan & Stok"
+          description="Pembelian, penerimaan, posisi stok, supplier, dan seluruh jejak pergerakannya"
+          stage="inventory"
+          actions={
+            <>
+              <ExportMenu
+                onExportPDF={() => exportPDF(isMutations, gbStocks, filteredLedger)}
+                onExportExcel={() => exportExcel(isMutations, gbStocks, filteredLedger)}
+              />
+              {activeView === "stock" ? (
+                <>
+                  <ActionsDropdown onStockOpname={() => setAdjDrawerOpen(true)} />
+                  <BarangDatangPopup onGBDatang={() => setGbDrawerOpen(true)} onKemasanDatang={() => setPkgDrawerOpen(true)} />
+                </>
+              ) : (
+                <>
+                  {activeView !== "mutations" && <ActionsDropdown onStockOpname={() => setAdjDrawerOpen(true)} />}
+                  {primaryAction && (
+                    <Button size="sm" className="h-8 gap-1.5 rounded-[8px] text-xs font-bold shadow-md" onClick={primaryAction.onClick}>
+                      {primaryAction.icon}
+                      {primaryAction.label}
+                    </Button>
+                  )}
+                </>
+              )}
+            </>
+          }
+          mobileActions={
+            primaryAction ? (
+              <Button size="sm" className="gap-1.5 px-3" onClick={primaryAction.onClick}>
                 {primaryAction.icon}
                 {primaryAction.label}
               </Button>
-            )}
-          </div>
-        }
-        mobileSpeedDialItems={mobileFabItems}
-        mobileHeaderActions={
-          <ExportMenu
-            onExportPDF={() => exportPDF(isMutations, gbStocks, filteredLedger)}
-            onExportExcel={() => exportExcel(isMutations, gbStocks, filteredLedger)}
+            ) : (
+              <Button size="sm" variant="outline" className="gap-1.5 px-3" onClick={() => setAdjDrawerOpen(true)}>
+                <Settings2 size={14} />
+                Opname
+              </Button>
+            )
+          }
+        />
+
+        <div className="custom-scrollbar flex-1 overflow-auto">
+          <OperatingHero
+            stage="inventory"
+            headline={heroContent.headline}
+            description={heroContent.description}
+            signalLabel="Sinyal terpenting"
+            signalValue={heroContent.signal}
+            signalTone={heroContent.critical ? "critical" : "ready"}
+            metrics={[
+              { label: "Nilai stok", value: formatRupiah(stockMetrics.totalValue) },
+              { label: "PO aktif", value: poMetrics.active },
+              { label: "Mutasi hari ini", value: mutationMetrics.total },
+              { label: "Belum disetel", value: notConfiguredCount },
+            ]}
+            next={{ label: "Lanjut ke Roasting", href: "/roasting" }}
           />
-        }
-      >
-        {/* ── Workspace Tabs ── */}
-        <div className="flex items-center gap-0 border-b border-slate-200/60">
-          {WORKSPACE_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeView === tab.id;
-            return (
-              <button key={tab.id} type="button" onClick={() => setActiveView(tab.id)}
-                className={`relative flex items-center gap-1.5 px-3 py-2 text-sm font-semibold transition-colors ${isActive ? "text-amber-800" : "text-slate-500 hover:text-slate-700"}`}>
-                <Icon size={14} />
-                {tab.label}
-                {isActive && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-700 rounded-t" />}
-              </button>
-            );
-          })}
-        </div>
+          <KpiRibbon>
+            {activeView === "stock" && (
+              <>
+                <KpiCard label="Nilai Persediaan" value={formatRupiah(stockMetrics.totalValue)} icon={<Package size={12} />} color="var(--domain-inventory)" />
+                <KpiCard label="Stok Habis" value={stockMetrics.outOfStockCount} icon={<XCircle size={12} />} color="var(--destructive)" onClick={() => toggleMetric("out-of-stock")} active={metricParam === "out-of-stock"} />
+                <KpiCard label="Perlu Dipesan" value={stockMetrics.needsOrderCount} icon={<AlertTriangle size={12} />} color="var(--amber-warm)" onClick={() => toggleMetric("needs-reorder")} active={metricParam === "needs-reorder"} />
+                <KpiCard label="Belum Disetel" sub="Stok tetap dihitung" value={notConfiguredCount} icon={<CircleDot size={12} />} color="var(--slate)" onClick={() => toggleMetric("not-configured")} active={metricParam === "not-configured"} />
+              </>
+            )}
+            {activeView === "po" && (
+              <>
+                <KpiCard label="PO Aktif" value={poMetrics.active} icon={<ClipboardList size={12} />} color="var(--domain-production)" onClick={() => toggleMetric("active")} active={metricParam === "active"} />
+                <KpiCard label="Menunggu Supplier" value={poMetrics.waiting} icon={<Clock size={12} />} color="var(--amber-warm)" onClick={() => toggleMetric("waiting")} active={metricParam === "waiting"} />
+                <KpiCard label="Diterima Sebagian" value={poMetrics.partial} icon={<CheckCircle2 size={12} />} color="var(--amber-warm)" onClick={() => toggleMetric("partial")} active={metricParam === "partial"} />
+              </>
+            )}
+            {activeView === "receiving" && (
+              <>
+                <KpiCard label="Menunggu Diterima" value={receivingMetrics.waitingToReceive} icon={<Truck size={12} />} color="var(--domain-inventory)" onClick={() => toggleMetric("waiting")} active={metricParam === "waiting"} />
+                <KpiCard label="Diterima Hari Ini" value={receivingMetrics.receivedToday} icon={<CheckCircle2 size={12} />} color="var(--moss)" onClick={() => toggleMetric("received-today")} active={metricParam === "received-today"} />
+              </>
+            )}
+            {activeView === "mutations" && (
+              <>
+                <KpiCard label="Stok Masuk Hari Ini" value={mutationMetrics.inbound} icon={<ArrowDownCircle size={12} />} color="var(--moss)" onClick={() => toggleMetric("inbound-today")} active={metricParam === "inbound-today"} />
+                <KpiCard label="Stok Keluar Hari Ini" value={mutationMetrics.outbound} icon={<ArrowUpCircle size={12} />} color="var(--destructive)" onClick={() => toggleMetric("outbound-today")} active={metricParam === "outbound-today"} />
+                <KpiCard label="Stock Opname Hari Ini" value={mutationMetrics.opname} icon={<Settings2 size={12} />} color="var(--amber-warm)" onClick={() => toggleMetric("opname-today")} active={metricParam === "opname-today"} />
+                <KpiCard label="Total Mutasi Hari Ini" value={mutationMetrics.total} icon={<History size={12} />} color="var(--domain-inventory)" />
+              </>
+            )}
+          </KpiRibbon>
+          <WorkspaceNav kind="supply" />
 
-        {/* ── Metric Cards ── */}
-        <div className="mt-4 mb-2 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {activeView === "stock" && (
-            <>
-              <InventoryMetricCard label="Nilai Persediaan" value={formatRupiah(stockMetrics.totalValue)} icon={Package} tone="blue" />
-              <InventoryMetricCard label="Stok Habis" value={stockMetrics.outOfStockCount} icon={XCircle} tone="red" onClick={() => toggleMetric("out-of-stock")} active={metricParam === "out-of-stock"} />
-              <InventoryMetricCard label="Perlu Dipesan" value={stockMetrics.needsOrderCount} icon={AlertTriangle} tone="orange" onClick={() => toggleMetric("needs-reorder")} active={metricParam === "needs-reorder"} />
-              <InventoryMetricCard label="Belum Disetel Manual" value={notConfiguredCount} icon={CircleDot} tone="neutral" helperText="Status stok tetap dihitung otomatis" onClick={() => toggleMetric("not-configured")} active={metricParam === "not-configured"} />
-            </>
-          )}
-          {activeView === "po" && (
-            <>
-              <InventoryMetricCard label="PO Aktif" value={poMetrics.active} icon={ClipboardList} tone="blue" onClick={() => toggleMetric("active")} active={metricParam === "active"} />
-              <InventoryMetricCard label="Menunggu Supplier" value={poMetrics.waiting} icon={Clock} tone="orange" onClick={() => toggleMetric("waiting")} active={metricParam === "waiting"} />
-              <InventoryMetricCard label="Diterima Sebagian" value={poMetrics.partial} icon={CheckCircle2} tone="orange" onClick={() => toggleMetric("partial")} active={metricParam === "partial"} />
-              <InventoryMetricCard label="Lewat Estimasi" value={poMetrics.overdue} icon={Ban} tone="red" />
-            </>
-          )}
-          {activeView === "receiving" && (
-            <>
-              <InventoryMetricCard label="Menunggu Diterima" value={receivingMetrics.waitingToReceive} icon={Truck} tone="blue" onClick={() => toggleMetric("waiting")} active={metricParam === "waiting"} />
-              <InventoryMetricCard label="Diterima Hari Ini" value={receivingMetrics.receivedToday} icon={CheckCircle2} tone="green" onClick={() => toggleMetric("received-today")} active={metricParam === "received-today"} />
-              <InventoryMetricCard label="Penerimaan Berselisih" value={receivingMetrics.withDiscrepancy} icon={AlertTriangle} tone="orange" helperText="Belum tersedia" />
-              <InventoryMetricCard label="Penerimaan Tanpa PO" value={receivingMetrics.withoutPO} icon={CircleDot} tone="neutral" helperText="Belum tersedia" />
-            </>
-          )}
-          {activeView === "mutations" && (
-            <>
-              <InventoryMetricCard label="Stok Masuk Hari Ini" value={mutationMetrics.inbound} icon={ArrowDownCircle} tone="green" onClick={() => toggleMetric("inbound-today")} active={metricParam === "inbound-today"} />
-              <InventoryMetricCard label="Stok Keluar Hari Ini" value={mutationMetrics.outbound} icon={ArrowUpCircle} tone="red" onClick={() => toggleMetric("outbound-today")} active={metricParam === "outbound-today"} />
-              <InventoryMetricCard label="Stock Opname Hari Ini" value={mutationMetrics.opname} icon={Settings2} tone="orange" onClick={() => toggleMetric("opname-today")} active={metricParam === "opname-today"} />
-              <InventoryMetricCard label="Total Mutasi Hari Ini" value={mutationMetrics.total} icon={History} tone="blue" />
-            </>
-          )}
-        </div>
-
-        {/* ── Sample Consumption Summary (Stock tab only) ── */}
-        {activeView === "stock" && (sampleConsumption.rbConsumedKg > 0 || sampleConsumption.fgConsumedUnits > 0 || sampleConsumption.pkgConsumedUnits > 0) && (
-          <div className="mb-4 rounded-xl border border-violet-200 bg-violet-50/50 px-4 py-3">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-xs font-semibold text-violet-700">Sample Bulan Ini</span>
-              <span className="text-[10px] text-violet-500">{sampleConsumption.sampleCount} transaksi</span>
+        {/* ── Workspace Content ── */}
+        <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">
+      {/* ── Sample Consumption Summary (Stock tab only) ── */}
+      {activeView === "stock" && (sampleConsumption.rbConsumedKg > 0 || sampleConsumption.fgConsumedUnits > 0 || sampleConsumption.pkgConsumedUnits > 0) && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 relative overflow-hidden rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)] px-5 py-4 shadow-[var(--glass-shadow)]"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5 pointer-events-none" />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[11px] font-black uppercase tracking-[0.1em] text-violet-700 dark:text-violet-400">Sample Bulan Ini</span>
+                <span className="flex items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/50 px-2 py-0.5 text-[9px] font-bold text-violet-600 dark:text-violet-300">
+                  {sampleConsumption.sampleCount} Transaksi
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[var(--text-secondary)]">
+                {sampleConsumption.rbConsumedKg > 0 && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-violet-400" />RB: <strong className="text-[var(--text-primary)]">{sampleConsumption.rbConsumedKg.toLocaleString("id-ID", { maximumFractionDigits: 2 })} kg</strong></span>}
+                {sampleConsumption.fgConsumedUnits > 0 && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-purple-400" />FG: <strong className="text-[var(--text-primary)]">{sampleConsumption.fgConsumedUnits.toLocaleString("id-ID")} unit</strong></span>}
+                {sampleConsumption.pkgConsumedUnits > 0 && <span className="flex items-center gap-1.5"><div className="size-1.5 rounded-full bg-domain-sales" />PKG: <strong className="text-[var(--text-primary)]">{sampleConsumption.pkgConsumedUnits.toLocaleString("id-ID")} pcs</strong></span>}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-4 text-xs text-violet-600">
-              {sampleConsumption.rbConsumedKg > 0 && <span>RB: <strong>{sampleConsumption.rbConsumedKg.toLocaleString("id-ID", { maximumFractionDigits: 2 })}</strong> kg</span>}
-              {sampleConsumption.fgConsumedUnits > 0 && <span>FG: <strong>{sampleConsumption.fgConsumedUnits.toLocaleString("id-ID")}</strong> unit</span>}
-              {sampleConsumption.pkgConsumedUnits > 0 && <span>PKG: <strong>{sampleConsumption.pkgConsumedUnits.toLocaleString("id-ID")}</strong> pcs</span>}
-              <span>Total Biaya: <strong>{formatRupiah(sampleConsumption.totalCost)}</strong></span>
+            <div className="shrink-0 text-right">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-0.5">Total Biaya Sample</p>
+              <p className="text-xl font-black text-[var(--text-primary)] tabular-nums tracking-tight">{formatRupiah(sampleConsumption.totalCost)}</p>
             </div>
           </div>
-        )}
+        </motion.div>
+      )}
 
         {/* ── Workspace Content ── */}
         <div>
@@ -471,21 +578,23 @@ export function InventoryClient({
             <LedgerHistoryTable entries={ledgerEntries} onFilteredEntriesChange={setFilteredLedger} />
           )}
         </div>
-      </StandardPageLayout>
+          </div>
+        </div>
+      </div>
 
       {/* ── Drawers ── */}
       <StandardDrawer open={gbDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setGbDrawerOpen(open); }} title="Catat Barang Datang (Green Bean)" description="Stok Green Bean akan bertambah otomatis setelah disimpan." size="lg"
-        submitButton={<Button type="submit" form="purchase-form" size="sm" disabled={isSubmitting} className="gap-1.5 bg-amber-700 text-white hover:bg-amber-800 font-semibold rounded-lg disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>}>
+        submitButton={<Button type="submit" form="purchase-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>}>
         <PurchaseForm id="purchase-form" suppliers={supplierOptions} gbProducts={gbProducts} onSuccess={() => { setGbDrawerOpen(false); finishSupplierFlow(); router.refresh(); }} onPendingChange={setIsSubmitting} onAddSupplier={() => openSupplierQuickAdd("purchase")} preferredSupplierId={supplierTarget === "purchase" ? preferredSupplierId : null} />
       </StandardDrawer>
 
       <StandardDrawer open={pkgDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setPkgDrawerOpen(open); }} title="Catat Kemasan Datang" description="Stok Kemasan akan bertambah otomatis setelah disimpan." size="md"
-        submitButton={<Button type="submit" form="pkg-purchase-form" size="sm" disabled={isSubmitting} className="gap-1.5 bg-amber-700 text-white hover:bg-amber-800 font-semibold rounded-lg disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>}>
+        submitButton={<Button type="submit" form="pkg-purchase-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>}>
         <PackagingPurchaseForm suppliers={supplierOptions} packagings={packagings} onPendingChange={setIsSubmitting} onAddSupplier={() => openSupplierQuickAdd("packaging")} preferredSupplierId={supplierTarget === "packaging" ? preferredSupplierId : null} onSuccess={() => { setPkgDrawerOpen(false); setIsSubmitting(false); finishSupplierFlow(); router.refresh(); }} />
       </StandardDrawer>
 
       <StandardDrawer open={adjDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setAdjDrawerOpen(open); }} title="Penyesuaian Stok (Opname)" description="Gunakan fitur ini untuk menyamakan stok digital dengan fisik." size="md"
-        submitButton={<Button type="submit" form="adjustment-form" size="sm" disabled={isSubmitting} className="gap-1.5 bg-amber-700 text-white hover:bg-amber-800 font-semibold rounded-lg disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan Opname"}</Button>}>
+        submitButton={<Button type="submit" form="adjustment-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan Opname"}</Button>}>
         <StockAdjustmentDrawer id="adjustment-form" items={adjustmentItems} onSuccess={() => setAdjDrawerOpen(false)} onPendingChange={setIsSubmitting} />
       </StandardDrawer>
 
@@ -506,7 +615,7 @@ export function InventoryClient({
         description="Cukup isi nama. Supplier langsung dipilih di transaksi ini."
         size="sm"
         submitButton={
-          <Button type="submit" form="quick-supplier-form" size="sm" disabled={isSupplierSubmitting} className="gap-1.5 bg-amber-700 text-white hover:bg-amber-800 font-semibold rounded-lg disabled:opacity-60">
+          <Button type="submit" form="quick-supplier-form" size="sm" disabled={isSupplierSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">
             {isSupplierSubmitting && <Loader2 size={13} className="animate-spin" />}
             {isSupplierSubmitting ? "Menyimpan..." : "Simpan & pilih"}
           </Button>

@@ -18,7 +18,7 @@ export default async function InvoicePrintPage({
     where: { id: tenantId },
     select: { name: true, whatsappNumber: true, contactEmail: true },
   });
-  const tenantName = tenant?.name || "BEANSLAB";
+  const tenantName = tenant?.name || "roastd.id";
 
   const invoice = await (await requireTenantPrisma()).invoice.findUnique({
     where: { id },
@@ -35,8 +35,8 @@ export default async function InvoicePrintPage({
   if (!invoice) return notFound();
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 sm:p-8 print:p-0 print:bg-white flex justify-center">
-      <div className="w-full max-w-3xl bg-white shadow-xl sm:rounded-2xl p-8 print:shadow-none print:rounded-none print:p-0 print:max-w-none text-slate-800">
+    <div className="flex min-h-screen justify-center bg-background p-4 print:bg-white print:p-0 sm:p-8">
+      <div className="w-full max-w-3xl border-t-4 border-primary bg-white p-5 text-slate-800 shadow-xl print:max-w-none print:border-t-2 print:p-0 print:shadow-none sm:p-8">
 
         {/* Action Bar (Hidden when printing) */}
         <PrintActionBar />
@@ -45,7 +45,7 @@ export default async function InvoicePrintPage({
         <div className="flex justify-between items-start border-b-2 border-slate-200 pb-6 mb-6">
           <div className="flex flex-col gap-2">
             <h1 className="text-3xl font-black tracking-tight text-slate-900 uppercase">{tenantName}</h1>
-            <p className="text-xs font-semibold tracking-widest uppercase text-slate-500">Roastery OS</p>
+            <p className="text-xs font-semibold tracking-widest uppercase text-slate-500">roastd.id</p>
             <div className="mt-2 text-sm text-slate-600">
               {tenant?.whatsappNumber && <p>Telp: {tenant.whatsappNumber}</p>}
               {tenant?.contactEmail && <p>Email: {tenant.contactEmail}</p>}
@@ -147,7 +147,7 @@ export default async function InvoicePrintPage({
 
         <div className="mt-16 text-center text-xs font-medium text-slate-400 print:mt-12">
           <p>Terima kasih atas kepercayaan Anda.</p>
-          <p>Beanslab Roastery OS &copy; {getCurrentDate().getFullYear()}</p>
+          <p>Didukung oleh roastd.id &copy; {getCurrentDate().getFullYear()}</p>
         </div>
       </div>
 

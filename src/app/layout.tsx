@@ -1,9 +1,8 @@
-import type { Metadata, Viewport } from "next"; // <-- Tambahkan Viewport di sini
+import type { Metadata, Viewport } from "next";
 import {
   DM_Sans,
+  DM_Serif_Display,
   EB_Garamond,
-  Geist,
-  Geist_Mono,
   Inter,
   JetBrains_Mono,
   Nunito,
@@ -16,14 +15,16 @@ import {
 import "./globals.css";
 import { ThemeProviderRoot } from "@/components/ThemeProviderRoot";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const dmSerifDisplay = DM_Serif_Display({
+  variable: "--font-dm-serif-display",
   subsets: ["latin"],
+  weight: ["400"],
+  preload: false,
 });
 
 const playfairDisplay = Playfair_Display({
@@ -38,11 +39,6 @@ const jetBrainsMono = JetBrains_Mono({
 });
 const orbitron = Orbitron({
   variable: "--font-orbitron",
-  subsets: ["latin"],
-  preload: false,
-});
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
   subsets: ["latin"],
   preload: false,
 });
@@ -82,7 +78,6 @@ const storefrontFonts = [
   playfairDisplay.variable,
   jetBrainsMono.variable,
   orbitron.variable,
-  dmSans.variable,
   sourceSerif.variable,
   nunito.variable,
   spaceMono.variable,
@@ -92,11 +87,16 @@ const storefrontFonts = [
 ].join(" ");
 
 export const metadata: Metadata = {
-  title: "Roastery OS - Beanslab",
-  description: "Roastery Operating System by Beanslab Roastery",
+  metadataBase: new URL("https://roastd.id"),
+  title: {
+    default: "roastd.id — Roastery Operating System",
+    template: "%s | roastd.id",
+  },
+  description:
+    "Sistem operasional untuk menghubungkan pembelian, inventory, roasting, produksi, penjualan, dan keuangan coffee roastery.",
+  applicationName: "roastd.id",
 };
 
-// 👇 Tambahkan blok kode viewport ini 👇
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -110,10 +110,10 @@ export default function RootLayout({
   return (
     <html
       lang="id"
-      className={`${geistSans.variable} ${geistMono.variable} ${storefrontFonts} h-full antialiased`}
+      className={`${dmSans.variable} ${dmSerifDisplay.variable} ${jetBrainsMono.variable} ${storefrontFonts} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="h-full">
+      <body className="h-full" suppressHydrationWarning>
         <ThemeProviderRoot>{children}</ThemeProviderRoot>
       </body>
     </html>

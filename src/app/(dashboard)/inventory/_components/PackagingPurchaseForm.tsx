@@ -36,6 +36,8 @@ const purchaseSchema = z.object({
   paymentMethod: z.enum(["CASH", "TRANSFER", "QRIS"]),
   dueDate: z.string().optional(),
   notes:         z.string().optional(),
+  lotNumber:     z.string().optional(),
+  bestBeforeDate: z.string().optional(),
 }).superRefine((data, ctx) => {
   const totalCost = data.totalCost;
   if (data.shippingCost >= totalCost) {
@@ -113,6 +115,8 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
       initialPaidAmount: 0,
       paymentMethod: "CASH",
       dueDate: "",
+      lotNumber: "",
+      bestBeforeDate: "",
     },
   });
 
@@ -164,6 +168,8 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
         paymentMethod: data.paymentMethod,
         dueDate: data.dueDate,
         notes: data.notes,
+        lotNumber: data.lotNumber || undefined,
+        bestBeforeDate: data.bestBeforeDate || undefined,
       });
       if (!result.success) { toastSafe.error(result.error); return; }
       toast.success(`Kemasan datang dicatat: ${result.purchaseCode}`);
@@ -235,9 +241,21 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
         </div>
 
         {/* Tanggal */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-slate-700">Tanggal Terima <span className="text-red-500">*</span></Label>
+            <Input type="date" className={glassInput} {...register("receivedAt")} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-slate-700">Best Before</Label>
+            <Input type="date" className={glassInput} {...register("bestBeforeDate")} />
+          </div>
+        </div>
+
+        {/* Lot Number */}
         <div className="space-y-1.5">
-          <Label className="text-xs font-semibold text-slate-700">Tanggal Terima <span className="text-red-500">*</span></Label>
-          <Input type="date" className={glassInput} {...register("receivedAt")} />
+          <Label className="text-xs font-semibold text-slate-700">Lot Number / Batch</Label>
+          <Input type="text" placeholder="e.g. LOT-12345" className={glassInput} {...register("lotNumber")} />
         </div>
 
         {/* Kemasan + Tombol Quick Add */}
@@ -359,7 +377,7 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
               <Button type="button" variant="ghost" onClick={() => setIsQuickAddOpen(false)} className="text-slate-600 hover:bg-white/40">
                 Batal
               </Button>
-              <Button type="submit" disabled={isAddingPkg} className="bg-amber-700 hover:bg-amber-800 text-white shadow-md rounded-xl font-bold">
+              <Button type="submit" disabled={isAddingPkg} className="rounded-[9px] font-bold shadow-md">
                 {isAddingPkg ? "Menyimpan..." : "Simpan Kemasan"}
               </Button>
             </div>

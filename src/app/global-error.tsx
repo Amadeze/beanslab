@@ -19,7 +19,7 @@ export default function GlobalError({
         <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24 }}>
           <div style={{ width: "100%", maxWidth: 480, textAlign: "center" }}>
             <div style={{ fontSize: 36, lineHeight: 1, color: "#dc2626" }} aria-hidden="true">!</div>
-            <title>Terjadi Kesalahan | Roastery OS</title>
+            <title>Terjadi Kesalahan | roastd.id</title>
             <h1 style={{ margin: "20px 0 8px", fontSize: 26 }}>Aplikasi gagal dimuat</h1>
             <p style={{ margin: 0, color: "#64748b", lineHeight: 1.6 }}>
               Coba muat ulang aplikasi. Sesi dan data yang sudah tersimpan tetap aman.

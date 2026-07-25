@@ -50,7 +50,7 @@ export async function sendInvoiceEmail(to: string, invoiceCode: string, paymentU
     }
 
     const { data, error } = await resend.emails.send({
-      from: process.env.EMAIL_FROM || 'Roastery OS <hello@beanslab.vercel.app>',
+      from: process.env.EMAIL_FROM || 'roastd.id <hello@roastd.id>',
       to: [to],
       subject: `Invoice Anda: ${invoiceCode}`,
       html: `
@@ -67,7 +67,7 @@ export async function sendInvoiceEmail(to: string, invoiceCode: string, paymentU
           `}
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 32px 0;" />
           <p style="font-size: 12px; color: #666;">
-            Email ini dikirim otomatis oleh Roastery OS. Harap jangan membalas email ini.
+            Email ini dikirim otomatis oleh roastd.id. Harap jangan membalas email ini.
           </p>
         </div>
       `
@@ -96,13 +96,13 @@ export async function sendPasswordResetEmail(
   }
 
   const { data, error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM || "Roastery OS <hello@beanslab.vercel.app>",
+    from: process.env.EMAIL_FROM || "roastd.id <hello@roastd.id>",
     to: [to],
-    subject: "Reset password Roastery OS",
+    subject: "Reset password roastd.id",
     html: `
       <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto;">
         <h2>Reset password</h2>
-        <p>Halo ${escapeHtml(name)}, kami menerima permintaan reset password untuk akun Roastery OS Anda.</p>
+        <p>Halo ${escapeHtml(name)}, kami menerima permintaan reset password untuk akun roastd.id Anda.</p>
         <p>
           <a href="${resetUrl}" style="display:inline-block;padding:12px 20px;background:#0f172a;color:#fff;text-decoration:none;border-radius:6px">
             Buat password baru
@@ -150,7 +150,7 @@ export async function sendOverdueReminderEmail(input: {
   }
   const currency = formatRupiah(input.balance);
   const { data, error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM || "Roastery OS <no-reply@example.com>",
+    from: process.env.EMAIL_FROM || "roastd.id <no-reply@roastd.id>",
     to: [input.to],
     subject: `Pengingat tagihan ${input.invoiceCode}`,
     html: `

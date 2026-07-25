@@ -50,7 +50,7 @@ export function PurchasePaymentSection({
                 className={cn(
                   "min-h-10 rounded-xl border px-2 text-xs font-semibold transition-colors",
                   paymentStatus === option.value
-                    ? "border-amber-700 bg-amber-700 text-white shadow-sm"
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
                     : "border-white/60 bg-white/40 text-slate-600 hover:bg-white/70"
                 )}
               >

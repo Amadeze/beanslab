@@ -3,7 +3,8 @@ import { CustomerTier } from "./pricing";
 import type { CartItem } from "../../_store/cartStore";
 
 export type ExtendedTenant = Tenant & {
-  // We can just rely on the Tenant type from @prisma/client, which already includes the new fields now!
+  portalThemeConfig?: any;
+  themeConfig?: any;
 };
 
 export interface CartStore {

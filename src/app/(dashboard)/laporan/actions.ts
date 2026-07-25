@@ -6,6 +6,7 @@ import { getPayableAgingBucket } from "@/lib/purchase-payments";
 import { revalidatePath } from "next/cache";
 import { getCurrentDate } from "@/lib/date-utils";
 import { weightedAverageCost } from "@/lib/financial-reporting";
+import { getRbCostPrioritizingCache, getFgHppPrioritizingCache } from "@/lib/costing";
 
 export type ValuationRow = {
   id: string;
@@ -110,13 +111,15 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
 
   const roastedBeanCost = new Map<string, number>();
   for (const product of products.filter((row) => row.type === "ROASTED_BEAN")) {
-    const layers = roasts
+    const batchesForThisRb = roasts
       .filter((roast) => roast.outputProductId === product.id)
       .map((roast) => ({
-        quantity: Number(roast.actualOutputKg ?? 0),
-        totalCost: Number(roast.targetWeightKg) * (greenBeanCost.get(roast.inputProductId) ?? 0),
+        inputProductId: roast.inputProductId,
+        targetWeightKg: roast.targetWeightKg,
+        actualOutputKg: roast.actualOutputKg,
       }));
-    roastedBeanCost.set(product.id, weightedAverageCost(layers));
+    const avgCostDb = Number(product.avgCostPerKg ?? 0);
+    roastedBeanCost.set(product.id, getRbCostPrioritizingCache(avgCostDb, batchesForThisRb, greenBeanCost));
   }
 
   // Fetch packaging data for recipe-based HPP calculation
@@ -126,25 +129,6 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
   });
   for (const pkg of allPackaging) {
     packagingMap.set(pkg.id, Number(pkg.costPerUnit));
-  }
-
-  // Calculate recipe-based HPP for FINISHED_GOODS
-  const recipeHppMap = new Map<string, number>();
-  for (const product of products.filter((row) => row.type === "FINISHED_GOODS")) {
-    const recipe = product.recipes?.[0];
-    if (recipe) {
-      let cost = 0;
-      for (const item of recipe.items) {
-        const rbCost = roastedBeanCost.get(item.productId) ?? 0;
-        cost += rbCost * (Number(item.gramsPerUnit) / 1000);
-      }
-      if (recipe.packagingId) {
-        cost += packagingMap.get(recipe.packagingId) ?? 0;
-      }
-      if (cost > 0) {
-        recipeHppMap.set(product.id, cost);
-      }
-    }
   }
 
   // Compute sample write-off per item from completed samples in the period
@@ -203,14 +187,20 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
         const quantity = Number(entry.quantityUnit ?? 0);
         return stock + (entry.entryType === "IN" ? quantity : -quantity);
       }, 0);
-      // Prioritas: HPP dari resep, fallback ke production batch
-      const recipeHpp = recipeHppMap.get(p.id);
-      const unitCost = recipeHpp && recipeHpp > 0
-        ? recipeHpp
-        : weightedAverageCost(p.productionBatches.map((batch) => ({
-            quantity: batch.unitsProduced,
-            totalCost: batch.unitsProduced * Number(batch.hppPerUnit),
-          })));
+      // Prioritas: HPP terakhir, lalu HPP dari batch produksi terakhir, lalu fallback ke resep
+      const lastHpp = p.avgCostPerKg ? Number(p.avgCostPerKg) : null;
+      const lastProductionHpp = p.productionBatches[0]?.hppPerUnit ? Number(p.productionBatches[0].hppPerUnit) : null;
+      const recipe = p.recipes?.[0];
+      
+      const unitCost = getFgHppPrioritizingCache(
+        lastHpp,
+        lastProductionHpp,
+        recipe?.items ?? [],
+        recipe?.packagingId,
+        roastedBeanCost,
+        packagingMap,
+        0
+      );
       const retailPrice = Number(p.price || 0);
       const potentialRevenue = stockUnit * retailPrice;
       
@@ -283,12 +273,20 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
   const totalPackagingValue = items.filter((i) => i.category === "PACKAGING").reduce((s, i) => s + i.totalValue, 0);
   const grandTotalValue = totalGreenBeanValue + totalRoastedBeanValue + totalFinishedGoodsValue + totalPackagingValue;
 
-  const totalFinishedGoodsPotentialRevenue = items.filter((i) => i.category === "FINISHED_GOODS").reduce((s, i) => s + (i.potentialRevenue || 0), 0);
-  const fgGrossMargin = totalFinishedGoodsPotentialRevenue - totalFinishedGoodsValue;
+  const retailFgItems = items.filter((i) => i.category === "FINISHED_GOODS" && i.potentialRevenue && i.potentialRevenue > 0);
+  const totalFinishedGoodsPotentialRevenue = retailFgItems.reduce((s, i) => s + (i.potentialRevenue || 0), 0);
+  const retailFgValueOnly = retailFgItems.reduce((s, i) => s + i.totalValue, 0);
+  
+  const fgGrossMargin = totalFinishedGoodsPotentialRevenue - retailFgValueOnly;
   const totalFinishedGoodsMarginHealth = totalFinishedGoodsPotentialRevenue > 0 ? (fgGrossMargin / totalFinishedGoodsPotentialRevenue) * 100 : 0;
 
-  const totalPotentialRevenue = items.reduce((s, i) => s + (i.potentialRevenue || 0), 0);
-  const totalGrossMargin = totalPotentialRevenue - (totalFinishedGoodsValue + totalRoastedBeanValue);
+  const retailItems = items.filter((i) => i.potentialRevenue && i.potentialRevenue > 0);
+  const totalPotentialRevenue = retailItems.reduce((s, i) => s + (i.potentialRevenue || 0), 0);
+  
+  const retailFgValue = retailItems.filter((i) => i.category === "FINISHED_GOODS").reduce((s, i) => s + i.totalValue, 0);
+  const retailRbValue = retailItems.filter((i) => i.category === "ROASTED_BEAN").reduce((s, i) => s + i.totalValue, 0);
+  
+  const totalGrossMargin = totalPotentialRevenue - (retailFgValue + retailRbValue);
   const totalMarginHealth = totalPotentialRevenue > 0 ? (totalGrossMargin / totalPotentialRevenue) * 100 : 0;
   const totalSampleWriteOff = items.reduce((s, i) => s + i.sampleWriteOff, 0);
 
@@ -439,10 +437,12 @@ export async function getBalanceSheetReport(
     overdue31To60: 0,
     overdue61Plus: 0,
   };
+  let unpaidCount = 0;
   for (const purchase of payablePurchases) {
     const paid = purchase.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
     const balance = Math.max(0, Number(purchase.totalCost) - paid);
     if (balance <= 0.01) continue;
+    unpaidCount++;
     const bucket = getPayableAgingBucket(purchase.dueDate, asOf);
     if (bucket === "CURRENT") aging.current += balance;
     if (bucket === "OVERDUE_1_30") aging.overdue1To30 += balance;
@@ -475,9 +475,9 @@ export async function getBalanceSheetReport(
       accountsPayable,
       totalLiabilities,
       aging,
-      trackingNote: payablePurchases.length > 0
-        ? `${payablePurchases.length} pembelian supplier masih memiliki saldo hutang.`
-        : "Tidak ada hutang supplier aktif.",
+      trackingNote: unpaidCount > 0
+        ? `${unpaidCount} dari ${payablePurchases.length} pembelian supplier masih memiliki saldo hutang.`
+        : "Semua pembelian supplier sudah lunas.",
     },
     equity: {
       contributedCapital,
@@ -545,10 +545,35 @@ export async function getCoffeeFlowReport(
   const products = await tp.product.findMany({
     where: { isActive: true },
     include: {
-      ledgerEntries: { where: { createdAt: { lt: periodEnd } } },
+      ledgerEntries: { 
+        where: { 
+          createdAt: { 
+            lt: periodEnd,
+            ...(periodStart ? { gte: periodStart } : {})
+          } 
+        } 
+      },
       recipes: true,
-      purchases: { where: { status: "COMPLETED", receivedAt: { lt: periodEnd } } },
-      invoiceItems: { include: { invoice: { select: { status: true, issuedAt: true } } } },
+      purchases: { 
+        where: { 
+          status: "COMPLETED", 
+          receivedAt: { 
+            lt: periodEnd,
+            ...(periodStart ? { gte: periodStart } : {})
+          } 
+        } 
+      },
+      invoiceItems: { 
+        where: {
+          invoice: {
+            issuedAt: {
+              lt: periodEnd,
+              ...(periodStart ? { gte: periodStart } : {})
+            }
+          }
+        },
+        include: { invoice: { select: { status: true, issuedAt: true } } } 
+      },
       productionBatches: {
         where: { status: "COMPLETED" },
         orderBy: { producedAt: "desc" },
@@ -566,26 +591,62 @@ export async function getCoffeeFlowReport(
   const finishedGoods: FinishedGoodsFlow[] = [];
   const inPeriod = (date: Date) => !periodStart || date >= periodStart;
 
-  // Build roasted bean cost map (weighted average from purchases)
-  const roastedBeanCostMap = new Map<string, number>();
+  // Fetch dependencies
+  const roastingBatches = await tp.parentRoastingBatch.findMany({
+    where: { status: "COMPLETED", createdAt: { lt: periodEnd, ...(periodStart ? { gte: periodStart } : {}) } },
+    select: { outputProductId: true, inputProductId: true, targetWeightKg: true, actualOutputKg: true },
+  });
+
+  const allPackaging = await tp.packaging.findMany({ select: { id: true, costPerUnit: true } });
+  const packagingCostMap = new Map<string, number>();
+  for (const pkg of allPackaging) packagingCostMap.set(pkg.id, Number(pkg.costPerUnit));
+
+  // Compute greenBeanCostMap
+  const greenBeanCostMap = new Map<string, number>();
   for (const p of products) {
-    if (p.type === "ROASTED_BEAN") {
-      const totalKg = p.purchases.reduce((sum, pur) => sum + Number(pur.weightKg), 0);
-      const totalCost = p.purchases.reduce((sum, pur) => sum + Number(pur.totalCost), 0);
-      roastedBeanCostMap.set(p.id, totalKg > 0 ? totalCost / totalKg : 0);
+    if (p.type === "GREEN_BEAN") {
+      let totalPurCost = 0; let totalPurKg = 0;
+      for (const pur of p.purchases) {
+        totalPurCost += Number(pur.totalCost);
+        totalPurKg += Number(pur.weightKg);
+      }
+      greenBeanCostMap.set(p.id, totalPurKg > 0 ? totalPurCost / totalPurKg : 0);
     }
   }
 
-  // Build recipe-based HPP map for FINISHED_GOODS
+  // Compute roastedBeanCostMap
+  const roastedBeanCostMap = new Map<string, number>();
+  for (const p of products) {
+    if (p.type === "ROASTED_BEAN") {
+      const batchesForThisRb = roastingBatches
+        .filter((roast) => roast.outputProductId === p.id)
+        .map((roast) => ({
+          inputProductId: roast.inputProductId,
+          targetWeightKg: roast.targetWeightKg,
+          actualOutputKg: roast.actualOutputKg,
+        }));
+      const avgCostDb = Number(p.avgCostPerKg ?? 0);
+      roastedBeanCostMap.set(p.id, getRbCostPrioritizingCache(avgCostDb, batchesForThisRb, greenBeanCostMap));
+    }
+  }
+
+  // Compute recipeHppMap
   const recipeHppMap = new Map<string, number>();
   for (const p of products) {
     if (p.type === "FINISHED_GOODS" && p.recipes.length > 0) {
+      const lastHpp = p.avgCostPerKg ? Number(p.avgCostPerKg) : null;
+      const lastProductionHpp = p.productionBatches[0]?.hppPerUnit ? Number(p.productionBatches[0].hppPerUnit) : null;
       const recipe = p.recipes[0];
-      let cost = 0;
-      for (const item of (recipe as any).items ?? []) {
-        const rbCost = roastedBeanCostMap.get(item.productId) ?? 0;
-        cost += rbCost * (Number(item.gramsPerUnit) / 1000);
-      }
+      
+      const cost = getFgHppPrioritizingCache(
+        lastHpp,
+        lastProductionHpp,
+        (recipe as any).items ?? [],
+        recipe.packagingId,
+        roastedBeanCostMap,
+        packagingCostMap,
+        0
+      );
       if (cost > 0) recipeHppMap.set(p.id, cost);
     }
   }
@@ -668,14 +729,7 @@ export async function getCoffeeFlowReport(
     }
   }
 
-  // Calculate Roast Loss for RBs based on actual roasting batches
-  const roastingBatches = await tp.parentRoastingBatch.findMany({
-    where: {
-      status: "COMPLETED",
-      createdAt: { lt: periodEnd, ...(periodStart ? { gte: periodStart } : {}) },
-    },
-    select: { outputProductId: true, inputProductId: true, targetWeightKg: true, actualOutputKg: true },
-  });
+
   
   for (const rb of roastedBeans) {
     const batches = roastingBatches.filter(b => b.outputProductId === rb.id);

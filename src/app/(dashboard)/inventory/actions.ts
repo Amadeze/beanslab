@@ -335,6 +335,7 @@ async function fetchSampleConsumption(
 }
 
 export async function getInventoryPageData(): Promise<InventoryPageData> {
+  await requireRole("OWNER", "MANAGER", "OPERATOR");
   const tp = await requireTenantPrisma();
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);

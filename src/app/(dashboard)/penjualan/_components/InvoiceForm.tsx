@@ -25,6 +25,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 import { formatRupiah } from "@/lib/format";
+import { calculateTax } from "@/lib/tax";
 import { createInvoice, type CustomerOption, type FGStockOption } from "../actions";
 import { getCurrentDate, getTodayString } from "@/lib/date-utils";
 import { defaultDueDate, resolveSalePrice } from "@/lib/sale-intent";
@@ -43,6 +44,9 @@ const schema = z.object({
   items: z.array(itemSchema).min(1, "Minimal 1 item"),
   invoiceDiscount: z.number().min(0),
   tax: z.number().min(0),
+  taxType: z.enum(["PPN", "PPH_21", "PPH_23", "PPH_4_2", "NONE"]).optional(),
+  customTaxRate: z.number().optional(),
+  pphType: z.string().optional(),
   status: z.enum(["PAID", "ISSUED"]),
   paymentMethod: z.string().optional(),
   dueDate: z.string().optional(),
@@ -99,7 +103,8 @@ function PaymentMethodGroup({ value, onChange }: { value: string; onChange: (val
   );
 }
 
-function TotalsSummary({ subtotal, invoiceDiscount, tax, grandTotal }: any) {
+function TotalsSummary({ subtotal, invoiceDiscount, tax, grandTotal, taxType }: any) {
+  const taxLabel = !taxType || taxType === "NONE" ? "Pajak" : taxType === "PPN" ? "PPN" : taxType === "PPH_21" ? "PPh 21" : taxType === "PPH_23" ? "PPh 23" : taxType === "PPH_4_2" ? "PPh 4(2)" : "Pajak";
   return (
     <div className={cn(glassCard, "p-5")}>
       <div className="space-y-2 text-sm">
@@ -115,7 +120,7 @@ function TotalsSummary({ subtotal, invoiceDiscount, tax, grandTotal }: any) {
         )}
         {tax > 0 && (
           <div className="flex justify-between text-slate-600 font-medium">
-            <span>Pajak Tambahan</span>
+            <span>{taxLabel}</span>
             <span className="font-mono">{formatRupiah(tax)}</span>
           </div>
         )}
@@ -188,10 +193,12 @@ export function InvoiceForm({
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
 
-  const [watchedItems, invoiceDiscount, tax, status, paymentMethod, selectedCustomerId] = watch([
+  const [watchedItems, invoiceDiscount, tax, taxType, customTaxRate, status, paymentMethod, selectedCustomerId] = watch([
     "items",
     "invoiceDiscount",
     "tax",
+    "taxType",
+    "customTaxRate",
     "status",
     "paymentMethod",
     "customerId",
@@ -206,7 +213,10 @@ export function InvoiceForm({
     return acc + (price - disc) * qty;
   }, 0);
 
-  const grandTotal = subtotal - (Number(invoiceDiscount) || 0) + (Number(tax) || 0);
+  const effectiveTax = taxType
+    ? calculateTax(subtotal, Number(invoiceDiscount) || 0, taxType, customTaxRate, null).taxAmount
+    : (Number(tax) || 0);
+  const grandTotal = subtotal - (Number(invoiceDiscount) || 0) + effectiveTax;
 
   const onSubmit = async (values: FormValues) => {
     if (isSubmitting) return;
@@ -230,6 +240,9 @@ export function InvoiceForm({
         items: values.items,
         invoiceDiscount: values.invoiceDiscount,
         tax: values.tax,
+        taxType: values.taxType,
+        customTaxRate: values.customTaxRate,
+        pphType: values.pphType,
         status: values.status,
         paymentMethod: values.paymentMethod as any,
         dueDate: values.dueDate || undefined,
@@ -600,8 +613,48 @@ export function InvoiceForm({
                 {...register("invoiceDiscount", { valueAsNumber: true })}
               />
             </div>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Jenis Pajak</Label>
+              <Select
+                value={taxType}
+                onValueChange={(v) => setValue("taxType", v as "PPN" | "PPH_21" | "PPH_23" | "PPH_4_2" | "NONE" | undefined)}
+              >
+                <SelectTrigger className={cn(glassInput, "w-44 text-xs")}>
+                  <SelectValue placeholder="Manual (Rp)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PPN" className="text-xs">PPN 11%</SelectItem>
+                  <SelectItem value="PPH_21" className="text-xs">PPh 21</SelectItem>
+                  <SelectItem value="PPH_23" className="text-xs">PPh 23</SelectItem>
+                  <SelectItem value="PPH_4_2" className="text-xs">PPh 4(2)</SelectItem>
+                  <SelectItem value="NONE" className="text-xs">Tidak Ada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {taxType === "PPH_21" && (
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs font-semibold text-slate-700">Jenis PPh</Label>
+                <Input
+                  type="text"
+                  placeholder="PPh 21, 23, 4(2)..."
+                  className={cn(glassInput, "w-44 text-right text-xs font-medium")}
+                  {...register("pphType")}
+                />
+              </div>
+            )}
+            {taxType && taxType !== "NONE" && (
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs font-semibold text-slate-700">Rate (%)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  className={cn(glassInput, "w-32 text-right font-medium")}
+                  {...register("customTaxRate", { valueAsNumber: true })}
+                />
+              </div>
+            )}
             <div className="flex items-center justify-between gap-4">
-              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Pajak Tambahan (Rp)</Label>
+              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Pajak Manual (Rp)</Label>
               <Input
                 type="number"
                 className={cn(glassInput, "w-32 text-right font-medium")}
@@ -613,7 +666,8 @@ export function InvoiceForm({
           <TotalsSummary
             subtotal={subtotal}
             invoiceDiscount={invoiceDiscount || 0}
-            tax={tax || 0}
+            tax={effectiveTax}
+            taxType={taxType}
             grandTotal={grandTotal}
           />
         </div>

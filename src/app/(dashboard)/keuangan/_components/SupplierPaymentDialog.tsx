@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -46,6 +46,7 @@ export function SupplierPaymentDialog({
   onSuccess: () => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
+  const opKeyRef = useRef<string>("");
   const today = getTodayString();
   const {
     register,
@@ -67,6 +68,7 @@ export function SupplierPaymentDialog({
 
   useEffect(() => {
     if (purchase && open) {
+      opKeyRef.current = crypto.randomUUID();
       reset({
         amount: purchase.balance,
         method: "TRANSFER",
@@ -84,6 +86,7 @@ export function SupplierPaymentDialog({
     setSubmitting(true);
     try {
       const result = await recordSupplierPayment({
+        operationKey: opKeyRef.current,
         purchaseId: purchase.id,
         ...values,
         reference: values.reference || undefined,
@@ -93,7 +96,7 @@ export function SupplierPaymentDialog({
         toastSafe.error(result.error);
         return;
       }
-      toast.success(`${result.paymentCode} · Pembayaran supplier tercatat`);
+      toast.success(`Pembayaran supplier tercatat`);
       onSuccess();
     } catch (err) {
       console.error("[SupplierPaymentDialog]", err);

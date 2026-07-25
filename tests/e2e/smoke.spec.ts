@@ -208,14 +208,14 @@ test("all owner dashboard modules render", async ({ context, page }) => {
         }).toPass({ timeout: 15_000 });
       }
       if (route === "/keuangan") {
-        const paymentTab = page.getByRole("button", { name: /^Pembayaran \(/ });
+        const paymentTab = page.getByRole("tab", { name: /^Pembayaran \(/ });
         await expect(async () => {
           await paymentTab.click();
           await expect(page.getByTestId("payment-history")).toBeVisible();
         }).toPass({ timeout: 15_000 });
 
         if (temporaryPurchaseCode) {
-          await page.getByRole("button", { name: /^Hutang Supplier \(/ }).click();
+          await page.getByRole("tab", { name: /^Hutang Supplier \(/ }).click();
           const purchaseRow = page.getByRole("row").filter({ hasText: temporaryPurchaseCode });
           await expect(purchaseRow).toBeVisible();
           await purchaseRow.getByRole("button", { name: `Bayar ${temporaryPurchaseCode}` }).click();
@@ -223,7 +223,7 @@ test("all owner dashboard modules render", async ({ context, page }) => {
           await page.getByRole("button", { name: "Catat Pembayaran" }).click();
           await expect(page.getByRole("heading", { name: "Bayar Supplier" })).not.toBeVisible();
 
-          await page.getByRole("button", { name: /^Bayar Supplier \(/ }).click();
+          await page.getByRole("tab", { name: /^Bayar Supplier \(/ }).click();
           await expect(page.getByText(temporaryPurchaseCode).filter({ visible: true })).toBeVisible();
         }
       }

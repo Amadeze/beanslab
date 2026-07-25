@@ -44,6 +44,8 @@ const schema = z
     paymentMethod: z.enum(["CASH", "TRANSFER", "QRIS"]),
     dueDate: z.string().optional(),
     notes: z.string().optional(),
+    lotNumber: z.string().optional(),
+    bestBeforeDate: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.productMode === "existing" && !data.productId) {
@@ -179,6 +181,8 @@ export function PurchaseForm({
       paymentMethod: "CASH",
       dueDate: "",
       notes: "",
+      lotNumber: "",
+      bestBeforeDate: "",
     },
   });
 
@@ -231,6 +235,8 @@ export function PurchaseForm({
         paymentMethod: values.paymentMethod,
         dueDate: values.dueDate,
         notes: values.notes,
+        lotNumber: values.lotNumber || undefined,
+        bestBeforeDate: values.bestBeforeDate || undefined,
       });
 
       if (!result.success) {
@@ -288,16 +294,42 @@ export function PurchaseForm({
       </FieldGroup>
 
       {/* ── Tanggal ── */}
+      <div className="grid grid-cols-2 gap-4">
+        <FieldGroup>
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+            Tanggal Terima <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            type="date"
+            className={cn("h-9", glassInput)}
+            {...register("receivedAt")}
+          />
+          <FieldError message={errors.receivedAt?.message} />
+        </FieldGroup>
+        <FieldGroup>
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+            Best Before
+          </Label>
+          <Input
+            type="date"
+            className={cn("h-9", glassInput)}
+            {...register("bestBeforeDate")}
+          />
+          <FieldError message={errors.bestBeforeDate?.message} />
+        </FieldGroup>
+      </div>
+
       <FieldGroup>
         <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-          Tanggal Terima <span className="text-red-500">*</span>
+          Lot Number / Batch
         </Label>
         <Input
-          type="date"
+          type="text"
+          placeholder="e.g. LOT-12345"
           className={cn("h-9", glassInput)}
-          {...register("receivedAt")}
+          {...register("lotNumber")}
         />
-        <FieldError message={errors.receivedAt?.message} />
+        <FieldError message={errors.lotNumber?.message} />
       </FieldGroup>
 
       <Separator className="bg-white/50" />
@@ -320,7 +352,7 @@ export function PurchaseForm({
                   className={cn(
                     "flex-1 rounded-xl border py-2 text-xs font-bold transition-all shadow-sm",
                     field.value === mode
-                      ? "bg-amber-700 hover:bg-amber-800 text-white shadow-md ring-2 ring-amber-700/20 ring-offset-1"
+                      ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/20 ring-offset-1 hover:bg-primary/90"
                       : "border-white/60 bg-white/40 text-slate-500 hover:bg-white/60"
                   )}
                 >

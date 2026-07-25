@@ -220,6 +220,7 @@ async function fetchBatchHistory(): Promise<ProductionBatchRow[]> {
 // =============================================================================
 
 export async function getProductionPageData(): Promise<ProductionPageData> {
+  await requireRole("OWNER", "MANAGER", "OPERATOR");
   const [batches, fgOptions, rbOptions, packagingOptions] = await Promise.all([
     fetchBatchHistory(),
     fetchFGOptions(),
@@ -266,113 +267,113 @@ export async function createProductionBatch(
     });
     if (previousAttempt) return { success: true, batchCode: previousAttempt.code };
 
-    // 1. Ambil data packaging untuk validasi stok & HPP
-    const [packaging, outputProduct, recipe] = await Promise.all([
-      tenantPrisma.packaging.findUnique({
-        where: { id: input.packagingId },
-        select: { id: true, name: true, costPerUnit: true, avgCostPerUnit: true, isActive: true, stockUnit: true },
-      }),
-      tenantPrisma.product.findUnique({
-        where: { id: input.outputProductId },
-        select: { id: true, type: true, isActive: true },
-      }),
-      input.recipeId
-        ? tenantPrisma.recipe.findUnique({
-            where: { id: input.recipeId },
-            select: { id: true, productId: true, isActive: true },
-          })
-        : null,
-    ]);
-    if (!packaging) return { success: false, error: "Packaging tidak ditemukan." };
-    if (!packaging.isActive) return { success: false, error: "Packaging sudah nonaktif." };
-    if (!outputProduct || !outputProduct.isActive || outputProduct.type !== "FINISHED_GOODS") {
-      return { success: false, error: "Produk output harus Finished Goods aktif." };
-    }
-    if (input.recipeId && (!recipe || !recipe.isActive || recipe.productId !== input.outputProductId)) {
-      return { success: false, error: "Resep tidak valid untuk produk output yang dipilih." };
-    }
-
-    // 2. Validasi stok packaging
-    const pkgStock = packaging.stockUnit;
-    if (pkgStock < input.unitsProduced) {
-      return {
-        success: false,
-        error: `Stok packaging tidak cukup. Tersedia: ${pkgStock} pcs, dibutuhkan: ${input.unitsProduced} pcs.`,
-      };
-    }
-
-    // 3. Validasi & hitung HPP setiap komponen RB
-    let totalRbCost = 0;
-    let totalRbUsedKg = 0;
-
-    const rbDetails: Array<{
-      productId: string;
-      actualKg: number;
-      hppPerKg: number;
-    }> = [];
-
-    for (const { productId, actualGrams } of normalizedComponents) {
-      const actualKg = actualGrams / 1000;
-      if (actualKg <= 0) continue;
-
-      const rbProduct = await tenantPrisma.product.findUnique({
-        where: { id: productId },
-        select: { name: true, type: true, isActive: true, stockKg: true, avgCostPerKg: true },
-      });
-      if (
-        !rbProduct ||
-        !rbProduct.isActive ||
-        !["GREEN_BEAN", "ROASTED_BEAN"].includes(rbProduct.type)
-      ) {
-        return { success: false, error: "Komponen bahan baku tidak valid atau sudah nonaktif." };
+    // 5. ACID transaction (includes validation + execution atomically)
+    return await tenantPrisma.$transaction(async (tx) => {
+      // 1. Ambil data packaging untuk validasi stok & HPP
+      const [packaging, outputProduct, recipe] = await Promise.all([
+        tx.packaging.findUnique({
+          where: { id: input.packagingId },
+          select: { id: true, name: true, costPerUnit: true, avgCostPerUnit: true, isActive: true, stockUnit: true },
+        }),
+        tx.product.findUnique({
+          where: { id: input.outputProductId },
+          select: { id: true, type: true, isActive: true },
+        }),
+        input.recipeId
+          ? tx.recipe.findUnique({
+              where: { id: input.recipeId },
+              select: { id: true, productId: true, isActive: true },
+            })
+          : null,
+      ]);
+      if (!packaging) return { success: false, error: "Packaging tidak ditemukan." };
+      if (!packaging.isActive) return { success: false, error: "Packaging sudah nonaktif." };
+      if (!outputProduct || !outputProduct.isActive || outputProduct.type !== "FINISHED_GOODS") {
+        return { success: false, error: "Produk output harus Finished Goods aktif." };
+      }
+      if (input.recipeId && (!recipe || !recipe.isActive || recipe.productId !== input.outputProductId)) {
+        return { success: false, error: "Resep tidak valid untuk produk output yang dipilih." };
       }
 
-      // Validasi stok RB
-      const rbStock = Number(rbProduct.stockKg);
-      if (rbStock < actualKg) {
+      // 2. Validasi stok packaging
+      const pkgStock = packaging.stockUnit;
+      if (pkgStock < input.unitsProduced) {
         return {
           success: false,
-          error: `Stok "${rbProduct.name}" tidak cukup. Tersedia: ${rbStock.toFixed(3)} kg, dibutuhkan: ${actualKg.toFixed(3)} kg.`,
-        };
-      }
-      
-      const hppPerKg = Number(rbProduct.avgCostPerKg ?? 0);
-
-      if (hppPerKg <= 0) {
-        return {
-          success: false,
-          error: `Biaya bahan "${rbProduct.name}" belum tercatat (avgCostPerKg = 0). Periksa data pembelian/roasting terlebih dahulu.`,
+          error: `Stok packaging tidak cukup. Tersedia: ${pkgStock} pcs, dibutuhkan: ${input.unitsProduced} pcs.`,
         };
       }
 
-      totalRbCost += hppPerKg * actualKg;
-      totalRbUsedKg += actualKg;
-      rbDetails.push({ productId, actualKg, hppPerKg });
-    }
+      // 3. Validasi & hitung HPP setiap komponen RB
+      let totalRbCost = 0;
+      let totalRbUsedKg = 0;
 
-    if (totalRbUsedKg === 0) {
-      return { success: false, error: "Total berat Roasted Bean yang digunakan adalah 0." };
-    }
+      const rbDetails: Array<{
+        productId: string;
+        actualKg: number;
+        hppPerKg: number;
+      }> = [];
 
-    // Sanity check: prevent unrealistic RB-to-FG ratio (max 100 units per kg of RB = ~10g RB minimum per unit)
-    const MAX_UNITS_PER_KG_RB = 100;
-    if (input.unitsProduced > totalRbUsedKg * MAX_UNITS_PER_KG_RB) {
-      return {
-        success: false,
-        error: `Jumlah produksi (${input.unitsProduced} unit) terlalu besar untuk ${totalRbUsedKg.toFixed(3)} kg bahan baku. Maksimal ${Math.floor(totalRbUsedKg * MAX_UNITS_PER_KG_RB)} unit.`,
-      };
-    }
+      for (const { productId, actualGrams } of normalizedComponents) {
+        const actualKg = actualGrams / 1000;
+        if (actualKg <= 0) continue;
 
-    // 4. Hitung HPP per unit
-    const pkgCostTotal = Number(packaging.avgCostPerUnit || packaging.costPerUnit) * input.unitsProduced;
-    const totalCost = totalRbCost + pkgCostTotal;
-    const hppPerUnit = totalCost / input.unitsProduced;
+        const rbProduct = await tx.product.findUnique({
+          where: { id: productId },
+          select: { name: true, type: true, isActive: true, stockKg: true, avgCostPerKg: true },
+        });
+        if (
+          !rbProduct ||
+          !rbProduct.isActive ||
+          !["GREEN_BEAN", "ROASTED_BEAN"].includes(rbProduct.type)
+        ) {
+          return { success: false, error: "Komponen bahan baku tidak valid atau sudah nonaktif." };
+        }
 
-    // 5. Generate kode
-    const batchCode = await generateBatchCode();
+        // Validasi stok RB
+        const rbStock = Number(rbProduct.stockKg);
+        if (rbStock < actualKg) {
+          return {
+            success: false,
+            error: `Stok "${rbProduct.name}" tidak cukup. Tersedia: ${rbStock.toFixed(3)} kg, dibutuhkan: ${actualKg.toFixed(3)} kg.`,
+          };
+        }
+        
+        const hppPerKg = Number(rbProduct.avgCostPerKg ?? 0);
 
-    // 6. ACID transaction
-    await tenantPrisma.$transaction(async (tx) => {
+        if (hppPerKg <= 0) {
+          return {
+            success: false,
+            error: `Biaya bahan "${rbProduct.name}" belum tercatat (avgCostPerKg = 0). Periksa data pembelian/roasting terlebih dahulu.`,
+          };
+        }
+
+        totalRbCost += hppPerKg * actualKg;
+        totalRbUsedKg += actualKg;
+        rbDetails.push({ productId, actualKg, hppPerKg });
+      }
+
+      if (totalRbUsedKg === 0) {
+        return { success: false, error: "Total berat Roasted Bean yang digunakan adalah 0." };
+      }
+
+      // Sanity check: prevent unrealistic RB-to-FG ratio
+      const MAX_UNITS_PER_KG_RB = 100;
+      if (input.unitsProduced > totalRbUsedKg * MAX_UNITS_PER_KG_RB) {
+        return {
+          success: false,
+          error: `Jumlah produksi (${input.unitsProduced} unit) terlalu besar untuk ${totalRbUsedKg.toFixed(3)} kg bahan baku. Maksimal ${Math.floor(totalRbUsedKg * MAX_UNITS_PER_KG_RB)} unit.`,
+        };
+      }
+
+      // 4. Hitung HPP per unit
+      const pkgCostTotal = Number(packaging.avgCostPerUnit || packaging.costPerUnit) * input.unitsProduced;
+      const totalCost = totalRbCost + pkgCostTotal;
+      const hppPerUnit = totalCost / input.unitsProduced;
+
+      // 5. Generate kode
+      const batchCode = await generateBatchCode();
+
       const batch = await tx.productionBatch.create({
         data: {
           code:            batchCode,
@@ -462,14 +463,14 @@ export async function createProductionBatch(
         },
         metadata: { operationKey: input.operationKey, componentCount: rbDetails.length },
       });
-    }, { isolationLevel: "Serializable" });
 
-    revalidatePath("/produksi");
-    revalidatePath("/inventory");
-    revalidatePath("/dashboard");
-    revalidatePath("/laporan");
-    revalidatePath("/penjualan");
-    return { success: true, batchCode };
+      revalidatePath("/produksi");
+      revalidatePath("/inventory");
+      revalidatePath("/dashboard");
+      revalidatePath("/laporan");
+      revalidatePath("/penjualan");
+      return { success: true, batchCode };
+    }, { isolationLevel: "Serializable" });
   } catch (err) {
     console.error("[createProductionBatch]", err);
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" && input.operationKey) {

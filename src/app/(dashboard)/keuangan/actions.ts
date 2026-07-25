@@ -68,6 +68,7 @@ export type PaymentActionResult =
   | { success: false; error: string };
 
 export type CreateExpenseInput = {
+  operationKey?: string;
   date: string;
   category: "UTILITAS" | "OPERASIONAL" | "LAINNYA";
   amount: number;
@@ -160,8 +161,10 @@ export type PnLReport = {
 // =============================================================================
 
 export async function getKeuanganPageData(): Promise<KeuanganPageData> {
-  const now = getCurrentDate();
+  await requireRole("OWNER", "MANAGER");
+  const tp = await requireTenantPrisma();
   const tenantId = await getCurrentTenantId();
+  const now = getCurrentDate();
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { timezone: true } });
   const localNow = new Intl.DateTimeFormat("en-CA", {
     timeZone: tenant?.timezone ?? "Asia/Jakarta",
@@ -293,7 +296,11 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
       select: { code: true },
     });
     if (previousAttempt) {
-      return { success: true, paymentCode: previousAttempt.code, newStatus: "PARTIAL" };
+      const inv = await tenantPrisma.invoice.findFirst({
+        where: { payments: { some: { operationKey: opKey } } },
+        select: { status: true },
+      });
+      return { success: true, paymentCode: previousAttempt.code, newStatus: inv?.status ?? "PARTIAL" };
     }
     const result = await tenantPrisma.$transaction(async (tx) => {
       const inv = await tx.invoice.findUnique({
@@ -384,10 +391,18 @@ export async function createExpense(input: CreateExpenseInput): Promise<CreateEx
       });
       return created;
     });
+    
+    if ('isDuplicate' in expense && expense.isDuplicate) {
+      return { success: true, id: expense.id };
+    }
+
     revalidatePath("/keuangan");
     revalidatePath("/laporan");
     return { success: true, id: expense.id };
-  } catch (err) {
+  } catch (err: any) {
+    if (err.code === "P2002") {
+      return { success: false, error: "Transaksi sedang diproses. Mohon tunggu sebentar." };
+    }
     console.error("[createExpense]", err);
     return { success: false, error: "Gagal mencatat pengeluaran. Coba lagi." };
   }
@@ -700,6 +715,7 @@ export async function getSupplierPaymentHistory(): Promise<SupplierPaymentRow[]>
 }
 
 export type RecordSupplierPaymentInput = {
+  operationKey?: string;
   purchaseId: string;
   amount: number;
   method: "CASH" | "TRANSFER" | "QRIS";
@@ -783,10 +799,17 @@ export async function recordSupplierPayment(input: RecordSupplierPaymentInput) {
       return { paymentStatus };
     }, { isolationLevel: "Serializable" });
 
+    if ('isDuplicate' in result && result.isDuplicate) {
+      return { success: true, newStatus: result.paymentStatus };
+    }
+
+    revalidatePath("/inventory");
     revalidatePath("/keuangan");
-    revalidatePath("/laporan");
-    return { success: true, paymentCode, paymentStatus: result.paymentStatus };
-  } catch (error) {
+    return { success: true, newStatus: result.paymentStatus };
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      return { success: false, error: "Pembayaran sedang diproses. Mohon tunggu sebentar." };
+    }
     console.error("[recordSupplierPayment]", error);
     return {
       success: false,

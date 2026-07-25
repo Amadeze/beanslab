@@ -33,19 +33,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { pairingCode, installationId, computerName, platform, appVersion } =
-      parsed.data;
+    const { pairingCode, installationId, computerName, platform, appVersion } = parsed.data;
 
-    // Lookup by hash
+    // 1. Lookup pairing code
     const codeHash = hashPairingCode(pairingCode);
     const pairingRecord = await prisma.artisanPairingCode.findUnique({
       where: { codeHash },
       select: {
-        id: true,
-        tenantId: true,
-        machineId: true,
-        expiresAt: true,
-        usedAt: true,
+        id: true, tenantId: true, machineId: true,
+        expiresAt: true, usedAt: true,
         machine: { select: { id: true, name: true } },
       },
     });
@@ -56,14 +52,12 @@ export async function POST(req: NextRequest) {
         { status: 404 },
       );
     }
-
     if (pairingRecord.usedAt) {
       return NextResponse.json(
         { error: { code: "PAIRING_CODE_USED", message: "Kode pairing sudah digunakan." } },
         { status: 410 },
       );
     }
-
     if (new Date() > pairingRecord.expiresAt) {
       return NextResponse.json(
         { error: { code: "PAIRING_CODE_EXPIRED", message: "Kode pairing sudah expired." } },
@@ -71,57 +65,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if installationId already paired — auto-revoke old connector
-    const existingConnector = await prisma.artisanConnector.findUnique({
+    // 2. Handle old connector with same installationId
+    const existing = await prisma.artisanConnector.findUnique({
       where: { installationId },
-      select: { id: true, revokedAt: true },
+      select: { id: true },
     });
-    if (existingConnector && !existingConnector.revokedAt) {
-      // Auto-revoke old connector, allow re-pairing
+    if (existing) {
+      // Update old connector with unique placeholder to free up installationId
       await prisma.artisanConnector.update({
-        where: { id: existingConnector.id },
-        data: { status: "REVOKED", revokedAt: new Date() },
+        where: { id: existing.id },
+        data: {
+          installationId: `old-${existing.id}`,
+          status: "REVOKED",
+          revokedAt: new Date(),
+        },
       });
     }
 
-    // Generate credential
+    // 3. Create new connector
     const connectorToken = generateConnectorToken();
     const credentialHash = hashConnectorToken(connectorToken);
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Create connector
-      const connector = await tx.artisanConnector.create({
-        data: {
-          tenantId: pairingRecord.tenantId,
-          machineId: pairingRecord.machineId,
-          installationId,
-          computerName,
-          platform,
-          appVersion,
-          credentialHash,
-          status: "ONLINE",
-        },
-      });
-
-      // Mark pairing code as used
-      await tx.artisanPairingCode.update({
-        where: { id: pairingRecord.id },
-        data: { usedAt: new Date() },
-      });
-
-      return connector;
+    const connector = await prisma.artisanConnector.create({
+      data: {
+        tenantId: pairingRecord.tenantId,
+        machineId: pairingRecord.machineId,
+        installationId,
+        computerName,
+        platform,
+        appVersion,
+        credentialHash,
+        status: "ONLINE",
+      },
     });
 
-    // Note: connectorToken is shown once, never retrievable again.
-    // encryptedCredential is stored in DB for future token rotation if needed.
+    // 4. Mark pairing code as used
+    await prisma.artisanPairingCode.update({
+      where: { id: pairingRecord.id },
+      data: { usedAt: new Date() },
+    });
 
     return NextResponse.json({
-      connectorId: result.id,
+      connectorId: connector.id,
       connectorToken,
-      machine: {
-        id: pairingRecord.machine.id,
-        name: pairingRecord.machine.name,
-      },
+      machine: { id: pairingRecord.machine.id, name: pairingRecord.machine.name },
     });
   } catch (e) {
     if (e instanceof RateLimitError) {
@@ -130,6 +117,8 @@ export async function POST(req: NextRequest) {
         { status: 429, headers: { "Retry-After": String(e.retryAfter) } },
       );
     }
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.error("[PAIR ERROR]", err.message, err.stack);
     logServerError("artisan.connector-pair", e, { requestId });
     return internalErrorResponse(requestId, "Gagal melakukan pairing.");
   }

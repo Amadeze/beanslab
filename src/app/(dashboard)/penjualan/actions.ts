@@ -82,6 +82,8 @@ export type SalesPageData = {
   fgOptions: FGStockOption[];
 };
 
+export type CashierPageData = Pick<SalesPageData, "customers" | "fgOptions">;
+
 // ── Print ──
 
 export type InvoicePrintData = {
@@ -140,6 +142,7 @@ const CreateInvoiceSchema = z.object({
 // =============================================================================
 
 export async function getSalesPageData(): Promise<SalesPageData> {
+  await requireRole("OWNER", "MANAGER", "CASHIER");
   const tp = await requireTenantPrisma();
   const [invoicesRaw, customers, fgProducts] = await Promise.all([
     tp.invoice.findMany({
@@ -205,6 +208,46 @@ export async function getSalesPageData(): Promise<SalesPageData> {
   });
 
   return { invoices, customers: customers as CustomerOption[], fgOptions };
+}
+
+export async function getCashierPageData(): Promise<CashierPageData> {
+  await requireRole("OWNER", "MANAGER", "CASHIER");
+  const tp = await requireTenantPrisma();
+  const [customers, fgProducts] = await Promise.all([
+    tp.customer.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, code: true, name: true, phone: true, tier: true },
+    }),
+    tp.product.findMany({
+      where: { type: "FINISHED_GOODS", isActive: true },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        price: true,
+        priceSilver: true,
+        priceGold: true,
+        stockUnit: true,
+        lastHpp: true,
+      },
+    }),
+  ]);
+
+  return {
+    customers: customers as CustomerOption[],
+    fgOptions: fgProducts.map((product) => ({
+      id: product.id,
+      code: product.code,
+      name: product.name,
+      price: Number(product.price) || 0,
+      priceSilver: Number(product.priceSilver) || 0,
+      priceGold: Number(product.priceGold) || 0,
+      stockUnit: product.stockUnit || 0,
+      lastHppPerUnit: product.lastHpp ? Number(product.lastHpp) : null,
+    })),
+  };
 }
 
 // =============================================================================
@@ -333,7 +376,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
           subtotal,
           discount: parsed.invoiceDiscount,
           tax: taxResult.taxAmount,
-          taxType: taxResult.taxType,
+          taxType: taxResult.taxType as any,
           taxRate: taxResult.taxRate,
           taxableAmount: taxResult.taxableAmount,
           pphType: taxResult.pphType,
@@ -414,6 +457,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
     });
 
     revalidatePath("/penjualan");
+    revalidatePath("/kasir");
     revalidatePath("/inventory");
     revalidatePath("/dashboard");
     revalidatePath("/keuangan");
@@ -796,6 +840,7 @@ export type CreditNoteInput = {
 
 export async function createCreditNote(input: CreditNoteInput) {
   try {
+    await requireRole("OWNER", "MANAGER", "CASHIER");
     const tenantId = await getCurrentTenantId();
     const userId = await getSystemUserId();
 

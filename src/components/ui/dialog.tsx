@@ -28,9 +28,8 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-stone-950/20 transition-opacity duration-150",
+        "fixed inset-0 z-50 bg-[#020609]/72 backdrop-blur-[3px] transition-opacity duration-150",
         "data-ending-style:opacity-0 data-starting-style:opacity-0",
-        "supports-backdrop-filter:backdrop-blur-sm",
         className
       )}
       {...props}
@@ -59,7 +58,7 @@ function DialogContent({
           // Size
           "max-w-md",
           // Visual
-          "flex flex-col rounded-2xl border border-stone-200/90 bg-[#fbfaf8]/95 backdrop-blur-2xl shadow-2xl shadow-stone-950/15",
+          "flex flex-col overflow-hidden rounded-[14px] border border-primary/25 bg-card shadow-[0_32px_100px_rgba(0,0,0,.46)]",
           // Animation
           "transition duration-150 ease-out",
           "data-starting-style:opacity-0 data-starting-style:scale-95",
@@ -76,7 +75,7 @@ function DialogContent({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="absolute right-3 top-3 h-7 w-7 text-zinc-400 hover:text-zinc-700"
+                className="absolute right-3 top-3 h-8 w-8 border-white/10 bg-white/[0.05] text-white/55 hover:bg-white/10 hover:text-white"
               />
             }
           >
@@ -93,7 +92,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-1 border-b border-stone-200/70 px-5 py-4", className)}
+      className={cn("instrument-grid-dark flex flex-col gap-1 border-b border-white/10 bg-[#0B141B] px-5 py-4 pr-14 text-white", className)}
       {...props}
     />
   )
@@ -104,7 +103,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex items-center justify-end gap-2 border-t border-stone-200/70 bg-white/60 px-5 py-3",
+        "flex items-center justify-end gap-2 border-t border-border bg-muted/60 px-5 py-3",
         className
       )}
       {...props}
@@ -116,7 +115,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-sm font-semibold text-zinc-900", className)}
+      className={cn("text-sm font-bold tracking-[-0.02em] text-white", className)}
       {...props}
     />
   )
@@ -126,7 +125,7 @@ function DialogDescription({ className, ...props }: DialogPrimitive.Description.
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-xs text-zinc-500", className)}
+      className={cn("text-xs text-white/48", className)}
       {...props}
     />
   )

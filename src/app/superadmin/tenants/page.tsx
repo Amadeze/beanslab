@@ -19,19 +19,20 @@ export default async function TenantsPage() {
   });
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto flex max-w-7xl flex-col gap-7 p-5 md:p-8">
+      <div className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Tenants (Outlets)</h2>
-          <p className="text-slate-400 mt-1">Manage registered outlets on this platform.</p>
+          <p className="mb-3 text-[10px] font-black uppercase tracking-[0.24em] text-domain-roasting">Roastery network</p>
+          <h2 className="text-3xl font-black tracking-[-0.045em]">Tenant registry</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Kelola identitas, akses, domain, dan subscription seluruh roastery.</p>
         </div>
         <TenantForm />
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+      <div className="hidden overflow-hidden border border-border bg-card md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-950/50 text-slate-400">
+            <thead className="border-b border-border bg-muted/60 text-muted-foreground">
               <tr>
                 <th className="px-6 py-4 font-semibold uppercase tracking-wider text-xs">Outlet Info</th>
                 <th className="px-6 py-4 font-semibold uppercase tracking-wider text-xs">Admin Contact</th>
@@ -41,49 +42,49 @@ export default async function TenantsPage() {
                 <th className="px-6 py-4 font-semibold uppercase tracking-wider text-xs text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50">
+            <tbody className="divide-y divide-border">
               {tenants.map((t) => (
-                <tr key={t.id} className="hover:bg-slate-800/20 transition-colors">
+                <tr key={t.id} className="transition-colors hover:bg-muted/50">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+                      <div className="flex size-10 shrink-0 items-center justify-center border border-domain-inventory/20 bg-domain-inventory/8">
                         {t.logoUrl ? (
                           <img src={t.logoUrl} alt="" className="w-6 h-6 object-contain" />
                         ) : (
-                          <Coffee size={18} className="text-slate-400" />
+                          <Coffee size={18} className="text-domain-inventory" />
                         )}
                       </div>
                       <div>
-                        <p className="font-bold text-white">{t.name}</p>
-                        <p className="text-xs text-slate-500 font-mono">{t.code}</p>
+                        <p className="font-bold text-foreground">{t.name}</p>
+                        <p className="font-mono text-xs text-muted-foreground">{t.code}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="font-medium text-slate-300">{t.users[0]?.name || "N/A"}</p>
-                    <p className="text-xs text-slate-500">{t.users[0]?.email || "N/A"}</p>
+                    <p className="font-medium text-foreground">{t.users[0]?.name || "N/A"}</p>
+                    <p className="text-xs text-muted-foreground">{t.users[0]?.email || "N/A"}</p>
                   </td>
                   <td className="px-6 py-4">
                     <a 
                       href={`http://${t.subdomain}.localhost:3000`} 
                       target="_blank" rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 text-xs font-mono transition-colors border border-amber-500/20"
+                      className="inline-flex items-center gap-1.5 border border-domain-roasting/20 bg-domain-roasting/8 px-2.5 py-1 font-mono text-xs text-domain-roasting transition-colors hover:bg-domain-roasting/15"
                     >
                       {t.subdomain}
                       <ExternalLink size={12} />
                     </a>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="font-medium text-slate-300">{t.subscriptionTier}</p>
-                    <p className={`text-xs ${t.subscriptionStatus === 'ACTIVE' ? 'text-emerald-400' : 'text-amber-500'}`}>
+                    <p className="font-medium text-foreground">{t.subscriptionTier}</p>
+                    <p className={`text-xs ${t.subscriptionStatus === 'ACTIVE' ? 'text-domain-inventory' : 'text-domain-production'}`}>
                       {t.subscriptionStatus}
                     </p>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase border ${
+                    <span className={`inline-flex border px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
                       t.isActive 
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
-                        : "bg-red-500/10 text-red-400 border-red-500/20"
+                        ? "border-domain-inventory/20 bg-domain-inventory/8 text-domain-inventory" 
+                        : "border-destructive/20 bg-destructive/8 text-destructive"
                     }`}>
                       {t.isActive ? "ACTIVE" : "INACTIVE"}
                     </span>
@@ -105,7 +106,7 @@ export default async function TenantsPage() {
               
               {tenants.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                     Belum ada outlet terdaftar.
                   </td>
                 </tr>
@@ -113,6 +114,59 @@ export default async function TenantsPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="grid gap-3 md:hidden">
+        {tenants.map((t) => (
+          <article key={t.id} className="border border-border bg-card p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center border border-domain-inventory/20 bg-domain-inventory/8">
+                  <Coffee size={18} className="text-domain-inventory" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="truncate font-bold">{t.name}</h3>
+                  <p className="font-mono text-xs text-muted-foreground">{t.code}</p>
+                </div>
+              </div>
+              <EditTenantDialog
+                tenant={{
+                  id: t.id,
+                  name: t.name,
+                  code: t.code,
+                  isActive: t.isActive,
+                  subscriptionTier: t.subscriptionTier,
+                  subscriptionStatus: t.subscriptionStatus
+                }}
+              />
+            </div>
+            <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-xs">
+              <div>
+                <dt className="text-muted-foreground">Owner</dt>
+                <dd className="mt-1 truncate font-semibold">{t.users[0]?.name || "N/A"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Subscription</dt>
+                <dd className="mt-1 font-semibold">{t.subscriptionTier}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Domain</dt>
+                <dd className="mt-1 truncate font-mono text-domain-roasting">{t.subdomain}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Status</dt>
+                <dd className={`mt-1 font-bold ${t.isActive ? "text-domain-inventory" : "text-destructive"}`}>
+                  {t.isActive ? "ACTIVE" : "INACTIVE"}
+                </dd>
+              </div>
+            </dl>
+          </article>
+        ))}
+        {tenants.length === 0 && (
+          <div className="border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
+            Belum ada outlet terdaftar.
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,589 +1,724 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Banknote, Clock, AlertTriangle, TrendingUp,
-  Package, Flame, Factory, ReceiptText, Inbox,
-  ArrowRight, ShoppingCart, Beaker
+  AlertTriangle,
+  ArrowRight,
+  Banknote,
+  Boxes,
+  CircleCheck,
+  Factory,
+  Flame,
+  PackagePlus,
+  ReceiptText,
+  RefreshCw,
+  TriangleAlert,
+  WalletCards,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { formatRupiah, formatKg, formatUnit } from "@/lib/format";
-import type { DashboardData, ActivityItem, LowStockItem } from "../actions";
-import { RevenueChart } from "./RevenueChart";
-import { TopProductsChart } from "./TopProductsChart";
-import { TopCustomersChart } from "./TopCustomersChart";
-import { useState, useEffect } from "react";
-import { getCurrentDate } from "@/lib/date-utils";
-import { StandardPageLayout } from "@/components/StandardPageLayout";
-
-// =============================================================================
-// Helpers
-// =============================================================================
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+} from "recharts";
+import { cn } from "@/lib/utils";
+import { formatKg, formatRupiah } from "@/lib/format";
+import type { ActivityItem, DashboardData, LowStockItem } from "../actions";
 
 function formatTimeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
-  const mins  = Math.floor(diff / 60_000);
+  const mins = Math.floor(diff / 60_000);
   const hours = Math.floor(diff / 3_600_000);
-  const days  = Math.floor(diff / 86_400_000);
-  if (mins  < 1)  return "Baru saja";
-  if (mins  < 60) return `${mins}m lalu`;
-  if (hours < 24) return `${hours}j lalu`;
-  return `${days}h lalu`;
+  const days = Math.floor(diff / 86_400_000);
+  if (mins < 1) return "baru saja";
+  if (mins < 60) return `${mins} menit lalu`;
+  if (hours < 24) return `${hours} jam lalu`;
+  return `${days} hari lalu`;
 }
 
-function formatTimestamp(iso: string): string {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
-  }).format(new Date(iso));
-}
+const ACTIVITY_LABEL: Record<ActivityItem["type"], string> = {
+  PURCHASE: "Pembelian",
+  ROASTING: "Roasting",
+  PRODUCTION: "Produksi",
+  SALE: "Penjualan",
+};
 
-// =============================================================================
-// KPI Card
-// =============================================================================
+const ACTIVITY_HREF: Record<ActivityItem["type"], string> = {
+  PURCHASE: "/inventory",
+  ROASTING: "/roasting",
+  PRODUCTION: "/produksi",
+  SALE: "/penjualan",
+};
 
-interface KpiCardProps {
-  label:       string;
-  value:       string;
-  sub?:        React.ReactNode;
-  icon:        React.ReactNode;
-  accent?:     "zinc" | "emerald" | "amber" | "red" | "violet";
-  href?:       string;
-}
+type WorkItem = {
+  id: string;
+  title: string;
+  context: string;
+  href: string;
+  severity: "critical" | "warning";
+};
 
-function KpiCard({ label, value, sub, icon, accent = "zinc", href }: KpiCardProps) {
-  const iconBg: Record<string, string> = {
-    zinc:    "bg-slate-100/60  text-slate-600",
-    emerald: "bg-emerald-100/60 text-emerald-700",
-    amber:   "bg-amber-100/60   text-amber-700",
-    red:     "bg-red-100/60     text-red-700",
-    violet:  "bg-violet-100/60  text-violet-700",
-  };
-  const valueCls: Record<string, string> = {
-    zinc:    "text-slate-800",
-    emerald: "text-emerald-700",
-    amber:   "text-amber-700",
-    red:     "text-red-600",
-    violet:  "text-violet-700",
-  };
+const QUICK_ACTIONS = [
+  {
+    label: "Terima barang",
+    mobileLabel: "Terima",
+    href: "/inventory?view=receiving",
+    icon: PackagePlus,
+    accent: false,
+  },
+  {
+    label: "Mulai roasting",
+    mobileLabel: "Roast",
+    href: "/roasting",
+    icon: Flame,
+    accent: false,
+  },
+  {
+    label: "Buka kasir",
+    mobileLabel: "Kasir",
+    href: "/kasir",
+    icon: ReceiptText,
+    accent: true,
+  },
+] as const;
 
-  const content = (
-    <div className="group relative flex flex-col gap-4 rounded-xl border border-stone-200 bg-white p-5 transition-colors hover:border-stone-300">
-      <div className="flex items-start justify-between">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide leading-none">
-          {label}
-        </p>
-        <span className={`flex h-8 w-8 items-center justify-center rounded-xl shadow-sm border border-white/50 backdrop-blur-md ${iconBg[accent]}`}>
-          {icon}
-        </span>
-      </div>
-      <div>
-        <p className={`font-mono text-2xl md:text-3xl font-black tabular-nums leading-none ${valueCls[accent]}`}>
-          {value}
-        </p>
-        {sub && <div className="mt-2 text-xs text-slate-600">{sub}</div>}
-      </div>
-      {href && (
-        <ArrowRight
-          size={14}
-          className="absolute bottom-5 right-5 text-slate-300 transition-transform group-hover:translate-x-1 group-hover:text-slate-500"
-        />
+function QuickActions({
+  mobile = false,
+  onDark = false,
+  onSignal = false,
+}: {
+  mobile?: boolean;
+  onDark?: boolean;
+  onSignal?: boolean;
+}) {
+  return (
+    <nav
+      className={cn(
+        mobile ? "grid grid-cols-3 gap-2" : "flex items-center gap-2",
       )}
-    </div>
+      aria-label="Aksi cepat operasional"
+    >
+      {QUICK_ACTIONS.map((action) => {
+        const Icon = action.icon;
+        return (
+          <Link
+            key={action.href}
+            href={action.href}
+            className={cn(
+              "group inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              mobile && "min-w-0 flex-col gap-1 px-2 py-2",
+              onSignal
+                ? action.accent
+                  ? "border-[#080B0C] bg-[#080B0C] text-[#FFF7EF] hover:bg-[#111617]"
+                  : "border-white/20 bg-white/10 text-white hover:bg-white/16"
+                : action.accent
+                ? onDark
+                  ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                : onDark
+                  ? "border-white/15 bg-white/[0.07] text-white hover:border-white/30 hover:bg-white/[0.12]"
+                  : "border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50",
+            )}
+          >
+            <span
+              className={cn(
+                "flex items-center justify-center rounded-[8px]",
+                mobile ? "h-7 w-7" : "h-6 w-6",
+                onDark && !action.accent && "bg-white/[0.08]",
+                action.accent && onDark && "bg-[#0A2138]/10",
+              )}
+            >
+              <Icon size={mobile ? 15 : 13} strokeWidth={2.1} />
+            </span>
+            <span className={mobile ? "truncate" : undefined}>
+              {mobile ? action.mobileLabel : action.label}
+            </span>
+          </Link>
+        );
+      })}
+    </nav>
   );
-
-  return href ? <Link href={href} className="block">{content}</Link> : content;
 }
 
-// =============================================================================
-// Low Stock Alert Panel
-// =============================================================================
+function buildWorkItems(data: DashboardData): WorkItem[] {
+  const actions = (data.dailyBrief?.actions ?? [])
+    .filter((action) => action.severity !== "INFO")
+    .map((action, index): WorkItem => ({
+      id: `brief-${index}`,
+      title: action.label,
+      context: action.href === "/inventory"
+        ? "Persediaan"
+        : action.href === "/keuangan"
+          ? "Keuangan"
+          : action.href === "/audit"
+            ? "Integrasi"
+            : "Operasi",
+      href: action.href,
+      severity: action.severity === "CRITICAL" ? "critical" : "warning",
+    }));
 
-const TYPE_LABEL: Record<string, string> = {
-  GREEN_BEAN:    "GB",
-  ROASTED_BEAN:  "RB",
-  FINISHED_GOODS:"FG",
-  PACKAGING:     "PKG",
-};
-const TYPE_COLOR: Record<string, string> = {
-  GREEN_BEAN:    "bg-lime-100/80 text-lime-700",
-  ROASTED_BEAN:  "bg-amber-100/80 text-amber-700",
-  FINISHED_GOODS:"bg-violet-100/80 text-violet-700",
-  PACKAGING:     "bg-stone-100/80 text-stone-700",
-};
+  if (!actions.some((item) => item.href === "/inventory")) {
+    actions.push(
+      ...data.lowStock.slice(0, 3).map((item): WorkItem => ({
+        id: `stock-${item.id}`,
+        title: `${item.name} berada di bawah batas aman`,
+        context: `${item.stock.toLocaleString("id-ID")} ${item.unit} tersisa · batas ${item.threshold.toLocaleString("id-ID")} ${item.unit}`,
+        href: "/inventory",
+        severity: item.stock <= 0 ? "critical" : "warning",
+      })),
+    );
+  }
 
-function LowStockCard({ items }: { items: LowStockItem[] }) {
-  const accent = items.length === 0 ? "zinc" : items.length <= 2 ? "amber" : "red";
-  const iconBg: Record<string, string> = {
-    zinc:  "bg-slate-100/60 text-slate-600",
-    amber: "bg-amber-100/60 text-amber-700",
-    red:   "bg-red-100/60 text-red-700",
-  };
-  const valueCls: Record<string, string> = {
-    zinc:  "text-slate-800",
-    amber: "text-amber-700",
-    red:   "text-red-600",
-  };
+  if (data.kpi.piutangCount > 0 && !actions.some((item) => item.href === "/keuangan")) {
+    actions.push({
+      id: "receivables",
+      title: `${data.kpi.piutangCount} nota belum selesai dibayar`,
+      context: `${formatRupiah(data.kpi.totalPiutang)} masih berada di piutang`,
+      href: "/keuangan",
+      severity: "warning",
+    });
+  }
+
+  return actions.slice(0, 6);
+}
+
+function ControlHero({
+  data,
+  items,
+  asOfLabel,
+}: {
+  data: DashboardData;
+  items: WorkItem[];
+  asOfLabel: string;
+}) {
+  const primary = items[0];
+  const criticalCount = items.filter((item) => item.severity === "critical").length;
+  const headline = items.length > 0
+    ? `${items.length} keputusan menjaga operasi tetap mengalir.`
+    : "Seluruh aliran operasi terkendali.";
+  const signal = data.lowStock.length > 0
+    ? `${data.lowStock.length} stok perlu dipulihkan`
+    : data.kpi.piutangCount > 0
+      ? `${data.kpi.piutangCount} nota belum menjadi kas`
+      : "Tidak ada hambatan aktif";
 
   return (
-    <div className="flex flex-col gap-3 rounded-[1.5rem] md:rounded-3xl border border-white/60 bg-white/40 p-5 shadow-lg shadow-slate-200/30 backdrop-blur-xl">
-      <div className="flex items-start justify-between">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide leading-none">
-          Peringatan Stok Tipis
-        </p>
-        <span className={`flex h-8 w-8 items-center justify-center rounded-xl shadow-sm border border-white/50 backdrop-blur-md ${iconBg[accent]}`}>
-          <AlertTriangle size={14} />
+    <header
+      data-testid="page-header"
+      className="instrument-grid-dark relative shrink-0 overflow-hidden border-b border-white/10 bg-[#05090D] text-white"
+    >
+      <div className="mx-auto grid w-full max-w-[1600px] lg:grid-cols-[minmax(0,1fr)_390px]">
+        <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[#69E8F3]">
+              Owner control room
+            </span>
+            <span className="h-px w-10 bg-[#00C8DF]" aria-hidden />
+            <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-white/38">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#00C8DF] shadow-[0_0_10px_rgba(0,200,223,.55)]" />
+              Live · {asOfLabel}
+            </span>
+          </div>
+
+          <h1 className="mt-5 max-w-[760px] text-[clamp(1.8rem,3.25vw,3rem)] font-black leading-[0.97] tracking-[-0.052em] text-white">
+            {items.length > 0 && (
+              <span className="text-[#00C8DF]">{items.length} </span>
+            )}
+            {items.length > 0 ? headline.replace(`${items.length} `, "") : headline}
+          </h1>
+
+          <p className="mt-5 max-w-2xl text-sm leading-6 text-white/52 sm:text-[15px] sm:leading-7">
+            Mulai dari hambatan terbesar, lalu ikuti aliran bahan sampai menjadi kas.
+            Angka di halaman ini berasal dari transaksi workspace aktif.
+          </p>
+
+          {primary ? (
+            <Link
+              href={primary.href}
+              className="group mt-7 grid max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-y border-white/12 py-4 transition-colors hover:border-[#00C8DF]/45"
+            >
+              <span className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-[9px]",
+                primary.severity === "critical" ? "bg-[#4C0302] text-[#FFB0AD]" : "bg-[#A66F12]/18 text-[#E0BC67]",
+              )}>
+                {primary.severity === "critical" ? <TriangleAlert size={17} /> : <AlertTriangle size={17} />}
+              </span>
+              <span className="min-w-0">
+                <span className="block font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-white/35">
+                  Keputusan pertama
+                </span>
+                <span className="mt-1 block text-sm font-bold text-white sm:text-base">{primary.title}</span>
+              </span>
+              <ArrowRight size={17} className="text-white/30 transition-transform group-hover:translate-x-1 group-hover:text-[#69E8F3]" />
+            </Link>
+          ) : null}
+        </div>
+
+        <aside className="relative overflow-hidden bg-[#B65331] px-4 py-7 text-white sm:px-6 lg:px-7 lg:py-9">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-60"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 100% 0%, rgba(255,221,198,.38), transparent 38%), linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px)",
+              backgroundSize: "100% 100%, 100% 28px",
+            }}
+          />
+          <div className="relative">
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-white/55">
+                Sinyal terpenting
+              </p>
+              <span className="rounded-[6px] border border-white/20 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.14em] text-white/70">
+                {criticalCount} kritis
+              </span>
+            </div>
+            <p className={cn(
+              "mt-4 text-[clamp(1.75rem,3vw,2.35rem)] font-black leading-[0.96] tracking-[-0.05em]",
+              criticalCount > 0 ? "text-[#2E120B]" : "text-white",
+            )}>
+              {signal}
+            </p>
+
+            <dl className="mt-7 grid grid-cols-3 border-y border-white/18 py-5">
+              <div className="pr-3">
+                <dt className="font-mono text-[7px] uppercase tracking-[0.16em] text-white/50">Penjualan</dt>
+                <dd className="mt-2 truncate text-xs font-bold tabular-nums text-white">{formatRupiah(data.kpi.revenueToday)}</dd>
+              </div>
+              <div className="border-x border-white/18 px-3">
+                <dt className="font-mono text-[7px] uppercase tracking-[0.16em] text-white/50">Kas masuk</dt>
+                <dd className="mt-2 truncate text-xs font-bold tabular-nums text-white">{formatRupiah(data.kpi.kasToday)}</dd>
+              </div>
+              <div className="pl-3">
+                <dt className="font-mono text-[7px] uppercase tracking-[0.16em] text-white/50">Yield roast</dt>
+                <dd className="mt-2 text-xs font-black tabular-nums text-white">{data.kpi.averageRoastYield.toFixed(1)}%</dd>
+              </div>
+            </dl>
+
+            <p className="mt-6 font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-white/50">
+              Jalankan operasi
+            </p>
+            <div className="mt-3">
+              <QuickActions mobile onSignal />
+            </div>
+          </div>
+        </aside>
+      </div>
+    </header>
+  );
+}
+
+function WorkQueue({ items }: { items: WorkItem[] }) {
+  return (
+    <section className="overflow-hidden rounded-[14px] border border-border bg-card" aria-labelledby="work-queue-title">
+      <div className="flex min-h-16 items-center justify-between border-b border-stone-200 px-4 md:px-5">
+        <div>
+          <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-primary">Decision queue</p>
+          <h2 id="work-queue-title" className="mt-1 text-base font-black tracking-[-0.025em] text-stone-950">Yang perlu diputuskan</h2>
+        </div>
+        <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-[8px] bg-[#05090D] px-2 text-xs font-bold tabular-nums text-[#8EF3FC]">
+          {String(items.length).padStart(2, "0")}
         </span>
       </div>
 
       {items.length === 0 ? (
-        <div className="mt-1">
-          <p className="font-mono text-2xl md:text-3xl font-black tabular-nums text-slate-800 leading-none">
-            Semua aman
+        <div className="flex min-h-[260px] flex-col items-center justify-center px-6 text-center">
+          <CircleCheck size={30} className="text-emerald-600" />
+          <p className="mt-3 text-sm font-semibold text-stone-900">Tidak ada pengecualian aktif</p>
+          <p className="mt-1 max-w-sm text-xs leading-5 text-stone-500">
+            Stok, piutang, dan integrasi tidak memerlukan tindakan segera.
           </p>
-          <p className="mt-2 text-xs text-slate-600">Tidak ada stok di bawah batas minimum</p>
         </div>
       ) : (
-        <div>
-          <p className={`font-mono text-2xl md:text-3xl font-black tabular-nums leading-none ${valueCls[accent]}`}>
-            {items.length} item
-          </p>
-          <p className="mt-1.5 mb-3 text-xs text-slate-600">Perlu segera diisi ulang</p>
-          <div className="space-y-2">
-            {items.slice(0, 4).map((item) => (
-              <Link 
-                key={item.id} 
-                href={`/inventory?tab=${item.type === 'GREEN_BEAN' ? 'gb' : item.type === 'ROASTED_BEAN' ? 'rb' : item.type === 'FINISHED_GOODS' ? 'fg' : 'pkg'}`}
-                className="flex items-center justify-between gap-2 border-b border-white/30 pb-1.5 last:border-0 last:pb-0 hover:bg-white/40 rounded px-1 transition-colors"
+        <ul className="divide-y divide-stone-100">
+          {items.map((item, index) => (
+            <li key={item.id}>
+              <Link
+                href={item.href}
+                className={cn(
+                  "group grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-3 px-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-900 md:px-5",
+                  index === 0 ? "min-h-[88px] bg-[#f3f9fa] hover:bg-[#e9f5f7]" : "min-h-[66px] hover:bg-stone-50",
+                )}
               >
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${TYPE_COLOR[item.type]}`}>
-                    {TYPE_LABEL[item.type]}
-                  </span>
-                  <span className="truncate text-xs font-medium text-slate-700">{item.name}</span>
-                </div>
-                <span className="shrink-0 font-mono text-xs font-bold text-red-600">
-                  {item.unit === "kg"
-                    ? formatKg(item.stock)
-                    : formatUnit(item.stock)}
+                <span
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-full",
+                    item.severity === "critical"
+                      ? "bg-red-50 text-red-700"
+                      : "bg-amber-50 text-amber-700",
+                  )}
+                >
+                  {item.severity === "critical" ? <TriangleAlert size={15} /> : <AlertTriangle size={15} />}
                 </span>
+                <span className="min-w-0">
+                  <span className={cn("block font-semibold text-stone-900", index === 0 ? "text-sm leading-5" : "truncate text-xs")}>{item.title}</span>
+                  <span className="mt-0.5 block truncate text-[11px] text-stone-500">{item.context}</span>
+                </span>
+                <ArrowRight size={14} className="text-stone-300 transition-transform group-hover:translate-x-0.5 group-hover:text-stone-700" />
               </Link>
-            ))}
-            {items.length > 4 && (
-              <p className="text-[11px] text-slate-600 font-medium pt-1">+{items.length - 4} lainnya</p>
-            )}
-          </div>
-        </div>
+            </li>
+          ))}
+        </ul>
       )}
-    </div>
+    </section>
   );
 }
 
-function DailyBriefCard({ brief }: { brief: NonNullable<DashboardData["dailyBrief"]> }) {
-  const dateLabel = new Intl.DateTimeFormat("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${brief.reportDate}T00:00:00.000Z`));
+function ShiftSummary({ data }: { data: DashboardData }) {
+  const brief = data.dailyBrief;
+  const cashRealization = data.kpi.revenueToday > 0
+    ? Math.min(100, (data.kpi.kasToday / data.kpi.revenueToday) * 100)
+    : data.kpi.kasToday > 0 ? 100 : 0;
 
   return (
-    <section className="overflow-hidden rounded-[1.5rem] border border-amber-200/60 bg-gradient-to-br from-amber-50/90 via-white/70 to-emerald-50/70 shadow-lg shadow-amber-900/5 backdrop-blur-xl md:rounded-3xl">
-      <div className="flex flex-col gap-3 border-b border-amber-200/50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-700">Morning brief</p>
-          <h2 className="mt-1 text-base font-bold text-slate-900">Ringkasan {dateLabel}</h2>
-        </div>
-        <Badge variant="outline" className="w-fit border-emerald-200 bg-emerald-50 text-emerald-700">
-          Snapshot tersimpan · {brief.timezone}
-        </Badge>
-      </div>
-
-      <div className="grid grid-cols-2 gap-px bg-amber-200/40 lg:grid-cols-5">
-        {[
-          ["Penjualan akrual", formatRupiah(brief.salesAccrued), `${brief.invoiceCount} nota`],
-          ["Kas diterima", formatRupiah(brief.cashCollected), "Pembayaran aktual"],
-          ["Roasting", `${brief.roasting.yieldPercent.toFixed(1)}%`, `${brief.roasting.batchCount} batch · ${formatKg(brief.roasting.outputKg)}`],
-          ["Produksi", formatUnit(brief.production.unitsProduced), `${brief.production.batchCount} batch selesai`],
-          ["Sample", `${brief.samples?.packCount ?? 0} pack`, `${(brief.samples?.totalGrams ?? 0).toLocaleString("id-ID")} g · ${formatRupiah(brief.samples?.totalCost ?? 0)}`],
-        ].map(([label, value, detail]) => (
-          <div key={label} className="bg-white/65 px-5 py-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
-            <p className="mt-2 font-mono text-xl font-black tabular-nums text-slate-900">{value}</p>
-            <p className="mt-1 text-xs text-slate-500">{detail}</p>
+    <section className="instrument-grid-dark overflow-hidden rounded-[14px] border border-white/10 bg-[#0B141B] text-white" aria-labelledby="shift-summary-title">
+      <div className="border-b border-white/10 px-5 py-5">
+        <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#69E8F3]">Shift ledger</p>
+        <div className="mt-2 flex items-end justify-between gap-4">
+          <div>
+            <h2 id="shift-summary-title" className="text-sm font-bold text-white/55">Penjualan hari ini</h2>
+            <p className="mt-1 text-[clamp(1.65rem,3vw,2.35rem)] font-black leading-none tracking-[-0.055em] text-white">
+              {formatRupiah(data.kpi.revenueToday)}
+            </p>
           </div>
-        ))}
+          <Link href="/penjualan" className="mb-0.5 text-xs font-bold text-[#69E8F3] hover:text-white">Buka</Link>
+        </div>
+        <div className="mt-5 flex items-center justify-between text-[10px] text-white/42">
+          <span>Kas yang sudah diterima</span>
+          <span className="font-bold tabular-nums">{cashRealization.toFixed(0)}%</span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-[#4B6B3C]" style={{ width: `${cashRealization}%` }} />
+        </div>
       </div>
 
-      <div className="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto] lg:items-center">
-        <div className="flex flex-wrap gap-2">
-          {brief.actions.map((action) => (
-            <Link
-              key={`${action.href}-${action.label}`}
-              href={action.href}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white ${
-                action.severity === "CRITICAL"
-                  ? "border-red-200 bg-red-50 text-red-700"
-                  : action.severity === "WARNING"
-                    ? "border-amber-200 bg-amber-50 text-amber-800"
-                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
-              }`}
-            >
-              <AlertTriangle size={12} />
-              {action.label}
-            </Link>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-4 text-xs font-semibold text-slate-600">
-          <span>Piutang lewat tempo: {formatRupiah(brief.receivables.overdueTotal)}</span>
-          <span>Hutang lewat tempo: {formatRupiah(brief.payables.overdueTotal)}</span>
-        </div>
+      <dl className="grid grid-cols-2 border-b border-white/10">
+        <Link href="/keuangan" className="border-r border-white/10 p-5 hover:bg-white/[0.04]">
+          <dt className="font-mono text-[8px] uppercase tracking-[0.16em] text-white/35">Kas masuk</dt>
+          <dd className="mt-2 text-sm font-black tabular-nums text-white">{formatRupiah(data.kpi.kasToday)}</dd>
+        </Link>
+        <Link href="/keuangan" className="p-5 hover:bg-white/[0.04]">
+          <dt className="font-mono text-[8px] uppercase tracking-[0.16em] text-white/35">Piutang aktif</dt>
+          <dd className="mt-2 text-sm font-black tabular-nums text-[#FF8C88]">{formatRupiah(data.kpi.totalPiutang)}</dd>
+          <dd className="mt-1 text-[10px] text-white/35">{data.kpi.piutangCount} nota</dd>
+        </Link>
+      </dl>
+
+      <div className="grid grid-cols-2">
+        <Link href="/roasting" className="group border-r border-white/10 p-5 hover:bg-white/[0.04]">
+          <p className="text-[10px] text-white/35">Roasting terakhir</p>
+          <p className="mt-1 text-sm font-bold text-white">{brief?.roasting.batchCount ?? 0} batch</p>
+          <p className="mt-1 text-[10px] text-white/30">
+            {brief && brief.roasting.inputKg > 0 ? `${brief.roasting.yieldPercent.toFixed(1)}% yield` : "belum ada output"}
+          </p>
+        </Link>
+        <Link href="/produksi" className="group p-5 hover:bg-white/[0.04]">
+          <p className="text-[10px] text-white/35">Produksi terakhir</p>
+          <p className="mt-1 text-sm font-bold text-white">{brief?.production.unitsProduced ?? 0} unit</p>
+          <p className="mt-1 text-[10px] text-white/30">{brief?.production.batchCount ?? 0} batch selesai</p>
+        </Link>
       </div>
     </section>
   );
 }
 
-// =============================================================================
-// Activity Feed
-// =============================================================================
-
-const ACTIVITY_META: Record<ActivityItem["type"], {
-  label: string;
-  icon: React.ReactNode;
-  iconBg: string;
-  href: string;
-}> = {
-  PURCHASE:   {
-    label:  "Barang Datang",
-    icon:   <Package size={12} />,
-    iconBg: "bg-lime-100 text-lime-700",
-    href:   "/inventory",
-  },
-  ROASTING:   {
-    label:  "Roasting",
-    icon:   <Flame size={12} />,
-    iconBg: "bg-orange-100 text-orange-600",
-    href:   "/roasting",
-  },
-  PRODUCTION: {
-    label:  "Produksi",
-    icon:   <Factory size={12} />,
-    iconBg: "bg-violet-100 text-violet-600",
-    href:   "/produksi",
-  },
-  SALE:       {
-    label:  "Penjualan",
-    icon:   <ReceiptText size={12} />,
-    iconBg: "bg-blue-100 text-amber-800",
-    href:   "/penjualan",
-  },
-};
-
-const ACTIVITY_STATUS_CLS: Record<string, string> = {
-  Selesai:  "bg-emerald-100/60 text-emerald-700 border-emerald-200/60",
-  Lunas:    "bg-emerald-100/60 text-emerald-700 border-emerald-200/60",
-  Proses:   "bg-blue-100/60 text-amber-800 border-blue-200/60",
-  Tempo:    "bg-amber-100/60 text-amber-700 border-amber-200/60",
-  Sebagian: "bg-blue-100/60 text-amber-800 border-blue-200/60",
-  Draft:    "bg-white/40 text-slate-600 border-white/60",
-  Void:     "bg-slate-100/60 text-slate-400 border-slate-200/60",
-};
-
-function ActivityFeed({ items }: { items: ActivityItem[] }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  if (items.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-2 py-12 text-center bg-white/20">
-        <span className="rounded-full bg-white/50 border border-white/60 shadow-sm p-3">
-          <Inbox size={20} className="text-slate-400" />
-        </span>
-        <p className="text-sm font-semibold text-slate-500 mt-2">Belum ada aktivitas</p>
-        <p className="text-xs text-slate-400">Mulai catat transaksi pertama via modul di sidebar.</p>
-      </div>
-    );
-  }
+function OperationalStatus({ data }: { data: DashboardData }) {
+  const brief = data.dailyBrief;
+  const stages = [
+    {
+      number: "01",
+      label: "Pasokan",
+      status: data.lowStock.length > 0 ? "Perlu tindakan" : "Terkendali",
+      detail: data.lowStock.length > 0 ? `${data.lowStock.length} item di bawah batas` : "Tidak ada stok kritis",
+      href: "/inventory",
+      icon: Boxes,
+      attention: data.lowStock.length > 0,
+      tone: "border-[#2B7567]/60 bg-[#2B7567]/16 text-[#87CDBC]",
+      line: "bg-[#2B7567]",
+    },
+    {
+      number: "02",
+      label: "Roasting",
+      status: `${brief?.roasting.batchCount ?? 0} batch`,
+      detail: brief && brief.roasting.inputKg > 0 ? `${brief.roasting.yieldPercent.toFixed(1)}% yield` : "Belum ada batch kemarin",
+      href: "/roasting",
+      icon: Flame,
+      attention: false,
+      tone: "border-[#B65331]/60 bg-[#B65331]/16 text-[#E9A17F]",
+      line: "bg-[#B65331]",
+    },
+    {
+      number: "03",
+      label: "Produksi",
+      status: `${brief?.production.unitsProduced ?? 0} unit`,
+      detail: `${brief?.production.batchCount ?? 0} batch selesai`,
+      href: "/produksi",
+      icon: Factory,
+      attention: false,
+      tone: "border-[#A66F12]/60 bg-[#A66F12]/16 text-[#E0BC67]",
+      line: "bg-[#A66F12]",
+    },
+    {
+      number: "04",
+      label: "Penjualan",
+      status: formatRupiah(data.kpi.revenueToday),
+      detail: "Nilai nota hari ini",
+      href: "/penjualan",
+      icon: ReceiptText,
+      attention: false,
+      tone: "border-[#6F4A6A]/60 bg-[#6F4A6A]/16 text-[#C7A8C4]",
+      line: "bg-[#6F4A6A]",
+    },
+    {
+      number: "05",
+      label: "Kas",
+      status: formatRupiah(data.kpi.kasToday),
+      detail: data.kpi.piutangCount > 0 ? `${data.kpi.piutangCount} nota belum lunas` : "Piutang bersih",
+      href: "/keuangan",
+      icon: WalletCards,
+      attention: data.kpi.piutangCount > 0,
+      tone: "border-[#4B6B3C]/60 bg-[#4B6B3C]/16 text-[#A8C390]",
+      line: "bg-[#4B6B3C]",
+    },
+  ];
 
   return (
-    <div className="bg-white/10">
-      {items.map((item, i) => {
-        const meta      = ACTIVITY_META[item.type];
-        const statusCls = ACTIVITY_STATUS_CLS[item.status] ?? "bg-white/40 text-slate-500 border-white/60";
-
-        return (
-          <div
-            key={`${item.type}-${item.id}`}
-            className={`flex items-center gap-4 px-4 md:px-5 py-3.5 transition-colors hover:bg-white/40 ${
-              i < items.length - 1 ? "border-b border-white/30" : ""
-            }`}
+    <section className="instrument-grid-dark overflow-hidden rounded-[14px] border border-white/10 bg-[#0B141B] text-white" aria-labelledby="operations-status-title">
+      <div className="flex min-h-16 items-center justify-between border-b border-white/10 px-4 md:px-5">
+        <div>
+          <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#69E8F3]">Live roastery flow</p>
+          <h2 id="operations-status-title" className="mt-1 text-base font-black tracking-[-0.025em] text-white">
+            Bahan bergerak sampai menjadi kas
+          </h2>
+        </div>
+        <Link href="/laporan" className="hidden text-xs font-semibold text-white/42 hover:text-[#69E8F3] sm:inline">
+          Buka laporan
+        </Link>
+      </div>
+      <div className="grid grid-cols-5">
+        {stages.map(({ number, label, status, detail, href, icon: Icon, attention, tone, line }, index) => (
+          <Link
+            key={label}
+            href={href}
+            className="group relative min-w-0 border-r border-white/10 px-2 py-5 last:border-r-0 hover:bg-white/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00C8DF] sm:px-4 sm:py-6"
           >
-            {/* Type icon */}
-            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-sm border border-white/50 backdrop-blur-sm ${meta.iconBg}`}>
-              {meta.icon}
-            </span>
-
-            {/* Code */}
-            <span className="w-28 md:w-32 shrink-0 font-mono text-xs font-semibold text-slate-700 tabular-nums">
-              {item.code}
-            </span>
-
-            {/* Description */}
-            <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-600">
-              {item.description}
-            </span>
-
-            {/* Amount */}
-            <span className="w-24 md:w-28 shrink-0 text-right font-mono text-xs font-bold text-slate-800 tabular-nums">
-              {item.amount !== null ? formatRupiah(item.amount) : "—"}
-            </span>
-
-            {/* Status badge */}
-            <span className="w-20 shrink-0 text-right">
-              <Badge
-                variant="outline"
-                className={`text-[10px] font-semibold backdrop-blur-sm ${statusCls}`}
+            {index > 0 && (
+              <span
+                className={cn(
+                  "absolute -left-px top-[34px] h-px w-4 -translate-x-1/2 sm:w-7",
+                  attention ? "bg-[#8C2F39]" : line,
+                )}
+                aria-hidden
+              />
+            )}
+            <div className="flex items-center justify-between gap-1">
+              <span
+                className={cn(
+                  "relative z-10 flex h-8 w-8 items-center justify-center rounded-[8px] border sm:h-9 sm:w-9",
+                  attention
+                    ? "border-[#FF8C88]/30 bg-[#4C0302] text-[#FFB0AD]"
+                    : tone,
+                )}
+                aria-label={`Tahap ${number}: ${label}`}
               >
-                {item.status}
-              </Badge>
-            </span>
-
-            {/* Time ago */}
-            <span
-              className="w-16 shrink-0 text-right text-[10px] font-medium text-slate-400"
-              title={mounted ? formatTimestamp(item.timestamp) : ""}
-            >
-              {mounted ? formatTimeAgo(item.timestamp) : ""}
-            </span>
-          </div>
-        );
-      })}
-    </div>
+                <Icon size={14} strokeWidth={2.1} />
+              </span>
+              <ArrowRight size={13} className="hidden text-white/20 transition-transform group-hover:translate-x-0.5 group-hover:text-[#69E8F3] sm:block" />
+            </div>
+            <div className="mt-3 min-w-0">
+              <p className="truncate text-[9px] font-bold text-white/55 sm:text-xs">
+                {label}
+              </p>
+              <p
+                className={cn(
+                  "mt-1 truncate text-[8px] font-bold tabular-nums sm:text-sm",
+                  attention ? "text-[#FF8C88]" : "text-white",
+                )}
+              >
+                {status}
+              </p>
+              <p className="mt-1 hidden truncate text-[10px] text-white/30 lg:block">{detail}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }
 
-// =============================================================================
-// Main Shell
-// =============================================================================
+function RevenuePanel({ data }: { data: DashboardData }) {
+  const total = data.revenueTrend.reduce((sum, item) => sum + item.revenue, 0);
+  return (
+    <section className="rounded-[14px] border border-border bg-card p-4 md:p-5" aria-labelledby="revenue-title">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[#6F4A6A]">Arus penjualan</p>
+          <h2 id="revenue-title" className="text-sm font-bold text-stone-900">Pendapatan 7 hari</h2>
+          <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-stone-900">{formatRupiah(total)}</p>
+        </div>
+        <Link href="/laporan" className="inline-flex min-h-9 items-center rounded-md px-2.5 text-xs font-semibold text-stone-600 hover:bg-stone-100">
+          Detail
+        </Link>
+      </div>
+      <div className="mt-4 h-40">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data.revenueTrend} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>
+            <defs>
+              <linearGradient id="workbenchRevenue" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#6F4A6A" stopOpacity={0.24} />
+                <stop offset="100%" stopColor="#6F4A6A" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="#e7e5e4" vertical={false} strokeDasharray="3 4" />
+            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#78716c" }} dy={8} />
+            <RechartsTooltip
+              content={({ active, payload, label }) => active && payload?.length ? (
+                <div className="rounded-md border border-stone-200 bg-white px-3 py-2 shadow-lg">
+                  <p className="text-[10px] text-stone-500">{label}</p>
+                  <p className="mt-0.5 text-xs font-bold text-stone-900">{formatRupiah(Number(payload[0].value))}</p>
+                </div>
+              ) : null}
+            />
+            <Area type="monotone" dataKey="revenue" stroke="#6F4A6A" strokeWidth={2} fill="url(#workbenchRevenue)" isAnimationActive={false} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+  );
+}
+
+function ActivityTable({ items, mounted }: { items: ActivityItem[]; mounted: boolean }) {
+  return (
+    <section className="overflow-hidden rounded-[14px] border border-border bg-card" aria-labelledby="activity-title">
+      <div className="flex min-h-14 items-center justify-between border-b border-stone-200 px-4 md:px-5">
+        <div>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[#426C7A]">Jejak operasi</p>
+          <h2 id="activity-title" className="text-sm font-bold text-stone-900">Aktivitas terbaru</h2>
+          <p className="text-xs text-stone-500">Transaksi lintas area kerja</p>
+        </div>
+        <Link href="/audit" className="text-xs font-semibold text-stone-600 hover:text-stone-900">Lihat audit</Link>
+      </div>
+      {items.length === 0 ? (
+        <div className="flex min-h-48 items-center justify-center text-xs text-stone-500">Belum ada aktivitas.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-stone-100 bg-stone-50/70">
+                <th className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-stone-500">Waktu</th>
+                <th className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-stone-500">Area</th>
+                <th className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-stone-500">Transaksi</th>
+                <th className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-stone-500">Status</th>
+                <th className="px-5 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-stone-500">Nilai</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100">
+              {items.slice(0, 8).map((item) => (
+                <tr key={`${item.type}-${item.id}`} className="hover:bg-stone-50/80">
+                  <td className="whitespace-nowrap px-5 py-3 text-[11px] text-stone-500">{mounted ? formatTimeAgo(item.timestamp) : "—"}</td>
+                  <td className="px-5 py-3">
+                    <Link href={ACTIVITY_HREF[item.type]} className="text-xs font-semibold text-stone-700 hover:text-stone-950">
+                      {ACTIVITY_LABEL[item.type]}
+                    </Link>
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className="block text-xs font-medium text-stone-900">{item.description}</span>
+                    <span className="mt-0.5 block font-mono text-[10px] text-stone-400">{item.code}</span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className="inline-flex rounded-full bg-stone-100 px-2 py-1 text-[10px] font-semibold text-stone-700">{item.status}</span>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3 text-right text-xs font-semibold tabular-nums text-stone-900">
+                    {item.amount === null ? "—" : formatRupiah(item.amount)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StockWatchlist({ items }: { items: LowStockItem[] }) {
+  return (
+    <section className="overflow-hidden rounded-[14px] border border-border bg-card" aria-labelledby="stock-watch-title">
+      <div className="flex min-h-14 items-center justify-between border-b border-stone-200 px-4 md:px-5">
+        <div>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[#4C0302]">Risiko pasokan</p>
+          <h2 id="stock-watch-title" className="text-sm font-bold text-stone-900">Pantauan stok</h2>
+          <p className="text-xs text-stone-500">Item di bawah batas aman</p>
+        </div>
+        <Link href="/inventory" className="text-xs font-semibold text-stone-600 hover:text-stone-900">Buka stok</Link>
+      </div>
+      {items.length === 0 ? (
+        <div className="flex min-h-[210px] flex-col items-center justify-center px-6 text-center">
+          <CircleCheck size={26} className="text-emerald-600" />
+          <p className="mt-2 text-xs font-semibold text-stone-900">Stok dalam batas aman</p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-stone-100">
+          {items.slice(0, 5).map((item) => (
+            <li key={item.id} className="grid min-h-[52px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 md:px-5">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold text-stone-900">{item.name}</p>
+                <p className="text-[10px] text-stone-500">Batas {item.threshold.toLocaleString("id-ID")} {item.unit}</p>
+              </div>
+              <span className={cn("text-xs font-bold tabular-nums", item.stock <= 0 ? "text-red-700" : "text-amber-700")}>
+                {item.stock.toLocaleString("id-ID")} {item.unit}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 export function DashboardShell({ data }: { data: DashboardData }) {
-  const { kpi, lowStock, activity, asOf } = data;
   const [mounted, setMounted] = useState(false);
-  
   useEffect(() => setMounted(true), []);
-
-  const todayLabel = mounted ? new Intl.DateTimeFormat("id-ID", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
-  }).format(getCurrentDate()) : "";
+  const workItems = useMemo(() => buildWorkItems(data), [data]);
+  const asOfLabel = mounted
+    ? new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(data.asOf))
+    : "—";
 
   return (
-    <StandardPageLayout
-      title="Dashboard"
-      description={todayLabel}
-      actionButton={
-        <p className="rounded-full border border-stone-200 bg-white/70 px-3 py-1.5 text-[11px] font-medium text-stone-500 shadow-sm">
-          Diperbarui {mounted ? formatTimeAgo(asOf) : ""}
-        </p>
-      }
-    >
-      {/* ── Header ── */}
-      {/* ── Scrollable content ── */}
-      <div className="space-y-6">
+    <div data-testid="operations-workbench" className="flex min-h-0 flex-1 flex-col bg-background">
+      <ControlHero data={data} items={workItems} asOfLabel={asOfLabel} />
 
-        {/* ── Quick Actions ── */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href="/penjualan" className="flex items-center gap-2 rounded-full bg-amber-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-amber-950/20 transition-all hover:bg-amber-800 hover:shadow-lg active:scale-95">
-            <ReceiptText size={16} />
-            Buat Nota
-          </Link>
-          <Link href="/penjualan?action=sample" className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 shadow-sm transition-all hover:bg-amber-100">
-            <Beaker size={14} />
-            Kasih Sample
-          </Link>
-          <Link href="/roasting" className="flex items-center gap-2 rounded-full border border-white/60 bg-white/40 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-md transition-all hover:bg-white/60 hover:text-slate-900">
-            <Flame size={14} />
-            Roasting
-          </Link>
-          <Link href="/produksi" className="flex items-center gap-2 rounded-full border border-white/60 bg-white/40 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-md transition-all hover:bg-white/60 hover:text-slate-900">
-            <Factory size={14} />
-            Produksi
-          </Link>
-          <Link href="/inventory" className="flex items-center gap-2 rounded-full border border-white/60 bg-white/40 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-md transition-all hover:bg-white/60 hover:text-slate-900">
-            <Package size={14} />
-            Terima Barang
-          </Link>
-        </div>
+      <main className="custom-scrollbar min-w-0 flex-1 overflow-y-auto" id="main-content">
+        <div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 md:p-6 lg:p-7">
+          <OperationalStatus data={data} />
 
-        {/* ── KPI Cards ── */}
-        {/* ── KPI Cards ── */}
-        {data.dailyBrief && <DailyBriefCard brief={data.dailyBrief} />}
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 md:gap-5">
-
-          {/* Card 1 — Revenue */}
-          <KpiCard
-            label="Pendapatan Hari Ini"
-            value={formatRupiah(kpi.revenueToday)}
-            sub={
-              kpi.revenueToday > 0
-                ? "Penjualan akrual yang diterbitkan hari ini"
-                : "Belum ada penjualan diterbitkan hari ini"
-            }
-            icon={<TrendingUp size={14} />}
-            accent={kpi.revenueToday > 0 ? "emerald" : "zinc"}
-            href="/penjualan"
-          />
-
-          {/* Card 2 — Kas Masuk */}
-          <KpiCard
-            label="Kas Masuk Hari Ini"
-            value={formatRupiah(kpi.kasToday)}
-            sub={
-              kpi.kasToday > 0
-                ? "Total pembayaran diterima hari ini"
-                : "Belum ada pembayaran hari ini"
-            }
-            icon={<Banknote size={14} />}
-            accent={kpi.kasToday > 0 ? "emerald" : "zinc"}
-            href="/keuangan"
-          />
-
-          {/* Card 3 — Total Piutang */}
-          <KpiCard
-            label="Total Piutang"
-            value={formatRupiah(kpi.totalPiutang)}
-            sub={
-              kpi.piutangCount > 0
-                ? <span className="font-medium text-amber-600">{kpi.piutangCount} nota belum lunas</span>
-                : "Tidak ada piutang outstanding"
-            }
-            icon={<Clock size={14} />}
-            accent={kpi.totalPiutang > 0 ? "amber" : "zinc"}
-            href="/keuangan"
-          />
-
-          {/* Card 4 — Total Kopi Terjual */}
-          <KpiCard
-            label="Total Kopi Terjual"
-            value={formatKg(kpi.totalKopiTerjual)}
-            sub="Total penjualan sepanjang waktu"
-            icon={<ShoppingCart size={14} />}
-            accent="emerald"
-            href="/laporan"
-          />
-
-          {/* Card 5 — Average Roast Yield */}
-          <KpiCard
-            label="Rata-rata Hasil Roasting"
-            value={`${kpi.averageRoastYield.toFixed(1)}%`}
-            sub="Rata-rata output roasting (30 jam terakhir)"
-            icon={<Flame size={14} />}
-            accent={kpi.averageRoastYield >= 80 ? "emerald" : "amber"}
-            href="/roasting"
-          />
-
-          {/* Card 6 — Gross Margin */}
-          <KpiCard
-            label="Estimasi Margin Kotor"
-            value={`${kpi.averageGrossMargin.toFixed(1)}%`}
-            sub="Estimasi profit margin kotor"
-            icon={<TrendingUp size={14} />}
-            accent="emerald"
-            href="/laporan"
-          />
-
-          {/* Card 7 — Sample Bulan Ini */}
-          <KpiCard
-            label="Sample Bulan Ini"
-            value={kpi.samplePacksMonth > 0 ? `${kpi.samplePacksMonth} pack` : "0 pack"}
-            sub={kpi.sampleCostMonth > 0
-              ? `Total biaya: ${formatRupiah(kpi.sampleCostMonth)}`
-              : "Belum ada sample bulan ini"
-            }
-            icon={<Beaker size={14} />}
-            accent={kpi.samplePacksMonth > 0 ? "violet" : "zinc"}
-            href="/penjualan?action=sample"
-          />
-
-          {/* Card 8 — Stok Tipis */}
-          <div className="lg:col-span-3 sm:col-span-2">
-            <LowStockCard items={lowStock} />
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,.55fr)]">
+            <WorkQueue items={workItems} />
+            <ShiftSummary data={data} />
           </div>
 
-        </div>
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,.75fr)]">
+            <RevenuePanel data={data} />
+            <StockWatchlist items={data.lowStock} />
+          </div>
 
-        {/* ── Charts ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-5">
-          <div className="lg:col-span-6 xl:col-span-6">
-            <RevenueChart data={data.revenueTrend} />
-          </div>
-          <div className="lg:col-span-6 xl:col-span-3">
-            <TopProductsChart data={data.topProducts} />
-          </div>
-          <div className="lg:col-span-6 xl:col-span-3">
-            <TopCustomersChart data={data.topCustomers} />
+          <ActivityTable items={data.activity} mounted={mounted} />
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-1 text-[11px] text-stone-500">
+            <span className="inline-flex items-center gap-1.5">
+              <RefreshCw size={12} />
+              Data dashboard disusun dari transaksi tenant aktif.
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Banknote size={12} />
+              Piutang aktif {formatRupiah(data.kpi.totalPiutang)} · kopi terjual {formatKg(data.kpi.totalKopiTerjual)}
+            </span>
           </div>
         </div>
-
-        {/* ── Activity Feed ── */}
-        <div className="overflow-hidden rounded-[1.5rem] md:rounded-3xl border border-white/60 bg-white/40 shadow-lg shadow-slate-200/30 backdrop-blur-xl flex flex-col">
-          
-          {/* Section header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/40 bg-white/20 px-4 md:px-5 py-4">
-            <div>
-              <h2 className="text-sm font-bold text-slate-800 tracking-tight">Aktivitas Terakhir</h2>
-              <p className="mt-0.5 text-[11px] font-medium text-slate-500">
-                Gabungan log Barang Datang · Roasting · Produksi · Penjualan
-              </p>
-            </div>
-
-            {/* Legend */}
-            <div className="flex flex-wrap items-center gap-3">
-              {(Object.entries(ACTIVITY_META) as [ActivityItem["type"], typeof ACTIVITY_META[ActivityItem["type"]]][]).map(([type, meta]) => (
-                <Link
-                  key={type}
-                  href={meta.href}
-                  className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 hover:text-slate-800 transition-colors bg-white/40 px-2 py-1.5 rounded-lg border border-white/50 shadow-sm"
-                >
-                  <span className={`flex h-4 w-4 items-center justify-center rounded-lg ${meta.iconBg}`}>
-                    {meta.icon}
-                  </span>
-                  {meta.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Responsive column layout — no horizontal scroll */}
-          <div>
-            {/* Column headers */}
-            <div className="flex items-center gap-4 border-b border-white/30 bg-white/20 px-4 md:px-5 py-2.5">
-              <span className="w-7 shrink-0" />
-              <span className="w-28 md:w-32 shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-500">Kode</span>
-              <span className="flex-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">Keterangan</span>
-              <span className="w-24 md:w-28 shrink-0 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">Nilai</span>
-              <span className="w-20 shrink-0 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500 hidden sm:block">Status</span>
-              <span className="w-16 shrink-0 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500 hidden md:block">Waktu</span>
-            </div>
-
-            {/* Feed Data */}
-            <ActivityFeed items={activity} />
-          </div>
-
-          {/* Footer — Lihat Semua */}
-          <div className="border-t border-white/30 bg-white/10 px-4 md:px-5 py-3 flex justify-end">
-            <Link
-              href="/penjualan"
-              className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1"
-            >
-              Lihat semua
-              <ArrowRight size={11} />
-            </Link>
-          </div>
-
-        </div>
-
-      </div>
-    </StandardPageLayout>
+      </main>
+    </div>
   );
 }

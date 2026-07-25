@@ -91,6 +91,7 @@ export type MasterPageData = {
 // =============================================================================
 
 export async function getMasterData(): Promise<MasterPageData> {
+  await requireRole("OWNER", "MANAGER", "OPERATOR");
   const tp = await requireTenantPrisma();
   const [suppliers, customers, products, packagings, users] = await Promise.all([
     tp.supplier.findMany({
@@ -257,6 +258,34 @@ export async function getMasterData(): Promise<MasterPageData> {
       role: user.role as UserRow["role"],
       isActive: user.isActive,
       createdAt: user.createdAt.toISOString(),
+    })),
+  };
+}
+
+export async function getCustomerDirectoryData(): Promise<MasterPageData> {
+  await requireRole("OWNER", "MANAGER", "CASHIER");
+  const tp = await requireTenantPrisma();
+  const customers = await tp.customer.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { invoices: true } } },
+  });
+
+  return {
+    suppliers: [],
+    products: [],
+    packagings: [],
+    users: [],
+    customers: customers.map((customer) => ({
+      id: customer.id,
+      code: customer.code,
+      name: customer.name,
+      phone: customer.phone,
+      email: customer.email,
+      address: customer.address,
+      isActive: customer.isActive,
+      tier: customer.tier as CustomerRow["tier"],
+      createdAt: customer.createdAt.toISOString(),
+      invoiceCount: customer._count.invoices,
     })),
   };
 }
@@ -561,6 +590,13 @@ export type UpdateUserInput = {
 
 const USER_ROLES: UserRow["role"][] = ["OWNER", "MANAGER", "OPERATOR", "CASHIER"];
 
+function validatePassword(password: string): string | null {
+  if (password.length < 8) return "Password minimal 8 karakter.";
+  if (!/[A-Z]/.test(password)) return "Password harus mengandung huruf kapital.";
+  if (!/[0-9]/.test(password)) return "Password harus mengandung angka.";
+  return null;
+}
+
 export async function createUser(input: CreateUserInput): Promise<ActionResult> {
   try {
     await requireRole("OWNER");
@@ -570,15 +606,9 @@ export async function createUser(input: CreateUserInput): Promise<ActionResult> 
 
     if (!name) return { success: false, error: "Nama pengguna wajib diisi." };
     if (!email) return { success: false, error: "Email wajib diisi." };
-    if (!password || password.length < 8) {
-      return { success: false, error: "Password minimal 8 karakter." };
-    }
-    if (!/[A-Z]/.test(password)) {
-      return { success: false, error: "Password harus mengandung huruf kapital." };
-    }
-    if (!/[0-9]/.test(password)) {
-      return { success: false, error: "Password harus mengandung angka." };
-    }
+    if (!password) return { success: false, error: "Password wajib diisi." };
+    const pwdErr = validatePassword(password);
+    if (pwdErr) return { success: false, error: pwdErr };
     if (!USER_ROLES.includes(input.role)) return { success: false, error: "Role pengguna tidak valid." };
 
     const tp = await requireTenantPrisma();
@@ -645,8 +675,9 @@ export async function updateUser(input: UpdateUserInput): Promise<ActionResult> 
       }
     }
 
-    if (password && password.length < 8) {
-      return { success: false, error: "Password minimal 8 karakter." };
+    if (password) {
+      const pwdErr = validatePassword(password);
+      if (pwdErr) return { success: false, error: pwdErr };
     }
 
     const duplicate = await tp.user.findFirst({
@@ -751,57 +782,77 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
 
     const prefix = TYPE_PREFIX[input.type];
     const tp = await requireTenantPrisma();
-    const count  = await tp.product.count({ where: { type: input.type } });
-    const code   = `${prefix}-${String(count + 1).padStart(3, "0")}`;
 
-    await tp.$transaction(async (tx) => {
-      const product = await tx.product.create({
-        data: {
-          code, name: input.name.trim(), type: input.type,
-          coffeeSpecies: input.coffeeSpecies?.trim() || null,
-          category:    input.category?.trim()    || null,
-          origin:      input.origin?.trim()      || null,
-          roastLevel:  input.type === "ROASTED_BEAN" ? (input.roastLevel ?? null) : null,
-          description: input.description?.trim() || null,
-          imageUrl:    input.imageUrl?.trim() || null,
-          price:       input.type === "FINISHED_GOODS" ? (input.price ?? 0) : null,
-          priceSilver: input.type === "FINISHED_GOODS" ? (input.priceSilver ?? 0) : null,
-          priceGold:   input.type === "FINISHED_GOODS" ? (input.priceGold ?? 0) : null,
-          reorderAlertEnabled:  input.reorderAlertEnabled ?? false,
-          leadTimeDays:         input.leadTimeDays ?? 7,
-          safetyStockQuantity:  input.safetyStockQuantity ?? 0,
-          reorderLookbackDays:  input.reorderLookbackDays ?? 30,
-        },
-      });
+    let attempts = 0;
+    let code = "";
+    const MAX_ATTEMPTS = 5;
 
-      if (input.type === "FINISHED_GOODS" && input.recipe && input.recipe.items.length > 0) {
-        const r = input.recipe;
-        const rCount  = await tx.recipe.count();
-        const rCode   = `RCP-${String(rCount + 1).padStart(3, "0")}`;
-        const outputG = r.outputGrams;
+    while (attempts < MAX_ATTEMPTS) {
+      attempts++;
+      const count = await tp.product.count({ where: { type: input.type } });
+      code = `${prefix}-${String(count + attempts).padStart(3, "0")}`;
 
-        const recipe = await tx.recipe.create({
-          data: {
-            code:        rCode,
-            name:        input.name.trim(),
-            productId:   product.id,
-            packagingId: r.packagingId,
-            outputGrams: outputG,
-            notes:       r.notes?.trim() || null,
-          },
-        });
-        if (r.items.length > 0) {
-          await tx.recipeItem.createMany({
-            data: r.items.map((item) => ({
-              recipeId:     recipe.id,
-              productId:    item.rbProductId,
-              gramsPerUnit: item.gramsPerUnit,
-              ratioPercent: outputG > 0 ? (item.gramsPerUnit / outputG) * 100 : 0,
-            })),
+      try {
+        await tp.$transaction(async (tx) => {
+          const product = await tx.product.create({
+            data: {
+              code, name: input.name.trim(), type: input.type,
+              coffeeSpecies: input.coffeeSpecies?.trim() || null,
+              category:    input.category?.trim()    || null,
+              origin:      input.origin?.trim()      || null,
+              roastLevel:  input.type === "ROASTED_BEAN" ? (input.roastLevel ?? null) : null,
+              description: input.description?.trim() || null,
+              imageUrl:    input.imageUrl?.trim() || null,
+              price:       input.type === "FINISHED_GOODS" ? (input.price ?? 0) : null,
+              priceSilver: input.type === "FINISHED_GOODS" ? (input.priceSilver ?? 0) : null,
+              priceGold:   input.type === "FINISHED_GOODS" ? (input.priceGold ?? 0) : null,
+              reorderAlertEnabled:  input.reorderAlertEnabled ?? false,
+              leadTimeDays:         input.leadTimeDays ?? 7,
+              safetyStockQuantity:  input.safetyStockQuantity ?? 0,
+              reorderLookbackDays:  input.reorderLookbackDays ?? 30,
+            },
           });
+
+          if (input.type === "FINISHED_GOODS" && input.recipe && input.recipe.items.length > 0) {
+            const r = input.recipe;
+            const rCount  = await tx.recipe.count();
+            const rCode   = `RCP-${String(rCount + 1).padStart(3, "0")}`;
+            const outputG = r.outputGrams;
+
+            const recipe = await tx.recipe.create({
+              data: {
+                code:        rCode,
+                name:        input.name.trim(),
+                productId:   product.id,
+                packagingId: r.packagingId,
+                outputGrams: outputG,
+                notes:       r.notes?.trim() || null,
+              },
+            });
+            if (r.items.length > 0) {
+              await tx.recipeItem.createMany({
+                data: r.items.map((item) => ({
+                  recipeId:     recipe.id,
+                  productId:    item.rbProductId,
+                  gramsPerUnit: item.gramsPerUnit,
+                  ratioPercent: outputG > 0 ? (item.gramsPerUnit / outputG) * 100 : 0,
+                })),
+              });
+            }
+          }
+        });
+        break;
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002" &&
+          attempts < MAX_ATTEMPTS
+        ) {
+          continue;
         }
+        throw err;
       }
-    });
+    }
 
     revalidatePath("/master-data"); revalidatePath("/inventory");
     revalidatePath("/roasting");    revalidatePath("/produksi");
@@ -828,7 +879,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
     });
     if (!existing) return { success: false, error: "Produk tidak ditemukan." };
 
-    if (existing.type === "FINISHED_GOODS" && input.recipe && input.recipe.items.length > 0) {
+    if (existing.type === "FINISHED_GOODS" && input.recipe) {
       const productIds = input.recipe.items.map((i) => i.rbProductId);
       if (new Set(productIds).size !== productIds.length) {
         return { success: false, error: "Bahan baku dalam resep tidak boleh ganda." };
@@ -857,7 +908,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
         },
       });
 
-      if (existing.type === "FINISHED_GOODS" && input.recipe && input.recipe.items.length > 0) {
+      if (existing.type === "FINISHED_GOODS" && input.recipe) {
         const r       = input.recipe;
         const outputG = r.outputGrams;
         const existingRecipe = existing.recipes[0];
@@ -865,15 +916,19 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
         if (existingRecipe) {
           // Update existing recipe: delete old items, insert new ones
           await tx.recipeItem.deleteMany({ where: { recipeId: existingRecipe.id } });
-          await tx.recipe.update({
-            where: { id: existingRecipe.id },
-            data: {
-              packagingId: r.packagingId,
-              outputGrams: outputG,
-              notes:       r.notes?.trim() || null,
-            },
-          });
-          if (r.items.length > 0) {
+          
+          if (r.items.length === 0) {
+            // If items is empty, we effectively delete the recipe since it's now inactive or empty
+            await tx.recipe.delete({ where: { id: existingRecipe.id } });
+          } else {
+            await tx.recipe.update({
+              where: { id: existingRecipe.id },
+              data: {
+                packagingId: r.packagingId,
+                outputGrams: outputG,
+                notes:       r.notes?.trim() || null,
+              },
+            });
             await tx.recipeItem.createMany({
               data: r.items.map((item) => ({
                 recipeId:     existingRecipe.id,
@@ -885,19 +940,19 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
           }
         } else {
           // Create brand-new recipe for this product
-          const rCount = await tx.recipe.count();
-          const rCode  = `RCP-${String(rCount + 1).padStart(3, "0")}`;
-          const recipe = await tx.recipe.create({
-            data: {
-              code:        rCode,
-              name:        input.name!.trim(),
-              productId:   input.id,
-              packagingId: r.packagingId,
-              outputGrams: outputG,
-              notes:       r.notes?.trim() || null,
-            },
-          });
           if (r.items.length > 0) {
+            const rCount = await tx.recipe.count();
+            const rCode  = `RCP-${String(rCount + 1).padStart(3, "0")}`;
+            const recipe = await tx.recipe.create({
+              data: {
+                code:        rCode,
+                name:        input.name!.trim(),
+                productId:   input.id,
+                packagingId: r.packagingId,
+                outputGrams: outputG,
+                notes:       r.notes?.trim() || null,
+              },
+            });
             await tx.recipeItem.createMany({
               data: r.items.map((item) => ({
                 recipeId:     recipe.id,

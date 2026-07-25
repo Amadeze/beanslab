@@ -27,12 +27,17 @@ const baseSchema = z.object({
   isActive: z.boolean(),
 });
 
+const passwordSchema = z.string()
+  .min(8, "Password minimal 8 karakter")
+  .regex(/[A-Z]/, "Password harus mengandung huruf kapital")
+  .regex(/[0-9]/, "Password harus mengandung angka");
+
 const createSchema = baseSchema.extend({
-  password: z.string().min(1, "Password wajib diisi"),
+  password: passwordSchema,
 });
 
 const editSchema = baseSchema.extend({
-  password: z.string().optional(),
+  password: z.union([z.literal(""), passwordSchema]).optional(),
 });
 
 type FormValues = z.infer<typeof baseSchema>;

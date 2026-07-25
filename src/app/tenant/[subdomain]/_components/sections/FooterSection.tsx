@@ -137,7 +137,7 @@ export function FooterSection({ tenant, footerText, igLink, emailLink, skin, sho
               className="text-xs text-[var(--t-accent)]/30"
               style={{ fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}
             >
-              Powered by <span className="font-medium text-[var(--t-accent)]/50">Roastery OS</span>
+              Powered by <span className="font-medium text-[var(--t-accent)]/50">roastd.id</span>
             </p>
           </div>
         </div>

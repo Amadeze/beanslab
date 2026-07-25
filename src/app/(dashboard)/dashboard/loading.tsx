@@ -1,16 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeaderSkeleton } from "@/components/layout/PageHeader";
 
 export default function DashboardLoading() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Header */}
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-6">
-        <div className="space-y-1.5">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-3 w-48" />
-        </div>
-        <Skeleton className="h-3 w-36" />
-      </header>
+      <PageHeaderSkeleton />
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
         {/* KPI Cards skeleton */}

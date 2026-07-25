@@ -74,73 +74,90 @@ const SettingsSchema = z.object({
   faqs: z.array(FaqSchema).max(20).optional(),
 }).strict();
 
-export async function updateTenantSettings(_tenantId: string, data: unknown) {
-  const user = await requireRole("OWNER");
-  const tenantPrisma = await requireTenantPrisma();
-  const tenantId = user.tenantId;
-  
-  const parsed = SettingsSchema.parse(data);
+export type SettingsActionResult =
+  | { success: true }
+  | { success: false; error: string };
 
-  const updatedTenant = await tenantPrisma.$transaction(async (tx) => {
-    const updated = await tx.tenant.update({
-      where: { id: tenantId },
-      data: {
-        name: parsed.name,
-        timezone: parsed.timezone,
-        themeColor: parsed.themeColor,
-        heroText: parsed.heroText,
-        logoUrl: parsed.logoUrl,
-        heroImageUrl: parsed.heroImageUrl,
-        layoutStyle: parsed.layoutStyle,
-        whatsappNumber: parsed.whatsappNumber,
-        aboutText: parsed.aboutText,
-        catalogTitle: parsed.catalogTitle,
-        catalogSubtitle: parsed.catalogSubtitle,
-        footerText: parsed.footerText,
-        midtransClientKey: parsed.midtransClientKey,
-        midtransServerKey: parsed.midtransServerKey
-          ? encryptCredential(parsed.midtransServerKey)
-          : undefined,
-        midtransIsProduction: parsed.midtransIsProduction,
-        isArtisanEnabled: parsed.isArtisanEnabled,
-        backgroundImageUrl: parsed.backgroundImageUrl,
-        contactEmail: parsed.contactEmail,
-        instagramHandle: parsed.instagramHandle,
-        fontFamily: parsed.fontFamily,
-        themeMode: parsed.themeMode,
-        borderRadius: parsed.borderRadius,
-        animationStyle: parsed.animationStyle,
-        animationDirection: parsed.animationDirection,
-        iconStyle: parsed.iconStyle,
-        themeConfig: parsed.themeConfig as Prisma.InputJsonValue | undefined,
-        problemStatement: parsed.problemStatement,
-        solutionStatement: parsed.solutionStatement,
-        uspText: parsed.uspText,
-        features: parsed.features,
-        testimonials: parsed.testimonials,
-        faqs: parsed.faqs,
-      },
+export async function updateTenantSettings(_tenantId: string, data: unknown): Promise<SettingsActionResult> {
+  try {
+    const user = await requireRole("OWNER");
+    const tenantPrisma = await requireTenantPrisma();
+    const tenantId = user.tenantId;
+    
+    const parsedResult = SettingsSchema.safeParse(data);
+    if (!parsedResult.success) {
+      return {
+        success: false,
+        error: parsedResult.error.issues[0]?.message ?? "Data pengaturan tidak valid.",
+      };
+    }
+    const parsed = parsedResult.data;
+
+    const updatedTenant = await tenantPrisma.$transaction(async (tx) => {
+      const updated = await tx.tenant.update({
+        where: { id: tenantId },
+        data: {
+          name: parsed.name,
+          timezone: parsed.timezone,
+          themeColor: parsed.themeColor,
+          heroText: parsed.heroText,
+          logoUrl: parsed.logoUrl,
+          heroImageUrl: parsed.heroImageUrl,
+          layoutStyle: parsed.layoutStyle,
+          whatsappNumber: parsed.whatsappNumber,
+          aboutText: parsed.aboutText,
+          catalogTitle: parsed.catalogTitle,
+          catalogSubtitle: parsed.catalogSubtitle,
+          footerText: parsed.footerText,
+          midtransClientKey: parsed.midtransClientKey,
+          midtransServerKey: parsed.midtransServerKey
+            ? encryptCredential(parsed.midtransServerKey)
+            : undefined,
+          midtransIsProduction: parsed.midtransIsProduction,
+          isArtisanEnabled: parsed.isArtisanEnabled,
+          backgroundImageUrl: parsed.backgroundImageUrl,
+          contactEmail: parsed.contactEmail,
+          instagramHandle: parsed.instagramHandle,
+          fontFamily: parsed.fontFamily,
+          themeMode: parsed.themeMode,
+          borderRadius: parsed.borderRadius,
+          animationStyle: parsed.animationStyle,
+          animationDirection: parsed.animationDirection,
+          iconStyle: parsed.iconStyle,
+          themeConfig: parsed.themeConfig as Prisma.InputJsonValue | undefined,
+          problemStatement: parsed.problemStatement,
+          solutionStatement: parsed.solutionStatement,
+          uspText: parsed.uspText,
+          features: parsed.features,
+          testimonials: parsed.testimonials,
+          faqs: parsed.faqs,
+        },
+      });
+
+      await recordAudit(tx, {
+        tenantId,
+        userId: user.id,
+        action: "UPDATE",
+        entityType: "TenantSettings",
+        entityId: tenantId,
+        metadata: {
+          changedFields: Object.keys(parsed).filter(
+            (key) => !["midtransClientKey", "midtransServerKey"].includes(key),
+          ),
+          paymentCredentialsChanged:
+            parsed.midtransClientKey !== undefined ||
+            parsed.midtransServerKey !== undefined,
+        },
+      });
+
+      return updated;
     });
 
-    await recordAudit(tx, {
-      tenantId,
-      userId: user.id,
-      action: "UPDATE",
-      entityType: "TenantSettings",
-      entityId: tenantId,
-      metadata: {
-        changedFields: Object.keys(parsed).filter(
-          (key) => !["midtransClientKey", "midtransServerKey"].includes(key),
-        ),
-        paymentCredentialsChanged:
-          parsed.midtransClientKey !== undefined ||
-          parsed.midtransServerKey !== undefined,
-      },
-    });
-
-    return updated;
-  });
-
-  revalidatePath("/settings");
-  revalidatePath(`/tenant/${updatedTenant.subdomain}`);
+    revalidatePath("/settings");
+    revalidatePath(`/tenant/${updatedTenant.subdomain}`);
+    return { success: true };
+  } catch (err) {
+    console.error("[updateTenantSettings]", err);
+    return { success: false, error: "Gagal menyimpan pengaturan. Coba lagi." };
+  }
 }

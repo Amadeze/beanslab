@@ -1,6 +1,5 @@
 "use client";
 
-
 import {
   AreaChart,
   Area,
@@ -14,11 +13,19 @@ import { formatRupiah } from "@/lib/format";
 import type { RevenueTrend } from "../actions";
 
 export function RevenueChart({ data }: { data: RevenueTrend[] }) {
+  if (data.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[320px] glass-card-static p-5 text-center">
+        <p className="text-sm font-semibold text-[var(--text-secondary)] mt-2">Belum ada data pendapatan</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-[320px] rounded-[1.5rem] md:rounded-3xl border border-white/60 bg-white/40 shadow-lg shadow-slate-200/30 backdrop-blur-xl p-5">
+    <div className="flex flex-col h-[320px] glass-card-static p-5">
       <div className="mb-4">
-        <h2 className="text-sm font-bold text-slate-800 tracking-tight">Tren Pendapatan</h2>
-        <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+        <h2 className="text-sm font-bold text-[var(--text-primary)] tracking-tight">Tren Pendapatan</h2>
+        <p className="mt-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
           7 Hari Terakhir
         </p>
       </div>
@@ -27,31 +34,34 @@ export function RevenueChart({ data }: { data: RevenueTrend[] }) {
           <AreaChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                <stop offset="5%" stopColor="#6F4A6A" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="#6F4A6A" stopOpacity={0.04} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.4)" />
-            <XAxis 
-              dataKey="date" 
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--glass-border)" vertical={false} />
+            <XAxis
+              dataKey="date"
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
-              dy={10}
+              tick={{ fontSize: 10, fill: "var(--text-tertiary)" }}
+              dy={8}
             />
-            <YAxis 
-              hide={true}
-              domain={['dataMin - 100000', 'dataMax + 100000']}
+            <YAxis
+              tickFormatter={(v: number) => formatRupiah(v)}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 10, fill: "var(--text-tertiary)" }}
+              width={80}
+              dx={-4}
             />
             <Tooltip
+              cursor={{ stroke: "var(--glass-border)", strokeDasharray: "3 3" }}
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   return (
-                    <div className="rounded-xl border border-white/60 bg-white/70 backdrop-blur-xl p-3 shadow-lg">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">{label}</p>
-                      <p className="text-sm font-black text-emerald-700">
-                        {formatRupiah(payload[0].value as number)}
-                      </p>
+                    <div className="rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg-hover)] p-3 shadow-[var(--glass-shadow-lg)]">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">{label}</p>
+                      <p className="text-sm font-black text-emerald-600">{formatRupiah(Number(payload[0].value))}</p>
                     </div>
                   );
                 }
@@ -61,9 +71,8 @@ export function RevenueChart({ data }: { data: RevenueTrend[] }) {
             <Area
               type="monotone"
               dataKey="revenue"
-              stroke="#10b981"
-              strokeWidth={4}
-              fillOpacity={1}
+              stroke="#6F4A6A"
+              strokeWidth={2}
               fill="url(#colorRev)"
               animationDuration={1000}
             />

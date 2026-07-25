@@ -2,6 +2,8 @@ import Link from "next/link";
 import { BellRing, ScrollText, Webhook } from "lucide-react";
 
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
+import { SettingsNav } from "@/app/(dashboard)/settings/_components/SettingsNav";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +26,7 @@ export default async function AuditPage({
 }: {
   searchParams: Promise<{ view?: string }>;
 }) {
-  await requireRole("OWNER", "MANAGER");
+  const user = await requireRole("OWNER", "MANAGER");
   const db = await requireTenantPrisma();
   const { view } = await searchParams;
   const activeView =
@@ -53,14 +55,12 @@ export default async function AuditPage({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="sticky top-0 z-30 shrink-0 border-b border-[var(--glass-border)] bg-[var(--glass-bg-hover)] backdrop-blur-[var(--glass-blur)] shadow-[var(--glass-shadow)]">
-        <div className="mx-auto flex min-h-[64px] w-full max-w-[1600px] items-center justify-between gap-4 px-4 py-3 md:px-6 lg:px-8">
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold tracking-tight text-[var(--text-primary)] md:text-xl">Audit & Integrasi</h1>
-            <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">Jejak perubahan penting dan status event integrasi tenant.</p>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        title="Audit & Integrasi"
+        eyebrow="Pengaturan"
+        description="Jejak perubahan penting dan status event integrasi tenant."
+      />
+      <SettingsNav userRole={user.role} />
 
       <div className="custom-scrollbar flex-1 overflow-auto">
         <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">

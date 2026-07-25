@@ -1,6 +1,6 @@
-# Roastery Operating System
+# roastd.id
 
-ROS is a multi-tenant SaaS operations platform for coffee roasteries. It covers inventory ledger, purchasing, roasting, production, sales, payments, financial reporting, tenant storefronts, subscription billing, and hardware/payment webhooks.
+roastd.id adalah platform operasional multi-tenant untuk coffee roastery. Cakupannya menghubungkan inventory ledger, purchasing, roasting, production, sales, payments, financial reporting, tenant storefronts, subscription billing, serta webhook hardware dan pembayaran.
 
 ## Requirements
 

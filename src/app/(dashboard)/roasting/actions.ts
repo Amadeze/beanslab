@@ -69,6 +69,26 @@ export type RoastingPageData = {
   machineOptions: MachineOption[];
 };
 
+export type RoastProfileRow = {
+  id: string;
+  title: string | null;
+  roastDate: string | null;
+  duration: number | null;
+  chargeTemperature: number | null;
+  dropTemperature: number | null;
+  firstCrackStartTime: number | null;
+  firstCrackEndTime: number | null;
+  greenWeightGrams: number | null;
+  roastedWeightGrams: number | null;
+  lossPercent: number | null;
+  metadata: Record<string, unknown> | null;
+  beanTemperatureSeries: Array<{ second: number; value: number }> | null;
+  environmentalTemperatureSeries: Array<{ second: number; value: number }> | null;
+  events: Array<{ second: number; type: string; value?: string | number; label?: string }> | null;
+  machine: { name: string };
+  createdAt: string;
+};
+
 export type CreateParentRoastingBatchInput = {
   operationKey: string;
   mode: "ARTISAN" | "MANUAL";
@@ -253,6 +273,7 @@ async function fetchMachineOptions(): Promise<MachineOption[]> {
 // =============================================================================
 
 export async function getRoastingPageData(): Promise<RoastingPageData> {
+  await requireRole("OWNER", "MANAGER", "OPERATOR");
   const [batches, gbOptions, rbOptions, machineOptions] = await Promise.all([
     fetchBatchHistory(),
     fetchGBOptions(),
@@ -260,6 +281,45 @@ export async function getRoastingPageData(): Promise<RoastingPageData> {
     fetchMachineOptions(),
   ]);
   return { batches, gbOptions, rbOptions, machineOptions };
+}
+
+export async function getRoastProfiles(): Promise<RoastProfileRow[]> {
+  await requireRole("OWNER", "MANAGER", "OPERATOR");
+  const tp = await requireTenantPrisma();
+  const roasts = await tp.roast.findMany({
+    select: {
+      id: true,
+      title: true,
+      roastDate: true,
+      duration: true,
+      chargeTemperature: true,
+      dropTemperature: true,
+      firstCrackStartTime: true,
+      firstCrackEndTime: true,
+      greenWeightGrams: true,
+      roastedWeightGrams: true,
+      lossPercent: true,
+      metadata: true,
+      beanTemperatureSeries: true,
+      environmentalTemperatureSeries: true,
+      events: true,
+      machine: { select: { name: true } },
+      createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  return roasts.map((roast) => ({
+    ...roast,
+    roastDate: roast.roastDate?.toISOString() ?? null,
+    createdAt: roast.createdAt.toISOString(),
+    metadata: roast.metadata as Record<string, unknown> | null,
+    beanTemperatureSeries: roast.beanTemperatureSeries as RoastProfileRow["beanTemperatureSeries"],
+    environmentalTemperatureSeries:
+      roast.environmentalTemperatureSeries as RoastProfileRow["environmentalTemperatureSeries"],
+    events: roast.events as RoastProfileRow["events"],
+  }));
 }
 
 export async function createParentRoastingBatch(

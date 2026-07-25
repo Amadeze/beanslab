@@ -242,8 +242,33 @@ model Tenant {
   artisanConnectors     ArtisanConnector[]
   artisanImports        ArtisanRoastImport[]
   roasts                Roast[]
+  liveSessions          LiveSession[]
+  portalTheme           PortalTheme?
 
   @@map("tenants")
+}
+
+// =============================================================================
+// TABLE 0.9 · PortalTheme (B2B Portal Block-Based Theme Customizer)
+// Supports draft/published state with versioned config.
+// =============================================================================
+
+model PortalTheme {
+  id              String    @id @default(cuid())
+  tenantId        String
+  name            String    @default("Default Theme")
+  schemaVersion   Int       @default(1)
+  draftConfig     Json
+  publishedConfig Json?
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId])
+  @@index([tenantId])
+  @@map("portal_themes")
 }
 
 // =============================================================================
@@ -266,6 +291,7 @@ model Machine {
   artisanImports    ArtisanRoastImport[]
   artisanPairingCodes ArtisanPairingCode[]
   roasts            Roast[]
+  liveSessions      LiveSession[]
 
   @@unique([tenantId, name])
   @@index([tenantId, isActive])
@@ -301,7 +327,8 @@ model User {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
-  password  String // bcrypt hash
+  password  String?  // bcrypt hash (optional for OAuth users)
+  googleId  String?  @unique
   role      UserRole @default(OPERATOR)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -1423,4 +1450,37 @@ model Roast {
   @@index([machineId])
   @@index([roastDate])
   @@map("roasts")
+}
+
+// =============================================================================
+// LIVE SESSION (MQTT)
+// =============================================================================
+
+enum LiveSessionStatus {
+  ACTIVE
+  COMPLETED
+  RECONCILED
+}
+
+model LiveSession {
+  id        String   @id @default(cuid())
+  tenantId  String
+  machineId String
+  sessionId String   @unique
+
+  status       LiveSessionStatus @default(ACTIVE)
+  startedAt    DateTime          @default(now())
+  lastUpdateAt DateTime          @default(now())
+
+  currentBT Float?
+  currentET Float?
+  events    Json    @default("[]")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  machine Machine @relation(fields: [machineId], references: [id])
+
+  @@index([tenantId])
+  @@index([machineId])
+  @@index([sessionId])
+  @@map("live_sessions")
 }

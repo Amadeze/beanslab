@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { StandardPageLayout } from "@/components/StandardPageLayout";
+import { GlassPanel } from "@/components/ui/glass-panel";
 import { formatRupiah, formatDateLong } from "@/lib/format";
 import type { PnLReport } from "../../keuangan/actions";
 import { TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight, FileText, Download } from "lucide-react";
@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { getCurrentDate } from "@/lib/date-utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Helpers
@@ -44,7 +45,7 @@ function pct(part: number, total: number): string {
 function getPnLRows(report: PnLReport) {
   const { month, year } = report;
   return [
-    ["Laporan Laba Rugi", `Beanslab Roastery - ${MONTHS[month-1]} ${year}`],
+    ["Laporan Laba Rugi", `roastd.id - ${MONTHS[month-1]} ${year}`],
     [],
     ["Kategori", "Jumlah (IDR)"],
     ["Total Pendapatan", report.revenue],
@@ -290,7 +291,7 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
     return <span className={cn("font-bold ml-1", color)}>{icon} {Math.abs(growth).toFixed(1)}% vs bln lalu</span>;
   };
 
-  const chartColors = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#64748b"];
+  const chartColors = ["#6F4A6A", "#B65331", "#2B7567", "#A66F12", "#4B6B3C", "#64748b"];
   
   const content = (
     <>
@@ -344,9 +345,9 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
           <div className="flex-1 min-h-0">
             {revenue > 0 ? (() => {
               const chartData = [
-                { name: "HPP (Modal Kopi)", amount: cogs, fill: "#f59e0b" },
+                { name: "HPP (Modal Kopi)", amount: cogs, fill: "#7A8790" },
                 { name: "Beban Operasional", amount: opex, fill: "#ef4444" },
-                { name: "Laba Bersih", amount: Math.max(0, netProfit), fill: "#10b981" }
+                { name: "Laba Bersih", amount: Math.max(0, netProfit), fill: "#4B6B3C" }
               ].filter(d => d.amount > 0);
 
               return (
@@ -418,7 +419,7 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
               </p>
             </div>
             <div className="ml-auto text-right">
-              <p className="text-[11px] text-zinc-400 uppercase tracking-wide">Beanslab Roastery</p>
+              <p className="text-[11px] text-zinc-400 uppercase tracking-wide">roastd.id</p>
               <p className="text-[11px] text-zinc-400">Dalam Rupiah (IDR)</p>
             </div>
           </div>
@@ -528,7 +529,7 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
         <div className="border-t border-zinc-100 bg-zinc-50/60 px-5 py-3">
           <div className="flex items-center justify-between text-[11px] text-zinc-400">
             <span>
-              Laporan ini digenerate otomatis oleh Roastery OS · Beanslab
+              Laporan ini dibuat otomatis oleh roastd.id
             </span>
             <span className="tabular-nums">
               Dicetak: {formatDateLong(getCurrentDate())}
@@ -704,26 +705,38 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
   );
 
   return (
-    <StandardPageLayout
-      title="Laporan Laba Rugi"
-      description={`Profit & Loss Statement · ${MONTHS[month - 1]} ${year}`}
-      actionButton={
-        <div className="flex items-center gap-2">
-          <MonthNavigator month={month} year={year} />
-          <Button onClick={() => void exportToExcel(report)} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm print:hidden">
-            <Download size={14} /> Export Excel
+    <div className="flex min-h-0 flex-1 flex-col">
+      <PageHeader
+        title="Laporan Laba Rugi"
+        eyebrow="Intelligence"
+        description={`Profit & Loss Statement · ${MONTHS[month - 1]} ${year}`}
+        actions={
+          <>
+            <MonthNavigator month={month} year={year} />
+            <Button onClick={() => void exportToExcel(report)} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm print:hidden">
+              <Download size={14} /> Export Excel
+            </Button>
+            <Button onClick={() => void exportToPdf(report)} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm print:hidden">
+              <Download size={14} /> Export PDF
+            </Button>
+            <Button onClick={() => window.print()} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm print:hidden">
+              <FileText size={14} /> Cetak
+            </Button>
+          </>
+        }
+        mobileActions={
+          <Button onClick={() => void exportToPdf(report)} variant="outline" size="sm" className="gap-1.5 print:hidden">
+            <Download size={14} /> PDF
           </Button>
-          <Button onClick={() => void exportToPdf(report)} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm print:hidden">
-            <Download size={14} /> Export PDF
-          </Button>
-          <Button onClick={() => window.print()} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm print:hidden">
-            <FileText size={14} /> Cetak
-          </Button>
+        }
+      />
+
+      <div className="custom-scrollbar flex-1 overflow-auto">
+        <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
+          {content}
         </div>
-      }
-    >
-      {content}
-    </StandardPageLayout>
+      </div>
+    </div>
   );
 }
 

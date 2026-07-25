@@ -7,10 +7,10 @@ import { toastSafe } from "@/lib/toast";
 import { Tenant } from "@prisma/client";
 import { Save, ExternalLink, Upload, Phone, Plus, Trash2, RotateCcw } from "lucide-react";
 import { resetOnboarding } from "@/app/onboarding/actions";
-import { WebhookLogModal } from "./WebhookLogModal";
+import { WebhookLogModal } from "./WebhookLogsDialog";
 
 // Helper type for tenant since Prisma Client might not have typed the new fields perfectly in this file's context if cached
-type ExtendedTenant = Omit<Tenant, "midtransServerKey"> & {
+type ExtendedTenant = Omit<Tenant, "midtransServerKey" | "artisanWebhookToken"> & {
   isArtisanEnabled?: boolean;
   artisanWebhookToken?: string | null;
   whatsappNumber?: string | null;
@@ -115,12 +115,12 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
   const backgroundInputRef = useRef<HTMLInputElement>(null);
 
   const THEMES = [
-    { id: "amber", label: "Amber", hex: "#f59e0b" },
-    { id: "blue", label: "Blue", hex: "#3b82f6" },
-    { id: "emerald", label: "Emerald", hex: "#10b981" },
-    { id: "rose", label: "Rose", hex: "#f43f5e" },
-    { id: "violet", label: "Violet", hex: "#8b5cf6" },
-    { id: "zinc", label: "Zinc", hex: "#71717a" },
+    { id: "amber", label: "Roast Copper", hex: "#B65331" },
+    { id: "blue", label: "Steel Blue", hex: "#426C7A" },
+    { id: "emerald", label: "Verdigris", hex: "#2B7567" },
+    { id: "rose", label: "Burgundy", hex: "#8C2F39" },
+    { id: "violet", label: "Mulberry", hex: "#6F4A6A" },
+    { id: "zinc", label: "Graphite", hex: "#4B5152" },
   ];
 
   const LAYOUTS = [
@@ -294,9 +294,9 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
               onChange={e => setTimezone(e.target.value)}
               className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
             >
-              <option value="Asia/Jakarta">WIB · Asia/Jakarta</option>
-              <option value="Asia/Makassar">WITA · Asia/Makassar</option>
-              <option value="Asia/Jayapura">WIT · Asia/Jayapura</option>
+              <option value="Asia/Jakarta">WIB Â· Asia/Jakarta</option>
+              <option value="Asia/Makassar">WITA Â· Asia/Makassar</option>
+              <option value="Asia/Jayapura">WIT Â· Asia/Jayapura</option>
             </select>
             <p className="mt-1 text-xs text-slate-500">Dipakai untuk batas laporan harian, mingguan, dan bulanan.</p>
           </div>
@@ -375,7 +375,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
       <div className="glass-card-static p-6">
         <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
           <h2 className="text-lg font-bold text-slate-800">Payment Gateway (Midtrans)</h2>
-          <span className="text-xs bg-blue-100 text-amber-800 px-2 py-1 rounded font-semibold">Future Ready</span>
+          <span className="bg-domain-inventory/10 px-2 py-1 text-xs font-semibold text-domain-inventory">Future ready</span>
         </div>
         
         <div className="space-y-4">
@@ -479,7 +479,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
                 type="button"
                 onClick={testWebhook}
                 disabled={isTestingWebhook}
-                className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-xs transition-colors shrink-0 disabled:opacity-50"
+                className="shrink-0 border border-domain-inventory/30 bg-domain-inventory/8 px-4 py-2 text-xs font-bold text-domain-inventory transition-colors hover:bg-domain-inventory/15 disabled:opacity-50"
               >
                 {isTestingWebhook ? "Testing..." : "Test Koneksi"}
               </button>
@@ -530,353 +530,37 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
       </div>
       )}
 
-      {/* B2B Portal Customization */}
+      {/* B2B Portal Customization (roastd.id Studio) */}
       <div className="glass-card-static p-6 mt-6">
-        <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
-          <h2 className="text-lg font-bold text-slate-800">B2B Portal Customization</h2>
-          {tenant.subdomain && (
-            <a 
-              href={portalPath}
-              target="_blank" 
-              rel="noreferrer"
-              className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 hover:text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg transition-colors"
-            >
-              View Portal <ExternalLink size={14} />
-            </a>
-          )}
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          {/* Visual Settings */}
-          <div className="space-y-6">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Visual Styles</h3>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Portal Layout Style</label>
-              <select
-                value={layoutStyle}
-                onChange={e => setLayoutStyle(e.target.value)}
-                className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-lg font-bold text-slate-800">B2B Portal Customization</h2>
+              <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-600">
+                roastd.id Studio
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 max-w-xl">
+              Kustomisasi tampilan, warna, font, teks, katalog produk, dan layout halaman B2B Portal Anda secara live interaktif menggunakan <strong className="text-slate-700">roastd.id Theme Studio</strong> (arsitektur modular setara Shopify).
+            </p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            {tenant.subdomain && (
+              <a 
+                href={portalPath}
+                target="_blank" 
+                rel="noreferrer"
+                className="flex items-center gap-1.5 bg-domain-sales/8 px-4 py-2.5 text-xs font-semibold text-domain-sales transition-colors hover:bg-domain-sales/15 rounded-xl"
               >
-                {LAYOUTS.map(l => (
-                  <option key={l.id} value={l.id}>{l.label}</option>
-                ))}
-              </select>
-            </div>
-
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Font Family</label>
-                <select value={fontFamily} onChange={e => setFontFamily(e.target.value)} className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500">
-                  <option value="sans">Modern (Sans)</option>
-                  <option value="serif">Luxury (Serif)</option>
-                  <option value="mono">Brutalist (Mono)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Theme Mode</label>
-                <select value={themeMode} onChange={e => setThemeMode(e.target.value)} className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500">
-                  <option value="light">Light Mode</option>
-                  <option value="dark">Dark Mode</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Border Radius</label>
-                <select value={borderRadius} onChange={e => setBorderRadius(e.target.value)} className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500">
-                  <option value="none">Sharp (0px)</option>
-                  <option value="sm">Slight (4px)</option>
-                  <option value="md">Rounded (8px)</option>
-                  <option value="xl">Very Round (12px)</option>
-                  <option value="full">Pill (99px)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Animation Style</label>
-                <select value={animationStyle} onChange={e => setAnimationStyle(e.target.value)} className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500">
-                  <option value="none">Static (None)</option>
-                  <option value="subtle">Elegant (Subtle)</option>
-                  <option value="bouncy">Playful (Bouncy)</option>
-                  <option value="float">Floating (Slow)</option>
-                  <option value="fast">Snappy (Fast)</option>
-                  <option value="cinematic">Cinematic (Parallax 3D)</option>
-                  <option value="spring">Spring Liquid</option>
-                  <option value="staggered">Staggered Reveal</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Animation Direction</label>
-                <select value={animationDirection} onChange={e => setAnimationDirection(e.target.value)} className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500">
-                  <option value="up">Fade / Slide Up</option>
-                  <option value="down">Fade / Slide Down</option>
-                  <option value="left">Fade / Slide Left</option>
-                  <option value="right">Fade / Slide Right</option>
-                </select>
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Icon Style</label>
-                <select value={iconStyle} onChange={e => setIconStyle(e.target.value)} className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500">
-                  <option value="thin">Thin</option>
-                  <option value="light">Light</option>
-                  <option value="regular">Regular</option>
-                  <option value="bold">Bold</option>
-                  <option value="fill">Fill (Solid Blok)</option>
-                  <option value="duotone">Duotone (Dua Warna)</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-3">Theme Color</label>
-              <div className="flex flex-wrap gap-4">
-                {THEMES.map(theme => (
-                  <button
-                    key={theme.id}
-                    onClick={() => setThemeColor(theme.id)}
-                    className={`flex flex-col items-center gap-2 transition-transform ${themeColor === theme.id ? "scale-110" : "opacity-70 hover:opacity-100"}`}
-                  >
-                    <div 
-                      className={`w-10 h-10 rounded-full shadow-md ${themeColor === theme.id ? "ring-2 ring-offset-2 ring-slate-800" : ""}`}
-                      style={{ backgroundColor: theme.hex }}
-                    />
-                    <span className="text-xs font-semibold text-slate-600">{theme.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Hero Background Image</label>
-              <div className="flex flex-col gap-3">
-                {heroImageUrl && (
-                  <div className="w-full h-32 rounded-xl overflow-hidden bg-slate-100 shadow-sm flex items-center justify-center relative group">
-                    <img src={heroImageUrl} alt="Hero" loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                       <button onClick={() => setHeroImageUrl("")} className="text-white text-xs font-bold bg-red-500 px-3 py-1 rounded">Remove</button>
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <input 
-                    type="file" 
-                    ref={heroInputRef} 
-                    className="hidden" 
-                    accept="image/*"
-                    onChange={e => handleFileUpload(e, "hero")}
-                  />
-                  <button
-                    onClick={() => heroInputRef.current?.click()}
-                    disabled={isUploading.hero}
-                    className="flex items-center justify-center w-full gap-2 rounded-xl border border-dashed border-slate-300 bg-white/50 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
-                  >
-                    <Upload size={16} />
-                    {isUploading.hero ? "Uploading..." : "Upload Hero Image"}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Background / Pattern Image</label>
-              <div className="flex flex-col gap-3">
-                {backgroundImageUrl && (
-                  <div className="w-full h-32 rounded-xl overflow-hidden bg-slate-100 shadow-sm flex items-center justify-center relative group">
-                    <img src={backgroundImageUrl} alt="Background" loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                       <button onClick={() => setBackgroundImageUrl("")} className="text-white text-xs font-bold bg-red-500 px-3 py-1 rounded">Remove</button>
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <input 
-                    type="file" 
-                    ref={backgroundInputRef} 
-                    className="hidden" 
-                    accept="image/*"
-                    onChange={e => handleFileUpload(e, "background")}
-                  />
-                  <button
-                    onClick={() => backgroundInputRef.current?.click()}
-                    disabled={isUploading.background}
-                    className="flex items-center justify-center w-full gap-2 rounded-xl border border-dashed border-slate-300 bg-white/50 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
-                  >
-                    <Upload size={16} />
-                    {isUploading.background ? "Uploading..." : "Upload Background"}
-                  </button>
-                  <p className="text-xs text-slate-500 mt-2 text-center">Akan digunakan sebagai corak latar belakang Portal (opsional).</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Text Settings */}
-          <div className="space-y-5">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Portal Texts</h3>
-            
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Hero Text (Title)</label>
-              <textarea
-                value={heroText}
-                onChange={e => setHeroText(e.target.value)}
-                placeholder="Premium Coffee Beans, Roasted for Your Business."
-                rows={2}
-                className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">About Text</label>
-              <textarea
-                value={aboutText}
-                onChange={e => setAboutText(e.target.value)}
-                placeholder="Welcome to our official wholesale portal. We provide..."
-                rows={3}
-                className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Catalog Title</label>
-                <input
-                  type="text"
-                  value={catalogTitle}
-                  onChange={e => setCatalogTitle(e.target.value)}
-                  placeholder="The Collection"
-                  className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Catalog Subtitle</label>
-                <input
-                  type="text"
-                  value={catalogSubtitle}
-                  onChange={e => setCatalogSubtitle(e.target.value)}
-                  placeholder="Meticulously profiled..."
-                  className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Footer Text</label>
-              <input
-                type="text"
-                value={footerText}
-                onChange={e => setFooterText(e.target.value)}
-                placeholder="All rights reserved."
-                className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Dynamic Landing Page Content */}
-      <div className="glass-card-static p-6">
-        <h2 className="text-lg font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">Landing Page Content (Dynamic)</h2>
-        
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Problem Statement</label>
-            <textarea
-              value={problemStatement}
-              onChange={e => setProblemStatement(e.target.value)}
-              placeholder="What problem does your product solve for your customers?"
-              rows={2}
-              className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Solution Statement</label>
-            <textarea
-              value={solutionStatement}
-              onChange={e => setSolutionStatement(e.target.value)}
-              placeholder="How do you solve their problem?"
-              rows={2}
-              className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Unique Selling Proposition (Why Choose Us)</label>
-            <textarea
-              value={uspText}
-              onChange={e => setUspText(e.target.value)}
-              placeholder="Why are you the best choice?"
-              rows={2}
-              className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
-            />
-          </div>
-
-          <div className="pt-4 border-t border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-800">Features & Benefits</h3>
-              <button 
-                onClick={() => setFeatures([...features, { title: "", desc: "", iconName: "Star" }])}
-                className="text-xs flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-1 rounded hover:bg-slate-200 font-semibold"
-              ><Plus size={12}/> Add Feature</button>
-            </div>
-            <div className="space-y-3">
-              {features.map((f, i) => (
-                <div key={i} className="flex gap-2 items-start bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                  <div className="flex-1 space-y-2">
-                    <input type="text" value={f.title || ""} onChange={e => { const n = [...features]; n[i].title = e.target.value; setFeatures(n); }} placeholder="Feature Title" className="w-full rounded-lg border-slate-200 bg-white px-3 py-1.5 text-sm" />
-                    <textarea value={f.desc || ""} onChange={e => { const n = [...features]; n[i].desc = e.target.value; setFeatures(n); }} placeholder="Description" rows={2} className="w-full rounded-lg border-slate-200 bg-white px-3 py-1.5 text-sm" />
-                    <input type="text" value={f.iconName || ""} onChange={e => { const n = [...features]; n[i].iconName = e.target.value; setFeatures(n); }} placeholder="Lucide Icon Name (e.g., Zap, Star, Shield)" className="w-full rounded-lg border-slate-200 bg-white px-3 py-1.5 text-sm" />
-                  </div>
-                  <button onClick={() => setFeatures(features.filter((_, idx) => idx !== i))} className="text-red-500 hover:bg-red-50 p-2 rounded-lg"><Trash2 size={16}/></button>
-                </div>
-              ))}
-              {features.length === 0 && <p className="text-xs text-slate-500">No features added. Will use template default.</p>}
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-800">Testimonials</h3>
-              <button 
-                onClick={() => setTestimonials([...testimonials, { name: "", role: "", text: "", rating: 5 }])}
-                className="text-xs flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-1 rounded hover:bg-slate-200 font-semibold"
-              ><Plus size={12}/> Add Testimonial</button>
-            </div>
-            <div className="space-y-3">
-              {testimonials.map((t, i) => (
-                <div key={i} className="flex gap-2 items-start bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                  <div className="flex-1 space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <input type="text" value={t.name || ""} onChange={e => { const n = [...testimonials]; n[i].name = e.target.value; setTestimonials(n); }} placeholder="Customer Name" className="w-full rounded-lg border-slate-200 bg-white px-3 py-1.5 text-sm" />
-                      <input type="text" value={t.role || ""} onChange={e => { const n = [...testimonials]; n[i].role = e.target.value; setTestimonials(n); }} placeholder="Role (e.g., Cafe Owner)" className="w-full rounded-lg border-slate-200 bg-white px-3 py-1.5 text-sm" />
-                    </div>
-                    <textarea value={t.text || ""} onChange={e => { const n = [...testimonials]; n[i].text = e.target.value; setTestimonials(n); }} placeholder="Review text" rows={2} className="w-full rounded-lg border-slate-200 bg-white px-3 py-1.5 text-sm" />
-                    <input type="number" min="1" max="5" value={t.rating || 5} onChange={e => { const n = [...testimonials]; n[i].rating = parseInt(e.target.value); setTestimonials(n); }} placeholder="Rating (1-5)" className="w-full rounded-lg border-slate-200 bg-white px-3 py-1.5 text-sm" />
-                  </div>
-                  <button onClick={() => setTestimonials(testimonials.filter((_, idx) => idx !== i))} className="text-red-500 hover:bg-red-50 p-2 rounded-lg"><Trash2 size={16}/></button>
-                </div>
-              ))}
-              {testimonials.length === 0 && <p className="text-xs text-slate-500">No testimonials added. Will use template default.</p>}
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-800">Frequently Asked Questions (FAQ)</h3>
-              <button 
-                onClick={() => setFaqs([...faqs, { question: "", answer: "" }])}
-                className="text-xs flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-1 rounded hover:bg-slate-200 font-semibold"
-              ><Plus size={12}/> Add FAQ</button>
-            </div>
-            <div className="space-y-3">
-              {faqs.map((f, i) => (
-                <div key={i} className="flex gap-2 items-start bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                  <div className="flex-1 space-y-2">
-                    <input type="text" value={f.question || ""} onChange={e => { const n = [...faqs]; n[i].question = e.target.value; setFaqs(n); }} placeholder="Question" className="w-full rounded-lg border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold" />
-                    <textarea value={f.answer || ""} onChange={e => { const n = [...faqs]; n[i].answer = e.target.value; setFaqs(n); }} placeholder="Answer" rows={2} className="w-full rounded-lg border-slate-200 bg-white px-3 py-1.5 text-sm" />
-                  </div>
-                  <button onClick={() => setFaqs(faqs.filter((_, idx) => idx !== i))} className="text-red-500 hover:bg-red-50 p-2 rounded-lg"><Trash2 size={16}/></button>
-                </div>
-              ))}
-              {faqs.length === 0 && <p className="text-xs text-slate-500">No FAQs added. Will use template default.</p>}
-            </div>
+                View Portal <ExternalLink size={14} />
+              </a>
+            )}
+            <a 
+              href="/settings/portal-customizer"
+              className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2.5 text-xs font-bold text-gray-950 rounded-xl shadow-md transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Buka roastd.id Theme Studio <ExternalLink size={14} />
+            </a>
           </div>
         </div>
       </div>
@@ -885,7 +569,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-2.5 text-sm font-bold text-amber-950 shadow-lg shadow-amber-500/30 transition-all hover:bg-amber-400 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-[9px] bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 disabled:opacity-50"
         >
           <Save size={18} />
           {isSaving ? "Saving..." : "Save Changes"}
@@ -931,7 +615,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
             <span className="w-3 h-3 rounded-full bg-green-400"></span>
           </span>
           <span className="bg-white px-6 py-1 rounded-full shadow-sm flex items-center gap-2">
-            <span className="text-slate-400">🔒</span>
+            <span className="text-slate-400">ðŸ”’</span>
             {portalPath}
           </span>
         </div>

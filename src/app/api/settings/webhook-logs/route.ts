@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const logs = await prisma.webhookLog.findMany({
+    const logs = await (prisma as any).webhookLog.findMany({
       orderBy: { createdAt: "desc" },
       take: 50,
     });

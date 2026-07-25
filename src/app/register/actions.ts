@@ -142,3 +142,113 @@ export async function registerTenant(data: {
     };
   }
 }
+
+export async function registerTenantWithGoogle(data: {
+  roasteryName: string;
+  subdomain: string;
+}) {
+  try {
+    const roasteryName = data.roasteryName.trim();
+    const subdomain = data.subdomain.toLowerCase().trim();
+    const requestHeaders = await headers();
+    await enforceRateLimit({
+      scope: "register",
+      identifier: requestIdentifier(requestHeaders),
+      limit: 5,
+      windowSeconds: 60 * 60,
+    });
+
+    if (!roasteryName || !subdomain) {
+      return { success: false, error: "Nama Roastery and Subdomain are required" };
+    }
+
+    if (
+      subdomain.length < 3 ||
+      subdomain.length > 40 ||
+      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(subdomain)
+    ) {
+      return { success: false, error: "Subdomain can only contain lowercase letters, numbers, and hyphens" };
+    }
+
+    const cookieStore = await cookies();
+    const signupSession = await getIronSession<{ googleUser?: { sub: string, email: string, name: string } }>(cookieStore, {
+      password: SESSION_OPTIONS.password,
+      cookieName: "ros_google_signup",
+      cookieOptions: SESSION_OPTIONS.cookieOptions
+    });
+
+    if (!signupSession.googleUser) {
+      return { success: false, error: "Sesi Google tidak valid atau kedaluwarsa. Silakan ulangi Sign in dengan Google." };
+    }
+
+    const { sub: googleId, email, name } = signupSession.googleUser;
+
+    const existingTenant = await prisma.tenant.findUnique({
+      where: { subdomain },
+    });
+    if (existingTenant) {
+      return { success: false, error: "Subdomain is already taken" };
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+    if (existingUser) {
+      return { success: false, error: "Email is already registered" };
+    }
+
+    const trialEndsAt = getCurrentDate();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const newTenant = await tx.tenant.create({
+        data: {
+          code: subdomain.toUpperCase(),
+          name: roasteryName,
+          subdomain: subdomain,
+          subscriptionTier: "TRIAL",
+          subscriptionStatus: "ACTIVE",
+          trialEndsAt: trialEndsAt,
+        },
+      });
+
+      const newUser = await tx.user.create({
+        data: {
+          tenantId: newTenant.id,
+          name: name || email.split("@")[0],
+          email: email,
+          googleId: googleId,
+          role: "OWNER",
+        },
+      });
+
+      return { tenant: newTenant, user: newUser };
+    });
+
+    // Destroy signup session
+    signupSession.destroy();
+
+    const session = await getIronSession<{ user?: SessionUser }>(cookieStore, SESSION_OPTIONS);
+    session.user = {
+      id: result.user.id,
+      email: result.user.email,
+      name: result.user.name,
+      role: result.user.role,
+      tenantId: result.tenant.id,
+    };
+    await session.save();
+
+    return { success: true, tenantId: result.tenant.id };
+  } catch (error) {
+    console.error("Google Registration error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof RateLimitError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Something went wrong",
+    };
+  }
+}

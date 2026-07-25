@@ -1,19 +1,19 @@
 const FONT_STACKS: Record<string, string> = {
-  "Playfair Display": "var(--font-playfair-display), Georgia, serif",
-  "JetBrains Mono": "var(--font-jetbrains-mono), var(--font-geist-mono), monospace",
-  Orbitron: "var(--font-orbitron), var(--font-geist-sans), sans-serif",
-  "DM Sans": "var(--font-dm-sans), var(--font-geist-sans), sans-serif",
-  "Source Serif 4": "var(--font-source-serif), Georgia, serif",
-  Nunito: "var(--font-nunito), var(--font-geist-sans), sans-serif",
-  "Space Mono": "var(--font-space-mono), var(--font-geist-mono), monospace",
-  "Space Grotesk": "var(--font-space-grotesk), var(--font-geist-sans), sans-serif",
-  Inter: "var(--font-inter), var(--font-geist-sans), sans-serif",
-  "EB Garamond": "var(--font-eb-garamond), Georgia, serif",
-  serif: "var(--font-playfair-display), Georgia, serif",
-  sans: "var(--font-inter), var(--font-geist-sans), sans-serif",
-  mono: "var(--font-jetbrains-mono), var(--font-geist-mono), monospace",
+  "Playfair Display": 'var(--font-playfair-display), "Playfair Display", Georgia, serif',
+  "JetBrains Mono": 'var(--font-jetbrains-mono), "JetBrains Mono", monospace',
+  Orbitron: 'var(--font-orbitron), "Orbitron", sans-serif',
+  "DM Sans": 'var(--font-dm-sans), "DM Sans", sans-serif',
+  "Source Serif 4": 'var(--font-source-serif), "Source Serif 4", Georgia, serif',
+  Nunito: 'var(--font-nunito), "Nunito", sans-serif',
+  "Space Mono": 'var(--font-space-mono), "Space Mono", monospace',
+  "Space Grotesk": 'var(--font-space-grotesk), "Space Grotesk", sans-serif',
+  Inter: 'var(--font-inter), "Inter", sans-serif',
+  "EB Garamond": 'var(--font-eb-garamond), "EB Garamond", Georgia, serif',
+  serif: 'var(--font-playfair-display), "Playfair Display", Georgia, serif',
+  sans: 'var(--font-inter), "Inter", sans-serif',
+  mono: 'var(--font-jetbrains-mono), "JetBrains Mono", monospace',
 };
 
 export function resolveThemeFontFamily(name: string) {
-  return FONT_STACKS[name] || "var(--font-geist-sans), Arial, sans-serif";
+  return FONT_STACKS[name] || 'var(--font-dm-sans), "DM Sans", Arial, sans-serif';
 }

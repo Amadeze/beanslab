@@ -2,11 +2,21 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ReceiptText, Loader2, DollarSign, FileText, CheckCircle2, Clock, Download, FileText as FileTextIcon, FileSpreadsheet, Gift } from "lucide-react";
+import {
+  ReceiptText,
+  Loader2,
+  Download,
+  FileText as FileTextIcon,
+  FileSpreadsheet,
+  Gift,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatRupiah, formatDate } from "@/lib/format";
-import { StandardPageLayout } from "@/components/StandardPageLayout";
 import { StandardDrawer } from "@/components/StandardDrawer";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
+import { OperatingHero } from "@/components/layout/OperatingHero";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { InvoiceTable } from "./InvoiceTable";
 import { InvoiceForm } from "./InvoiceForm";
 import { CustomerForm } from "../../master-data/_components/CustomerForm";
@@ -22,9 +32,14 @@ import {
 } from "@/components/ui/dialog";
 import type { CustomerOption, FGStockOption, InvoiceRow } from "../actions";
 import type { SamplePageData } from "../sample-actions";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { SectionHeader } from "@/components/ui/section-header";
+import { cn } from "@/lib/utils";
 
 const triggerSilentPrint = (url: string) => {
-  let iframe = document.getElementById("silent-print-iframe") as HTMLIFrameElement;
+  let iframe = document.getElementById(
+    "silent-print-iframe",
+  ) as HTMLIFrameElement;
   if (!iframe) {
     iframe = document.createElement("iframe");
     iframe.id = "silent-print-iframe";
@@ -47,7 +62,8 @@ function ExportMenu({ invoices }: { invoices: InvoiceRow[] }) {
   useEffect(() => {
     if (!open) return;
     const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -96,7 +112,7 @@ function ExportMenu({ invoices }: { invoices: InvoiceRow[] }) {
           invoice.grandTotal,
         ]),
       ],
-      { sheet: "Penjualan" }
+      { sheet: "Penjualan" },
     ).toFile("Laporan_Penjualan.xlsx");
     setOpen(false);
   };
@@ -139,7 +155,12 @@ interface SalesClientProps {
   sampleData: SamplePageData;
 }
 
-export function SalesClient({ invoices, customers, fgOptions, sampleData }: SalesClientProps) {
+export function SalesClient({
+  invoices,
+  customers,
+  fgOptions,
+  sampleData,
+}: SalesClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -148,7 +169,9 @@ export function SalesClient({ invoices, customers, fgOptions, sampleData }: Sale
   const [workspace, setWorkspace] = useState<"sales" | "samples">("sales");
   const sampleDeepLinkHandled = useRef(false);
   const [customerOptions, setCustomerOptions] = useState(customers);
-  const [preferredCustomerId, setPreferredCustomerId] = useState<string | null>(null);
+  const [preferredCustomerId, setPreferredCustomerId] = useState<string | null>(
+    null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCustomerSubmitting, setIsCustomerSubmitting] = useState(false);
   const [lastInvoiceId, setLastInvoiceId] = useState<string | null>(null);
@@ -161,173 +184,397 @@ export function SalesClient({ invoices, customers, fgOptions, sampleData }: Sale
   }, [customers]);
 
   useEffect(() => {
-    if (searchParams.get("action") === "sample" && !sampleDeepLinkHandled.current) {
+    if (
+      searchParams.get("action") === "sample" &&
+      !sampleDeepLinkHandled.current
+    ) {
       sampleDeepLinkHandled.current = true;
       setWorkspace("samples");
       setSampleDrawerOpen(true);
     }
   }, [searchParams]);
 
-  const kpi = useMemo(() => {
+  // ── KPI computation with sparkline trends ──
+  const { kpiCards, avgInvoice } = useMemo(() => {
     const valid = invoices.filter((i) => i.status !== "VOID");
-    const totalInvoices = valid.length;
+    const totalRevenue = valid.reduce((sum, i) => sum + i.grandTotal, 0);
     const paidCount = valid.filter((i) => i.status === "PAID").length;
     const unpaidCount = valid.filter(
-      (i) => i.status === "ISSUED" || i.status === "PARTIAL"
+      (i) => i.status === "ISSUED" || i.status === "PARTIAL",
     ).length;
-    const totalRevenue = valid.reduce((sum, i) => sum + i.grandTotal, 0);
+    const totalInvoices = valid.length;
+    const avg =
+      totalInvoices > 0 ? Math.round(totalRevenue / totalInvoices) : 0;
 
-    return { totalInvoices, paidCount, unpaidCount, totalRevenue };
+    return {
+      kpiCards: { totalRevenue, paidCount, unpaidCount, totalInvoices },
+      avgInvoice: avg,
+    };
   }, [invoices]);
 
   return (
     <>
-      <StandardPageLayout
-        title="Penjualan"
-        description={`${kpi.paidCount} nota lunas · ${kpi.unpaidCount} nota tempo`}
-        actionButton={
-          <div className="flex gap-2">
-            <Button
-              size="default"
-              variant="outline"
-              className="gap-2 rounded-lg px-4 font-semibold"
-              onClick={() => { setWorkspace("samples"); setSampleDrawerOpen(true); }}
-            >
-              <Gift size={16} />
-              Kasih Sample
-            </Button>
-            <Button
-              size="default"
-              variant="outline"
-              className="gap-2 rounded-lg px-4 font-semibold"
-              onClick={() => {
-                import("jspdf").then(({ jsPDF }) => {
-                  import("jspdf-autotable").then(({ default: autoTable }) => {
-                    const doc = new jsPDF();
-                    doc.text("Laporan Penjualan", 14, 15);
-                    const tableData = invoices.map((i) => [
-                      i.code,
-                      i.customerName,
-                      formatDate(i.issuedAt),
-                      i.status,
-                      formatRupiah(i.grandTotal),
-                    ]);
-                    autoTable(doc, {
-                      head: [
-                        [
-                          "Kode Invoice",
-                          "Pelanggan",
-                          "Tanggal",
-                          "Status",
-                          "Total",
+      <div className="flex min-h-0 flex-1 flex-col">
+        {/* Sticky header */}
+        <PageHeader
+          title="Penjualan & Pesanan"
+          stage="sales"
+          description={`${kpiCards.paidCount} nota lunas · ${kpiCards.unpaidCount} nota tempo`}
+          actions={
+            <>
+              <Button
+                size="default"
+                variant="outline"
+                className="gap-2 rounded-lg px-4 font-semibold"
+                onClick={() => {
+                  setWorkspace("samples");
+                  setSampleDrawerOpen(true);
+                }}
+              >
+                <Gift size={16} />
+                Kasih Sample
+              </Button>
+              <Button
+                size="default"
+                variant="outline"
+                className="gap-2 rounded-lg px-4 font-semibold"
+                onClick={() => {
+                  import("jspdf").then(({ jsPDF }) => {
+                    import("jspdf-autotable").then(({ default: autoTable }) => {
+                      const doc = new jsPDF();
+                      doc.text("Laporan Penjualan", 14, 15);
+                      const tableData = invoices.map((i) => [
+                        i.code,
+                        i.customerName,
+                        formatDate(i.issuedAt),
+                        i.status,
+                        formatRupiah(i.grandTotal),
+                      ]);
+                      autoTable(doc, {
+                        head: [
+                          [
+                            "Kode Invoice",
+                            "Pelanggan",
+                            "Tanggal",
+                            "Status",
+                            "Total",
+                          ],
                         ],
-                      ],
-                      body: tableData,
-                      startY: 20,
+                        body: tableData,
+                        startY: 20,
+                      });
+                      doc.save("Laporan_Penjualan.pdf");
                     });
-                    doc.save("Laporan_Penjualan.pdf");
                   });
-                });
-              }}
-            >
-              Export PDF
-            </Button>
-            <Button
-              size="default"
-              variant="outline"
-              className="gap-2 rounded-lg px-4 font-semibold"
-              onClick={async () => {
-                const { default: writeXlsxFile } = await import(
-                  "write-excel-file/browser"
-                );
-                await writeXlsxFile(
-                  [
+                }}
+              >
+                Export PDF
+              </Button>
+              <Button
+                size="default"
+                variant="outline"
+                className="gap-2 rounded-lg px-4 font-semibold"
+                onClick={async () => {
+                  const { default: writeXlsxFile } =
+                    await import("write-excel-file/browser");
+                  await writeXlsxFile(
                     [
-                      "Kode Invoice",
-                      "Pelanggan",
-                      "Tanggal",
-                      "Status",
-                      "Total",
+                      [
+                        "Kode Invoice",
+                        "Pelanggan",
+                        "Tanggal",
+                        "Status",
+                        "Total",
+                      ],
+                      ...invoices.map((invoice) => [
+                        invoice.code,
+                        invoice.customerName,
+                        formatDate(invoice.issuedAt),
+                        invoice.status,
+                        invoice.grandTotal,
+                      ]),
                     ],
-                    ...invoices.map((invoice) => [
-                      invoice.code,
-                      invoice.customerName,
-                      formatDate(invoice.issuedAt),
-                      invoice.status,
-                      invoice.grandTotal,
-                    ]),
-                  ],
-                  { sheet: "Penjualan" }
-                ).toFile("Laporan_Penjualan.xlsx");
-              }}
-            >
-              Export Excel
-            </Button>
-            <Button
-              size="default"
-              className="gap-2 rounded-lg bg-stone-900 px-5 font-semibold text-white shadow-none hover:bg-stone-800"
-              onClick={() => setDrawerOpen(true)}
-            >
-              <ReceiptText
-                size={16}
-                className=""
-              />
-              Nota Baru
-            </Button>
-          </div>
-        }
-        mobileSpeedDialItems={[
-          { label: "Kasih Sample", icon: <Gift size={18} />, onClick: () => { setWorkspace("samples"); setSampleDrawerOpen(true); }, variant: "secondary" },
-          { label: "Nota Baru", icon: <ReceiptText size={18} />, onClick: () => setDrawerOpen(true), variant: "primary" },
-        ]}
-        mobileHeaderActions={<ExportMenu invoices={invoices} />}
-      >
-        <div className="mb-5 flex gap-1 border-b border-stone-200" role="tablist" aria-label="Area penjualan">
-          <button type="button" role="tab" aria-selected={workspace === "sales"} onClick={() => setWorkspace("sales")} className={`border-b-2 px-4 py-2.5 text-sm font-semibold ${workspace === "sales" ? "border-stone-900 text-stone-900" : "border-transparent text-stone-500 hover:text-stone-800"}`}>Penjualan</button>
-          <button type="button" role="tab" aria-selected={workspace === "samples"} onClick={() => setWorkspace("samples")} className={`border-b-2 px-4 py-2.5 text-sm font-semibold ${workspace === "samples" ? "border-stone-900 text-stone-900" : "border-transparent text-stone-500 hover:text-stone-800"}`}>Sample <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">{sampleData.todaySummary.packCount}</span></button>
-        </div>
+                    { sheet: "Penjualan" },
+                  ).toFile("Laporan_Penjualan.xlsx");
+                }}
+              >
+                Export Excel
+              </Button>
+              <Button
+                size="default"
+                variant="default"
+                className="gap-2 px-5"
+                onClick={() => setDrawerOpen(true)}
+              >
+                <ReceiptText size={16} />
+                Nota Baru
+              </Button>
+            </>
+          }
+          mobileActions={
+            <>
+              <ExportMenu invoices={invoices} />
+              <Button
+                size="sm"
+                variant="default"
+                className="gap-1.5 px-3"
+                onClick={() => setDrawerOpen(true)}
+              >
+                <ReceiptText size={14} />
+                Nota Baru
+              </Button>
+            </>
+          }
+        />
 
-        {workspace === "sales" ? <>
-        <div className="mb-6 grid grid-cols-2 overflow-hidden rounded-xl border border-stone-200 bg-white xl:grid-cols-4">
-          {[
-            { label: "Total penjualan", value: formatRupiah(kpi.totalRevenue), icon: DollarSign, tone: "text-emerald-700 bg-emerald-50" },
-            { label: "Nota lunas", value: `${kpi.paidCount} faktur`, icon: CheckCircle2, tone: "text-sky-700 bg-sky-50" },
-            { label: "Belum lunas", value: `${kpi.unpaidCount} faktur`, icon: Clock, tone: "text-amber-700 bg-amber-50" },
-            { label: "Total diterbitkan", value: `${kpi.totalInvoices} faktur`, icon: FileText, tone: "text-stone-600 bg-stone-100" },
-          ].map((metric, index) => (
-            <div
-              key={metric.label}
-              className={`min-w-0 p-4 sm:p-5 ${index % 2 === 0 ? "border-r border-stone-200" : ""} ${index < 2 ? "border-b border-stone-200 xl:border-b-0" : ""} ${index === 1 ? "xl:border-r" : ""} ${index === 2 ? "xl:border-r" : ""}`}
+        {/* Scrollable content */}
+        <div className="custom-scrollbar flex-1 overflow-auto">
+          <OperatingHero
+            stage="sales"
+            headline={
+              kpiCards.unpaidCount > 0
+                ? `${kpiCards.unpaidCount} nota masih menunggu menjadi kas.`
+                : `${kpiCards.paidCount} nota lunas menjaga arus penjualan.`
+            }
+            description="Penjualan bukan akhir dari stok. Nota menghubungkan pelanggan, barang keluar, pembayaran, dan piutang—semuanya harus bergerak sebagai satu transaksi."
+            signalLabel="Status penjualan"
+            signalValue={
+              kpiCards.unpaidCount > 0
+                ? `${kpiCards.unpaidCount} belum lunas`
+                : "Semua lunas"
+            }
+            signalTone={kpiCards.unpaidCount > 0 ? "critical" : "ready"}
+            metrics={[
+              {
+                label: "Pendapatan",
+                value: formatRupiah(kpiCards.totalRevenue),
+              },
+              { label: "Nota lunas", value: kpiCards.paidCount },
+              { label: "Nota aktif", value: kpiCards.totalInvoices },
+              { label: "Rata-rata nota", value: formatRupiah(avgInvoice) },
+            ]}
+            next={{ label: "Lanjut ke Kas & Piutang", href: "/keuangan" }}
+          />
+          <WorkspaceNav kind="sales" />
+
+          <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">
+            <Tabs
+              value={workspace}
+              onValueChange={(v) => setWorkspace(v as any)}
+              className="w-full"
             >
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-xs font-medium leading-4 text-stone-500">{metric.label}</p>
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${metric.tone}`}>
-                  <metric.icon size={17} aria-hidden="true" />
-                </span>
+              <div className="custom-scrollbar overflow-x-auto border-b border-[var(--glass-border)] mb-8 pb-1">
+                <TabsList className="flex w-max items-center h-auto p-0 bg-transparent gap-2">
+                  {[
+                    { id: "sales", label: "Penjualan" },
+                    {
+                      id: "samples",
+                      label: "Sample",
+                      badge: sampleData.todaySummary.packCount,
+                    },
+                  ].map((tab) => {
+                    const isActive = workspace === tab.id;
+                    return (
+                      <TabsTrigger
+                        key={tab.id}
+                        value={tab.id}
+                        className={cn(
+                          "relative flex items-center gap-2.5 px-4 py-3 text-sm font-semibold transition-all rounded-t-xl data-[state=active]:bg-transparent data-[state=active]:shadow-none",
+                          isActive
+                            ? "text-[var(--amber-deep)] dark:text-[var(--amber-warm)]"
+                            : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)]",
+                        )}
+                      >
+                        {tab.label}
+                        {tab.badge !== undefined && (
+                          <span
+                            className={cn(
+                              "ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors",
+                              isActive
+                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300"
+                                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+                            )}
+                          >
+                            {tab.badge}
+                          </span>
+                        )}
+                        {isActive && (
+                          <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[var(--amber-warm)] to-[var(--amber-deep)] rounded-t-full shadow-[0_-2px_10px_rgba(196,122,51,0.4)]" />
+                        )}
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
               </div>
-              <p className="mt-2 whitespace-nowrap font-mono text-sm font-bold tabular-nums text-stone-900 sm:text-lg lg:text-xl">{metric.value}</p>
-            </div>
-          ))}
-        </div>
 
-        <InvoiceTable invoices={invoices} />
-        </> : <SampleUsagePanel data={sampleData} />}
-      </StandardPageLayout>
+              <div className="relative">
+                <TabsContent
+                  value="sales"
+                  className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300"
+                >
+                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-5">
+                    <div className="lg:col-span-3 order-last lg:order-none">
+                      <GlassPanel padding="md">
+                        <InvoiceTable invoices={invoices} />
+                      </GlassPanel>
+                    </div>
+                    <div className="lg:col-span-2 space-y-3 order-first lg:order-none">
+                      <GlassPanel padding="md">
+                        <SectionHeader
+                          title="Aktivitas Sample"
+                          description="Hari Ini"
+                        />
+                        <div className="mt-3 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                              Sample diberikan
+                            </span>
+                            <span className="text-xs font-bold text-[var(--text-primary)]">
+                              {sampleData.todaySummary.packCount} pack
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                              Biaya
+                            </span>
+                            <span className="text-xs font-bold text-amber-600">
+                              {formatRupiah(sampleData.todaySummary.totalCost)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                              Bulan ini
+                            </span>
+                            <span className="text-xs font-bold text-[var(--text-primary)]">
+                              {sampleData.monthSummary.packCount} pack &middot;{" "}
+                              {formatRupiah(sampleData.monthSummary.totalCost)}
+                            </span>
+                          </div>
+                        </div>
+                      </GlassPanel>
+                      <GlassPanel padding="md">
+                        <SectionHeader title="Aksi Cepat" />
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setWorkspace("samples");
+                              setSampleDrawerOpen(true);
+                            }}
+                            className="flex items-center gap-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] px-3 py-2.5 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--glass-bg-hover)] hover:text-[var(--text-primary)] transition-all"
+                          >
+                            <Gift size={14} />
+                            Kasih Sample
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDrawerOpen(true)}
+                            className="flex items-center gap-2 rounded-lg bg-[var(--amber-deep)] text-white px-3 py-2.5 text-xs font-semibold shadow-sm hover:brightness-110 transition-all"
+                          >
+                            <ReceiptText size={14} />
+                            Nota Baru
+                          </button>
+                        </div>
+                      </GlassPanel>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="samples" className="mt-0 outline-none">
+                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-5">
+                    <div className="lg:col-span-3 order-last lg:order-none">
+                      <GlassPanel padding="md">
+                        <SampleUsagePanel data={sampleData} />
+                      </GlassPanel>
+                    </div>
+                    <div className="lg:col-span-2 space-y-3 order-first lg:order-none">
+                      <GlassPanel padding="md">
+                        <SectionHeader
+                          title="Ringkasan Bulanan"
+                          description="Aktivitas sample"
+                        />
+                        <div className="mt-3 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                              Total pack
+                            </span>
+                            <span className="text-xs font-bold text-[var(--text-primary)]">
+                              {sampleData.monthSummary.packCount}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                              Total berat
+                            </span>
+                            <span className="text-xs font-bold text-[var(--text-primary)]">
+                              {sampleData.monthSummary.totalGrams.toLocaleString(
+                                "id-ID",
+                              )}{" "}
+                              g
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                              Biaya (HPP)
+                            </span>
+                            <span className="text-xs font-bold text-amber-600">
+                              {formatRupiah(sampleData.monthSummary.totalCost)}
+                            </span>
+                          </div>
+                        </div>
+                      </GlassPanel>
+                      <GlassPanel padding="md">
+                        <SectionHeader title="Aksi Cepat" />
+                        <button
+                          type="button"
+                          onClick={() => setSampleDrawerOpen(true)}
+                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--amber-deep)] text-white px-3 py-2.5 text-xs font-semibold shadow-sm hover:brightness-110 transition-all"
+                        >
+                          <Gift size={14} />
+                          Sample Baru
+                        </button>
+                      </GlassPanel>
+                    </div>
+                  </div>
+                </TabsContent>
+              </div>
+            </Tabs>
+          </div>
+        </div>
+      </div>
 
       <StandardDrawer
         open={sampleDrawerOpen}
-        onOpenChange={(open) => { if (!sampleSubmitting) setSampleDrawerOpen(open); }}
+        onOpenChange={(open) => {
+          if (!sampleSubmitting) setSampleDrawerOpen(open);
+        }}
         title="Kasih Sample"
         description="Catat sekali; stok, HPP promosi, dan closing langsung ikut diperbarui."
         size="lg"
         submitButton={
-          <Button type="submit" form="sample-form" size="sm" disabled={sampleSubmitting} className="gap-1.5 rounded-xl bg-stone-900 font-bold text-white hover:bg-stone-800 disabled:opacity-60">
+          <Button
+            type="submit"
+            form="sample-form"
+            size="sm"
+            disabled={sampleSubmitting}
+            variant="default"
+            className="gap-1.5"
+          >
             {sampleSubmitting && <Loader2 size={13} className="animate-spin" />}
             {sampleSubmitting ? "Mencatat..." : "Catat & Kurangi Stok"}
           </Button>
         }
       >
-        <SampleForm id="sample-form" data={sampleData} onPendingChange={setSampleSubmitting} onSuccess={() => { setSampleDrawerOpen(false); setWorkspace("samples"); router.refresh(); }} />
+        <SampleForm
+          id="sample-form"
+          data={sampleData}
+          onPendingChange={setSampleSubmitting}
+          onSuccess={() => {
+            setSampleDrawerOpen(false);
+            setWorkspace("samples");
+            router.refresh();
+          }}
+        />
       </StandardDrawer>
 
       <StandardDrawer
@@ -344,7 +591,7 @@ export function SalesClient({ invoices, customers, fgOptions, sampleData }: Sale
             form="invoice-form"
             size="sm"
             disabled={isSubmitting}
-            className="gap-1.5 bg-amber-700 text-white hover:bg-amber-800 shadow-md rounded-xl font-bold disabled:opacity-60"
+            className="gap-1.5 rounded-[8px] bg-primary font-bold text-primary-foreground shadow-md hover:bg-primary/90 disabled:opacity-60"
           >
             {isSubmitting && <Loader2 size={13} className="animate-spin" />}
             {isSubmitting ? "Menyimpan..." : "Terbitkan Nota"}
@@ -379,7 +626,7 @@ export function SalesClient({ invoices, customers, fgOptions, sampleData }: Sale
             form="new-customer-form"
             size="sm"
             disabled={isCustomerSubmitting}
-            className="gap-1.5 bg-amber-700 text-white hover:bg-amber-800 shadow-md rounded-xl font-bold disabled:opacity-60"
+            className="gap-1.5 rounded-[8px] bg-primary font-bold text-primary-foreground shadow-md hover:bg-primary/90 disabled:opacity-60"
           >
             {isCustomerSubmitting && (
               <Loader2 size={13} className="animate-spin" />
@@ -428,14 +675,11 @@ export function SalesClient({ invoices, customers, fgOptions, sampleData }: Sale
             </p>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setLastInvoiceId(null)}
-            >
+            <Button variant="outline" onClick={() => setLastInvoiceId(null)}>
               Nanti Saja
             </Button>
             <Button
-              className="bg-amber-700 text-white"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => {
                 triggerSilentPrint(`/nota/${lastInvoiceId}?print=true`);
                 setLastInvoiceId(null);

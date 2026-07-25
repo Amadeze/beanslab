@@ -24,15 +24,28 @@ const glassCard = "rounded-[1.25rem] border border-white/60 bg-white/30 backdrop
 
 const PRODUCT_TYPES = [
   { value: "GREEN_BEAN",     label: "Green Bean (Mentah)" },
-  { value: "ROASTED_BEAN",   label: "Roasted Bean (Matang)" },
   { value: "FINISHED_GOODS", label: "Produk Jadi" },
 ] as const;
 
-const ROAST_LEVELS = [
-  { value: "LIGHT",       label: "Light" },
-  { value: "MEDIUM",      label: "Medium" },
-  { value: "MEDIUM_DARK", label: "Medium Dark" },
-  { value: "DARK",        label: "Dark" },
+const COFFEE_SPECIES = [
+  { value: "ARABICA",  label: "Arabica" },
+  { value: "ROBUSTA",  label: "Robusta" },
+  { value: "LIBERICA", label: "Liberica" },
+  { value: "EXCELSA",  label: "Excelsa" },
+  { value: "HIBRIDA",  label: "Hibrida" },
+  { value: "LAINNYA",  label: "Lainnya" },
+] as const;
+
+const FG_CATEGORIES = [
+  { value: "ESPRESSO_BASE", label: "Espresso Base" },
+  { value: "SPECIALTY",     label: "Specialty" },
+  { value: "FILTER",        label: "Filter / Pour Over" },
+  { value: "BLEND_HOUSE",   label: "House Blend" },
+] as const;
+
+const BLEND_TYPES = [
+  { value: "SINGLE", label: "Single Origin" },
+  { value: "BLEND",  label: "Blend" },
 ] as const;
 
 // =============================================================================
@@ -42,14 +55,16 @@ const ROAST_LEVELS = [
 const recipeItemSchema = z.object({
   rbProductId:  z.string(),
   gramsPerUnit: z.number(),
+  ratioPercent: z.number().optional(), // for BLEND mode
 });
 
 const schema = z.object({
   name:              z.string().min(1, "Nama wajib diisi"),
-  type:              z.enum(["GREEN_BEAN", "ROASTED_BEAN", "FINISHED_GOODS"]),
+  type:              z.enum(["GREEN_BEAN", "FINISHED_GOODS"]),
+  coffeeSpecies:     z.string().optional(),
   category:          z.string().optional(),
+  blendType:         z.enum(["SINGLE", "BLEND"]).optional(),
   origin:            z.string().optional(),
-  roastLevel:        z.enum(["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"]).nullable().optional(),
   description:       z.string().optional(),
   imageUrl:          z.string().optional(),
   price:             z.number().optional(),
@@ -90,14 +105,19 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
   const [isUploading, setIsUploading] = useState(false);
   const isEditMode = !!initialData;
   const existingRecipe = initialData?.recipe ?? null;
-  const [showRecipe, setShowRecipe] = useState(Boolean(existingRecipe));
+  const [showRecipe, setShowRecipe] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const defaultRecipeItems = existingRecipe?.items.map((i) => ({
-    rbProductId:  i.rbProductId,
-    gramsPerUnit: i.gramsPerUnit,
-  })) ?? [];
-
+  const defaultRecipeItems = existingRecipe?.items.map((i) => {
+    const ratioPercent = existingRecipe.outputGrams > 0 
+      ? Math.round((i.gramsPerUnit / existingRecipe.outputGrams) * 100)
+      : 0;
+    return {
+      rbProductId:  i.rbProductId,
+      gramsPerUnit: i.gramsPerUnit,
+      ratioPercent,
+    };
+  }) ?? [];
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: initialData
@@ -106,7 +126,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           type:              (initialData.type as FormValues["type"]) ?? "GREEN_BEAN",
           category:          initialData.category ?? "",
           origin:            initialData.origin ?? "",
-          roastLevel:        (initialData.roastLevel as FormValues["roastLevel"]) ?? null,
           description:       initialData.description ?? "",
           imageUrl:          initialData.imageUrl ?? "",
           price:             initialData.price ?? 0,
@@ -117,13 +136,14 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           recipeOutputGrams: existingRecipe?.outputGrams ?? 0,
           recipeNotes:       existingRecipe?.notes ?? "",
           recipeItems:       defaultRecipeItems,
+          blendType:         existingRecipe?.items.length === 1 ? "SINGLE" : "BLEND",
           reorderAlertEnabled:  initialData.reorderAlertEnabled ?? false,
           leadTimeDays:         initialData.leadTimeDays ?? 7,
           safetyStockQuantity:  initialData.safetyStockQuantity ?? 0,
           reorderLookbackDays:  initialData.reorderLookbackDays ?? 30,
         }
       : {
-          name: "", type: "GREEN_BEAN", category: "", origin: "", roastLevel: null,
+          name: "", type: "GREEN_BEAN", category: "", origin: "", blendType: "SINGLE",
           description: "", imageUrl: "", price: 0, priceSilver: 0, priceGold: 0, isActive: true,
           recipePackagingId: "", recipeOutputGrams: 0, recipeNotes: "", recipeItems: [],
           reorderAlertEnabled: false, leadTimeDays: 7, safetyStockQuantity: 0, reorderLookbackDays: 30,
@@ -133,10 +153,12 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
   const { fields, append, remove } = useFieldArray({ control, name: "recipeItems" });
 
   const selectedType     = watch("type");
+  const blendType        = watch("blendType");
   const recipeItems      = watch("recipeItems") ?? [];
   const recipeOutputGrams = watch("recipeOutputGrams") ?? 0;
   const currentImageUrl = watch("imageUrl");
   const totalGrams       = recipeItems.reduce((s, i) => s + (Number(i.gramsPerUnit) || 0), 0);
+  const totalRatio       = recipeItems.reduce((s, i) => s + (Number(i.ratioPercent) || 0), 0);
   const isFG             = selectedType === "FINISHED_GOODS";
   const recipePackagingId = watch("recipePackagingId");
 
@@ -202,6 +224,23 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
       const badItem = values.recipeItems!.find((i) => !i.rbProductId || (i.gramsPerUnit ?? 0) <= 0);
       if (badItem) { toast.error("Setiap bahan resep harus dipilih dan diisi gramnya."); setIsSubmitting(false); onPendingChange?.(false); return; }
 
+      // Validate BLEND mode ratio
+      if (values.blendType === "BLEND") {
+        const totalPct = values.recipeItems!.reduce((s, i) => s + (Number(i.ratioPercent) || 0), 0);
+        if (Math.abs(totalPct - 100) > 0.5) {
+          toast.error(`Total rasio harus 100%. Saat ini: ${totalPct.toFixed(0)}%`);
+          setIsSubmitting(false); onPendingChange?.(false); return;
+        }
+        if (values.recipeItems!.length < 2) {
+          toast.error("Blend harus minimal 2 bahan.");
+          setIsSubmitting(false); onPendingChange?.(false); return;
+        }
+      }
+      if (values.blendType === "SINGLE" && values.recipeItems!.length !== 1) {
+        toast.error("Single Origin harus tepat 1 bahan.");
+        setIsSubmitting(false); onPendingChange?.(false); return;
+      }
+
       // Validate mixing GREEN_BEAN and ROASTED_BEAN
       const typesInRecipe = new Set(values.recipeItems!.map(i => rawMaterials.find(rm => rm.id === i.rbProductId)?.type));
       if (typesInRecipe.has("GREEN_BEAN") && typesInRecipe.has("ROASTED_BEAN")) {
@@ -228,7 +267,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
             name: values.name,
             category: values.category || undefined,
             origin: values.origin,
-            roastLevel: values.roastLevel,
             description: values.description,
             imageUrl: values.imageUrl,
             price: values.price,
@@ -246,7 +284,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
             type: values.type,
             category: values.category || undefined,
             origin: values.origin,
-            roastLevel: values.roastLevel,
             description: values.description,
             imageUrl: values.imageUrl,
             price: values.price,
@@ -308,15 +345,55 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
         )}
       </div>
       <div className="grid grid-cols-2 gap-4">
+        {/* ── Jenis Kopi ── */}
+        <div className="space-y-1.5">
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Jenis Kopi</Label>
+          <Controller
+            control={control}
+            name="coffeeSpecies"
+            render={({ field }) => (
+              <Select value={field.value || ""} onValueChange={(v) => field.onChange(v || null)}>
+                <SelectTrigger className={cn("h-9 w-full text-sm", glassInput)}>
+                  <SelectValue placeholder="Pilih jenis kopi...">
+                    {field.value ? COFFEE_SPECIES.find((s) => s.value === field.value)?.label : null}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {COFFEE_SPECIES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
         {/* ── Kategori ── */}
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Kategori</Label>
-          <Input list="category-list" placeholder="Espresso Base, Specialty, dll." className={cn("h-9", glassInput)} {...register("category")} />
-          <datalist id="category-list">
-            <option value="Espresso Base" />
-            <option value="Specialty" />
-            <option value="Filter" />
-          </datalist>
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+            {isFG ? "Kategori" : "Kategori"}
+          </Label>
+          {isFG ? (
+            <Controller
+              control={control}
+              name="category"
+              render={({ field }) => (
+                <Select value={field.value || ""} onValueChange={(v) => field.onChange(v || null)}>
+                  <SelectTrigger className={cn("h-9 w-full text-sm", glassInput)}>
+                    <SelectValue placeholder="Pilih kategori...">
+                      {field.value ? FG_CATEGORIES.find((c) => c.value === field.value)?.label : null}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FG_CATEGORIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          ) : (
+            <Input list="category-list" placeholder="Espresso Base, Specialty, dll." className={cn("h-9", glassInput)} {...register("category")} />
+          )}
         </div>
 
         {/* ── Origin ── */}
@@ -325,30 +402,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           <Input placeholder="Gayo, Toraja, Ethiopia, dll." className={cn("h-9", glassInput)} {...register("origin")} />
         </div>
       </div>
-      {/* ── Roast Level (ROASTED_BEAN only) ── */}
-      {selectedType === "ROASTED_BEAN" && (
-        <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Tingkat Roast</Label>
-          <Controller
-            control={control}
-            name="roastLevel"
-            render={({ field }) => (
-              <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v || null)}>
-                <SelectTrigger className={cn("h-9 w-full text-sm", glassInput)}>
-                  <SelectValue placeholder="Pilih tingkat roast...">
-                    {field.value ? ROAST_LEVELS.find((r) => r.value === field.value)?.label : null}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {ROAST_LEVELS.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </div>
-      )}
 
       {/* ── Deskripsi ── */}
       <div className="space-y-1.5">
@@ -386,6 +439,45 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
         </div>
       </div>
 
+      {/* ── Tipe Campuran (FINISHED_GOODS only) ── */}
+      {isFG && (
+        <div className="space-y-1.5">
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Tipe Kopi</Label>
+          <Controller
+            control={control}
+            name="blendType"
+            render={({ field }) => (
+              <div className="flex gap-2">
+                {BLEND_TYPES.map((bt) => (
+                  <button
+                    key={bt.value}
+                    type="button"
+                    onClick={() => {
+                      field.onChange(bt.value);
+                      // If switching to SINGLE, keep only first recipe item
+                      if (bt.value === "SINGLE" && recipeItems.length > 1) {
+                        for (let i = recipeItems.length - 1; i > 0; i--) remove(i);
+                      }
+                    }}
+                    className={cn(
+                      "flex-1 rounded-xl border-2 py-2.5 text-xs font-bold transition-all",
+                      field.value === bt.value
+                        ? "border-violet-500 bg-violet-50 text-violet-700 shadow-sm"
+                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                    )}
+                  >
+                    {bt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          />
+          <p className="text-[10px] text-slate-400">
+            {blendType === "SINGLE" ? "Satu jenis Roasted Bean, 100% murni" : "Campuran beberapa Roasted Bean dengan rasio tertentu"}
+          </p>
+        </div>
+      )}
+
       {/* ── Harga Jual (FINISHED_GOODS only) ── */}
       {selectedType === "FINISHED_GOODS" && (
         <div className={cn(glassCard, "space-y-4")}>
@@ -393,7 +485,12 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
             <h3 className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Harga Jual</h3>
             {estimatedHpp > 0 && (
               <span className="text-[10px] font-bold text-amber-800 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                {initialData?.lastHpp && Number(initialData.lastHpp) > 0 ? "HPP Aktual" : "Estimasi HPP (Resep)"}: Rp {estimatedHpp.toLocaleString("id-ID")}
+                Estimasi Resep: Rp {estimatedHpp.toLocaleString("id-ID")}
+              </span>
+            )}
+            {initialData?.lastHpp && Number(initialData.lastHpp) > 0 && (
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 ml-1">
+                HPP Aktual: Rp {Number(initialData.lastHpp).toLocaleString("id-ID")}
               </span>
             )}
           </div>
@@ -425,7 +522,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
             name="isActive"
             render={({ field }) => (
               <div className="flex gap-2">
-                {[{ v: true, label: "Aktif", cls: "border-amber-700 bg-amber-700 text-white shadow-md ring-2 ring-amber-700/20 ring-offset-1" }, { v: false, label: "Nonaktif", cls: "border-white/60 bg-white/40 text-slate-500 hover:bg-white/60" }].map(({ v, label, cls }) => (
+                {[{ v: true, label: "Aktif", cls: "border-emerald-600 bg-emerald-600 text-white shadow-md ring-2 ring-emerald-600/20 ring-offset-1" }, { v: false, label: "Nonaktif", cls: "border-slate-700 bg-slate-700 text-white shadow-md ring-2 ring-slate-700/20 ring-offset-1" }].map(({ v, label, cls }) => (
                   <button key={String(v)} type="button" onClick={() => field.onChange(v)}
                     className={cn("flex-1 rounded-xl border py-2 text-xs font-bold transition-all shadow-sm",
                       field.value === v ? cls : "border-white/60 bg-white/40 text-slate-500 hover:bg-white/60")}>
@@ -497,17 +594,24 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           {/* Recipe items */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Komposisi Bahan (Green Bean / Roasted Bean)</Label>
-              {fields.length > 0 && recipeOutputGrams > 0 && (
+              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+                {blendType === "SINGLE" ? "Bahan Baku (100% Roasted Bean)" : "Komposisi Blend (Rasio %)"}
+              </Label>
+              {fields.length > 0 && recipeOutputGrams > 0 && blendType === "SINGLE" && (
                 <span className={`text-[11px] font-bold tabular-nums px-2 py-0.5 rounded-full border ${Math.abs(totalGrams - recipeOutputGrams) < 0.01 ? "bg-emerald-50/50 border-emerald-200 text-emerald-700" : "bg-amber-50/50 border-amber-200 text-amber-700"}`}>
                   Total: {totalGrams}g / {recipeOutputGrams}g
+                </span>
+              )}
+              {fields.length > 0 && blendType === "BLEND" && (
+                <span className={`text-[11px] font-bold tabular-nums px-2 py-0.5 rounded-full border ${Math.abs(totalRatio - 100) < 0.01 ? "bg-emerald-50/50 border-emerald-200 text-emerald-700" : "bg-amber-50/50 border-amber-200 text-amber-700"}`}>
+                  Total: {totalRatio.toFixed(0)}% / 100%
                 </span>
               )}
             </div>
 
             {fields.length === 0 && (
               <p className="text-xs text-slate-400 font-medium py-2">
-                Belum ada bahan. Klik "+ Tambah Bahan" untuk menambahkan komposisi.
+                {blendType === "SINGLE" ? "Pilih satu Roasted Bean sebagai bahan baku." : "Klik \"+ Tambah Bahan\" untuk menambahkan komposisi blend."}
               </p>
             )}
 
@@ -516,13 +620,15 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
                 <div key={field.id} className="relative flex flex-wrap sm:flex-nowrap items-start gap-4 rounded-xl border border-white/60 bg-white/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group">
                   
                   {/* Remove (absolute hover) */}
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="absolute -top-3 -right-2 bg-white text-red-500 border border-white/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 shadow-sm z-10"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {blendType === "BLEND" && (
+                    <button
+                      type="button"
+                      onClick={() => remove(index)}
+                      className="absolute -top-3 -right-2 bg-white text-red-500 border border-white/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 shadow-sm z-10"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                   
                   {/* RB selector */}
                   <div className="flex-1 min-w-[150px] space-y-1">
@@ -538,11 +644,11 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
-                            {rawMaterials.map((rm) => {
+                            {rawMaterials.filter((rm) => rm.type === "ROASTED_BEAN").map((rm) => {
                               const isSelected = recipeItems.some((item, i) => i !== index && item.rbProductId === rm.id);
                               return (
                                 <SelectItem key={rm.id} value={rm.id} disabled={isSelected}>
-                                  {rm.name} {rm.type === "GREEN_BEAN" ? "(GB)" : "(RB)"}
+                                  {rm.name} (RB)
                                 </SelectItem>
                               );
                             })}
@@ -552,40 +658,74 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
                     />
                   </div>
 
-                  {/* Grams */}
-                  <div className="w-28 shrink-0 space-y-1">
-                    <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Gramasi</Label>
-                    <div className="relative flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <Input
-                          type="number" min="0.1" step="0.1" placeholder="0"
-                          className={cn("h-9 text-right tabular-nums text-sm font-semibold pr-6", glassInput)}
-                          {...register(`recipeItems.${index}.gramsPerUnit`, { valueAsNumber: true })}
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">g</span>
+                  {blendType === "SINGLE" ? (
+                    /* SINGLE mode — Grams input */
+                    <div className="w-36 shrink-0 space-y-1">
+                      <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Gramasi</Label>
+                      <div className="relative flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <Input
+                            type="number" min="0.1" step="0.1" placeholder="0"
+                            className={cn("h-9 text-right tabular-nums text-sm font-semibold pr-6", glassInput)}
+                            {...register(`recipeItems.${index}.gramsPerUnit`, { valueAsNumber: true })}
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">g</span>
+                        </div>
+                        {recipeOutputGrams > 0 && (
+                          <span className="w-10 shrink-0 text-right text-[11px] font-bold text-slate-400 tabular-nums">
+                            {`${((Number(recipeItems[index]?.gramsPerUnit) || 0) / recipeOutputGrams * 100).toFixed(0)}%`}
+                          </span>
+                        )}
                       </div>
-                      
-                      {/* Ratio preview */}
-                      {recipeOutputGrams > 0 && (
-                        <span className="w-10 shrink-0 text-right text-[11px] font-bold text-slate-400 tabular-nums">
-                          {recipeOutputGrams > 0
-                            ? `${((Number(recipeItems[index]?.gramsPerUnit) || 0) / recipeOutputGrams * 100).toFixed(0)}%`
-                            : ""}
-                        </span>
-                      )}
                     </div>
-                  </div>
+                  ) : (
+                    /* BLEND mode — Ratio % input */
+                    <div className="w-36 shrink-0 space-y-1">
+                      <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Rasio</Label>
+                      <div className="relative flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <Controller
+                            control={control}
+                            name={`recipeItems.${index}.ratioPercent`}
+                            render={({ field: f }) => (
+                              <Input
+                                type="number" min="1" max="100" step="1" placeholder="0"
+                                className={cn("h-9 text-right tabular-nums text-sm font-semibold pr-6", glassInput)}
+                                value={f.value ?? ""}
+                                onChange={(e) => {
+                                  const pct = Number(e.target.value) || 0;
+                                  f.onChange(pct);
+                                  // Auto-calculate grams from ratio
+                                  if (recipeOutputGrams > 0) {
+                                    setValue(`recipeItems.${index}.gramsPerUnit`, Math.round(recipeOutputGrams * pct / 100 * 10) / 10);
+                                  }
+                                }}
+                              />
+                            )}
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">%</span>
+                        </div>
+                        {recipeOutputGrams > 0 && (
+                          <span className="w-14 shrink-0 text-right text-[11px] font-bold text-slate-500 tabular-nums">
+                            ≈{Math.round(recipeOutputGrams * (Number(recipeItems[index]?.ratioPercent) || 0) / 100)}g
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
 
-            <button
-              type="button"
-              onClick={() => append({ rbProductId: "", gramsPerUnit: 0 })}
-              className="flex w-fit items-center gap-1 rounded-lg border border-white/60 bg-white/30 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-white/50 transition-colors shadow-sm"
-            >
-              <Plus size={14} /> Tambah Bahan
-            </button>
+            {(blendType === "BLEND" || (blendType === "SINGLE" && fields.length === 0)) && (
+              <button
+                type="button"
+                onClick={() => append({ rbProductId: "", gramsPerUnit: blendType === "SINGLE" ? (Number(watch("recipeOutputGrams")) || 0) : 0, ratioPercent: blendType === "SINGLE" ? 100 : 0 })}
+                className="flex w-fit items-center gap-1 rounded-lg border border-white/60 bg-white/30 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-white/50 transition-colors shadow-sm"
+              >
+                <Plus size={14} /> Tambah Bahan
+              </button>
+            )}
           </div>
 
           {/* Notes */}

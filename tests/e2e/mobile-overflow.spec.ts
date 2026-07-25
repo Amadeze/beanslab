@@ -15,6 +15,8 @@ const PAGES_TO_TEST = [
   { path: "/produksi", name: "Produksi" },
   { path: "/penjualan", name: "Penjualan" },
   { path: "/keuangan", name: "Keuangan" },
+  { path: "/kasir", name: "Kasir" },
+  { path: "/katalog", name: "Katalog" },
   { path: "/laporan", name: "Laporan" },
   { path: "/master-data", name: "Master Data" },
   { path: "/audit", name: "Audit" },

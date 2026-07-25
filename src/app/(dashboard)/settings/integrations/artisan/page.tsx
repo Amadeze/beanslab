@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { ArtisanIntegrationClient } from "./_components/ArtisanIntegrationClient";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SettingsNav } from "../../_components/SettingsNav";
 
 const TWO_MINUTES_MS = 2 * 60 * 1000;
 
@@ -52,22 +54,16 @@ export default async function ArtisanIntegrationPage() {
     machine: c.machine,
   }));
 
-  const downloadUrl = process.env.ARTISAN_CONNECTOR_DOWNLOAD_URL || null;
+  const downloadUrl = process.env.ARTISAN_CONNECTOR_DOWNLOAD_URL || "/downloads/ArtisanSync-1.0.0-Setup.exe";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="sticky top-0 z-30 shrink-0 border-b border-[var(--glass-border)] bg-[var(--glass-bg-hover)] shadow-[var(--glass-shadow)]">
-        <div className="mx-auto flex min-h-[64px] w-full max-w-[1600px] items-center justify-between gap-4 px-4 py-3 md:px-6 lg:px-8">
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold tracking-tight text-[var(--text-primary)] md:text-xl">
-              Integrasi Artisan
-            </h1>
-            <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">
-              Hubungkan Artisan Coffee Roaster dengan ROS melalui desktop sync.
-            </p>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        title="Koneksi Artisan"
+        eyebrow="Pengaturan"
+        description="Hubungkan Artisan Coffee Roaster dengan roastd.id melalui desktop sync."
+      />
+      <SettingsNav userRole={user.role} />
       <div className="custom-scrollbar flex-1 overflow-auto">
         <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
           <ArtisanIntegrationClient

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -45,6 +45,13 @@ export function CatatPengeluaranDrawer({ open, onOpenChange }: Props) {
   const today = getTodayString();
   const [submitting, setSubmitting]       = useState(false);
   const [selectedCat, setSelectedCat]     = useState<string>("");
+  const opKeyRef                          = useRef<string>("");
+
+  useEffect(() => {
+    if (open) {
+      opKeyRef.current = crypto.randomUUID();
+    }
+  }, [open]);
 
   const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -61,6 +68,7 @@ export function CatatPengeluaranDrawer({ open, onOpenChange }: Props) {
     setSubmitting(true);
     try {
       const result = await createExpense({
+        operationKey: opKeyRef.current,
         date:        data.date,
         category:    data.category,
         amount:      data.amount,

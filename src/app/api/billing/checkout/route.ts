@@ -77,7 +77,7 @@ export async function POST(req: Request) {
         id: `PLAN-${tier}`,
         price: amount,
         quantity: 1,
-        name: `Roastery OS ${tier} Plan (1 Month)`
+        name: `roastd.id ${tier} — 1 bulan`
       }]
     };
 

@@ -83,7 +83,10 @@ export async function GET(req: Request) {
       },
       {
         status: ready ? 200 : 503,
-        headers: { "Cache-Control": "no-store" },
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Request-Id": requestId,
+        },
       },
     );
   } catch (error) {

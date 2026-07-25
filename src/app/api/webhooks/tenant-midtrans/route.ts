@@ -144,6 +144,10 @@ export async function POST(req: Request) {
           return;
         }
 
+        const rawSettlement = (data as { settlement_time?: string }).settlement_time;
+        const paidAtDate = rawSettlement ? new Date(rawSettlement) : new Date();
+        const paidAt = !isNaN(paidAtDate.getTime()) ? paidAtDate : new Date();
+
         const payment = await tx.payment.create({
           data: {
             code: `PAY-${invoice.tenant.code}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`,
@@ -151,6 +155,7 @@ export async function POST(req: Request) {
             amount: paidAmount,
             method: toPaymentMethod(data.payment_type),
             reference,
+            paidAt,
             tenantId: invoice.tenantId,
             createdById: invoice.createdById, 
           }

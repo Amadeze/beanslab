@@ -265,7 +265,7 @@ export function POForm({
             <button
               type="button"
               onClick={() => append({ productId: "", packagingId: "", quantity: 0, unitPrice: 0 })}
-              className="flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-blue-800"
+              className="flex items-center gap-1 text-xs font-bold text-domain-production hover:text-domain-roasting"
             >
               <Plus size={14} /> Tambah Item
             </button>
@@ -383,7 +383,7 @@ export function POForm({
               type="button"
               onClick={handleSend}
               disabled={isSubmitting}
-              className="bg-green-500 hover:bg-green-600 text-white"
+              className="bg-domain-inventory text-white hover:bg-domain-inventory/90"
             >
               Kirim ke Supplier
             </Button>
@@ -391,7 +391,7 @@ export function POForm({
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="bg-amber-700 hover:bg-amber-800 text-white"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {isSubmitting ? "Menyimpan..." : isEditMode ? "Update PO" : "Simpan Draft"}
           </Button>

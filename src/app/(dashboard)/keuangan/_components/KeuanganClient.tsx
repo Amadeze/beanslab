@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import {
-  TrendingUp, TrendingDown, AlertTriangle, Clock, Minus,
-} from "lucide-react";
+import { Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StandardPageLayout } from "@/components/StandardPageLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { OperatingHero } from "@/components/layout/OperatingHero";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PiutangTable } from "./PiutangTable";
 import { TerimaPaymentDialog } from "./TerimaPaymentDialog";
 import { CatatPengeluaranDrawer } from "./CatatPengeluaranDrawer";
@@ -32,47 +32,8 @@ import {
 } from "../actions";
 import { VoidConfirmDialog } from "@/components/VoidConfirmDialog";
 
-// =============================================================================
-// KPI Card
-// =============================================================================
-
-interface KpiCardProps {
-  label: string;
-  value: string;
-  sub?: string;
-  accent?: "default" | "amber" | "red" | "emerald";
-  icon: React.ReactNode;
-}
-
-function KpiCard({ label, value, sub, accent = "default", icon }: KpiCardProps) {
-  const accentCls = {
-    default:  "text-zinc-900",
-    amber:    "text-amber-700",
-    red:      "text-red-600",
-    emerald:  "text-emerald-700",
-  }[accent];
-
-  return (
-    <div className="flex min-w-0 items-start gap-3 rounded-xl border border-stone-200 bg-white p-4">
-      <div className="mt-0.5 shrink-0 rounded-lg bg-stone-100 p-2 text-stone-600">{icon}</div>
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-zinc-500">{label}</p>
-        <p className={`mt-1 break-words font-mono text-base font-bold tabular-nums sm:text-lg ${accentCls}`}>{value}</p>
-        {sub && <p className="mt-0.5 text-[11px] text-zinc-400">{sub}</p>}
-      </div>
-    </div>
-  );
-}
-
-// =============================================================================
-// Tab
-// =============================================================================
-
-type Tab = "piutang" | "pembayaran" | "pengeluaran" | "pembelian" | "pembayaranSupplier";
-
-// =============================================================================
-// Main Client
-// =============================================================================
+type Tab =
+  "piutang" | "pembayaran" | "pengeluaran" | "pembelian" | "pembayaranSupplier";
 
 interface KeuanganClientProps {
   data: KeuanganPageData;
@@ -89,22 +50,31 @@ export function KeuanganClient({
   payments,
   supplierPayments,
 }: KeuanganClientProps) {
-  const [selectedInvoice, setSelectedInvoice] = useState<PiutangRow | null>(null);
-  const [dialogOpen,      setDialogOpen]      = useState(false);
-  const [expenseOpen,     setExpenseOpen]     = useState(false);
-  const [activeTab,       setActiveTab]       = useState<Tab>("piutang");
-  const [selectedPurchase, setSelectedPurchase] = useState<PurchaseRow | null>(null);
-  const [selectedExpense, setSelectedExpense] = useState<ExpenseRow | null>(null);
-  const [selectedPayment, setSelectedPayment] = useState<PaymentRow | null>(null);
-  const [supplierPaymentPurchase, setSupplierPaymentPurchase] = useState<PurchaseRow | null>(null);
-  const [selectedSupplierPayment, setSelectedSupplierPayment] = useState<SupplierPaymentRow | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<PiutangRow | null>(
+    null,
+  );
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>("piutang");
+  const [selectedPurchase, setSelectedPurchase] = useState<PurchaseRow | null>(
+    null,
+  );
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseRow | null>(
+    null,
+  );
+  const [selectedPayment, setSelectedPayment] = useState<PaymentRow | null>(
+    null,
+  );
+  const [supplierPaymentPurchase, setSupplierPaymentPurchase] =
+    useState<PurchaseRow | null>(null);
+  const [selectedSupplierPayment, setSelectedSupplierPayment] =
+    useState<SupplierPaymentRow | null>(null);
 
   const { kpi, piutangRows } = data;
-
-  const mtdTrend =
-    kpi.revenueLastMonth > 0
-      ? ((kpi.revenueMTD - kpi.revenueLastMonth) / kpi.revenueLastMonth) * 100
-      : null;
+  const overdueCount =
+    kpi.agingBuckets.overdue1_30.count +
+    kpi.agingBuckets.overdue31_60.count +
+    kpi.agingBuckets.overdue61Plus.count;
 
   const handleTerimaPayment = (row: PiutangRow) => {
     setSelectedInvoice(row);
@@ -113,112 +83,161 @@ export function KeuanganClient({
 
   return (
     <>
-      <StandardPageLayout
-        title="Keuangan"
-        description="Manajemen piutang & penerimaan pembayaran"
-        actionButton={
-          <Button
-            variant="destructive"
-            size="sm"
-            className="h-8 gap-1.5 text-xs font-medium"
-            onClick={() => setExpenseOpen(true)}
-          >
-            <Minus size={14} />
-            Catat Pengeluaran
-          </Button>
-        }
-        mobileFabAction={{
-          label: "Catat Pengeluaran",
-          icon: <Minus size={22} />,
-          onClick: () => setExpenseOpen(true),
-          "aria-label": "Catat pengeluaran",
-        }}
-      >
-        {/* ── KPI Summary ── */}
-        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <KpiCard
-            label="Total Piutang Aktif"
-            value={formatRupiah(kpi.totalPiutang)}
-            sub={`${kpi.piutangCount} nota belum lunas`}
-            accent={kpi.totalPiutang > 0 ? "amber" : "emerald"}
-            icon={<Clock size={16} />}
-          />
-          <KpiCard
-            label="Lewat Jatuh Tempo"
-            value={formatRupiah(kpi.overdueTotal)}
-            sub={
-              kpi.overdueCount > 0
-                ? `${kpi.overdueCount} nota belum terbayar`
-                : "Semua tepat waktu"
-            }
-            accent={kpi.overdueCount > 0 ? "red" : "default"}
-            icon={<AlertTriangle size={16} />}
-          />
-          <KpiCard
-            label="Revenue Bulan Ini"
-            value={formatRupiah(kpi.revenueMTD)}
-            sub={
-              mtdTrend !== null
-                ? `${mtdTrend >= 0 ? "+" : ""}${mtdTrend.toFixed(1)}% vs bulan lalu`
-                : "Bulan ini"
-            }
-            accent="emerald"
-            icon={<TrendingUp size={16} />}
-          />
-          <KpiCard
-            label="Revenue Bulan Lalu"
-            value={formatRupiah(kpi.revenueLastMonth)}
-            sub="Nota berstatus PAID"
-            accent="default"
-            icon={<TrendingDown size={16} />}
-          />
-        </div>
-
-        {/* ── Tabs ── */}
-        <div className="custom-scrollbar mb-4 flex w-full overflow-x-auto border-b border-stone-200">
-          {([
-            { id: "piutang",      label: `Piutang (${piutangRows.length})` },
-            { id: "pembayaran",   label: `Pembayaran (${payments.length})` },
-            { id: "pengeluaran",  label: `Pengeluaran (${expenses.length})` },
-            { id: "pembelian",    label: `Hutang Supplier (${purchases.filter((row) => row.balance > 0).length})` },
-            { id: "pembayaranSupplier", label: `Bayar Supplier (${supplierPayments.length})` },
-          ] as { id: Tab; label: string }[]).map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "-mb-px shrink-0 border-b-2 px-4 py-3 text-xs font-semibold transition-colors",
-                activeTab === tab.id
-                  ? "border-stone-900 text-stone-900"
-                  : "border-transparent text-stone-500 hover:text-stone-800"
-              )}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <PageHeader
+          title="Kas & Piutang"
+          description="Piutang & penerimaan pembayaran"
+          stage="finance"
+          actions={
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-8 gap-1.5 text-xs font-medium"
+              onClick={() => setExpenseOpen(true)}
             >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+              <Minus size={14} />
+              Catat Pengeluaran
+            </Button>
+          }
+          mobileActions={
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1.5 px-3 text-xs font-semibold"
+              onClick={() => setExpenseOpen(true)}
+            >
+              <Minus size={14} />
+              Pengeluaran
+            </Button>
+          }
+        />
 
-        {/* ── Content ── */}
-        {activeTab === "piutang" && <PiutangTable rows={piutangRows} onTerimaPayment={handleTerimaPayment} />}
-        {activeTab === "pembayaran" && (
-          <PaymentTable rows={payments} onVoid={setSelectedPayment} />
-        )}
-        {activeTab === "pengeluaran" && (
-          <ExpenseTable rows={expenses} onVoid={setSelectedExpense} />
-        )}
-        {activeTab === "pembelian" && (
-          <PurchaseTable
-            rows={purchases}
-            onVoid={setSelectedPurchase}
-            onPay={setSupplierPaymentPurchase}
+        <div className="custom-scrollbar flex-1 overflow-auto">
+          <OperatingHero
+            stage="finance"
+            headline={
+              kpi.piutangCount > 0
+                ? `${kpi.piutangCount} nota masih menahan arus kas.`
+                : "Arus kas bersih dari piutang aktif."
+            }
+            description="Keuangan menyelesaikan janji yang dimulai oleh penjualan dan pembelian. Pantau uang yang sudah masuk, yang masih tertahan, dan kewajiban yang harus dibayar."
+            signalLabel="Sinyal kas"
+            signalValue={
+              overdueCount > 0 ? `${overdueCount} lewat tempo` : "Terkendali"
+            }
+            signalTone={overdueCount > 0 ? "critical" : "ready"}
+            metrics={[
+              { label: "Total piutang", value: formatRupiah(kpi.totalPiutang) },
+              {
+                label: "Lewat 1–30",
+                value: kpi.agingBuckets.overdue1_30.count,
+              },
+              {
+                label: "Lewat 31–60",
+                value: kpi.agingBuckets.overdue31_60.count,
+              },
+              {
+                label: "Lewat 60+",
+                value: kpi.agingBuckets.overdue61Plus.count,
+              },
+            ]}
           />
-        )}
-        {activeTab === "pembayaranSupplier" && (
-          <SupplierPaymentTable rows={supplierPayments} onVoid={setSelectedSupplierPayment} />
-        )}
-      </StandardPageLayout>
+          <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">
+            <Tabs
+              value={activeTab}
+              onValueChange={(v) => setActiveTab(v as Tab)}
+              className="w-full"
+            >
+              <div className="custom-scrollbar overflow-x-auto border-b border-[var(--glass-border)] mb-8 pb-1">
+                <TabsList className="flex w-max items-center h-auto p-0 bg-transparent gap-2">
+                  {[
+                    { id: "piutang", label: `Piutang (${piutangRows.length})` },
+                    {
+                      id: "pembayaran",
+                      label: `Pembayaran (${payments.length})`,
+                    },
+                    {
+                      id: "pengeluaran",
+                      label: `Pengeluaran (${expenses.length})`,
+                    },
+                    {
+                      id: "pembelian",
+                      label: `Hutang Supplier (${purchases.filter((row) => row.balance > 0).length})`,
+                    },
+                    {
+                      id: "pembayaranSupplier",
+                      label: `Bayar Supplier (${supplierPayments.length})`,
+                    },
+                  ].map((tab) => {
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <TabsTrigger
+                        key={tab.id}
+                        value={tab.id}
+                        className={cn(
+                          "relative flex items-center gap-2.5 px-4 py-3 text-sm font-semibold transition-all rounded-t-xl data-[state=active]:bg-transparent data-[state=active]:shadow-none",
+                          isActive
+                            ? "text-[var(--amber-deep)] dark:text-[var(--amber-warm)]"
+                            : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)]",
+                        )}
+                      >
+                        {tab.label}
+                        {isActive && (
+                          <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[var(--amber-warm)] to-[var(--amber-deep)] rounded-t-full shadow-[0_-2px_10px_rgba(196,122,51,0.4)]" />
+                        )}
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </div>
 
-      {/* ── Payment Dialog ── */}
+              <div className="relative">
+                <TabsContent
+                  value="piutang"
+                  className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300"
+                >
+                  <PiutangTable
+                    rows={piutangRows}
+                    onTerimaPayment={handleTerimaPayment}
+                  />
+                </TabsContent>
+                <TabsContent
+                  value="pembayaran"
+                  className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300"
+                >
+                  <PaymentTable rows={payments} onVoid={setSelectedPayment} />
+                </TabsContent>
+                <TabsContent
+                  value="pengeluaran"
+                  className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300"
+                >
+                  <ExpenseTable rows={expenses} onVoid={setSelectedExpense} />
+                </TabsContent>
+                <TabsContent
+                  value="pembelian"
+                  className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300"
+                >
+                  <PurchaseTable
+                    rows={purchases}
+                    onVoid={setSelectedPurchase}
+                    onPay={setSupplierPaymentPurchase}
+                  />
+                </TabsContent>
+                <TabsContent
+                  value="pembayaranSupplier"
+                  className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300"
+                >
+                  <SupplierPaymentTable
+                    rows={supplierPayments}
+                    onVoid={setSelectedSupplierPayment}
+                  />
+                </TabsContent>
+              </div>
+            </Tabs>
+          </div>
+        </div>
+      </div>
+
       <TerimaPaymentDialog
         invoice={selectedInvoice}
         open={dialogOpen}
@@ -231,10 +250,10 @@ export function KeuanganClient({
           setSelectedInvoice(null);
         }}
       />
-
-      {/* ── Catat Pengeluaran Drawer ── */}
-      <CatatPengeluaranDrawer open={expenseOpen} onOpenChange={setExpenseOpen} />
-
+      <CatatPengeluaranDrawer
+        open={expenseOpen}
+        onOpenChange={setExpenseOpen}
+      />
       <SupplierPaymentDialog
         purchase={supplierPaymentPurchase}
         open={Boolean(supplierPaymentPurchase)}
@@ -246,60 +265,68 @@ export function KeuanganClient({
 
       <VoidConfirmDialog
         open={Boolean(selectedPurchase)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedPurchase(null);
+        onOpenChange={(o) => {
+          if (!o) setSelectedPurchase(null);
         }}
         title="Void Pembelian"
         description={`Stok dan biaya ${selectedPurchase?.code ?? ""} akan dibalik. Pembayaran supplier harus di-void lebih dahulu dan proses ditolak bila stok sudah digunakan.`}
         onConfirm={(reason) =>
           selectedPurchase
             ? voidPurchase(selectedPurchase.id, reason)
-            : Promise.resolve({ success: false, error: "Pembelian tidak dipilih." })
+            : Promise.resolve({
+                success: false,
+                error: "Pembelian tidak dipilih.",
+              })
         }
       />
-
       <VoidConfirmDialog
         open={Boolean(selectedPayment)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedPayment(null);
+        onOpenChange={(o) => {
+          if (!o) setSelectedPayment(null);
         }}
         title="Void Pembayaran"
         description={`Pembayaran ${selectedPayment?.code ?? ""} akan dibatalkan dan invoice terkait kembali menjadi piutang.`}
         onConfirm={(reason) =>
           selectedPayment
             ? voidPayment(selectedPayment.id, reason)
-            : Promise.resolve({ success: false, error: "Pembayaran tidak dipilih." })
+            : Promise.resolve({
+                success: false,
+                error: "Pembayaran tidak dipilih.",
+              })
         }
       />
-
       <VoidConfirmDialog
         open={Boolean(selectedSupplierPayment)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedSupplierPayment(null);
+        onOpenChange={(o) => {
+          if (!o) setSelectedSupplierPayment(null);
         }}
         title="Void Pembayaran Supplier"
         description={`Pembayaran ${selectedSupplierPayment?.code ?? ""} akan dibatalkan dan saldo hutang pembelian terkait dipulihkan.`}
         onConfirm={(reason) =>
           selectedSupplierPayment
             ? voidSupplierPayment(selectedSupplierPayment.id, reason)
-            : Promise.resolve({ success: false, error: "Pembayaran supplier tidak dipilih." })
+            : Promise.resolve({
+                success: false,
+                error: "Pembayaran supplier tidak dipilih.",
+              })
         }
       />
-
       <VoidConfirmDialog
         open={Boolean(selectedExpense)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedExpense(null);
+        onOpenChange={(o) => {
+          if (!o) setSelectedExpense(null);
         }}
         title="Void Pengeluaran"
         description="Pengeluaran akan dikeluarkan dari perhitungan arus kas dan Laba/Rugi, tetapi histori audit tetap tersimpan."
         onConfirm={(reason) =>
           selectedExpense
             ? voidExpense(selectedExpense.id, reason)
-            : Promise.resolve({ success: false, error: "Pengeluaran tidak dipilih." })
+            : Promise.resolve({
+                success: false,
+                error: "Pengeluaran tidak dipilih.",
+              })
         }
       />
     </>
   );
 }
-

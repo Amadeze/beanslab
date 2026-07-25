@@ -28,6 +28,7 @@ import {
   type GBStockOption,
   type ParentRoastingBatchRow,
   type RBProductOption,
+  type MachineOption,
 } from "../actions";
 
 // =============================================================================
@@ -152,6 +153,7 @@ interface RoastingFormProps {
   id: string;
   gbOptions: GBStockOption[];
   rbOptions: RBProductOption[];
+  machineOptions: MachineOption[];
   batches: ParentRoastingBatchRow[];
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
@@ -548,7 +550,7 @@ export function RoastingForm({
                     className={cn(
                       "min-h-10 rounded-xl border px-3 text-xs font-semibold",
                       field.value === "MANUAL"
-                        ? "border-emerald-500 bg-emerald-500 text-white"
+                        ? "border-domain-roasting bg-domain-roasting text-white"
                         : "border-white/60 bg-white/40 text-slate-600",
                     )}
                   >

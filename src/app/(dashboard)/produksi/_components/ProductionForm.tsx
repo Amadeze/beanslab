@@ -85,13 +85,17 @@ function HppSummary({
   const totalRbGrams = rbPerUnit * unitsProduced;
   const pkg = packagingOptions.find((p) => p.id === packagingId);
 
-  let hasMissingCost = false;
-  const rbCostPerUnit = rbComponents.reduce((sum, comp) => {
+  const { rbCostPerUnit, hasMissingCost } = rbComponents.reduce((summary, comp) => {
     const rb = rbOptions.find((r) => r.id === comp.productId);
-    if (!rb) return sum;
-    if (!rb.avgCostPerKg) hasMissingCost = true;
-    return sum + ((Number(comp.gramsPerUnit) || 0) / 1000) * (rb.avgCostPerKg || 0);
-  }, 0);
+    if (!rb) return summary;
+
+    return {
+      rbCostPerUnit:
+        summary.rbCostPerUnit +
+        ((Number(comp.gramsPerUnit) || 0) / 1000) * (rb.avgCostPerKg || 0),
+      hasMissingCost: summary.hasMissingCost || !rb.avgCostPerKg,
+    };
+  }, { rbCostPerUnit: 0, hasMissingCost: false });
 
   const estimatedHpp = rbCostPerUnit + (pkg?.costPerUnit || 0);
   const isUnrealistic = rbPerUnit > 0 && rbPerUnit < 500; // < 500g RB per 1kg FG is suspicious

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { StandardPageLayout } from "@/components/StandardPageLayout";
+import { GlassPanel } from "@/components/ui/glass-panel";
 import { PnLReportClient } from "./PnLReportClient";
 import { InventoryValuationClient } from "./InventoryValuationClient";
 import { BalanceSheetClient } from "./BalanceSheetClient";
@@ -22,6 +22,7 @@ import { CoffeeFlowClient } from "./CoffeeFlowClient";
 import { SampleReportClient } from "./SampleReportClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface SuperDashboardClientProps {
   pnlReport: PnLReport;
@@ -144,11 +145,17 @@ export function SuperDashboardClient({ pnlReport }: SuperDashboardClientProps) {
   const next = navigateMonth(pnlReport.month, pnlReport.year, 1);
 
   return (
-    <StandardPageLayout
-      title="Laporan Finansial"
-      description="Super Dashboard Laba Rugi dan Valuasi Aset"
-    >
-      {/* Date Navigation */}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <PageHeader
+        title="Laporan Finansial"
+        eyebrow="Intelligence"
+        description="Laba rugi, aset, arus kopi, dan sample dalam satu ruang analisis."
+      />
+
+      <div className="custom-scrollbar flex-1 overflow-auto">
+        <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
+
+          {/* Date Navigation */}
       <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-stone-200 bg-white/70 p-3 shadow-sm">
         {/* Month Navigation */}
         <div className="flex items-center gap-1">
@@ -187,7 +194,7 @@ export function SuperDashboardClient({ pnlReport }: SuperDashboardClientProps) {
                 onClick={() => goToMonth(preset.month, preset.year)}
                 className={cn(
                   "h-8 text-xs font-semibold",
-                  isActive && "bg-stone-900 text-white"
+                  isActive && "bg-[var(--amber-deep)] text-white"
                 )}
               >
                 {preset.label}
@@ -198,7 +205,7 @@ export function SuperDashboardClient({ pnlReport }: SuperDashboardClientProps) {
       </div>
 
       {/* Tab Bar */}
-      <div className="custom-scrollbar mb-6 flex w-full overflow-x-auto border-b border-stone-200">
+      <div className="custom-scrollbar mb-6 flex w-full overflow-x-auto border-b border-[var(--glass-border)]">
         {[
           { id: "pnl" as const, icon: FileText, label: "Laba Rugi" },
           { id: "inventory" as const, icon: Database, label: "Valuasi Aset" },
@@ -213,7 +220,7 @@ export function SuperDashboardClient({ pnlReport }: SuperDashboardClientProps) {
               "-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors",
               activeTab === tab.id
                 ? "border-stone-900 text-stone-900"
-                : "border-transparent text-stone-500 hover:text-stone-800"
+                : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
             )}
           >
             <tab.icon size={18} /> {tab.label}
@@ -270,6 +277,8 @@ export function SuperDashboardClient({ pnlReport }: SuperDashboardClientProps) {
           </div>
         )}
       </div>
-    </StandardPageLayout>
+        </div>
+      </div>
+    </div>
   );
 }

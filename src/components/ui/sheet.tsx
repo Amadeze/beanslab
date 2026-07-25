@@ -28,7 +28,7 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
     <SheetPrimitive.Backdrop
       data-slot="sheet-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-stone-950/20 backdrop-blur-sm transition-opacity duration-300 data-ending-style:opacity-0 data-starting-style:opacity-0",
+        "fixed inset-0 z-50 bg-[#020609]/72 backdrop-blur-[3px] transition-opacity duration-300 data-ending-style:opacity-0 data-starting-style:opacity-0",
         className
       )}
       {...props}
@@ -62,7 +62,7 @@ function SheetContent({
           "data-[side=left]:sm:max-w-md data-[side=right]:sm:max-w-md md:data-[side=right]:max-w-lg", // Diperlebar sedikit agar form lega
           
           // ── Efek Glassmorphism Utama!
-          "border-stone-200/90 bg-[#fbfaf8]/95 text-stone-800 backdrop-blur-2xl",
+          "border-primary/20 bg-card text-foreground",
           className
         )}
         {...props}
@@ -74,7 +74,7 @@ function SheetContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-4 right-4 h-8 w-8 rounded-full bg-white/40 border border-white/50 backdrop-blur-md text-slate-500 hover:bg-white/70 hover:text-slate-800 shadow-sm"
+                className="absolute right-4 top-4 h-8 w-8 rounded-[8px] border border-white/10 bg-white/[0.05] text-white/55 shadow-sm hover:bg-white/10 hover:text-white"
                 size="icon-sm"
               />
             }
@@ -93,7 +93,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sheet-header"
       // Header dibuat lengket (sticky) bergaya kaca
-      className={cn("flex shrink-0 flex-col gap-1 border-b border-stone-200/70 bg-white/50 p-5 backdrop-blur-md", className)}
+      className={cn("instrument-grid-dark flex shrink-0 flex-col gap-1 border-b border-white/10 bg-[#0B141B] p-5 pr-14 text-white", className)}
       {...props}
     />
   )
@@ -104,7 +104,7 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sheet-footer"
       // Footer tombol bawah dibuat lengket bergaya kaca
-      className={cn("mt-auto flex shrink-0 items-center justify-end gap-3 border-t border-stone-200/70 bg-white/60 p-5 backdrop-blur-md", className)}
+      className={cn("mt-auto flex shrink-0 items-center justify-end gap-3 border-t border-border bg-muted/60 p-5", className)}
       {...props}
     />
   )
@@ -114,7 +114,7 @@ function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      className={cn("text-lg font-bold tracking-tight text-slate-800", className)}
+      className={cn("text-lg font-black tracking-[-0.03em] text-white", className)}
       {...props}
     />
   )
@@ -127,7 +127,7 @@ function SheetDescription({
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"
-      className={cn("text-xs font-medium text-slate-500", className)}
+      className={cn("text-xs font-medium text-white/45", className)}
       {...props}
     />
   )

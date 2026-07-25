@@ -15,6 +15,7 @@ import { resolveSkin } from "./skins";
 // =============================================================================
 
 import { TenantPortalLayout } from "./TenantPortalLayout";
+import { PortalThemeRenderer } from "@/features/portal-theme/components/PortalThemeRenderer";
 
 export function UniversalTheme({
   tenant, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
@@ -42,11 +43,34 @@ export function UniversalTheme({
   return (
     <div className="relative w-full min-h-screen overflow-x-clip">
       
-      {/* ═══ THEME MATRIX RENDERER ═══ */}
-      {/* Ini akan memuat layout bersama dengan skin dinamis */}
-      <TenantPortalLayout {...themeProps} skin={skin} />
+      {/* ═══ THEME MATRIX OR BLOCK RENDERER ═══ */}
+      {tenant.portalThemeConfig ? (
+        <PortalThemeRenderer
+          config={tenant.portalThemeConfig}
+          products={products}
+          onAddToCart={handleAddToCart}
+          onOpenCart={() => setIsCartOpen(true)}
+          cartItemCount={cartItems.reduce((acc: number, item: any) => acc + item.quantity, 0)}
+        />
+      ) : (
+        <TenantPortalLayout {...themeProps} skin={skin} />
+      )}
 
-      {/* ═══ MOBILE FLOATING CART BUTTON ═══ */}
+      {/* ═══ FLOATING CART BUTTON ═══ */}
+      {cartItems.length > 0 && (
+        <button
+          onClick={() => setIsCartOpen(true)}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-full bg-amber-500 text-gray-950 font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all border border-amber-300/40"
+        >
+          <div className="relative">
+            <Coffee size={22} weight="bold" />
+          </div>
+          <span>Cart ({cartItems.reduce((acc: number, item: any) => acc + item.quantity, 0)})</span>
+          <span className="bg-gray-950 text-white text-xs px-2 py-0.5 rounded-full">
+            Rp {cart.getTotalPrice(tenant.subdomain || "").toLocaleString("id-ID")}
+          </span>
+        </button>
+      )}
 
       {/* ═══ GLOBAL CART DRAWER ═══ */}
       <AnimatePresence>

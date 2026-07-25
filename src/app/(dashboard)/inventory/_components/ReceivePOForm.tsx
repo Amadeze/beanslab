@@ -144,7 +144,7 @@ export function ReceivePOForm({ poId, items, onSuccess, onCancel }: ReceivePOFor
         <Button type="button" variant="outline" onClick={onCancel} className="bg-white/40 border-white/60">
           Batal
         </Button>
-        <Button type="submit" disabled={isSubmitting} className="bg-emerald-500 hover:bg-emerald-600 text-white">
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Memproses..." : "Proses Penerimaan"}
         </Button>
       </div>

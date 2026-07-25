@@ -10,9 +10,8 @@ import { UniversalTheme } from "./themes/UniversalTheme";
 // TENANT PORTAL CLIENT — $10k Architecture
 // =============================================================================
 // This is now a thin orchestration layer.
-// All visual rendering is delegated to:
-//   ThemeEngine  → resolves themeConfig → injects CSS variables
-//   UniversalTheme → reads CSS variables → renders the landing page
+// If a PortalThemeConfig exists (block-based customizer), render via PortalThemeRenderer.
+// Otherwise, fall back to the legacy ThemeEngine + UniversalTheme rendering.
 // =============================================================================
 
 type ExtendedTenant = Tenant & {
@@ -62,7 +61,7 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
   const footerText = tenant.footerText || "All rights reserved.";
 
   // ─── Contact Links ────────────────────────────────────────────────────
-  let waLink = `mailto:hello@${tenant.subdomain}.beanslab.vercel.app`;
+  let waLink = "mailto:hello@roastd.id";
   if (tenant.whatsappNumber) {
     let cleanWa = tenant.whatsappNumber.replace(/\D/g, '');
     if (cleanWa.startsWith('0')) cleanWa = '62' + cleanWa.substring(1);
@@ -166,6 +165,8 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
   };
 
   // ─── Render ───────────────────────────────────────────────────────────
+
+  // Always render the full portal with cart, checkout, dashboard
   const themeProps = {
     tenant, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
     customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleCheckout, mounted, heroGreeting, aboutText,

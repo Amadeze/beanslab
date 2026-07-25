@@ -15,20 +15,19 @@ export function PrintTrigger() {
 
 export function PrintActionBar() {
   return (
-    <div className="flex justify-between items-center mb-8 print:hidden">
+    <div className="mb-8 flex items-center justify-between border-b border-white/10 bg-[#080B0C] p-3 text-white print:hidden">
       <button
         onClick={() => window.close()}
-        className="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+        className="min-h-10 px-3 text-sm font-medium text-white/60 transition-colors hover:bg-white/8 hover:text-white"
       >
         &larr; Tutup
       </button>
       <button
         onClick={() => window.print()}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 cursor-pointer"
+        className="min-h-10 bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90"
       >
         Cetak Nota
       </button>
     </div>
   );
 }
-

@@ -1,7 +1,7 @@
 "use client";
 
-import { StandardPageLayout } from "@/components/StandardPageLayout";
 import { formatRupiah, formatDate } from "@/lib/format";
+import { GlassPanel } from "@/components/ui/glass-panel";
 import type { InventoryValuationReport } from "../actions";
 import { Package, Download, Database, Boxes, Coffee, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentDate } from "@/lib/date-utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const CATEGORY_MAP: Record<string, { label: string, icon: React.ReactNode }> = {
   GREEN_BEAN: { label: "Green Bean", icon: <Database size={16} /> },
@@ -19,7 +20,7 @@ const CATEGORY_MAP: Record<string, { label: string, icon: React.ReactNode }> = {
 
 function exportToCSV(report: InventoryValuationReport) {
   const rows = [
-    ["Laporan Valuasi Persediaan", `Beanslab Roastery - ${formatDate(report.asOf)}`],
+    ["Laporan Valuasi Persediaan", `roastd.id - ${formatDate(report.asOf)}`],
     ["Metode biaya", "Rata-rata tertimbang"],
     [],
     ["Ringkasan Valuasi", "Nilai (IDR)"],
@@ -56,7 +57,7 @@ interface InventoryValuationClientProps {
 }
 
 export function InventoryValuationClient({ report, hideLayout }: InventoryValuationClientProps) {
-  const chartColors = ["#10b981", "#f59e0b", "#3b82f6", "#8b5cf6"];
+  const chartColors = ["#2B7567", "#A66F12", "#B65331", "#6F4A6A"];
   const chartData = [
     { name: "Green Bean", value: report.totalGreenBeanValue },
     { name: "Roasted Bean", value: report.totalRoastedBeanValue },
@@ -217,8 +218,9 @@ export function InventoryValuationClient({ report, hideLayout }: InventoryValuat
                    ) : (
                      report.items.filter(i => i.category === "FINISHED_GOODS" || i.category === "ROASTED_BEAN").map((item) => {
                        const retail = item.retailPrice || 0;
-                       const labaKotor = retail - item.unitCost;
-                       const margin = retail > 0 ? (labaKotor / retail) * 100 : 0;
+                       const hasRetail = retail > 0;
+                       const labaKotor = hasRetail ? retail - item.unitCost : null;
+                       const margin = hasRetail ? (labaKotor! / retail) * 100 : null;
                        return (
                          <TableRow key={`fg-${item.id}`} className="border-fuchsia-100/40 hover:bg-white/40">
                             <TableCell className="font-semibold text-slate-700">{item.name}</TableCell>
@@ -229,16 +231,16 @@ export function InventoryValuationClient({ report, hideLayout }: InventoryValuat
                               {formatRupiah(item.unitCost)}
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm text-slate-800">
-                              {formatRupiah(retail)}
+                              {hasRetail ? formatRupiah(retail) : <span className="text-slate-300">–</span>}
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm font-medium text-emerald-600">
-                              {formatRupiah(labaKotor)}
+                              {labaKotor !== null ? formatRupiah(labaKotor) : <span className="text-slate-300">–</span>}
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm font-bold text-emerald-600">
-                              {margin.toFixed(1)}%
+                              {margin !== null ? `${margin.toFixed(1)}%` : <span className="text-slate-300">–</span>}
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm font-bold text-fuchsia-700 bg-fuchsia-50/50">
-                              {formatRupiah(item.potentialRevenue || 0)}
+                              {hasRetail ? formatRupiah(item.potentialRevenue || 0) : <span className="text-slate-300">–</span>}
                             </TableCell>
                          </TableRow>
                        );
@@ -255,18 +257,28 @@ export function InventoryValuationClient({ report, hideLayout }: InventoryValuat
   if (hideLayout) return content;
 
   return (
-    <StandardPageLayout
-      title="Valuasi Persediaan"
-      description={`Ringkasan nilai aset persediaan di gudang saat ini`}
-      actionButton={
-        <div className="flex items-center gap-2">
-          <Button onClick={() => exportToCSV(report)} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm print:hidden">
-            <Download size={14} /> Export CSV
+    <div className="flex min-h-0 flex-1 flex-col">
+      <PageHeader
+        title="Valuasi Persediaan"
+        eyebrow="Intelligence"
+        description="Ringkasan nilai aset persediaan di gudang saat ini."
+        actions={
+            <Button onClick={() => exportToCSV(report)} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm print:hidden">
+              <Download size={14} /> Export CSV
+            </Button>
+        }
+        mobileActions={
+          <Button onClick={() => exportToCSV(report)} variant="outline" size="sm" className="gap-1.5 print:hidden">
+            <Download size={14} /> CSV
           </Button>
+        }
+      />
+
+      <div className="custom-scrollbar flex-1 overflow-auto">
+        <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
+          {content}
         </div>
-      }
-    >
-      {content}
-    </StandardPageLayout>
+      </div>
+    </div>
   );
 }

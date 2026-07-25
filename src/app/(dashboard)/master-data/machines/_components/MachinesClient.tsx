@@ -69,7 +69,7 @@ export function MachinesClient({ machines }: { machines: Machine[] }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-[var(--text-primary)]">Mesin Roasting</h2>
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">Daftar mesin</h2>
           <p className="text-sm text-[var(--text-secondary)]">
             Kelola mesin roasting yang terhubung dengan akun Anda.
           </p>

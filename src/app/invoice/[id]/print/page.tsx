@@ -53,7 +53,7 @@ export default async function InvoicePrintPage({
     where: { id: tenantId },
     select: { name: true },
   });
-  const tenantName = tenant?.name || "BEANSLAB ROASTERY";
+  const tenantName = tenant?.name || "roastd.id";
 
   const inv = await getInvoiceForPrint(id);
   if (!inv) notFound();
@@ -70,21 +70,21 @@ export default async function InvoicePrintPage({
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           @page { size: A4; margin: 12mm 14mm; }
         }
-        body { background: #f4f4f5; }
+        body { background: #ECEAE2; }
       `}</style>
 
       {/* ── Screen toolbar (hidden on print) ── */}
-      <div className="no-print fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-3 shadow-sm">
+      <div className="no-print fixed left-0 right-0 top-0 z-50 flex items-center justify-between border-b border-white/10 bg-[#080B0C] px-4 py-3 text-white shadow-sm sm:px-6">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-zinc-800">Invoice Preview</span>
-          <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-mono font-medium text-zinc-600">
+          <span className="text-sm font-semibold">Invoice preview</span>
+          <span className="hidden bg-white/8 px-2.5 py-0.5 font-mono text-xs font-medium text-white/60 sm:inline">
             {inv.code}
           </span>
           <span
-            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-              isPaid ? "bg-emerald-100 text-emerald-700" :
-              isVoid ? "bg-zinc-100 text-zinc-500" :
-              "bg-amber-100 text-amber-700"
+            className={`px-2.5 py-0.5 text-xs font-semibold ${
+              isPaid ? "bg-domain-inventory/20 text-[#A0E5D9]" :
+              isVoid ? "bg-white/10 text-white/50" :
+              "bg-domain-production/20 text-[#E9CF82]"
             }`}
           >
             {STATUS_LABEL[inv.status] ?? inv.status}
@@ -95,7 +95,7 @@ export default async function InvoicePrintPage({
 
       {/* ── A4 Invoice Body ── */}
       <div className="no-print:mt-16 mx-auto max-w-198.5 px-4 py-8 print:p-0 print:m-0">
-        <div className="rounded-xl bg-white shadow-lg print:shadow-none print:rounded-none">
+        <div className="relative border-t-4 border-primary bg-white shadow-lg print:border-t-2 print:shadow-none">
           {/* VOID watermark */}
           {isVoid && (
             <div
@@ -285,14 +285,14 @@ export default async function InvoicePrintPage({
             <div className="flex items-end justify-between border-t border-zinc-200 pt-6">
               <div>
                 <p className="text-xs text-zinc-400">
-                  Dokumen ini dicetak dari Roastery Operating System (ROS)
+                  Dokumen ini dicetak dari roastd.id
                 </p>
-                <p className="text-xs text-zinc-400">Beanslab Roastery · {getCurrentDate().getFullYear()}</p>
+                <p className="text-xs text-zinc-400">roastd.id · {getCurrentDate().getFullYear()}</p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-zinc-400 mb-8">Hormat kami,</p>
                 <div className="mt-4 border-t border-zinc-400 w-40 text-right">
-                  <p className="text-xs text-zinc-500 mt-1">Beanslab Roastery</p>
+                  <p className="text-xs text-zinc-500 mt-1">roastd.id</p>
                 </div>
               </div>
             </div>

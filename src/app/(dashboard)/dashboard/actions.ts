@@ -1,5 +1,5 @@
 "use server";
-import { requireTenantPrisma } from "@/lib/auth";
+import { requireTenantPrisma, requireRole } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/session";
 import { getCurrentDate, getZonedDayRange } from "@/lib/date-utils";
 import type { DailyBriefPayload } from "@/lib/daily-brief";
@@ -80,8 +80,7 @@ const PKG_THRESHOLD_PCS = 30;  // < 30 pcs
 // =============================================================================
 
 export async function getDashboardData(): Promise<DashboardData> {
-  const user = await getCurrentUser();
-  if (!user || !user.tenantId) throw new Error("Unauthorized");
+  const user = await requireRole("OWNER", "MANAGER");
 
   const now = getCurrentDate();
   const tp = await requireTenantPrisma();

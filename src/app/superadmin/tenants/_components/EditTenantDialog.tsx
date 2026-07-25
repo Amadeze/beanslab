@@ -45,7 +45,7 @@ export function EditTenantDialog({ tenant }: EditTenantDialogProps) {
     return (
       <button 
         onClick={() => setIsOpen(true)}
-        className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors"
+        className="flex size-10 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
         title="Edit Tenant"
       >
         <Edit2 size={16} />
@@ -54,43 +54,43 @@ export function EditTenantDialog({ tenant }: EditTenantDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Settings2 size={20} className="text-amber-500" /> Edit Outlet
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#080B0C]/75 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md overflow-hidden border border-border bg-card shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border p-5 sm:p-6">
+          <h2 className="flex items-center gap-2 text-xl font-black">
+            <Settings2 size={20} className="text-domain-roasting" /> Edit roastery
           </h2>
-          <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white">
+          <button onClick={() => setIsOpen(false)} aria-label="Tutup" className="flex size-11 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground">
             <X size={20} />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6 p-5 sm:p-6">
           
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <div>
-              <p className="text-sm font-bold text-white">{tenant.name}</p>
-              <p className="text-xs text-slate-500 font-mono">{tenant.code}</p>
+              <p className="text-sm font-bold">{tenant.name}</p>
+              <p className="font-mono text-xs text-muted-foreground">{tenant.code}</p>
             </div>
 
-            <div className="space-y-1.5 pt-2">
-              <label className="text-xs font-semibold text-slate-300">Account Status</label>
+            <div className="flex flex-col gap-1.5 pt-2">
+              <label className="text-xs font-semibold">Account status</label>
               <select 
                 value={isActive ? "true" : "false"} 
                 onChange={(e) => setIsActive(e.target.value === "true")}
-                className="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500 text-white outline-none"
+                className="h-11 w-full border border-input bg-white px-3 text-sm outline-none focus:border-primary"
               >
                 <option value="true">Active</option>
                 <option value="false">Inactive / Suspended</option>
               </select>
             </div>
 
-            <div className="space-y-1.5 pt-2">
-              <label className="text-xs font-semibold text-slate-300">Subscription Tier</label>
+            <div className="flex flex-col gap-1.5 pt-2">
+              <label className="text-xs font-semibold">Subscription tier</label>
               <select 
                 value={tier} 
                 onChange={(e) => setTier(e.target.value as SubscriptionTier)}
-                className="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500 text-white outline-none"
+                className="h-11 w-full border border-input bg-white px-3 text-sm outline-none focus:border-primary"
               >
                 <option value="TRIAL">Trial</option>
                 <option value="BASIC">Basic (Starter)</option>
@@ -99,12 +99,12 @@ export function EditTenantDialog({ tenant }: EditTenantDialogProps) {
               </select>
             </div>
 
-            <div className="space-y-1.5 pt-2">
-              <label className="text-xs font-semibold text-slate-300">Subscription Status</label>
+            <div className="flex flex-col gap-1.5 pt-2">
+              <label className="text-xs font-semibold">Subscription status</label>
               <select 
                 value={status} 
                 onChange={(e) => setStatus(e.target.value as SubscriptionStatus)}
-                className="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:border-amber-500 text-white outline-none"
+                className="h-11 w-full border border-input bg-white px-3 text-sm outline-none focus:border-primary"
               >
                 <option value="ACTIVE">Active</option>
                 <option value="PAST_DUE">Past Due</option>
@@ -115,9 +115,9 @@ export function EditTenantDialog({ tenant }: EditTenantDialogProps) {
             
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
-            <Button type="button" onClick={() => setIsOpen(false)} variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800">Cancel</Button>
-            <Button type="submit" disabled={loading} className="bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold px-6">
+          <div className="flex justify-end gap-3 border-t border-border pt-4">
+            <Button type="button" onClick={() => setIsOpen(false)} variant="ghost">Batal</Button>
+            <Button type="submit" disabled={loading} className="px-6 font-bold">
               {loading ? "Saving..." : "Save Changes"}
             </Button>
           </div>

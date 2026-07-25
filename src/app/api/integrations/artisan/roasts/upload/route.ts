@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateConnector } from "@/lib/artisan/connector-auth";
 import { isAlogFile, parseAlog } from "@/lib/artisan/parser";
+import { parseAlogFilename } from "@/lib/artisan/filename-parser";
+import { reconcileLiveSession } from "@/lib/artisan/mqtt-bridge";
 import { enforceRateLimit, RateLimitError, requestIdentifier } from "@/lib/rate-limit";
 import { uploadImage } from "@/lib/storage";
 import {
@@ -115,14 +117,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for duplicate (idempotency)
-    const existingImport = await prisma.artisanRoastImport.findUnique({
+    // Check for duplicate (idempotency) - skip FAILED imports so they can be re-processed
+    const existingImport = await prisma.artisanRoastImport.findFirst({
       where: {
-        tenantId_machineId_fileHash: {
-          tenantId: auth.tenantId,
-          machineId: auth.machineId,
-          fileHash: actualHash,
-        },
+        tenantId: auth.tenantId,
+        machineId: auth.machineId,
+        fileHash: actualHash,
+        status: { not: "FAILED" },
       },
       select: { id: true, roastId: true, status: true },
     });
@@ -203,6 +204,16 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // RECONCILE: Link live session to this final roast
+      await reconcileLiveSession(auth.tenantId, auth.machineId, roast.id, {
+        chargeTime: parseResult.data.chargeTime,
+        dropTime: parseResult.data.dropTime,
+        duration: parseResult.data.durationSeconds,
+        chargeTemperature: parseResult.data.chargeTemperature,
+        dropTemperature: parseResult.data.dropTemperature,
+        events: parseResult.data.events as any,
+      });
+
       // Update import with roast ID
       await prisma.artisanRoastImport.update({
         where: { id: importRecord.id },
@@ -213,30 +224,67 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // AUTO-MATCH: Link roast to next pending ChildRoastingBatch for this machine
-      // Find a batch that:
-      // 1. Is PENDING
-      // 2. Has the same machineId as the roast's machine
-      // 3. Has ChildRoastingBatches without a roastId
-      const pendingBatch = await prisma.parentRoastingBatch.findFirst({
-        where: {
-          tenantId: auth.tenantId,
-          machineId: auth.machineId,
-          status: "PENDING",
-        },
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          childBatches: {
-            where: { roastId: null },
-            select: { id: true },
-            take: 1,
+      // AUTO-MATCH: Link roast to pending ChildRoastingBatch
+      // Strategy: match by name + date from filename, fallback to first pending batch
+      const { name: filenameName, date: filenameDate } = parseAlogFilename(sanitizedFilename);
+
+      // Try to find batch matching name + date from filename
+      let pendingBatch = null;
+      if (filenameDate) {
+        // Search for batch with matching code or inputProduct name containing the filename name
+        pendingBatch = await prisma.parentRoastingBatch.findFirst({
+          where: {
+            tenantId: auth.tenantId,
+            machineId: auth.machineId,
+            status: "PENDING",
+            childBatches: { some: { roastId: null } },
           },
-        },
-      });
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            code: true,
+            inputProductId: true,
+            inputProduct: { select: { name: true } },
+            childBatches: {
+              where: { roastId: null },
+              select: { id: true },
+              take: 1,
+            },
+          },
+        });
+      }
+
+      // Fallback: first pending batch for this machine
+      if (!pendingBatch) {
+        pendingBatch = await prisma.parentRoastingBatch.findFirst({
+          where: {
+            tenantId: auth.tenantId,
+            machineId: auth.machineId,
+            status: "PENDING",
+            childBatches: { some: { roastId: null } },
+          },
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            code: true,
+            inputProductId: true,
+            inputProduct: { select: { name: true } },
+            childBatches: {
+              where: { roastId: null },
+              select: { id: true },
+              take: 1,
+            },
+          },
+        });
+      }
 
       if (pendingBatch && pendingBatch.childBatches.length > 0) {
         const childId = pendingBatch.childBatches[0].id;
+
+        // Auto-fill Berat Keluar (actualOutputKg) dari roastedWeightGrams
+        const roastedWeightGrams = parseResult.data.metadata.roastedWeightGrams as number | undefined;
+        const greenWeightGrams = parseResult.data.metadata.greenWeightGrams as number | undefined;
+
         await prisma.childRoastingBatch.update({
           where: { id: childId },
           data: {
@@ -245,6 +293,54 @@ export async function POST(req: NextRequest) {
             dropTemp: roast.dropTemperature,
           },
         });
+
+        // Update ParentRoastingBatch: akumulasi actualOutputKg dari semua child batch
+        if (roastedWeightGrams != null) {
+          // Hitung total roasted weight dari SEMUA child batch yang sudah punya roast
+          const allChildren = await prisma.childRoastingBatch.findMany({
+            where: { parentId: pendingBatch.id, roastId: { not: null } },
+            select: { roastId: true },
+          });
+
+          // Ambil roastedWeightGrams dari semua roast yang sudah ter-link
+          const roastIds = allChildren.map((c) => c.roastId).filter(Boolean) as string[];
+          const linkedRoasts = await prisma.roast.findMany({
+            where: { id: { in: roastIds } },
+            select: { metadata: true },
+          });
+
+          // Akumulasi total roasted weight (dalam gram)
+          let totalRoastedGrams = 0;
+          for (const r of linkedRoasts) {
+            const meta = r.metadata as Record<string, unknown>;
+            const weight = meta?.roastedWeightGrams;
+            if (typeof weight === "number") totalRoastedGrams += weight;
+          }
+          // Tambah roasted weight dari roast yang baru diupload
+          totalRoastedGrams += roastedWeightGrams;
+
+          const actualOutputKg = Math.round((totalRoastedGrams / 1000) * 1000) / 1000;
+
+          // Hitung total green weight dari input product
+          const inputProduct = await prisma.product.findUnique({
+            where: { id: pendingBatch.inputProductId },
+            select: { name: true },
+          });
+
+          await prisma.parentRoastingBatch.update({
+            where: { id: pendingBatch.id },
+            data: {
+              actualOutputKg,
+            },
+          });
+
+          logInfo("artisan.upload", "Auto-filled Berat Keluar", {
+            batchId: pendingBatch.id,
+            actualOutputKg,
+            totalRoastedGrams,
+            childCount: allChildren.length + 1,
+          });
+        }
 
         await recordAudit(prisma, {
           tenantId: auth.tenantId,

@@ -3,10 +3,9 @@ import { getIronSession } from "iron-session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SESSION_OPTIONS, type SessionUser } from "@/lib/session";
-import { LayoutDashboard, Users, LogOut, Coffee } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Coffee, ShieldCheck } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
 
-import { ShaderBackground } from "@/components/ShaderBackground";
 import { AppToastProvider } from "@/components/AppToastProvider";
 
 export default async function SuperadminLayout({
@@ -22,50 +21,74 @@ export default async function SuperadminLayout({
 
   return (
     <AppToastProvider>
-      <div className="flex h-[100dvh] w-full overflow-hidden bg-deep-obsidian font-body-lg text-on-background dark relative">
-      {/* Dynamic Background */}
-      <div className="absolute inset-0 w-full h-full z-0 opacity-20 mix-blend-screen pointer-events-none">
-        <ShaderBackground />
-      </div>
+      <div className="flex min-h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground lg:h-[100dvh] lg:flex-row">
+      <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 bg-[#080B0C] px-4 text-white lg:hidden">
+        <Link href="/superadmin/dashboard" className="flex items-center gap-3">
+          <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <Coffee className="size-4" strokeWidth={2.5} />
+          </span>
+          <span>
+            <span className="block text-sm font-black leading-none">roastd.id</span>
+            <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.22em] text-white/45">Control plane</span>
+          </span>
+        </Link>
+        <nav className="flex items-center gap-1">
+          <Link href="/superadmin/dashboard" aria-label="Dashboard" className="flex size-10 items-center justify-center text-white/65 hover:bg-white/8 hover:text-white">
+            <LayoutDashboard size={18} />
+          </Link>
+          <Link href="/superadmin/tenants" aria-label="Roastery" className="flex size-10 items-center justify-center text-white/65 hover:bg-white/8 hover:text-white">
+            <Users size={18} />
+          </Link>
+        </nav>
+      </header>
 
-      {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 border-r border-white/5 bg-surface/50 backdrop-blur-2xl flex flex-col z-10">
-        <div className="h-20 flex items-center gap-3 px-6 border-b border-white/5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 to-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <Coffee className="w-5 h-5 text-amber-950" strokeWidth={2.5} />
+      <aside className="hidden w-72 shrink-0 flex-col border-r border-white/10 bg-[#080B0C] text-white lg:flex">
+        <div className="flex h-24 items-center gap-3 border-b border-white/10 px-6">
+          <div className="flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <Coffee className="size-5" strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="font-headline-md font-bold text-white tracking-tight leading-none">Superadmin</h1>
-            <p className="text-[10px] font-label-caps uppercase tracking-widest text-primary-container mt-1">Roastery OS</p>
+            <h1 className="text-base font-black leading-none tracking-tight">roastd.id</h1>
+            <p className="mt-1.5 text-[9px] font-bold uppercase tracking-[0.24em] text-white/40">Platform control</p>
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
-          <Link href="/superadmin/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-on-surface-variant hover:text-white transition-all group">
-            <LayoutDashboard size={18} className="group-hover:text-primary-container transition-colors" />
-            <span className="font-medium text-sm">Dashboard</span>
+        <div className="border-b border-white/10 px-6 py-6">
+          <div className="flex items-center gap-3 border border-white/10 bg-white/4 p-4">
+            <ShieldCheck className="size-5 text-[#15B8C6]" />
+            <div>
+              <p className="text-xs font-bold">Platform sehat</p>
+              <p className="mt-1 text-[10px] text-white/45">Semua sistem terhubung</p>
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex flex-1 flex-col gap-1 p-4">
+          <p className="px-3 pb-3 pt-2 text-[9px] font-bold uppercase tracking-[0.24em] text-white/30">Command</p>
+          <Link href="/superadmin/dashboard" className="group flex items-center gap-3 px-4 py-3 text-sm font-semibold text-white/60 transition-colors hover:bg-white/6 hover:text-white">
+            <LayoutDashboard size={18} className="text-[#15B8C6]" />
+            <span>System overview</span>
           </Link>
-          <Link href="/superadmin/tenants" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-on-surface-variant hover:text-white transition-all group">
-            <Users size={18} className="group-hover:text-primary-container transition-colors" />
-            <span className="font-medium text-sm">Tenants (Outlets)</span>
+          <Link href="/superadmin/tenants" className="group flex items-center gap-3 px-4 py-3 text-sm font-semibold text-white/60 transition-colors hover:bg-white/6 hover:text-white">
+            <Users size={18} className="text-[#B65331]" />
+            <span>Roastery network</span>
           </Link>
         </nav>
 
-        <div className="p-4 border-t border-white/5">
+        <div className="border-t border-white/10 p-4">
           <form action={logoutAction}>
             <button
               type="submit"
-              className="flex w-full items-center gap-3 px-4 py-3 rounded-xl hover:bg-error/10 text-on-surface-variant hover:text-error transition-all"
+              className="flex min-h-11 w-full items-center gap-3 px-4 text-sm font-semibold text-white/50 transition-colors hover:bg-destructive/10 hover:text-red-300"
             >
               <LogOut size={18} />
-              <span className="font-medium text-sm">Logout</span>
+              <span>Keluar</span>
             </button>
           </form>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto bg-transparent z-10 relative">
+      <main className="relative min-w-0 flex-1 overflow-auto bg-background">
         {children}
       </main>
       </div>

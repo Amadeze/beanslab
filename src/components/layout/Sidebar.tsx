@@ -3,82 +3,209 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import {
-  BarChart3,
+  Boxes,
+  ChartNoAxesCombined,
   ChevronLeft,
   ChevronRight,
   Coffee,
-  Database,
-  Factory,
-  FileText,
   Flame,
   LayoutDashboard,
-  Link2,
   LogOut,
   PackageSearch,
-  ScrollText,
-  Settings,
+  Settings2,
+  ShoppingBag,
   ShoppingCart,
+  WalletCards,
 } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
 import { cn } from "@/lib/utils";
 import { PLAN_CATALOG, planHasFeature, type PlanTier } from "@/lib/plans";
 
-type NavLink = {
+export type AppNavLink = {
   label: string;
+  shortLabel: string;
   href: string;
   icon: React.ElementType;
+  step?: string;
+  tone: "system" | "inventory" | "roasting" | "sales" | "finance" | "production" | "neutral";
+};
+
+export const NAV_TONE_STYLES: Record<AppNavLink["tone"], {
+  active: string;
+  activeIcon: string;
+  inactiveIcon: string;
+}> = {
+  system: {
+    active: "bg-[#00C8DF] text-[#041116] shadow-[0_10px_30px_-18px_rgba(0,200,223,.9)]",
+    activeIcon: "border-black/10 bg-[#041116]/10 text-[#041116]",
+    inactiveIcon: "text-[#69E8F3]",
+  },
+  inventory: {
+    active: "bg-[#2B7567] text-white shadow-[0_10px_30px_-18px_rgba(43,117,103,.9)]",
+    activeIcon: "border-white/10 bg-white/10 text-white",
+    inactiveIcon: "text-[#87CDBC]",
+  },
+  roasting: {
+    active: "bg-[#B65331] text-white shadow-[0_10px_30px_-18px_rgba(182,83,49,.9)]",
+    activeIcon: "border-white/10 bg-white/10 text-white",
+    inactiveIcon: "text-[#E9A17F]",
+  },
+  production: {
+    active: "bg-[#A66F12] text-white shadow-[0_10px_30px_-18px_rgba(166,111,18,.9)]",
+    activeIcon: "border-white/10 bg-white/10 text-white",
+    inactiveIcon: "text-[#E0BC67]",
+  },
+  sales: {
+    active: "bg-[#6F4A6A] text-white shadow-[0_10px_30px_-18px_rgba(111,74,106,.9)]",
+    activeIcon: "border-white/10 bg-white/10 text-white",
+    inactiveIcon: "text-[#C7A8C4]",
+  },
+  finance: {
+    active: "bg-[#4B6B3C] text-white shadow-[0_10px_30px_-18px_rgba(75,107,60,.9)]",
+    activeIcon: "border-white/10 bg-white/10 text-white",
+    inactiveIcon: "text-[#A8C390]",
+  },
+  neutral: {
+    active: "bg-[#426C7A] text-white shadow-[0_10px_30px_-18px_rgba(66,108,122,.9)]",
+    activeIcon: "border-white/10 bg-white/10 text-white",
+    inactiveIcon: "text-[#83A9B1]",
+  },
 };
 
 type NavSection = {
   label: string;
-  items: NavLink[];
+  caption: string;
+  items: AppNavLink[];
 };
 
-const NAV_SECTIONS: NavSection[] = [
+export const APP_NAV_SECTIONS: NavSection[] = [
   {
-    label: "Utama",
-    items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutDashboard }],
+    label: "Hari ini",
+    caption: "Fokus dan tindakan",
+    items: [
+      {
+        label: "Ringkasan",
+        shortLabel: "Hari ini",
+        href: "/dashboard",
+        icon: LayoutDashboard,
+        tone: "system",
+      },
+    ],
   },
   {
     label: "Operasional",
+    caption: "Bahan menjadi produk",
     items: [
-      { label: "Inventory", href: "/inventory", icon: PackageSearch },
-      { label: "Roasting", href: "/roasting", icon: Flame },
-      { label: "Roast Profiles", href: "/roasting/roasts", icon: BarChart3 },
-      { label: "Produksi", href: "/produksi", icon: Factory },
+      {
+        label: "Pasokan",
+        shortLabel: "Pasokan",
+        href: "/inventory",
+        icon: Boxes,
+        tone: "inventory",
+      },
+      {
+        label: "Roastery",
+        shortLabel: "Roastery",
+        href: "/roasting",
+        icon: Flame,
+        tone: "roasting",
+      },
     ],
   },
   {
-    label: "Penjualan & keuangan",
+    label: "Komersial",
+    caption: "Pesanan dan pelanggan",
     items: [
-      { label: "Penjualan", href: "/penjualan", icon: ShoppingCart },
-      { label: "Keuangan", href: "/keuangan", icon: BarChart3 },
-      { label: "Laporan", href: "/laporan", icon: FileText },
+      {
+        label: "Buka Kasir",
+        shortLabel: "Kasir",
+        href: "/kasir",
+        icon: ShoppingCart,
+        tone: "sales",
+      },
+      {
+        label: "Penjualan",
+        shortLabel: "Penjualan",
+        href: "/penjualan",
+        icon: ShoppingBag,
+        tone: "sales",
+      },
     ],
   },
   {
-    label: "Administrasi",
+    label: "Kontrol",
+    caption: "Uang dan kinerja",
     items: [
-      { label: "Data Master", href: "/master-data", icon: Database },
-      { label: "Mesin Roasting", href: "/master-data/machines", icon: Flame },
-      { label: "Audit & Integrasi", href: "/audit", icon: ScrollText },
-      { label: "Integrasi Artisan", href: "/settings/integrations/artisan", icon: Link2 },
-      { label: "Pengaturan", href: "/settings", icon: Settings },
-      { label: "Billing & Plan", href: "/billing", icon: FileText },
+      {
+        label: "Keuangan",
+        shortLabel: "Keuangan",
+        href: "/keuangan",
+        icon: WalletCards,
+        tone: "finance",
+      },
+      {
+        label: "Laporan",
+        shortLabel: "Laporan",
+        href: "/laporan",
+        icon: ChartNoAxesCombined,
+        tone: "neutral",
+      },
+    ],
+  },
+  {
+    label: "Kelola",
+    caption: "Data dan konfigurasi",
+    items: [
+      {
+        label: "Katalog",
+        shortLabel: "Katalog",
+        href: "/katalog",
+        icon: PackageSearch,
+        tone: "production",
+      },
+      {
+        label: "Pengaturan",
+        shortLabel: "Setting",
+        href: "/settings",
+        icon: Settings2,
+        tone: "neutral",
+      },
     ],
   },
 ];
 
-function canAccess(href: string, userRole: string, subscriptionTier: PlanTier) {
+export function canAccessNavigation(
+  href: string,
+  userRole: string,
+  subscriptionTier: PlanTier,
+) {
   if (href === "/laporan" && !planHasFeature(subscriptionTier, "ADVANCED_REPORTS")) return false;
-  if (href === "/settings/integrations/artisan" && !planHasFeature(subscriptionTier, "ARTISAN")) return false;
   if (userRole === "OWNER") return true;
-  if (userRole === "MANAGER") return !["/settings", "/billing"].includes(href);
-  if (userRole === "OPERATOR") return ["/dashboard", "/inventory", "/roasting", "/roasting/roasts", "/produksi", "/master-data/machines"].includes(href);
-  if (userRole === "CASHIER") return ["/dashboard", "/penjualan", "/master-data"].includes(href);
+  if (userRole === "MANAGER") return href !== "/billing";
+  if (userRole === "OPERATOR") {
+    return [
+      "/dashboard",
+      "/inventory",
+      "/roasting",
+      "/katalog",
+    ].includes(href);
+  }
+  if (userRole === "CASHIER") {
+    return ["/dashboard", "/kasir", "/penjualan"].includes(href);
+  }
   return false;
+}
+
+export function getActiveNavigation(pathname: string, items: AppNavLink[]) {
+  const workspacePath = pathname.startsWith("/produksi")
+    ? "/roasting"
+    : pathname.startsWith("/audit")
+      ? "/settings"
+      : pathname;
+  return items
+    .filter((item) => workspacePath === item.href || workspacePath.startsWith(`${item.href}/`))
+    .toSorted((a, b) => b.href.length - a.href.length)[0];
 }
 
 export function Sidebar({
@@ -94,67 +221,122 @@ export function Sidebar({
   const [collapsed, setCollapsed] = useState(false);
   const isCollapsed = forceExpanded ? false : collapsed;
 
-  const visibleSections = NAV_SECTIONS.map((section) => ({
+  const visibleSections = APP_NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) => canAccess(item.href, userRole, subscriptionTier)),
+    items: section.items.filter((item) =>
+      canAccessNavigation(item.href, userRole, subscriptionTier),
+    ),
   })).filter((section) => section.items.length > 0);
+
+  const visibleItems = visibleSections.flatMap((section) => section.items);
+  const activeItem = getActiveNavigation(pathname, visibleItems);
 
   return (
     <aside
       className={cn(
-        "relative flex h-full shrink-0 flex-col bg-[var(--glass-bg)] border-r border-[var(--glass-border)] shadow-[var(--glass-shadow)] transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)]",
-        isCollapsed ? "w-[76px]" : "w-[260px]",
+        "relative flex h-full shrink-0 flex-col overflow-hidden bg-[#05090D] text-white transition-[width] duration-500 ease-[cubic-bezier(.16,1,.3,1)]",
+        isCollapsed ? "w-[74px]" : "w-[264px]",
       )}
     >
-      {/* Premium Brand Area */}
-      <div className={cn("flex shrink-0 items-center border-b border-[var(--glass-border)]/50", isCollapsed ? "justify-center py-5" : "gap-4 px-6 py-5")}>
-        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--amber-warm)] to-[var(--amber-deep)] shadow-lg shadow-[var(--amber-deep)]/20">
-          <Coffee className="h-5 w-5 text-white" />
-          <div className="absolute inset-0 rounded-2xl ring-1 ring-white/20" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-40"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(0,200,223,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,200,223,.04) 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+          maskImage: "linear-gradient(to bottom, black, transparent 70%)",
+        }}
+      />
+
+      <div className={cn(
+        "relative z-10 flex h-[72px] shrink-0 items-center border-b border-white/[0.08]",
+        isCollapsed ? "justify-center px-3" : "gap-3 px-5",
+      )}>
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-[#00C8DF] text-[#041116] shadow-[0_0_34px_rgba(0,200,223,.2)]">
+          <Coffee size={18} strokeWidth={2.2} />
+          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#05090D] bg-white" />
         </div>
-        {!isCollapsed && (
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-black tracking-tight text-[var(--text-primary)]">Roastery OS</p>
-            <p className="mt-0.5 truncate text-[11px] font-bold uppercase tracking-widest text-[var(--amber-warm)]">
-              {PLAN_CATALOG[subscriptionTier].label}
-            </p>
-          </div>
-        )}
-        {!forceExpanded && !isCollapsed && (
-          <button
-            type="button"
-            onClick={() => setCollapsed(true)}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[var(--glass-bg-subtle)] text-[var(--text-secondary)] hover:bg-[var(--glass-bg-hover)] hover:text-[var(--text-primary)] hover:shadow-sm transition-all"
-            aria-label="Ciutkan sidebar"
-          >
-            <ChevronLeft size={16} />
-          </button>
-        )}
-        {!forceExpanded && isCollapsed && (
+
+        {!isCollapsed ? (
+          <>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[16px] font-black tracking-[-0.045em]">roastd.id</p>
+              <p className="mt-0.5 truncate font-mono text-[8px] uppercase tracking-[0.19em] text-white/35">
+                Operating system
+              </p>
+            </div>
+            {!forceExpanded ? (
+              <button
+                type="button"
+                onClick={() => setCollapsed(true)}
+                className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-white/10 text-white/35 transition hover:border-[#00C8DF]/35 hover:bg-[#00C8DF]/10 hover:text-[#8EF3FC]"
+                aria-label="Ciutkan navigasi"
+              >
+                <ChevronLeft size={14} />
+              </button>
+            ) : null}
+          </>
+        ) : !forceExpanded ? (
           <button
             type="button"
             onClick={() => setCollapsed(false)}
-            className="absolute -right-3.5 top-[32px] z-10 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--glass-border)] bg-[var(--glass-bg-hover)] text-[var(--text-secondary)] shadow-md shadow-black/5 hover:text-[var(--text-primary)] hover:scale-105 transition-all"
-            aria-label="Perluas sidebar"
+            className="absolute -right-3 top-6 z-20 flex h-7 w-7 items-center justify-center rounded-[8px] border border-white/10 bg-[#0E1C24] text-white/55 shadow-xl transition hover:text-white"
+            aria-label="Perluas navigasi"
           >
-            <ChevronRight size={14} />
+            <ChevronRight size={13} />
           </button>
-        )}
+        ) : null}
       </div>
 
-      {/* Navigation Area */}
-      <nav className="custom-scrollbar flex-1 overflow-y-auto py-6 px-3" aria-label="Navigasi aplikasi">
+      {!isCollapsed ? (
+        <div className="relative z-10 mx-4 mt-4 rounded-[12px] border border-white/[0.08] bg-[#0B141B] p-3.5">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[8px] uppercase tracking-[0.17em] text-white/35">
+              Workspace
+            </span>
+            <span className="h-1.5 w-1.5 rounded-full bg-[#00C8DF] shadow-[0_0_12px_#00C8DF]" />
+          </div>
+          <div className="mt-2 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold capitalize text-white/80">
+                {userRole.toLowerCase()}
+              </p>
+              <p className="mt-0.5 text-[9px] text-white/32">akses operasional aktif</p>
+            </div>
+            <span className="rounded-[6px] border border-[#00C8DF]/25 bg-[#00C8DF]/10 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[#bff7ff]">
+              {PLAN_CATALOG[subscriptionTier].label}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      <nav
+        className={cn(
+          "custom-scrollbar relative z-10 flex-1 overflow-y-auto py-5",
+          isCollapsed ? "px-2.5" : "px-4",
+        )}
+        aria-label="Navigasi aplikasi"
+      >
         {visibleSections.map((section, sectionIndex) => (
           <div key={section.label} className={cn(sectionIndex > 0 && "mt-6")}>
-            {!isCollapsed && (
-              <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--text-tertiary)]">
-                {section.label}
-              </p>
-            )}
+            {!isCollapsed ? (
+              <div className="mb-2.5 flex items-end justify-between px-2">
+                <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/30">
+                  {section.label}
+                </p>
+                <p className="text-[8px] text-white/20">{section.caption}</p>
+              </div>
+            ) : sectionIndex > 0 ? (
+              <div className="mx-auto mb-3 h-px w-7 bg-white/10" />
+            ) : null}
+
             <div className="space-y-1">
               {section.items.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const active = activeItem?.href === item.href;
                 const Icon = item.icon;
+                const tone = NAV_TONE_STYLES[item.tone];
+
                 return (
                   <Link
                     key={item.href}
@@ -162,31 +344,37 @@ export function Sidebar({
                     title={isCollapsed ? item.label : undefined}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "group relative flex items-center rounded-xl text-[14px] font-semibold transition-all duration-300",
-                      isCollapsed ? "justify-center h-12 w-12 mx-auto" : "gap-3.5 h-11 px-3.5",
+                      "group relative flex items-center transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C8DF]",
+                      isCollapsed
+                        ? "mx-auto h-11 w-11 justify-center rounded-[11px]"
+                        : "min-h-11 gap-3 rounded-[10px] px-3 py-2",
                       active
-                        ? "text-[var(--amber-deep)] dark:text-[var(--amber-warm)]"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+                        ? tone.active
+                        : "text-white/48 hover:bg-white/[0.045] hover:text-white/82",
                     )}
                   >
-                    {active && (
-                      <motion.div 
-                        layoutId="active-nav"
-                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-[var(--amber-warm)]/10 to-[var(--amber-deep)]/5 border border-[var(--amber-warm)]/20 shadow-sm"
-                        initial={false}
-                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                      />
-                    )}
-                    
-                    {!active && (
-                      <div className="absolute inset-0 rounded-xl bg-[var(--glass-bg-hover)] opacity-0 group-hover:opacity-100 transition-opacity" />
-                    )}
-
-                    <Icon
-                      className={cn("relative z-10 h-5 w-5 shrink-0 transition-transform duration-300 group-hover:scale-110", active ? "text-[var(--amber-warm)]" : "text-[var(--text-tertiary)]")}
-                      aria-hidden="true"
-                    />
-                    {!isCollapsed && <span className="relative z-10 truncate">{item.label}</span>}
+                    <span
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border transition",
+                        active
+                          ? tone.activeIcon
+                          : `border-white/[0.07] bg-white/[0.035] ${tone.inactiveIcon} group-hover:border-white/15 group-hover:text-white`,
+                      )}
+                    >
+                      <Icon size={15} strokeWidth={active ? 2.2 : 1.7} aria-hidden />
+                    </span>
+                    {!isCollapsed ? (
+                      <>
+                        <span className="min-w-0 flex-1 truncate text-[12px] font-medium">
+                          {item.label}
+                        </span>
+                        {item.step ? (
+                          <span className={cn("font-mono text-[8px] tracking-[0.12em]", active ? "text-current opacity-50" : "text-white/20")}>
+                            {item.step}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : null}
                   </Link>
                 );
               })}
@@ -195,22 +383,25 @@ export function Sidebar({
         ))}
       </nav>
 
-      {/* Footer Area */}
-      <div className="shrink-0 border-t border-[var(--glass-border)]/50 p-4">
+      <div className={cn(
+        "relative z-10 shrink-0 border-t border-white/[0.08] p-4",
+        isCollapsed && "px-2.5",
+      )}>
         <form action={logoutAction}>
           <button
             type="submit"
             className={cn(
-              "group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold text-[var(--text-secondary)] transition-all hover:bg-red-500/10 hover:text-red-600 dark:hover:bg-red-500/20 dark:hover:text-red-400",
-              isCollapsed && "justify-center px-0 h-12 w-12 mx-auto",
+              "group flex w-full items-center rounded-[10px] text-white/38 transition hover:bg-[#00C8DF]/10 hover:text-[#9ff4ff]",
+              isCollapsed
+                ? "mx-auto h-11 w-11 justify-center"
+                : "gap-3 px-3 py-2.5 text-xs font-medium",
             )}
             title={isCollapsed ? "Keluar" : undefined}
           >
-            <LogOut className="h-5 w-5 shrink-0 transition-transform group-hover:-translate-x-1" aria-hidden="true" />
-            {!isCollapsed && <span>Keluar</span>}
+            <LogOut size={16} className="transition group-hover:-translate-x-0.5" />
+            {!isCollapsed ? <span>Keluar dari workspace</span> : null}
           </button>
         </form>
-        {!isCollapsed && <p className="px-3.5 pt-3 text-[11px] font-medium text-[var(--text-tertiary)] text-center">ROS · v2.0</p>}
       </div>
     </aside>
   );

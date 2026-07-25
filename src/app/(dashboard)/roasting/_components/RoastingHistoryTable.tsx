@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
@@ -206,7 +207,12 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
             filteredBatches.map((b) => (
               <TableRow key={b.id} className="hover:bg-white/40 transition-colors">
                 <TableCell className="font-mono text-xs font-medium text-zinc-700">
-                  {b.code}
+                  <Link
+                    href={`/roasting/batch/${b.id}`}
+                    className="hover:text-amber-600 hover:underline transition-colors"
+                  >
+                    {b.code}
+                  </Link>
                 </TableCell>
                 <TableCell>
                   <p className="text-sm text-zinc-900">{b.inputProductName}</p>
@@ -294,7 +300,12 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
               <div>
                 <p className="font-bold text-slate-900">{b.outputProductName}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="font-mono text-xs font-semibold text-slate-600">{b.code}</span>
+                  <Link
+                    href={`/roasting/batch/${b.id}`}
+                    className="font-mono text-xs font-semibold text-slate-600 hover:text-amber-600 hover:underline transition-colors"
+                  >
+                    {b.code}
+                  </Link>
                   <span className="text-xs text-slate-400">•</span>
                   <span className="text-[10px] uppercase font-bold text-slate-500">{b.inputProductName}</span>
                 </div>
@@ -434,7 +445,7 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
           </div>
           <div className="bg-slate-50 p-4 border-t flex justify-end gap-2">
             <Button variant="ghost" onClick={() => { setShowSplitModal(false); setSplitTarget(null); setSelectedMachineId(""); }}>Batal</Button>
-            <Button className="bg-amber-600 hover:bg-amber-700 text-white" disabled={isSubmitting || !selectedMachineId} onClick={handleSplit}>
+            <Button disabled={isSubmitting || !selectedMachineId} onClick={handleSplit}>
               {isSubmitting ? "Memproses..." : "Split Batch"}
             </Button>
           </div>

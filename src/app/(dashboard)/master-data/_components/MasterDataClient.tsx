@@ -2,11 +2,16 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Plus, Building2, Users, Package, CheckCircle2, XCircle, Pencil, UserCog, Loader2 } from "lucide-react";
-import { StandardPageLayout } from "@/components/StandardPageLayout";
-import { StandardDrawer } from "@/components/StandardDrawer";
 import { Button } from "@/components/ui/button";
+import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SettingsNav } from "@/app/(dashboard)/settings/_components/SettingsNav";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { SectionHeader } from "@/components/ui/section-header";
+import { StandardDrawer } from "@/components/StandardDrawer";
 import { SupplierForm } from "./SupplierForm";
 import { CustomerForm } from "./CustomerForm";
 import { ProductForm } from "./ProductForm";
@@ -17,11 +22,12 @@ import type { MasterPageData, SupplierRow, CustomerRow, ProductRow, UserRow, Pac
 interface MasterDataClientProps {
   data: MasterPageData;
   userRole: string;
+  allowedTabs?: Tab[];
+  initialTab?: Tab;
+  title?: string;
+  description?: string;
+  workspace?: "supply" | "sales" | "settings";
 }
-
-// =============================================================================
-// Tab definition
-// =============================================================================
 
 type Tab = "supplier" | "pelanggan" | "produk" | "kemasan" | "pengguna";
 
@@ -37,45 +43,29 @@ function getTabsForRole(role: string) {
   if (role === "OWNER") return ALL_TABS;
   if (role === "MANAGER" || role === "OPERATOR") return ALL_TABS.filter(t => t.id !== "pengguna");
   if (role === "CASHIER") return ALL_TABS.filter(t => t.id === "pelanggan");
-  return ALL_TABS.filter(t => t.id === "produk"); // fallback
+  return ALL_TABS.filter(t => t.id === "produk");
 }
 
-// =============================================================================
-// Product type helpers
-// =============================================================================
-
 const PROD_TYPE_LABEL: Record<ProductRow["type"], string> = {
-  GREEN_BEAN:     "GB",
-  ROASTED_BEAN:   "RB",
-  FINISHED_GOODS: "FG",
-  PACKAGING:      "PKG",
+  GREEN_BEAN: "GB", ROASTED_BEAN: "RB", FINISHED_GOODS: "FG", PACKAGING: "PKG",
 };
 const PROD_TYPE_COLOR: Record<ProductRow["type"], string> = {
-  GREEN_BEAN:     "bg-lime-100 text-lime-700",
-  ROASTED_BEAN:   "bg-amber-100 text-amber-700",
-  FINISHED_GOODS: "bg-violet-100 text-violet-700",
-  PACKAGING:      "bg-orange-100 text-orange-700",
+  GREEN_BEAN: "bg-lime-100 text-lime-700", ROASTED_BEAN: "bg-amber-100 text-amber-700",
+  FINISHED_GOODS: "bg-violet-100 text-violet-700", PACKAGING: "bg-orange-100 text-orange-700",
 };
 const PROD_TYPE_FULL: Record<ProductRow["type"], string> = {
-  GREEN_BEAN:     "Green Bean",
-  ROASTED_BEAN:   "Roasted Bean",
-  FINISHED_GOODS: "Produk Jadi",
-  PACKAGING:      "Kemasan",
+  GREEN_BEAN: "Green Bean", ROASTED_BEAN: "Roasted Bean", FINISHED_GOODS: "Produk Jadi", PACKAGING: "Kemasan",
 };
-
-// =============================================================================
-// Shared helpers
-// =============================================================================
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div className="flex flex-col items-center gap-3 py-20 text-center rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl shadow-lg shadow-slate-200/30">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/50 text-slate-400 shadow-sm border border-white/60">
+    <div className="flex flex-col items-center gap-3 py-20 text-center glass-card">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/50 text-zinc-400 shadow-sm border border-white/60">
         <Package size={24} />
       </div>
       <div>
-        <p className="text-sm font-bold text-slate-600">Belum ada {label}</p>
-        <p className="mt-1 text-[11px] font-medium text-slate-500 uppercase tracking-wider">Klik "Tambah" untuk membuat</p>
+        <p className="text-sm font-bold text-zinc-600">Belum ada {label}</p>
+        <p className="mt-1 text-[11px] font-medium text-zinc-500 uppercase tracking-wider">Klik "Tambah" untuk membuat</p>
       </div>
     </div>
   );
@@ -84,273 +74,258 @@ function EmptyState({ label }: { label: string }) {
 function ActiveBadge({ active }: { active: boolean }) {
   return active
     ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 shadow-sm border border-emerald-100"><CheckCircle2 size={9} strokeWidth={3} />Aktif</span>
-    : <span className="inline-flex items-center gap-1 rounded-full bg-slate-900/10 px-2 py-0.5 text-[10px] font-bold text-slate-500 shadow-sm border border-slate-200"><XCircle size={9} strokeWidth={3} />Nonaktif</span>;
+    : <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900/10 px-2 py-0.5 text-[10px] font-bold text-zinc-500 shadow-sm border border-zinc-200"><XCircle size={9} strokeWidth={3} />Nonaktif</span>;
 }
 
 function EditButton({ onClick }: { onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className="inline-flex items-center gap-1 rounded-lg border border-white/60 bg-white/50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 transition-all hover:border-white hover:bg-white hover:text-slate-900 hover:shadow-md hover:scale-105"
-    >
+    <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className="inline-flex items-center gap-1 rounded-lg border border-white/60 bg-white/50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-600 transition-all hover:border-white hover:bg-white hover:text-zinc-900 hover:shadow-md hover:scale-105">
       <Pencil size={10} strokeWidth={3} /> Edit
     </button>
   );
 }
 
 const ROLE_BADGE_CLASS: Record<UserRow["role"], string> = {
-  OWNER: "bg-rose-100 text-rose-700",
-  MANAGER: "bg-sky-100 text-sky-700",
-  OPERATOR: "bg-amber-100 text-amber-700",
-  CASHIER: "bg-violet-100 text-violet-700",
+  OWNER: "bg-rose-100 text-rose-700", MANAGER: "bg-sky-100 text-sky-700",
+  OPERATOR: "bg-amber-100 text-amber-700", CASHIER: "bg-violet-100 text-violet-700",
 };
 
 function RoleBadge({ role }: { role: UserRow["role"] }) {
+  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ROLE_BADGE_CLASS[role]}`}>{role}</span>;
+}
+
+function EntityTable({ children }: { children: React.ReactNode }) {
   return (
-    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ROLE_BADGE_CLASS[role]}`}>
-      {role}
-    </span>
+    <div className="overflow-hidden rounded-[1.25rem] glass-card p-0">
+      <table className="w-full text-sm">{children}</table>
+    </div>
   );
 }
 
-// =============================================================================
-// Supplier Table
-// =============================================================================
+function Th({ children, className, hide }: { children: React.ReactNode; className?: string; hide?: string }) {
+  return <th className={`px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-zinc-500 ${hide ?? ""} ${className ?? ""}`}>{children}</th>;
+}
 
 function SupplierTable({ rows, onEdit }: { rows: SupplierRow[]; onEdit: (r: SupplierRow) => void }) {
   if (rows.length === 0) return <EmptyState label="supplier" />;
   return (
-    <div className="overflow-hidden rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl shadow-lg shadow-slate-200/30">
-      <table className="w-full text-sm">
-        <thead className="border-b border-white/50 bg-white/40 backdrop-blur-md">
-          <tr>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500">Nama</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500 hidden md:table-cell">No. Telp</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500 hidden lg:table-cell">Wilayah</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">Beli</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">Status</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">Aksi</th>
+    <EntityTable>
+      <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md">
+        <tr>
+          <Th>Nama</Th>
+          <Th hide="hidden md:table-cell">No. Telp</Th>
+          <Th hide="hidden lg:table-cell">Wilayah</Th>
+          <Th className="text-center">Beli</Th>
+          <Th className="text-center">Status</Th>
+          <Th className="text-center">Aksi</Th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-[var(--glass-border)]">
+        {rows.map((row) => (
+          <tr key={row.id} className="hover:bg-[var(--glass-bg-hover)] transition-colors">
+            <td className="px-4 py-3">
+              <p className="font-medium text-zinc-800">{row.name}</p>
+              {row.address && <p className="text-[11px] text-zinc-500 truncate max-w-[180px]">{row.address}</p>}
+            </td>
+            <td className="px-4 py-3 text-xs text-zinc-500 hidden md:table-cell">{row.phone ?? "\u2014"}</td>
+            <td className="px-4 py-3 hidden lg:table-cell">
+              {row.region
+                ? <span className="rounded-full bg-zinc-900/10 px-2 py-0.5 text-[10px] font-medium text-zinc-700">{row.region}</span>
+                : <span className="text-xs text-zinc-400">—</span>}
+            </td>
+            <td className="px-4 py-3 text-center font-mono text-xs font-semibold text-zinc-700">{row.purchaseCount}×</td>
+            <td className="px-4 py-3 text-center"><ActiveBadge active={row.isActive} /></td>
+            <td className="px-4 py-3 text-center"><EditButton onClick={() => onEdit(row)} /></td>
           </tr>
-        </thead>
-        <tbody className="divide-y divide-white/30">
-          {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-white/40 transition-colors">
-              <td className="px-4 py-3">
-                <p className="font-medium text-slate-800">{row.name}</p>
-                {row.address && <p className="text-[11px] text-slate-500 truncate max-w-[180px]">{row.address}</p>}
-              </td>
-              <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{row.phone ?? "—"}</td>
-              <td className="px-4 py-3 hidden lg:table-cell">
-                {row.region
-                  ? <span className="rounded-full bg-slate-900/10 px-2 py-0.5 text-[10px] font-medium text-slate-700">{row.region}</span>
-                  : <span className="text-xs text-slate-400">—</span>}
-              </td>
-              <td className="px-4 py-3 text-center font-mono text-xs font-semibold text-slate-700">{row.purchaseCount}×</td>
-              <td className="px-4 py-3 text-center"><ActiveBadge active={row.isActive} /></td>
-              <td className="px-4 py-3 text-center"><EditButton onClick={() => onEdit(row)} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </EntityTable>
   );
 }
-
-// =============================================================================
-// Customer Table
-// =============================================================================
 
 function CustomerTable({ rows, onEdit }: { rows: CustomerRow[]; onEdit: (r: CustomerRow) => void }) {
   if (rows.length === 0) return <EmptyState label="pelanggan" />;
   return (
-    <div className="overflow-hidden rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl shadow-lg shadow-slate-200/30">
-      <table className="w-full text-sm">
-        <thead className="border-b border-white/50 bg-white/40 backdrop-blur-md">
-          <tr>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500">Nama</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500 hidden md:table-cell">No. Telp</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500 hidden lg:table-cell">Email</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">Nota</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">Status</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">Aksi</th>
+    <EntityTable>
+      <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md">
+        <tr>
+          <Th>Nama</Th>
+          <Th hide="hidden md:table-cell">No. Telp</Th>
+          <Th hide="hidden lg:table-cell">Email</Th>
+          <Th className="text-center">Nota</Th>
+          <Th className="text-center">Status</Th>
+          <Th className="text-center">Aksi</Th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-[var(--glass-border)]">
+        {rows.map((row) => (
+          <tr key={row.id} className="hover:bg-[var(--glass-bg-hover)] transition-colors">
+            <td className="px-4 py-3">
+              <p className="font-medium text-zinc-800">{row.name}</p>
+              {row.address && <p className="text-[11px] text-zinc-500 truncate max-w-[180px]">{row.address}</p>}
+            </td>
+            <td className="px-4 py-3 text-xs text-zinc-500 hidden md:table-cell">{row.phone ?? "\u2014"}</td>
+            <td className="px-4 py-3 text-xs text-zinc-500 hidden lg:table-cell">{row.email ?? "\u2014"}</td>
+            <td className="px-4 py-3 text-center font-mono text-xs font-semibold text-zinc-700">{row.invoiceCount}×</td>
+            <td className="px-4 py-3 text-center"><ActiveBadge active={row.isActive} /></td>
+            <td className="px-4 py-3 text-center"><EditButton onClick={() => onEdit(row)} /></td>
           </tr>
-        </thead>
-        <tbody className="divide-y divide-white/30">
-          {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-white/40 transition-colors">
-              <td className="px-4 py-3">
-                <p className="font-medium text-slate-800">{row.name}</p>
-                {row.address && <p className="text-[11px] text-slate-500 truncate max-w-[180px]">{row.address}</p>}
-              </td>
-              <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{row.phone ?? "—"}</td>
-              <td className="px-4 py-3 text-xs text-slate-500 hidden lg:table-cell">{row.email ?? "—"}</td>
-              <td className="px-4 py-3 text-center font-mono text-xs font-semibold text-slate-700">{row.invoiceCount}×</td>
-              <td className="px-4 py-3 text-center"><ActiveBadge active={row.isActive} /></td>
-              <td className="px-4 py-3 text-center"><EditButton onClick={() => onEdit(row)} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </EntityTable>
   );
 }
-
-// =============================================================================
-// Product Table
-// =============================================================================
 
 function ProductTable({ rows, onEdit }: { rows: ProductRow[]; onEdit: (r: ProductRow) => void }) {
   if (rows.length === 0) return <EmptyState label="produk" />;
   return (
-    <div className="overflow-hidden rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl shadow-lg shadow-slate-200/30">
-      <table className="w-full text-sm">
-        <thead className="border-b border-white/50 bg-white/40 backdrop-blur-md">
-          <tr>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500">Nama</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500">Tipe</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500 hidden md:table-cell">Origin</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500 hidden lg:table-cell">Resep</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">Status</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">Aksi</th>
+    <EntityTable>
+      <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md">
+        <tr>
+          <Th>Nama</Th>
+          <Th>Tipe</Th>
+          <Th hide="hidden md:table-cell">Origin</Th>
+          <Th hide="hidden lg:table-cell">Resep</Th>
+          <Th className="text-center">Status</Th>
+          <Th className="text-center">Aksi</Th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-[var(--glass-border)]">
+        {rows.map((row) => (
+          <tr key={row.id} className="hover:bg-[var(--glass-bg-hover)] transition-colors">
+            <td className="px-4 py-3">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-zinc-800">{row.name}</p>
+                {row.coffeeSpecies && (
+                  <span className="rounded-full bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-700">
+                    {row.coffeeSpecies}
+                  </span>
+                )}
+                {row.type === "ROASTED_BEAN" && row.roastLevel && (
+                  <span className="rounded-full bg-amber-100 border border-amber-200 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-700">
+                    {row.roastLevel.replace("_", " ")}
+                  </span>
+                )}
+                {row.category && (
+                  <span className="rounded-full bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-500">{row.category}</span>
+                )}
+              </div>
+              {row.description && <p className="text-[11px] text-zinc-400 truncate max-w-[200px]">{row.description}</p>}
+            </td>
+            <td className="px-4 py-3">
+              <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${PROD_TYPE_COLOR[row.type]}`}>{PROD_TYPE_LABEL[row.type]}</span>
+              <span className="ml-1.5 text-xs text-zinc-500 hidden sm:inline">{PROD_TYPE_FULL[row.type]}</span>
+            </td>
+            <td className="px-4 py-3 text-xs text-zinc-500 hidden md:table-cell">{row.origin ?? "\u2014"}</td>
+            <td className="px-4 py-3 hidden lg:table-cell">
+              {row.type === "FINISHED_GOODS"
+                ? row.recipe
+                  ? <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600"><CheckCircle2 size={10} />{row.recipe.items.length} bahan</span>
+                  : <span className="text-[11px] text-zinc-300">Belum ada resep</span>
+                : <span className="text-xs text-zinc-300">—</span>}
+            </td>
+            <td className="px-4 py-3 text-center"><ActiveBadge active={row.isActive} /></td>
+            <td className="px-4 py-3 text-center"><EditButton onClick={() => onEdit(row)} /></td>
           </tr>
-        </thead>
-        <tbody className="divide-y divide-white/30">
-          {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-white/40 transition-colors">
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium text-slate-800">{row.name}</p>
-                  {row.category && (
-                    <span className="rounded-full bg-slate-100 border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                      {row.category}
-                    </span>
-                  )}
-                </div>
-                {row.description && <p className="text-[11px] text-zinc-400 truncate max-w-[200px]">{row.description}</p>}
-              </td>
-              <td className="px-4 py-3">
-                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${PROD_TYPE_COLOR[row.type]}`}>
-                  {PROD_TYPE_LABEL[row.type]}
-                </span>
-                <span className="ml-1.5 text-xs text-zinc-500 hidden sm:inline">{PROD_TYPE_FULL[row.type]}</span>
-              </td>
-              <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{row.origin ?? "—"}</td>
-              <td className="px-4 py-3 hidden lg:table-cell">
-                {row.type === "FINISHED_GOODS"
-                  ? row.recipe
-                    ? <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600"><CheckCircle2 size={10} />{row.recipe.items.length} bahan</span>
-                    : <span className="text-[11px] text-zinc-300">Belum ada resep</span>
-                  : <span className="text-xs text-zinc-300">—</span>}
-              </td>
-              <td className="px-4 py-3 text-center"><ActiveBadge active={row.isActive} /></td>
-              <td className="px-4 py-3 text-center"><EditButton onClick={() => onEdit(row)} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </EntityTable>
   );
 }
-
-// =============================================================================
-// Packaging Table
-// =============================================================================
 
 function PackagingTable({ rows, onEdit }: { rows: PackagingRow[]; onEdit: (r: PackagingRow) => void }) {
   if (rows.length === 0) return <EmptyState label="kemasan" />;
   return (
-    <div className="overflow-hidden rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl shadow-lg shadow-slate-200/30">
-      <table className="w-full text-sm">
-        <thead className="border-b border-white/50 bg-white/40 backdrop-blur-md">
-          <tr>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500">Kode</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500">Nama</th>
-            <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">Berat (g)</th>
-            <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-slate-500">HPP (Rp)</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">Status</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">Aksi</th>
+    <EntityTable>
+      <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md">
+        <tr>
+          <Th>Kode</Th>
+          <Th>Nama</Th>
+          <Th className="text-right">Berat (g)</Th>
+          <Th className="text-right">HPP (Rp)</Th>
+          <Th className="text-center">Status</Th>
+          <Th className="text-center">Aksi</Th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-[var(--glass-border)]">
+        {rows.map((row) => (
+          <tr key={row.id} className="hover:bg-[var(--glass-bg-hover)] transition-colors">
+            <td className="px-4 py-3 font-mono text-xs font-semibold text-zinc-700">{row.code}</td>
+            <td className="px-4 py-3 font-medium text-zinc-800">{row.name}</td>
+            <td className="px-4 py-3 text-right text-xs text-zinc-600">{row.weightGrams}</td>
+            <td className="px-4 py-3 text-right text-xs text-zinc-600">{row.costPerUnit.toLocaleString("id-ID")}</td>
+            <td className="px-4 py-3 text-center"><ActiveBadge active={row.isActive} /></td>
+            <td className="px-4 py-3 text-center"><EditButton onClick={() => onEdit(row)} /></td>
           </tr>
-        </thead>
-        <tbody className="divide-y divide-white/30">
-          {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-white/40 transition-colors">
-              <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-700">{row.code}</td>
-              <td className="px-4 py-3 font-medium text-slate-800">{row.name}</td>
-              <td className="px-4 py-3 text-right text-xs text-slate-600">{row.weightGrams}</td>
-              <td className="px-4 py-3 text-right text-xs text-slate-600">{row.costPerUnit.toLocaleString("id-ID")}</td>
-              <td className="px-4 py-3 text-center"><ActiveBadge active={row.isActive} /></td>
-              <td className="px-4 py-3 text-center"><EditButton onClick={() => onEdit(row)} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </EntityTable>
   );
 }
-
-// =============================================================================
-// User Table
-// =============================================================================
 
 function UserTable({ rows, onEdit }: { rows: UserRow[]; onEdit: (r: UserRow) => void }) {
   if (rows.length === 0) return <EmptyState label="pengguna" />;
   return (
-    <div className="overflow-hidden rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl shadow-lg shadow-slate-200/30">
-      <table className="w-full text-sm">
-        <thead className="border-b border-white/50 bg-white/40 backdrop-blur-md">
-          <tr>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500">Nama</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500 hidden md:table-cell">Email</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500">Role</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">Status</th>
-            <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">Aksi</th>
+    <EntityTable>
+      <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md">
+        <tr>
+          <Th>Nama</Th>
+          <Th hide="hidden md:table-cell">Email</Th>
+          <Th>Role</Th>
+          <Th className="text-center">Status</Th>
+          <Th className="text-center">Aksi</Th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-[var(--glass-border)]">
+        {rows.map((row) => (
+          <tr key={row.id} className="hover:bg-[var(--glass-bg-hover)] transition-colors">
+            <td className="px-4 py-3">
+              <p className="font-medium text-zinc-800">{row.name}</p>
+              <p className="text-[11px] text-zinc-400 md:hidden">{row.email}</p>
+            </td>
+            <td className="px-4 py-3 text-xs text-zinc-500 hidden md:table-cell">{row.email}</td>
+            <td className="px-4 py-3"><RoleBadge role={row.role} /></td>
+            <td className="px-4 py-3 text-center"><ActiveBadge active={row.isActive} /></td>
+            <td className="px-4 py-3 text-center"><EditButton onClick={() => onEdit(row)} /></td>
           </tr>
-        </thead>
-        <tbody className="divide-y divide-white/30">
-          {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-white/40 transition-colors">
-              <td className="px-4 py-3">
-                <p className="font-medium text-slate-800">{row.name}</p>
-                <p className="text-[11px] text-zinc-400 md:hidden">{row.email}</p>
-              </td>
-              <td className="px-4 py-3 text-xs text-zinc-500 hidden md:table-cell">{row.email}</td>
-              <td className="px-4 py-3"><RoleBadge role={row.role} /></td>
-              <td className="px-4 py-3 text-center"><ActiveBadge active={row.isActive} /></td>
-              <td className="px-4 py-3 text-center">
-                <EditButton onClick={() => onEdit(row)} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </EntityTable>
   );
 }
 
-// =============================================================================
-// Main Client
-// =============================================================================
-
-export function MasterDataClient({ data, userRole }: MasterDataClientProps) {
+export function MasterDataClient({
+  data,
+  userRole,
+  allowedTabs,
+  initialTab,
+  title = "Data Master",
+  description = "Tambah data dasar sekali, lalu gunakan langsung di transaksi",
+  workspace,
+}: MasterDataClientProps) {
   const router = useRouter();
-  
-  const TABS = useMemo(() => getTabsForRole(userRole), [userRole]);
-  const [activeTab, setActiveTab] = useState<Tab>(TABS[0].id);
-  const [drawerOpen, setDrawerOpen]         = useState(false);
-  const [isSubmitting, setIsSubmitting]     = useState(false);
-  const [mode, setMode]                     = useState<"create" | "edit">("create");
-  const [editSupplier, setEditSupplier]     = useState<SupplierRow | null>(null);
-  const [editCustomer, setEditCustomer]     = useState<CustomerRow | null>(null);
-  const [editProduct,  setEditProduct]      = useState<ProductRow  | null>(null);
-  const [editPackaging, setEditPackaging]   = useState<PackagingRow| null>(null);
-  const [editUser,     setEditUser]         = useState<UserRow     | null>(null);
-
+  const TABS = useMemo(() => {
+    const roleTabs = getTabsForRole(userRole);
+    return allowedTabs?.length
+      ? roleTabs.filter((tab) => allowedTabs.includes(tab.id))
+      : roleTabs;
+  }, [allowedTabs, userRole]);
+  const [activeTab, setActiveTab] = useState<Tab>(
+    initialTab && TABS.some((tab) => tab.id === initialTab) ? initialTab : TABS[0].id,
+  );
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mode, setMode] = useState<"create" | "edit">("create");
+  const [editSupplier, setEditSupplier] = useState<SupplierRow | null>(null);
+  const [editCustomer, setEditCustomer] = useState<CustomerRow | null>(null);
+  const [editProduct, setEditProduct] = useState<ProductRow | null>(null);
+  const [editPackaging, setEditPackaging] = useState<PackagingRow | null>(null);
+  const [editUser, setEditUser] = useState<UserRow | null>(null);
   const rawMaterials = useMemo(() => data.products.filter((p) => p.type === "ROASTED_BEAN" || p.type === "GREEN_BEAN"), [data.products]);
 
   const handleTabChange = (tab: Tab) => {
-    setDrawerOpen(false);
-    setMode("create");
+    setDrawerOpen(false); setMode("create");
     setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null);
     setActiveTab(tab);
   };
@@ -361,25 +336,14 @@ export function MasterDataClient({ data, userRole }: MasterDataClientProps) {
     setDrawerOpen(true);
   };
 
-  const openEditSupplier = (row: SupplierRow) => {
-    setMode("edit"); setEditSupplier(row); setActiveTab("supplier"); setDrawerOpen(true);
-  };
-  const openEditCustomer = (row: CustomerRow) => {
-    setMode("edit"); setEditCustomer(row); setActiveTab("pelanggan"); setDrawerOpen(true);
-  };
-  const openEditProduct = (row: ProductRow) => {
-    setMode("edit"); setEditProduct(row); setActiveTab("produk"); setDrawerOpen(true);
-  };
-  const openEditPackaging = (row: PackagingRow) => {
-    setMode("edit"); setEditPackaging(row); setActiveTab("kemasan"); setDrawerOpen(true);
-  };
-  const openEditUser = (row: UserRow) => {
-    setMode("edit"); setEditUser(row); setActiveTab("pengguna"); setDrawerOpen(true);
-  };
+  const openEditSupplier = (row: SupplierRow) => { setMode("edit"); setEditSupplier(row); setActiveTab("supplier"); setDrawerOpen(true); };
+  const openEditCustomer = (row: CustomerRow) => { setMode("edit"); setEditCustomer(row); setActiveTab("pelanggan"); setDrawerOpen(true); };
+  const openEditProduct = (row: ProductRow) => { setMode("edit"); setEditProduct(row); setActiveTab("produk"); setDrawerOpen(true); };
+  const openEditPackaging = (row: PackagingRow) => { setMode("edit"); setEditPackaging(row); setActiveTab("kemasan"); setDrawerOpen(true); };
+  const openEditUser = (row: UserRow) => { setMode("edit"); setEditUser(row); setActiveTab("pengguna"); setDrawerOpen(true); };
 
   const handleSuccess = () => {
-    setDrawerOpen(false);
-    setMode("create");
+    setDrawerOpen(false); setMode("create");
     setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null);
     router.refresh();
   };
@@ -388,11 +352,11 @@ export function MasterDataClient({ data, userRole }: MasterDataClientProps) {
 
   const drawerTitle =
     mode === "edit"
-      ? activeTab === "supplier"  ? `Edit Supplier${editSupplier  ? ` · ${editSupplier.code}`  : ""}`
-      : activeTab === "pelanggan" ? `Edit Pelanggan${editCustomer ? ` · ${editCustomer.code}` : ""}`
-      : activeTab === "produk"    ? `Edit Produk${editProduct     ? ` · ${editProduct.code}`   : ""}`
-      : activeTab === "kemasan"   ? `Edit Kemasan${editPackaging   ? ` · ${editPackaging.code}`   : ""}`
-      :                             `Edit Pengguna${editUser      ? ` · ${editUser.email}`      : ""}`
+      ? activeTab === "supplier"  ? `Edit Supplier${editSupplier  ? ` \u00b7 ${editSupplier.code}`  : ""}`
+      : activeTab === "pelanggan" ? `Edit Pelanggan${editCustomer ? ` \u00b7 ${editCustomer.code}` : ""}`
+      : activeTab === "produk"    ? `Edit Produk${editProduct     ? ` \u00b7 ${editProduct.code}`   : ""}`
+      : activeTab === "kemasan"   ? `Edit Kemasan${editPackaging   ? ` \u00b7 ${editPackaging.code}`   : ""}`
+      :                             `Edit Pengguna${editUser      ? ` \u00b7 ${editUser.email}`      : ""}`
       : activeTab === "supplier"  ? "Tambah Supplier"
       : activeTab === "pelanggan" ? "Tambah Pelanggan"
       : activeTab === "produk"    ? "Tambah Produk"
@@ -406,124 +370,97 @@ export function MasterDataClient({ data, userRole }: MasterDataClientProps) {
     activeTab === "kemasan"   ? "packaging-form" :
                                 "user-form";
 
-  // Drawer size: product form with recipe needs more space
   const drawerSize = activeTab === "produk" ? "lg" : "md";
 
   return (
     <>
-      <StandardPageLayout
-        title="Data Master"
-        description="Tambah data dasar sekali, lalu gunakan langsung di transaksi"
-        actionButton={
-          <Button size="sm" onClick={openCreate} className="gap-1.5 rounded-lg bg-stone-900 font-semibold text-white shadow-none hover:bg-stone-800">
-            <Plus size={14} />
-            Tambah {activeTabMeta.label}
-          </Button>
-        }
-        mobileFabAction={{
-          label: `Tambah ${activeTabMeta.label}`,
-          icon: <Plus size={22} />,
-          onClick: openCreate,
-          "aria-label": `Tambah ${activeTabMeta.label}`,
-        }}
-      >
-        {/* ── Tab pills ── */}
-        <div className="custom-scrollbar mb-6 flex w-full overflow-x-auto border-b border-stone-200">
-          {TABS.map((tab) => {
-            const Icon   = tab.icon;
-            const active = tab.id === activeTab;
-            const count  = tab.count(data);
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={cn(
-                  "-mb-px flex shrink-0 items-center justify-center gap-2 border-b-2 px-4 py-3 text-xs font-semibold transition-colors",
-                  active
-                    ? "border-stone-900 text-stone-900"
-                    : "border-transparent text-stone-500 hover:text-stone-800"
-                )}
-              >
-                <div className="flex items-center gap-1.5">
-                  <Icon size={14} />
-                  <span className="leading-tight">{tab.label}</span>
-                </div>
-                <span className={cn(
-                  "rounded-full px-2 py-0.5 text-[9px] font-black tracking-wider",
-                  active ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-500"
-                )}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <PageHeader
+          title={title}
+          description={description}
+          eyebrow={workspace === "settings" ? "Pengaturan" : workspace === "sales" ? "Penjualan" : workspace === "supply" ? "Pasokan" : "Katalog"}
+          stage={workspace === "supply" ? "inventory" : workspace === "sales" ? "sales" : undefined}
+          actions={
+            <Button size="sm" onClick={openCreate} variant="default" className="gap-1.5">
+              <Plus size={14} />
+              Tambah {activeTabMeta.label}
+            </Button>
+          }
+          mobileActions={
+            <Button size="sm" onClick={openCreate} variant="default" className="gap-1.5">
+              <Plus size={14} />
+              Tambah
+            </Button>
+          }
+        />
 
-        {/* ── Table content ── */}
-        <div key={activeTab}>
-            {activeTab === "supplier"  && <SupplierTable rows={data.suppliers} onEdit={openEditSupplier} />}
-            {activeTab === "pelanggan" && <CustomerTable rows={data.customers} onEdit={openEditCustomer} />}
-            {activeTab === "produk"    && <ProductTable  rows={data.products}  onEdit={openEditProduct}  />}
-            {activeTab === "kemasan"   && <PackagingTable rows={data.packagings} onEdit={openEditPackaging} />}
-            {activeTab === "pengguna"  && <UserTable     rows={data.users}     onEdit={openEditUser}     />}
-        </div>
-      </StandardPageLayout>
+        {workspace === "supply" ? <WorkspaceNav kind="supply" /> : null}
+        {workspace === "sales" ? <WorkspaceNav kind="sales" /> : null}
+        {workspace === "settings" ? <SettingsNav userRole={userRole} /> : null}
 
-      {/* ── Drawer ── */}
-      <StandardDrawer
-        open={drawerOpen}
+        <div className="custom-scrollbar flex-1 overflow-auto">
+          <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
+
+            {/* Tab pills */}
+            {TABS.length > 1 ? <div className="flex items-center gap-2 border-b border-[var(--glass-border)] mb-8 overflow-x-auto custom-scrollbar pb-1">
+              {TABS.map((tab) => {
+                const Icon = tab.icon;
+                const active = tab.id === activeTab;
+                const count = tab.count(data);
+                return (
+                  <button key={tab.id} type="button" onClick={() => handleTabChange(tab.id)}
+                    className={cn(
+                      "relative flex items-center gap-2.5 px-4 py-3 text-sm font-semibold transition-all rounded-t-xl",
+                      active ? "text-[var(--amber-deep)] dark:text-[var(--amber-warm)]" : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)]"
+                    )}>
+                    <Icon size={16} className={cn("transition-transform", active && "scale-110")} />
+                    {tab.label}
+                    <span className={cn(
+                      "ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors",
+                      active ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                    )}>
+                      {count}
+                    </span>
+                    {active && (
+                      <motion.div
+                        layoutId="masterdata-tab-indicator"
+                        className="absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[var(--amber-warm)] to-[var(--amber-deep)] rounded-t-full shadow-[0_-2px_10px_rgba(196,122,51,0.4)]"
+                        initial={false}
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div> : null}
+
+            {/* Table content */}
+            <div key={activeTab} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+              {activeTab === "supplier"  && <SupplierTable rows={data.suppliers} onEdit={openEditSupplier} />}
+              {activeTab === "pelanggan" && <CustomerTable rows={data.customers} onEdit={openEditCustomer} />}
+              {activeTab === "produk"    && <ProductTable  rows={data.products}  onEdit={openEditProduct}  />}
+              {activeTab === "kemasan"   && <PackagingTable rows={data.packagings} onEdit={openEditPackaging} />}
+              {activeTab === "pengguna"  && <UserTable     rows={data.users}     onEdit={openEditUser}     />}
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <StandardDrawer open={drawerOpen}
         onOpenChange={(v) => { if (!isSubmitting) { setDrawerOpen(v); if (!v) { setMode("create"); setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditPackaging(null); setEditUser(null); } } }}
-        title={drawerTitle}
-        size={drawerSize}
+        title={drawerTitle} size={drawerSize}
         submitButton={
-          <Button type="submit" form={submitFormId} size="sm" disabled={isSubmitting} className="gap-1.5 bg-amber-700 text-white hover:bg-amber-800 font-bold shadow-md rounded-xl disabled:opacity-60">
+          <Button type="submit" form={submitFormId} size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-bold shadow-md disabled:opacity-60">
             {isSubmitting && <Loader2 size={13} className="animate-spin" />}
             {isSubmitting ? "Menyimpan..." : (mode === "edit" ? "Simpan Perubahan" : "Simpan")}
           </Button>
-        }
-      >
-        {activeTab === "supplier" && (
-          <SupplierForm
-            id="supplier-form"
-            onSuccess={handleSuccess}
-            onPendingChange={setIsSubmitting}
-            initialData={mode === "edit" ? editSupplier ?? undefined : undefined}
-          />
-        )}
-        {activeTab === "pelanggan" && (
-          <CustomerForm
-            id="customer-form"
-            onSuccess={handleSuccess}
-            onPendingChange={setIsSubmitting}
-            initialData={mode === "edit" ? editCustomer ?? undefined : undefined}
-          />
-        )}
-        {activeTab === "produk" && (
-          <ProductForm
-            id="product-form"
-            onSuccess={handleSuccess}
-            onPendingChange={setIsSubmitting}
-            initialData={mode === "edit" ? editProduct ?? undefined : undefined}
-            rawMaterials={rawMaterials}
-            packagings={data.packagings}
-          />
-        )}
-        {activeTab === "kemasan" && (
-          <PackagingForm
-            id="packaging-form"
-            onSuccess={handleSuccess}
-            onPendingChange={setIsSubmitting}
-            initialData={mode === "edit" ? editPackaging ?? undefined : undefined}
-          />
-        )}
-        {activeTab === "pengguna" && (
-          <UserForm
-            id="user-form"
-            onSuccess={handleSuccess}
-            onPendingChange={setIsSubmitting}
-            initialData={mode === "edit" ? editUser ?? undefined : undefined}
-          />
-        )}
+        }>
+        {activeTab === "supplier" && <SupplierForm id="supplier-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editSupplier ?? undefined : undefined} />}
+        {activeTab === "pelanggan" && <CustomerForm id="customer-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editCustomer ?? undefined : undefined} />}
+        {activeTab === "produk" && <ProductForm id="product-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editProduct ?? undefined : undefined} rawMaterials={rawMaterials} packagings={data.packagings} />}
+        {activeTab === "kemasan" && <PackagingForm id="packaging-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editPackaging ?? undefined : undefined} />}
+        {activeTab === "pengguna" && <UserForm id="user-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editUser ?? undefined : undefined} />}
       </StandardDrawer>
     </>
   );

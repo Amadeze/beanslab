@@ -8,7 +8,8 @@ import Script from "next/script";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import { PLAN_CATALOG } from "@/lib/plans";
-import { StandardPageLayout } from "@/components/StandardPageLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SettingsNav } from "../../settings/_components/SettingsNav";
 
 export default function BillingClient({ tenant }: { tenant: Tenant }) {
   const isTrial = tenant.subscriptionTier === "TRIAL";
@@ -71,15 +72,20 @@ export default function BillingClient({ tenant }: { tenant: Tenant }) {
         strategy="lazyOnload" 
       />
 
-      <StandardPageLayout
-        title="Langganan & Tagihan"
-        description="Kelola paket Roastery OS dan status pembayaran Anda."
-      >
-        <div className="mx-auto max-w-5xl space-y-6">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <PageHeader
+          title="Paket & Tagihan"
+          eyebrow="Pengaturan"
+          description="Kelola paket roastd.id dan status pembayaran Anda."
+        />
+        <SettingsNav userRole="OWNER" />
+        <div className="custom-scrollbar flex-1 overflow-auto">
+          <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
+            <div className="mx-auto max-w-5xl space-y-6">
           
           {/* Header */}
           {/* Current Plan Status */}
-          <div className="rounded-3xl border border-stone-200 bg-white/80 p-6 shadow-sm md:p-8">
+          <div className="glass-card-static p-6 md:p-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
               <div>
                 <div className="flex items-center gap-3 mb-2">
@@ -90,11 +96,11 @@ export default function BillingClient({ tenant }: { tenant: Tenant }) {
                     {isExpired ? 'EXPIRED' : tenant.subscriptionStatus}
                   </span>
                 </div>
-                <h2 className="text-xl font-bold text-slate-800 mb-1">
-                  {isTrial ? "14-Day Free Trial" : `Roastery OS ${tenant.subscriptionTier}`}
+                <h2 className="text-xl font-bold text-[var(--text-primary)] mb-1">
+                  {isTrial ? "Trial roastd.id" : `roastd.id ${tenant.subscriptionTier}`}
                 </h2>
                 {isTrial ? (
-                  <p className="text-sm text-slate-500 flex items-center gap-2">
+                  <p className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
                     {isExpired ? (
                       <><AlertTriangle size={16} className="text-red-500"/> Your trial has expired. Upgrade to continue using all features.</>
                     ) : (
@@ -109,7 +115,7 @@ export default function BillingClient({ tenant }: { tenant: Tenant }) {
               </div>
 
               {tenant.subscriptionTier !== "TRIAL" && (
-                <button className="bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 px-6 rounded-xl transition-colors">
+                <button className="bg-[var(--amber-deep)] hover:brightness-110 text-white font-semibold py-2.5 px-6 rounded-xl transition-all shadow-[var(--glass-shadow)]">
                   Manage Billing
                 </button>
               )}
@@ -119,53 +125,53 @@ export default function BillingClient({ tenant }: { tenant: Tenant }) {
           {/* Upgrade Options */}
           {tenant.subscriptionTier !== "PRO" && (
             <div className="mt-12">
-              <h3 className="text-lg font-bold text-slate-800 mb-6">Upgrade your plan</h3>
+              <h3 className="text-lg font-bold text-[var(--text-primary)] mb-6">Upgrade your plan</h3>
               <div className="grid gap-6 md:grid-cols-2">
                 {tenant.subscriptionTier === "TRIAL" && (
-                  <div className="rounded-2xl border border-stone-200 bg-white/80 p-6 shadow-sm">
-                    <h4 className="text-lg font-bold text-slate-800 mb-2">Roastery OS Basic</h4>
+                  <div className="glass-card-static p-6">
+                    <h4 className="text-lg font-bold text-[var(--text-primary)] mb-2">roastd.id Basic</h4>
                     <div className="mb-4">
-                      <span className="text-3xl font-extrabold text-slate-900">{formatRupiah(PLAN_CATALOG.BASIC.monthlyPrice)}</span>
-                      <span className="text-slate-500 text-sm">/mo</span>
+                      <span className="text-3xl font-extrabold text-[var(--text-primary)]">{formatRupiah(PLAN_CATALOG.BASIC.monthlyPrice)}</span>
+                      <span className="text-[var(--text-secondary)] text-sm">/mo</span>
                     </div>
                     <ul className="mb-8 mt-6 space-y-3">
-                      <li className="text-slate-600 text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Inventory, roasting, production, sales</li>
-                      <li className="text-slate-600 text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Tenant storefront</li>
-                      <li className="text-slate-600 text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> PDF and Excel exports</li>
+                      <li className="text-[var(--text-secondary)] text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Inventory, roasting, production, sales</li>
+                      <li className="text-[var(--text-secondary)] text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Tenant storefront</li>
+                      <li className="text-[var(--text-secondary)] text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> PDF and Excel exports</li>
                     </ul>
                     <button
                       onClick={() => handleSubscribe("BASIC")}
                       disabled={loadingTier !== null}
-                      className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-3 rounded-xl bg-[var(--amber-deep)] hover:brightness-110 text-white font-bold transition-all flex items-center justify-center gap-2 shadow-[var(--glass-shadow)]"
                     >
                       {loadingTier === "BASIC" ? "Processing..." : <><CreditCard size={18} /> Subscribe to Basic</>}
                     </button>
                   </div>
                 )}
                 
-                <div className="bg-amber-50/50 rounded-2xl border border-amber-200 p-6 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
-                  <div className="absolute top-0 right-0 bg-amber-500 text-amber-950 text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">Premium Access</div>
-                  <h4 className="text-lg font-bold text-amber-700 mb-2">Roastery OS Pro</h4>
+                <div className="bg-[var(--amber-lighter)] rounded-2xl border border-amber-200 p-6 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
+                  <div className="absolute top-0 right-0 bg-[var(--amber-deep)] text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">Premium Access</div>
+                  <h4 className="text-lg font-bold text-[var(--amber-warm)] mb-2">roastd.id Pro</h4>
                   <div className="mb-4">
-                    <span className="text-3xl font-extrabold text-slate-900">{formatRupiah(PLAN_CATALOG.PRO.monthlyPrice)}</span>
-                    <span className="text-slate-500 text-sm">/mo</span>
+                    <span className="text-3xl font-extrabold text-[var(--text-primary)]">{formatRupiah(PLAN_CATALOG.PRO.monthlyPrice)}</span>
+                    <span className="text-[var(--text-secondary)] text-sm">/mo</span>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-4 mb-8 mt-6">
                     <ul className="space-y-3">
-                      <li className="text-slate-600 text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Core Inventory & Ledger</li>
-                      <li className="text-slate-600 text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Roasting & Production Logs</li>
-                      <li className="text-slate-600 text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Advanced B2B Portal</li>
+                      <li className="text-[var(--text-secondary)] text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Core Inventory & Ledger</li>
+                      <li className="text-[var(--text-secondary)] text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Roasting & Production Logs</li>
+                      <li className="text-[var(--text-secondary)] text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Advanced B2B Portal</li>
                     </ul>
                     <ul className="space-y-3">
-                      <li className="text-slate-600 text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Custom Domain</li>
-                      <li className="text-slate-600 text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Payment Gateway (Midtrans)</li>
-                      <li className="text-slate-600 text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Advanced Analytics & P&L</li>
+                      <li className="text-[var(--text-secondary)] text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Custom Domain</li>
+                      <li className="text-[var(--text-secondary)] text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Payment Gateway (Midtrans)</li>
+                      <li className="text-[var(--text-secondary)] text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Advanced Analytics & P&L</li>
                     </ul>
                   </div>
                   <button 
                     onClick={() => handleSubscribe("PRO")}
                     disabled={loadingTier !== null}
-                    className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3 rounded-xl bg-[var(--amber-deep)] hover:brightness-110 text-white font-bold transition-all flex items-center justify-center gap-2 shadow-[var(--glass-shadow)]"
                   >
                     {loadingTier === "PRO" ? "Processing..." : <><CreditCard size={18} /> Subscribe to Pro</>}
                   </button>
@@ -175,7 +181,9 @@ export default function BillingClient({ tenant }: { tenant: Tenant }) {
           )}
 
         </div>
-      </StandardPageLayout>
+      </div>
+    </div>
+  </div>
     </>
   );
 }

@@ -128,7 +128,7 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
             type="button"
             onClick={handleSave}
             disabled={isLoading}
-            className="rounded-xl bg-amber-600 hover:bg-amber-700 font-bold tracking-wide"
+            className="rounded-[9px] bg-primary font-bold tracking-wide text-primary-foreground hover:bg-primary/90"
           >
             {isLoading ? "Menyimpan..." : "Simpan Resi"}
           </Button>

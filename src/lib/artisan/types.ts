@@ -50,6 +50,21 @@ export const HeartbeatResponseSchema = z.object({
 });
 
 // =============================================================================
+// MQTT Live Telemetry
+// =============================================================================
+
+export const MqttSessionRequestSchema = z.object({
+  eventType: z.string().min(1),
+  data: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const MqttSessionResponseSchema = z.object({
+  success: z.boolean(),
+  sessionId: z.string(),
+  status: z.string(),
+});
+
+// =============================================================================
 // Upload
 // =============================================================================
 

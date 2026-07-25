@@ -2,11 +2,13 @@ import { LandingClient } from "./LandingClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Roastery OS | Operasional Otomatis untuk Coffee Roastery",
-  description: "Catat sekali, lalu stok, HPP, roasting, produksi, penjualan, pembayaran, dan laporan bergerak otomatis dalam satu sistem yang cepat dan real-time.",
+  title: "Seluruh operasional roastery dalam satu sistem",
+  description:
+    "Hubungkan pembelian, inventory, roasting, produksi, penjualan, dan keuangan coffee roastery tanpa input data berulang.",
   openGraph: {
-    title: "Roastery OS | Dari Green Bean sampai Margin",
-    description: "Sistem operasional roastery yang cepat, otomatis, anti-human-error, dan real-time.",
+    title: "roastd.id — Roastery Operating System",
+    description:
+      "Satu alur untuk menjalankan pembelian, inventory, roasting, produksi, penjualan, dan keuangan roastery.",
     type: "website",
     locale: "id_ID",
   },

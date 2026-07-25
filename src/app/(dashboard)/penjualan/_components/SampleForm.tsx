@@ -95,7 +95,7 @@ export function SampleForm({
             ["RECIPE", "Resep blend"],
             ["CUSTOM_BLEND", "Custom blend"],
           ] as const).map(([value, label]) => (
-            <button key={value} type="button" onClick={() => changeSource(value)} className={`min-h-11 rounded-lg border px-2 text-xs font-semibold transition-colors ${sourceType === value ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}>
+            <button key={value} type="button" onClick={() => changeSource(value)} className={`min-h-11 rounded-lg border px-2 text-xs font-semibold transition-colors ${sourceType === value ? "border-[var(--amber-deep)] bg-[var(--amber-deep)] text-white" : "border-[var(--glass-border)] bg-[var(--glass-bg)] text-[var(--text-secondary)] hover:bg-[var(--glass-bg-hover)]"}`}>
               {label}
             </button>
           ))}

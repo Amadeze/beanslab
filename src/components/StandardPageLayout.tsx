@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 interface SpeedDialItem {
   label: string;
@@ -28,6 +29,7 @@ interface StandardPageLayoutProps {
   mobileHeaderActions?: React.ReactNode;
   children: React.ReactNode;
   isLoading?: boolean;
+  stage?: "inventory" | "roasting" | "production" | "sales" | "finance";
 }
 
 export function StandardPageLayout({
@@ -39,6 +41,7 @@ export function StandardPageLayout({
   mobileHeaderActions,
   children,
   isLoading = false,
+  stage,
 }: StandardPageLayoutProps) {
   const [speedDialOpen, setSpeedDialOpen] = useState(false);
   const fabRef = useRef<HTMLButtonElement>(null);
@@ -78,22 +81,19 @@ export function StandardPageLayout({
   const hasMobileAction = hasSpeedDial || hasSingleAction;
 
   return (
-    <div className="flex h-full min-w-0 flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-stone-200 bg-white">
-        <div className="mx-auto flex min-h-[72px] w-full max-w-[1600px] items-center justify-between gap-4 px-4 py-3 md:px-6 lg:px-8">
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold tracking-tight text-stone-900 md:text-xl">{title}</h1>
-            {description && <p className="mt-0.5 truncate text-xs text-stone-500">{description}</p>}
-          </div>
-          {actionButton && <div className="hidden shrink-0 items-center gap-2 md:flex">{actionButton}</div>}
-          {mobileHeaderActions && <div className="shrink-0 md:hidden">{mobileHeaderActions}</div>}
-        </div>
-      </header>
+    <div className="flex h-full min-w-0 flex-col overflow-hidden bg-background">
+      <PageHeader
+        title={title}
+        description={description}
+        actions={actionButton}
+        mobileActions={mobileHeaderActions}
+        stage={stage}
+      />
 
       {hasSpeedDial && (
         <>
           {speedDialOpen && <button type="button" className="fixed inset-0 z-[99] bg-stone-950/25 md:hidden" onClick={closeSpeedDial} aria-label="Tutup menu aksi" />}
-          <div ref={speedDialRef} className="fixed bottom-[calc(16px+env(safe-area-inset-bottom,0px))] right-4 z-[100] flex flex-col items-end">
+          <div ref={speedDialRef} className="fixed bottom-[calc(88px+env(safe-area-inset-bottom,0px))] right-4 z-[100] flex flex-col items-end md:bottom-5">
             {speedDialOpen && (
               <div id={panelId} role="menu" aria-label="Menu aksi" className="mb-2 flex flex-col items-end gap-2">
                 {mobileSpeedDialItems?.map((item) => (
@@ -106,10 +106,10 @@ export function StandardPageLayout({
                       closeSpeedDial();
                     }}
                     className={cn(
-                      "flex min-h-11 items-center gap-2.5 rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-sm",
+                      "flex min-h-11 items-center gap-2.5 rounded-[10px] border px-4 py-2.5 text-sm font-semibold shadow-lg",
                       item.variant === "primary"
-                        ? "border-stone-900 bg-stone-900 text-white"
-                        : "border-stone-200 bg-white text-stone-700",
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-white/10 bg-[#0B141B] text-white",
                     )}
                   >
                     {item.icon}<span>{item.label}</span>
@@ -121,7 +121,7 @@ export function StandardPageLayout({
               ref={fabRef}
               type="button"
               onClick={() => setSpeedDialOpen((open) => !open)}
-              className="flex min-h-12 items-center gap-2 rounded-xl bg-stone-900 px-4 py-3 text-sm font-semibold text-white shadow-lg"
+              className="flex min-h-12 items-center gap-2 rounded-[11px] border border-primary/45 bg-[#080B0C] px-4 py-3 text-sm font-semibold text-[#F0AC8C] shadow-[0_16px_36px_rgba(5,9,13,.38)]"
               aria-label={speedDialOpen ? "Tutup menu aksi" : "Buka menu aksi"}
               aria-expanded={speedDialOpen}
               aria-controls={panelId}
@@ -137,7 +137,7 @@ export function StandardPageLayout({
         <button
           type="button"
           onClick={mobileFabAction?.onClick}
-          className="fixed bottom-[calc(16px+env(safe-area-inset-bottom,0px))] right-4 z-[100] flex min-h-12 items-center gap-2 rounded-xl bg-stone-900 px-4 py-3 text-sm font-semibold text-white shadow-lg"
+          className="fixed bottom-[calc(88px+env(safe-area-inset-bottom,0px))] right-4 z-[100] flex min-h-12 items-center gap-2 rounded-[11px] border border-primary bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-[0_16px_36px_rgba(5,9,13,.3)] md:bottom-5"
           aria-label={mobileFabAction?.["aria-label"] || mobileFabAction?.label}
         >
           {mobileFabAction?.icon || <Plus size={19} />}
@@ -146,7 +146,7 @@ export function StandardPageLayout({
       )}
 
       <div className={cn("custom-scrollbar relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden", hasMobileAction && "pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-0")}>
-        <div className="mx-auto min-w-0 w-full max-w-[1600px] p-4 md:p-6 lg:p-8">
+        <div className="mx-auto min-w-0 w-full max-w-[1600px] p-4 md:p-6 lg:p-7">
           {isLoading ? <PageSkeleton /> : children}
         </div>
       </div>
@@ -157,14 +157,14 @@ export function StandardPageLayout({
 export function PageSkeleton() {
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-4 rounded-xl border border-stone-200 bg-white px-4 py-3">
+      <div className="flex items-center gap-4 rounded-[12px] border border-border bg-card px-4 py-3">
         <Skeleton className="h-4 w-4 rounded" />
         <Skeleton className="h-4 w-32" />
         <Skeleton className="ml-auto h-4 w-24" />
         <Skeleton className="h-4 w-20" />
       </div>
       {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="flex items-center gap-4 rounded-xl border border-stone-200 bg-white px-4 py-3.5">
+        <div key={index} className="flex items-center gap-4 rounded-[12px] border border-border bg-card px-4 py-3.5">
           <Skeleton className="h-4 w-4 rounded" />
           <Skeleton className="h-4 w-48" />
           <Skeleton className="ml-auto h-4 w-28" />

@@ -250,7 +250,7 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
           </Button>
         )}
         {canReceive && (
-          <Button onClick={() => setShowReceiveForm(true)} className="bg-emerald-500 hover:bg-emerald-600 text-white">
+          <Button onClick={() => setShowReceiveForm(true)} className="bg-domain-inventory text-white hover:bg-domain-inventory/90">
             Tandai Diterima
           </Button>
         )}
