@@ -48,9 +48,9 @@ export function HeroSection({ heroText, aboutText, bgImage, waLink, skin }: Hero
       {/* Content */}
       <motion.div
         style={{ opacity }}
-        className="relative z-10 w-full max-w-6xl mx-auto px-5 sm:px-8 py-28 md:py-36"
+        className="relative z-10 w-full max-w-[1500px] mx-auto px-5 sm:px-8 lg:px-14 py-28 md:py-36"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+        <div className={`grid grid-cols-1 ${bgImage ? "lg:grid-cols-[minmax(0,.8fr)_minmax(400px,1.2fr)]" : ""} gap-12 lg:gap-20 items-center`}>
           {/* Text Column */}
           <div className="space-y-8">
             {/* Decorative thin line */}
@@ -75,7 +75,7 @@ export function HeroSection({ heroText, aboutText, bgImage, waLink, skin }: Hero
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.06] text-[var(--t-text)]"
+              className="text-[clamp(2.2rem,4.5vw,4rem)] font-black tracking-[-0.058em] leading-[0.92] text-[var(--t-text)]"
               style={{ fontFamily: "var(--t-font-display)" }}
             >
               {heroText}
@@ -85,7 +85,7 @@ export function HeroSection({ heroText, aboutText, bgImage, waLink, skin }: Hero
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-              className="text-lg md:text-xl text-[var(--t-text-muted)] leading-[1.75] max-w-xl"
+              className="text-[15px] md:text-base text-[var(--t-text-muted)] leading-7 max-w-xl"
               style={{ fontFamily: "var(--t-font-body)" }}
             >
               {aboutText}

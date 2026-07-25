@@ -130,32 +130,31 @@ export const THEME_PRESETS: Record<string, ThemeConfig> = {
   },
 
   // ─── 2. ARTISAN — Modern Craft Roastery ──────────────────────────────
-  // Clean lines, copper accents, confident minimalism
-  // Like Blue Bottle Coffee meets Aesop
+  // Dark premium, copper + cyan accents, matching landing page DNA
   artisan: {
     colors: {
-      primary: '#6B4423',
-      secondary: '#A67C52',
-      background: '#FAF8F5',
-      surface: '#FFFFFF',
-      text: '#2C2420',
-      textMuted: '#8B7E74',
-      border: '#E8E0D8',
-      accent: '#C8956C',
+      primary: '#B65331',
+      secondary: '#15B8C6',
+      background: '#080B0C',
+      surface: '#111617',
+      text: '#F8FAFC',
+      textMuted: '#8B95A5',
+      border: 'rgba(255,255,255,0.1)',
+      accent: '#E9A17F',
     },
     typography: {
       fontFamily: 'DM Sans',
-      displayFont: 'Playfair Display',
+      displayFont: 'DM Sans',
       baseFontSize: 16,
       bodyWeight: 400,
-      headingWeight: 600,
-      headingTracking: -0.02,
+      headingWeight: 800,
+      headingTracking: -0.058,
       bodyLineHeight: 1.75,
       headingTransform: 'none',
     },
-    shadows: { type: 'soft', color: 'rgba(44,36,32,0.08)', intensity: 25 },
+    shadows: { type: 'soft', color: 'rgba(0,0,0,0.4)', intensity: 40 },
     animations: { level: 'moderate', easing: [0.22, 1, 0.36, 1], durationScale: 1.0, scrollTrigger: true, hoverEffects: true },
-    layout: { borderRadius: 16, borderWidth: 1, maxWidth: 1200, spacingScale: 1.1, cardStyle: 'elevated', headerStyle: 'floating' },
+    layout: { borderRadius: 12, borderWidth: 1, maxWidth: 1500, spacingScale: 1.1, cardStyle: 'elevated', headerStyle: 'floating' },
   },
 
   // ─── 3. NOIR — Dark Roast Sophistication ─────────────────────────────

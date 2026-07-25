@@ -1,0 +1,351 @@
+// =============================================================================
+// DEFAULT PORTAL THEME CONFIGURATION
+// =============================================================================
+
+import type { PortalThemeConfig } from "../types";
+
+export const DEFAULT_PORTAL_THEME_CONFIG: PortalThemeConfig = {
+  schemaVersion: 1,
+  themeKey: "default",
+  globalSettings: {
+    colors: {
+      primary: "#B65331",
+      secondary: "#15B8C6",
+      accent: "#E9A17F",
+      background: "#080B0C",
+      surface: "#111617",
+      surfaceAlt: "#1A1F24",
+      text: "#F8FAFC",
+      textMuted: "#8B95A5",
+      textInverse: "#080B0C",
+      border: "rgba(255,255,255,0.1)",
+      borderSubtle: "rgba(255,255,255,0.06)",
+      error: "#EF4444",
+      success: "#22C55E",
+      warning: "#F59E0B",
+      info: "#38BDF8",
+    },
+    typography: {
+      headingFont: "DM Sans",
+      bodyFont: "DM Sans",
+      baseFontSize: 16,
+      scaleRatio: 1.25,
+      lineHeight: 1.6,
+      letterSpacing: -0.02,
+      headingWeight: 800,
+      bodyWeight: 400,
+      textTransform: "none",
+    },
+    layout: {
+      contentWidth: 1280,
+      sectionGap: 80,
+      pagePadding: 24,
+      borderRadius: 12,
+    },
+    variants: [
+      {
+        id: "dark",
+        name: "Dark",
+        isDefault: true,
+        autoSwitch: true,
+        colors: {},
+      },
+      {
+        id: "light",
+        name: "Light",
+        isDefault: false,
+        autoSwitch: true,
+        colors: {
+          background: "#FAFAF8",
+          surface: "#FFFFFF",
+          surfaceAlt: "#F5F3EF",
+          text: "#1A1A1A",
+          textMuted: "#6B7280",
+          textInverse: "#FFFFFF",
+          border: "#E5E5E5",
+          borderSubtle: "#F0F0F0",
+        },
+      },
+    ],
+    activeVariant: "dark",
+    brandKit: {
+      logoLight: undefined,
+      logoDark: undefined,
+      logoMobile: undefined,
+      favicon: undefined,
+      socialImage: undefined,
+      brandColors: [],
+    },
+    animations: {
+      globalDuration: 500,
+      globalEasing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      scrollAnimations: true,
+      hoverEffects: true,
+      reduceMotion: false,
+    },
+    seo: {
+      lazyLoadImages: true,
+      preloadCritical: false,
+      structuredData: false,
+    },
+    integrations: {},
+  },
+  sections: [
+    {
+      id: "sec_header_official",
+      type: "header_nav",
+      enabled: true,
+      settings: {
+        variant: "centered",
+        logoText: "Your Brand",
+        sticky: true,
+        showSearch: false,
+        showCart: true,
+        buttonText: "Shop Now",
+        buttonLink: "#catalog",
+        navLinks: [
+          { label: "Collection", href: "#catalog" },
+          { label: "Our Process", href: "#narrative" },
+          { label: "Flavors", href: "#flavor" },
+          { label: "FAQ", href: "#faq" },
+        ],
+      },
+      blocks: [],
+    },
+    {
+      id: "sec_marquee_official",
+      type: "kinetic_marquee",
+      enabled: true,
+      settings: {
+        title: "SINGLE ORIGIN • SPECIALTY GRADE • FRESHLY ROASTED • DIRECT TRADE • WHOLESALE PARTNER •",
+        styleMode: "solid",
+        speed: 28,
+        direction: "left",
+      },
+      blocks: [],
+    },
+    {
+      id: "sec_hero_official",
+      type: "hero_banner",
+      enabled: true,
+      settings: {
+        title: "Premium Single-Origin Coffee, Roasted to Order",
+        subtitle: "Specialty grade beans sourced direct from origin. Roasted fresh every week for wholesale partners.",
+        buttonText: "Explore Our Collection",
+        buttonLink: "#catalog",
+        imageUrl: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=1600&auto=format&fit=crop&q=80",
+        overlay: 55,
+        textAlignment: "left",
+      },
+      blocks: [],
+    },
+    {
+      id: "sec_bento_official",
+      type: "bento_showcase",
+      enabled: true,
+      settings: {
+        title: "What Makes Us Different",
+        subtitle: "From green bean sourcing to the final cup — every step is crafted with intention.",
+        columns: 4,
+        gapStyle: "tight",
+      },
+      blocks: [
+        {
+          id: "blk_off_1",
+          type: "bento_card",
+          visible: true,
+          settings: {
+            title: "01 • Direct Origin Sourcing",
+            subtitle: "We work directly with farms and cooperatives at origin for the freshest lots.",
+            colSpan: 1,
+            rowSpan: 2,
+            badge: "Single Origin",
+            badgeColor: "green",
+            buttonText: "Our Origins",
+            buttonLink: "#catalog",
+            imageUrl: "",
+            icon: "MapPin",
+            visible: true,
+          },
+        },
+        {
+          id: "blk_off_2",
+          type: "bento_card",
+          visible: true,
+          settings: {
+            title: "02 • Precision Roasting",
+            subtitle: "Small-batch roasted on demand with full profile traceability for every lot.",
+            colSpan: 2,
+            rowSpan: 1,
+            badge: "Fresh Weekly",
+            badgeColor: "amber",
+            buttonText: "Roast Profiles",
+            buttonLink: "#flavor",
+            imageUrl: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=800&auto=format&fit=crop&q=80",
+            icon: "Flame",
+            visible: true,
+          },
+        },
+        {
+          id: "blk_off_3",
+          type: "bento_card",
+          visible: true,
+          settings: {
+            title: "03 • Quality Control",
+            subtitle: "Every batch is cupped and scored before it ships to your cafe.",
+            colSpan: 1,
+            rowSpan: 1,
+            badge: "85+ SCA Score",
+            badgeColor: "purple",
+            buttonText: "Cupping Notes",
+            buttonLink: "#flavor",
+            imageUrl: "",
+            icon: "Shield",
+            visible: true,
+          },
+        },
+        {
+          id: "blk_off_4",
+          type: "bento_card",
+          visible: true,
+          settings: {
+            title: "04 • Wholesale & White Label",
+            subtitle: "Flexible volume contracts with custom packaging for your brand.",
+            colSpan: 3,
+            rowSpan: 1,
+            badge: "B2B Ready",
+            badgeColor: "blue",
+            buttonText: "Partner With Us",
+            buttonLink: "#catalog",
+            imageUrl: "",
+            icon: "ShoppingBag",
+            visible: true,
+          },
+        },
+      ],
+    },
+    {
+      id: "sec_flavor_official",
+      type: "interactive_flavor",
+      enabled: true,
+      settings: {
+        title: "Flavor Profiles",
+        subtitle: "Every batch is cupped and scored. Here's what you can expect from our beans.",
+      },
+      blocks: [
+        { id: "blk_flv_1", type: "flavor_category", visible: true, settings: { name: "Citrus & Acidity", description: "Bright, sparkling acidity with notes of bergamot and sweet citrus.", color: "#F59E0B" } },
+        { id: "blk_flv_2", type: "flavor_category", visible: true, settings: { name: "Floral & Sweet", description: "Delicate floral aromatics with wild honey and jasmine notes.", color: "#EC4899" } },
+        { id: "blk_flv_3", type: "flavor_category", visible: true, settings: { name: "Caramel & Brown Sugar", description: "Rich, buttery sweetness with a smooth caramel finish.", color: "#D97706" } },
+        { id: "blk_flv_4", type: "flavor_category", visible: true, settings: { name: "Nutty & Chocolate", description: "Dark chocolate undertones with roasted hazelnut body.", color: "#A16207" } },
+      ],
+    },
+    {
+      id: "sec_radar_official",
+      type: "wholesale_radar",
+      enabled: true,
+      settings: {
+        title: "Cupping Score & Tasting Notes",
+        subtitle: "Our average scores across the SCA flavor wheel for our current season offerings.",
+      },
+      blocks: [
+        { id: "blk_rad_1", type: "radar_axis", visible: true, settings: { name: "Sweetness", value: 90, fullMark: 100 } },
+        { id: "blk_rad_2", type: "radar_axis", visible: true, settings: { name: "Acidity", value: 85, fullMark: 100 } },
+        { id: "blk_rad_3", type: "radar_axis", visible: true, settings: { name: "Body", value: 92, fullMark: 100 } },
+        { id: "blk_rad_4", type: "radar_axis", visible: true, settings: { name: "Aftertaste", value: 88, fullMark: 100 } },
+        { id: "blk_rad_5", type: "radar_axis", visible: true, settings: { name: "Balance", value: 94, fullMark: 100 } },
+      ],
+    },
+    {
+      id: "sec_narrative_official",
+      type: "sticky_narrative",
+      enabled: true,
+      settings: {
+        title: "Farm to Cup",
+        subtitle: "We source with intention and roast with precision — from seed to your morning pour.",
+        pinnedTitle: "Our Process",
+        pinnedSubtitle: "Quality at every stage.",
+      },
+      blocks: [
+        { id: "blk_nar_1", type: "narrative_step", visible: true, settings: { title: "Step 1: Selective Harvesting", content: "Only the ripest cherries are hand-picked from partner farms at peak sweetness.", alignment: "left" } },
+        { id: "blk_nar_2", type: "narrative_step", visible: true, settings: { title: "Step 2: Careful Processing", content: "Washed or natural processed with full traceability from farm gate to our roastery.", alignment: "center" } },
+        { id: "blk_nar_3", type: "narrative_step", visible: true, settings: { title: "Step 3: Precision Roasting", content: "Small-batch roasted to order, with full profile documentation for every lot.", alignment: "left" } },
+      ],
+    },
+    {
+      id: "sec_catalog_official",
+      type: "catalog_grid",
+      enabled: true,
+      settings: {
+        title: "Our Coffee Collection",
+        subtitle: "Single-origin, blends, and seasonal specials — roasted fresh for you.",
+        columns: 3,
+        productFilter: "all",
+        sortBy: "name",
+      },
+      blocks: [],
+    },
+    {
+      id: "sec_faq_official",
+      type: "faq",
+      enabled: true,
+      settings: {
+        title: "Frequently Asked Questions",
+        subtitle: "Everything you need to know before ordering.",
+      },
+      blocks: [
+        { id: "blk_faq_1", type: "question", visible: true, settings: { question: "Do you offer samples before ordering wholesale?", answer: "Yes, we provide sample packs so you can cup our coffees before committing to a larger order." } },
+        { id: "blk_faq_2", type: "question", visible: true, settings: { question: "How fresh is the coffee when it ships?", answer: "All orders are roasted to order and shipped within 1-2 days of roasting for peak freshness." } },
+      ],
+    },
+    {
+      id: "sec_footer_official",
+      type: "footer_nav",
+      enabled: true,
+      settings: {
+        variant: "editorial_grid",
+        copyright: "© 2026 All rights reserved.",
+        newsletterTitle: "Stay in the Loop",
+      },
+      blocks: [],
+    },
+  ],
+};
+
+export const DEFAULT_SECTION_SPACING = {
+  paddingTop: 64,
+  paddingRight: 24,
+  paddingBottom: 64,
+  paddingLeft: 24,
+  marginTop: 0,
+  marginBottom: 0,
+};
+
+export const DEFAULT_SECTION_VISIBILITY = {
+  desktop: true,
+  tablet: true,
+  mobile: true,
+};
+
+export const DEFAULT_SECTION_ANIMATION = {
+  scrollTrigger: "fade-in" as const,
+  duration: 500,
+  delay: 0,
+  easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+  hoverEffect: "none" as const,
+};
+
+export const DEFAULT_SECTION_LAYOUT = {
+  width: "wide" as const,
+  alignment: "center" as const,
+  verticalAlign: "top" as const,
+  columns: 1,
+  columnGap: 24,
+};
+
+export const DEFAULT_SECTION_DECORATION = {
+  borderRadius: 0,
+  borderWidth: 0,
+  borderColor: "#E5E5E5",
+  borderStyle: "none" as const,
+  shadow: "none" as const,
+};

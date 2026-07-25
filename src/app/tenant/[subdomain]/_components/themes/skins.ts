@@ -32,18 +32,18 @@ export const THEME_SKINS: Record<string, ThemeSkin> = {
     accentClass: "text-[#C17817]",
   },
 
-  // ─── 2. ARTISAN — Modern Craft Roastery ──────────────────────────────
+  // ─── 2. ARTISAN — Modern Craft Roastery (Dark Premium) ───────────────
   artisan: {
-    containerClass: "bg-[#FAF8F5] text-[#2C2420] font-sans",
-    cardClass: "bg-white border border-[#E8E0D8] shadow-sm rounded-2xl",
-    buttonPrimaryClass: "bg-[#6B4423] text-white hover:bg-[#6B4423]/90 rounded-full font-bold py-3 px-6 transition-all",
-    buttonSecondaryClass: "border border-[#6B4423] text-[#6B4423] hover:bg-[#6B4423]/5 transition-all rounded-full",
-    heroImageClass: "rounded-2xl shadow-lg",
-    inputClass: "bg-white border border-[#E8E0D8] text-[#2C2420] placeholder:text-[#8B7E74] rounded-full focus:border-[#6B4423]",
-    badgeClass: "bg-[#6B4423]/10 text-[#6B4423] border border-[#6B4423]/15 rounded-full text-xs",
-    dividerClass: "border-[#E8E0D8]",
-    priceClass: "text-[#6B4423] font-sans font-bold text-lg",
-    accentClass: "text-[#C8956C]",
+    containerClass: "bg-[#080B0C] text-[#F8FAFC] font-sans",
+    cardClass: "bg-[#111617] border border-white/10 shadow-lg rounded-2xl",
+    buttonPrimaryClass: "bg-[#B65331] text-white hover:bg-[#984024] rounded-none font-black py-3 px-6 transition-all",
+    buttonSecondaryClass: "border border-white/20 text-white/62 hover:border-white/40 hover:text-white transition-all rounded-none",
+    heroImageClass: "rounded-2xl shadow-2xl",
+    inputClass: "bg-[#111617] border border-white/10 text-[#F8FAFC] placeholder:text-[#8B95A5] rounded-xl focus:border-[#B65331]",
+    badgeClass: "bg-[#B65331]/15 text-[#E9A17F] border border-[#B65331]/30 rounded-full text-xs",
+    dividerClass: "border-white/10",
+    priceClass: "text-[#B65331] font-sans font-bold text-lg",
+    accentClass: "text-[#15B8C6]",
   },
 
   // ─── 3. NOIR — Dark Roast Sophistication ─────────────────────────────
