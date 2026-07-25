@@ -10,17 +10,21 @@ export interface SessionUser {
   tenantId: string;
 }
 
-const sessionPassword = process.env.SESSION_SECRET;
-
-if (!sessionPassword) {
-  throw new Error("SESSION_SECRET must be configured in environment variables (minimum 32 characters).");
-}
-if (sessionPassword.length < 32) {
-  throw new Error("SESSION_SECRET must be at least 32 characters long.");
+function getSessionPassword(): string {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error("SESSION_SECRET must be configured in environment variables (minimum 32 characters).");
+  }
+  if (secret.length < 32) {
+    throw new Error("SESSION_SECRET must be at least 32 characters long.");
+  }
+  return secret;
 }
 
 export const SESSION_OPTIONS = {
-  password: sessionPassword,
+  get password() {
+    return getSessionPassword();
+  },
   cookieName: "ros_session",
   cookieOptions: {
     secure: process.env.NODE_ENV === "production",
