@@ -935,17 +935,22 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
   const topCustomer = Array.from(customerMap.entries())
     .sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
 
-  // Revenue trend (last 7 days)
+  // Revenue trend (based on date range)
   const revenueTrend: { date: string; revenue: number }[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const chartDays = Math.min(daysDiff + 1, 30); // Cap at 30 days
+
+  for (let i = chartDays - 1; i >= 0; i--) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + (chartDays - 1 - i));
     const dayStr = d.toISOString().split("T")[0];
     const dayInvoices = invoices.filter(
       (inv) => inv.issuedAt.toISOString().split("T")[0] === dayStr && inv.status === "PAID"
     );
     revenueTrend.push({
-      date: new Intl.DateTimeFormat("id-ID", { weekday: "short" }).format(d),
+      date: new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d),
       revenue: dayInvoices.reduce((sum, inv) => sum + Number(inv.grandTotal), 0),
     });
   }
