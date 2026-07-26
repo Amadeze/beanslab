@@ -8,8 +8,10 @@ import {
   ReportChart,
   ReportTable,
   ReportExport,
+  ReportSkeleton,
   type ReportColumn,
 } from "../../_shared";
+import { getSalesReport, getExpenseReport, getRoastingReport } from "../../actions";
 import { formatRupiah } from "@/lib/format";
 
 interface DailyActivity {
@@ -35,17 +37,18 @@ export default function DailyReportClient() {
       setLoading(true);
       try {
         // Fetch daily data from multiple sources
-        const [salesResult, expenseResult] = await Promise.all([
-          import("../../actions").then((m) => m.getSalesReport(selectedDate, selectedDate)),
-          import("../../actions").then((m) => m.getExpenseReport(selectedDate, selectedDate)),
+        const [salesResult, expenseResult, roastingResult] = await Promise.all([
+          getSalesReport(selectedDate, selectedDate),
+          getExpenseReport(selectedDate, selectedDate),
+          getRoastingReport(selectedDate, selectedDate),
         ]);
 
         const revenue = salesResult.totalRevenue;
         const expenses = expenseResult.totalExpenses;
         const transactions = salesResult.invoiceCount;
-        const batches = 0; // Would need roasting data
+        const batches = roastingResult.totalBatches;
 
-        // Combine activities from sales and expenses
+        // Combine activities from sales, expenses, and roasting
         const activities: DailyActivity[] = [
           ...salesResult.invoices.map((inv) => ({
             time: new Date(inv.date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
@@ -58,6 +61,12 @@ export default function DailyReportClient() {
             area: "Pengeluaran",
             activity: exp.description,
             amount: exp.amount,
+          })),
+          ...roastingResult.batches.map((batch) => ({
+            time: new Date(batch.date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+            area: "Roasting",
+            activity: `Batch ${batch.id} - ${batch.gbInput}kg → ${batch.rbOutput}kg`,
+            amount: null,
           })),
         ].sort((a, b) => a.time.localeCompare(b.time));
 
@@ -87,9 +96,7 @@ export default function DailyReportClient() {
   if (loading || !data) {
     return (
       <ReportLayout activeTab="daily">
-        <div className="flex items-center justify-center py-20">
-          <div className="text-sm text-stone-500">Memuat data...</div>
-        </div>
+        <ReportSkeleton />
       </ReportLayout>
     );
   }
