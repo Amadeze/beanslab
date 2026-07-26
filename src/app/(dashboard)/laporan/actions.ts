@@ -909,7 +909,7 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
 
   // Set end date to end of day (23:59:59) to include all transactions on that day
   const endDateObj = new Date(endDate);
-  endDateObj.setHours(23, 59, 59, 999);
+  endDateObj.setUTCHours(23, 59, 59, 999);
 
   const invoices = await tp.invoice.findMany({
     where: {
@@ -1014,7 +1014,7 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
 
   // Set end date to end of day (23:59:59) to include all transactions on that day
   const endDateObj = new Date(endDate);
-  endDateObj.setHours(23, 59, 59, 999);
+  endDateObj.setUTCHours(23, 59, 59, 999);
 
   const [expenses, purchases, payments] = await Promise.all([
     tp.expense.findMany({
@@ -1120,7 +1120,7 @@ export async function getRoastingReport(startDate: string, endDate: string): Pro
 
   // Set end date to end of day (23:59:59) to include all transactions on that day
   const endDateObj = new Date(endDate);
-  endDateObj.setHours(23, 59, 59, 999);
+  endDateObj.setUTCHours(23, 59, 59, 999);
 
   const batches = await tp.parentRoastingBatch.findMany({
     where: {
@@ -1219,7 +1219,7 @@ export async function getProductionReport(startDate: string, endDate: string): P
 
   // Set end date to end of day (23:59:59) to include all transactions on that day
   const endDateObj = new Date(endDate);
-  endDateObj.setHours(23, 59, 59, 999);
+  endDateObj.setUTCHours(23, 59, 59, 999);
 
   const batches = await tp.productionBatch.findMany({
     where: {
@@ -1390,25 +1390,63 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
   const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
   const end = endDate ? new Date(endDate) : now;
 
-  // Get PnL report for current month
-  const currentPnl = await getPnLReport(now.getMonth() + 1, now.getFullYear());
-  const lastPnl = await getPnLReport(now.getMonth() === 1 ? 12 : now.getMonth() - 1, now.getMonth() === 1 ? now.getFullYear() - 1 : now.getFullYear());
+  // Set end to end of day in UTC to include all transactions
+  const endOfDay = new Date(end);
+  endOfDay.setUTCHours(23, 59, 59, 999);
 
-  // Get expense report for the date range
-  const expenseReport = await getExpenseReport(start.toISOString(), end.toISOString());
+  const tp = await requireTenantPrisma();
 
-  const totalRevenue = currentPnl.netSales;
-  const totalExpenses = currentPnl.opex;
-  const netProfit = currentPnl.netProfit;
+  // Query invoices and expenses directly for the date range (not hardcoded to current month)
+  const [invoices, expenses] = await Promise.all([
+    tp.invoice.findMany({
+      where: {
+        issuedAt: { gte: start, lte: endOfDay },
+        status: { in: ["PAID", "ISSUED", "PARTIAL"] },
+      },
+      select: { grandTotal: true, status: true },
+    }),
+    tp.expense.findMany({
+      where: {
+        date: { gte: start, lte: endOfDay },
+      },
+      select: { amount: true, category: true },
+    }),
+  ]);
 
-  // Cash flow = Revenue collected (payments) - Expenses paid
-  // Simplified: use revenue - expenses for now
+  // Calculate totals from actual data
+  const totalRevenue = invoices
+    .filter((i) => i.status === "PAID")
+    .reduce((sum, i) => sum + Number(i.grandTotal), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const netProfit = totalRevenue - totalExpenses;
   const cashFlow = totalRevenue - totalExpenses;
 
-  // Trends (vs last month)
-  const lastRevenue = lastPnl.netSales;
-  const lastExpenses = lastPnl.opex;
-  const lastProfit = lastPnl.netProfit;
+  // Calculate trends (compare with previous period of same length)
+  const periodLength = endOfDay.getTime() - start.getTime();
+  const prevStart = new Date(start.getTime() - periodLength);
+  const prevEnd = new Date(start.getTime() - 1);
+
+  const [prevInvoices, prevExpenses] = await Promise.all([
+    tp.invoice.findMany({
+      where: {
+        issuedAt: { gte: prevStart, lte: prevEnd },
+        status: { in: ["PAID", "ISSUED", "PARTIAL"] },
+      },
+      select: { grandTotal: true, status: true },
+    }),
+    tp.expense.findMany({
+      where: {
+        date: { gte: prevStart, lte: prevEnd },
+      },
+      select: { amount: true },
+    }),
+  ]);
+
+  const lastRevenue = prevInvoices
+    .filter((i) => i.status === "PAID")
+    .reduce((sum, i) => sum + Number(i.grandTotal), 0);
+  const lastExpenses = prevExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const lastProfit = lastRevenue - lastExpenses;
   const lastCashFlow = lastRevenue - lastExpenses;
 
   const revenueTrend = lastRevenue > 0 ? ((totalRevenue - lastRevenue) / lastRevenue) * 100 : 0;
@@ -1416,17 +1454,18 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
   const profitTrend = lastProfit > 0 ? ((netProfit - lastProfit) / lastProfit) * 100 : 0;
   const cashFlowTrend = lastCashFlow > 0 ? ((cashFlow - lastCashFlow) / lastCashFlow) * 100 : 0;
 
-  // Revenue vs Expenses chart (last 30 days)
-  const tp = await requireTenantPrisma();
+  // Revenue vs Expenses chart (based on date range)
   const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  const chartDays = Math.min(daysDiff, 30);
+  const chartDays = Math.min(daysDiff + 1, 30);
 
   const revenueVsExpensesChart: { date: string; revenue: number; expenses: number }[] = [];
   for (let i = chartDays - 1; i >= 0; i--) {
-    const d = new Date(end);
-    d.setDate(d.getDate() - i);
-    const dayStart = new Date(d.setHours(0, 0, 0, 0));
-    const dayEnd = new Date(d.setHours(23, 59, 59, 999));
+    const d = new Date(start);
+    d.setDate(d.getDate() + (chartDays - 1 - i));
+    const dayStart = new Date(d);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(d);
+    dayEnd.setUTCHours(23, 59, 59, 999);
 
     const [dayInvoices, dayExpenses] = await Promise.all([
       tp.invoice.findMany({
@@ -1434,11 +1473,13 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
           issuedAt: { gte: dayStart, lte: dayEnd },
           status: "PAID",
         },
+        select: { grandTotal: true },
       }),
       tp.expense.findMany({
         where: {
           date: { gte: dayStart, lte: dayEnd },
         },
+        select: { amount: true },
       }),
     ]);
 
@@ -1448,6 +1489,13 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
       expenses: dayExpenses.reduce((sum, e) => sum + Number(e.amount), 0),
     });
   }
+
+  // Expense by category
+  const categoryMap = new Map<string, number>();
+  expenses.forEach((e) => {
+    categoryMap.set(e.category, (categoryMap.get(e.category) || 0) + Number(e.amount));
+  });
+  const expenseByCategory = Array.from(categoryMap.entries()).map(([name, value]) => ({ name, value }));
 
   return {
     totalRevenue,
@@ -1459,6 +1507,6 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
     profitTrend,
     cashFlowTrend,
     revenueVsExpensesChart,
-    expenseByCategory: expenseReport.expensesByCategory,
+    expenseByCategory,
   };
 }

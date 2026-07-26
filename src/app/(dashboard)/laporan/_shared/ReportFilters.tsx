@@ -50,9 +50,16 @@ export function ReportFilters({
     const end = new Date();
     const start = new Date();
     start.setDate(start.getDate() - days);
+    // Use local timezone dates (YYYY-MM-DD format)
+    const formatDate = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
     onDateRangeChange({
-      start: start.toISOString().split("T")[0],
-      end: end.toISOString().split("T")[0],
+      start: formatDate(start),
+      end: formatDate(end),
     });
   };
 
