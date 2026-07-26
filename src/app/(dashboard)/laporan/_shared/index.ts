@@ -14,3 +14,12 @@ export type { DateRange, FilterOption, FilterConfig } from "./ReportFilters";
 export { ReportExport } from "./ReportExport";
 
 export { ReportSkeleton } from "./ReportSkeleton";
+
+// Re-export server action types for client components
+export type {
+  SalesReportData,
+  ExpenseReportData,
+  RoastingReportData,
+  ProductionReportData,
+  SummaryReportData,
+} from "../actions";

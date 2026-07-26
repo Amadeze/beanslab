@@ -6,6 +6,7 @@ import { getPayableAgingBucket } from "@/lib/purchase-payments";
 import { revalidatePath } from "next/cache";
 import { getCurrentDate } from "@/lib/date-utils";
 import { weightedAverageCost } from "@/lib/financial-reporting";
+import { formatRupiah } from "@/lib/format";
 import { getRbCostPrioritizingCache, getFgHppPrioritizingCache } from "@/lib/costing";
 
 export type ValuationRow = {
@@ -878,5 +879,449 @@ export async function getSampleReport(
     byProduct,
     topRecipients,
     monthlyTrend,
+  };
+}
+
+// =============================================================================
+// SALES REPORT
+// =============================================================================
+
+export type SalesReportData = {
+  totalRevenue: number;
+  invoiceCount: number;
+  avgInvoice: number;
+  topCustomer: string;
+  revenueTrend: { date: string; revenue: number }[];
+  salesByProduct: { name: string; value: number }[];
+  invoices: {
+    id: string;
+    code: string;
+    date: string;
+    customer: string;
+    amount: number;
+    status: string;
+  }[];
+};
+
+export async function getSalesReport(startDate: string, endDate: string): Promise<SalesReportData> {
+  await requireFeature("ADVANCED_REPORTS");
+  const tp = await requireTenantPrisma();
+
+  const invoices = await tp.invoice.findMany({
+    where: {
+      issuedAt: { gte: new Date(startDate), lte: new Date(endDate) },
+      status: { in: ["PAID", "ISSUED", "PARTIAL"] },
+    },
+    include: {
+      customer: { select: { name: true } },
+      items: { include: { product: { select: { name: true, category: true } } } },
+    },
+    orderBy: { issuedAt: "desc" },
+  });
+
+  const totalRevenue = invoices
+    .filter((i) => i.status === "PAID")
+    .reduce((sum, i) => sum + Number(i.grandTotal), 0);
+
+  const invoiceCount = invoices.length;
+  const avgInvoice = invoiceCount > 0 ? totalRevenue / invoiceCount : 0;
+
+  // Top customer
+  const customerMap = new Map<string, number>();
+  invoices.forEach((i) => {
+    const name = i.customer.name;
+    customerMap.set(name, (customerMap.get(name) || 0) + Number(i.grandTotal));
+  });
+  const topCustomer = Array.from(customerMap.entries())
+    .sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
+
+  // Revenue trend (last 7 days)
+  const revenueTrend: { date: string; revenue: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dayStr = d.toISOString().split("T")[0];
+    const dayInvoices = invoices.filter(
+      (inv) => inv.issuedAt.toISOString().split("T")[0] === dayStr && inv.status === "PAID"
+    );
+    revenueTrend.push({
+      date: new Intl.DateTimeFormat("id-ID", { weekday: "short" }).format(d),
+      revenue: dayInvoices.reduce((sum, inv) => sum + Number(inv.grandTotal), 0),
+    });
+  }
+
+  // Sales by product category
+  const productMap = new Map<string, number>();
+  invoices.forEach((i) => {
+    i.items.forEach((item) => {
+      const cat = item.product?.category || "OTHER";
+      productMap.set(cat, (productMap.get(cat) || 0) + Number(item.hpp || 0) * item.quantity);
+    });
+  });
+  const salesByProduct = Array.from(productMap.entries()).map(([name, value]) => ({ name, value }));
+
+  return {
+    totalRevenue,
+    invoiceCount,
+    avgInvoice,
+    topCustomer,
+    revenueTrend,
+    salesByProduct,
+    invoices: invoices.map((i) => ({
+      id: i.id,
+      code: i.code,
+      date: i.issuedAt.toISOString(),
+      customer: i.customer.name,
+      amount: Number(i.grandTotal),
+      status: i.status,
+    })),
+  };
+}
+
+// =============================================================================
+// EXPENSE REPORT
+// =============================================================================
+
+export type ExpenseReportData = {
+  totalExpenses: number;
+  totalPurchases: number;
+  outstandingPayable: number;
+  profit: number;
+  expenseTrend: { date: string; expenses: number }[];
+  expensesByCategory: { name: string; value: number }[];
+  expenses: {
+    id: string;
+    date: string;
+    category: string;
+    description: string;
+    amount: number;
+    status: string;
+  }[];
+};
+
+export async function getExpenseReport(startDate: string, endDate: string): Promise<ExpenseReportData> {
+  await requireFeature("ADVANCED_REPORTS");
+  const tp = await requireTenantPrisma();
+
+  const [expenses, purchases, payments] = await Promise.all([
+    tp.expense.findMany({
+      where: { date: { gte: new Date(startDate), lte: new Date(endDate) } },
+      orderBy: { date: "desc" },
+    }),
+    tp.purchase.findMany({
+      where: {
+        receivedAt: { gte: new Date(startDate), lte: new Date(endDate) },
+        status: { in: ["COMPLETED", "VOID"] },
+        OR: [{ voidAt: null }, { voidAt: { gt: new Date(endDate) } }],
+      },
+    }),
+    tp.supplierPayment.findMany({
+      where: { paidAt: { gte: new Date(startDate), lte: new Date(endDate) } },
+    }),
+  ]);
+
+  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalPurchases = purchases.reduce((sum, p) => sum + Number(p.totalCost), 0);
+  const totalPayments = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const outstandingPayable = totalPurchases - totalPayments;
+
+  // Get revenue for profit calculation
+  const invoices = await tp.invoice.findMany({
+    where: {
+      issuedAt: { gte: new Date(startDate), lte: new Date(endDate) },
+      status: "PAID",
+    },
+  });
+  const totalRevenue = invoices.reduce((sum, i) => sum + Number(i.grandTotal), 0);
+  const profit = totalRevenue - totalExpenses - totalPurchases;
+
+  // Expense trend (last 7 days)
+  const expenseTrend: { date: string; expenses: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dayStr = d.toISOString().split("T")[0];
+    const dayExpenses = expenses.filter(
+      (e) => e.date.toISOString().split("T")[0] === dayStr
+    );
+    expenseTrend.push({
+      date: new Intl.DateTimeFormat("id-ID", { weekday: "short" }).format(d),
+      expenses: dayExpenses.reduce((sum, e) => sum + Number(e.amount), 0),
+    });
+  }
+
+  // Expenses by category
+  const categoryMap = new Map<string, number>();
+  expenses.forEach((e) => {
+    categoryMap.set(e.category, (categoryMap.get(e.category) || 0) + Number(e.amount));
+  });
+  const expensesByCategory = Array.from(categoryMap.entries()).map(([name, value]) => ({ name, value }));
+
+  return {
+    totalExpenses,
+    totalPurchases,
+    outstandingPayable,
+    profit,
+    expenseTrend,
+    expensesByCategory,
+    expenses: expenses.map((e) => ({
+      id: e.id,
+      date: e.date.toISOString(),
+      category: e.category,
+      description: e.description || "-",
+      amount: Number(e.amount),
+      status: "Lunas",
+    })),
+  };
+}
+
+// =============================================================================
+// ROASTING REPORT
+// =============================================================================
+
+export type RoastingReportData = {
+  totalBatches: number;
+  totalGbUsed: number;
+  totalRbProduced: number;
+  avgYield: number;
+  lossPercent: number;
+  yieldTrend: { date: string; yield: number }[];
+  batches: {
+    id: string;
+    date: string;
+    gbInput: number;
+    rbOutput: number;
+    yield: number;
+    machine: string;
+  }[];
+};
+
+export async function getRoastingReport(startDate: string, endDate: string): Promise<RoastingReportData> {
+  await requireFeature("ADVANCED_REPORTS");
+  const tp = await requireTenantPrisma();
+
+  const batches = await tp.parentRoastingBatch.findMany({
+    where: {
+      completedAt: { gte: new Date(startDate), lte: new Date(endDate) },
+      status: { in: ["COMPLETED", "VOID"] },
+      OR: [{ voidAt: null }, { voidAt: { gt: new Date(endDate) } }],
+    },
+    include: {
+      inputProduct: { select: { name: true } },
+      outputProduct: { select: { name: true } },
+    },
+    orderBy: { completedAt: "desc" },
+  });
+
+  // Fetch machine names separately
+  const machineIds = batches.map((b) => b.machineId).filter((id): id is string => id !== null);
+  const machines = await tp.machine.findMany({
+    where: { id: { in: machineIds } },
+    select: { id: true, name: true },
+  });
+  const machineMap = new Map(machines.map((m) => [m.id, m.name]));
+
+  const totalBatches = batches.length;
+  const totalGbUsed = batches.reduce((sum, b) => sum + Number(b.targetWeightKg), 0);
+  const totalRbProduced = batches.reduce((sum, b) => sum + Number(b.actualOutputKg || 0), 0);
+  const avgYield = totalGbUsed > 0 ? (totalRbProduced / totalGbUsed) * 100 : 0;
+  const lossPercent = 100 - avgYield;
+
+  // Yield trend (last 7 days)
+  const yieldTrend: { date: string; yield: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dayStr = d.toISOString().split("T")[0];
+    const dayBatches = batches.filter(
+      (b) => b.completedAt?.toISOString().split("T")[0] === dayStr
+    );
+    const dayGb = dayBatches.reduce((sum, b) => sum + Number(b.targetWeightKg), 0);
+    const dayRb = dayBatches.reduce((sum, b) => sum + Number(b.actualOutputKg || 0), 0);
+    yieldTrend.push({
+      date: new Intl.DateTimeFormat("id-ID", { weekday: "short" }).format(d),
+      yield: dayGb > 0 ? (dayRb / dayGb) * 100 : 0,
+    });
+  }
+
+  return {
+    totalBatches,
+    totalGbUsed,
+    totalRbProduced,
+    avgYield,
+    lossPercent,
+    yieldTrend,
+    batches: batches.map((b) => ({
+      id: b.id,
+      date: (b.completedAt || b.createdAt).toISOString(),
+      gbInput: Number(b.targetWeightKg),
+      rbOutput: Number(b.actualOutputKg || 0),
+      yield: Number(b.targetWeightKg) > 0
+        ? (Number(b.actualOutputKg || 0) / Number(b.targetWeightKg)) * 100
+        : 0,
+      machine: b.machineId ? (machineMap.get(b.machineId) || "-") : "-",
+    })),
+  };
+}
+
+// =============================================================================
+// PRODUCTION REPORT
+// =============================================================================
+
+export type ProductionReportData = {
+  totalBatches: number;
+  totalRbUsed: number;
+  totalFgProduced: number;
+  totalPackagingUsed: number;
+  efficiency: number;
+  productionTrend: { date: string; units: number }[];
+  batches: {
+    id: string;
+    date: string;
+    sku: string;
+    rbUsed: number;
+    fgOutput: number;
+    recipe: string;
+    status: string;
+  }[];
+};
+
+export async function getProductionReport(startDate: string, endDate: string): Promise<ProductionReportData> {
+  await requireFeature("ADVANCED_REPORTS");
+  const tp = await requireTenantPrisma();
+
+  const batches = await tp.productionBatch.findMany({
+    where: {
+      producedAt: { gte: new Date(startDate), lte: new Date(endDate) },
+      status: { in: ["COMPLETED", "VOID"] },
+      OR: [{ voidAt: null }, { voidAt: { gt: new Date(endDate) } }],
+    },
+    include: {
+      outputProduct: { select: { name: true } },
+      recipe: { select: { name: true } },
+    },
+    orderBy: { producedAt: "desc" },
+  });
+
+  const totalBatches = batches.length;
+  const totalRbUsed = batches.reduce((sum, b) => sum + Number(b.totalRbUsedKg), 0);
+  const totalFgProduced = batches.reduce((sum, b) => sum + b.unitsProduced, 0);
+  const totalPackagingUsed = batches.reduce((sum, b) => sum + b.unitsProduced, 0); // 1:1 with FG
+  const efficiency = totalRbUsed > 0 ? (totalFgProduced / totalRbUsed) * 100 : 0;
+
+  // Production trend (last 7 days)
+  const productionTrend: { date: string; units: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dayStr = d.toISOString().split("T")[0];
+    const dayBatches = batches.filter(
+      (b) => b.producedAt?.toISOString().split("T")[0] === dayStr
+    );
+    productionTrend.push({
+      date: new Intl.DateTimeFormat("id-ID", { weekday: "short" }).format(d),
+      units: dayBatches.reduce((sum, b) => sum + b.unitsProduced, 0),
+    });
+  }
+
+  return {
+    totalBatches,
+    totalRbUsed,
+    totalFgProduced,
+    totalPackagingUsed,
+    efficiency,
+    productionTrend,
+    batches: batches.map((b) => ({
+      id: b.id,
+      date: (b.producedAt || b.createdAt).toISOString(),
+      sku: b.outputProduct?.name || "-",
+      rbUsed: Number(b.totalRbUsedKg),
+      fgOutput: b.unitsProduced,
+      recipe: b.recipe?.name || "-",
+      status: b.status,
+    })),
+  };
+}
+
+// =============================================================================
+// SUMMARY REPORT
+// =============================================================================
+
+export type SummaryReportData = {
+  revenue: number;
+  expenses: number;
+  profit: number;
+  stockValue: number;
+  revenueTrend: number;
+  expensesTrend: number;
+  profitTrend: number;
+  stockTrend: number;
+  revenueChart: { date: string; value: number }[];
+  pipeline: { label: string; value: string; status: string }[];
+};
+
+export async function getSummaryReport(): Promise<SummaryReportData> {
+  await requireFeature("ADVANCED_REPORTS");
+
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+  const [currentPnl, lastPnl, inventory] = await Promise.all([
+    getPnLReport(now.getMonth() + 1, now.getFullYear()),
+    getPnLReport(now.getMonth(), now.getFullYear()),
+    getInventoryValuationReport(),
+  ]);
+
+  const revenue = currentPnl.netSales;
+  const expenses = currentPnl.opex;
+  const profit = currentPnl.netProfit;
+  const stockValue = inventory.grandTotalValue;
+
+  const lastRevenue = lastPnl.netSales;
+  const lastExpenses = lastPnl.opex;
+  const lastProfit = lastPnl.netProfit;
+
+  const revenueTrend = lastRevenue > 0 ? ((revenue - lastRevenue) / lastRevenue) * 100 : 0;
+  const expensesTrend = lastExpenses > 0 ? ((expenses - lastExpenses) / lastExpenses) * 100 : 0;
+  const profitTrend = lastProfit > 0 ? ((profit - lastProfit) / lastProfit) * 100 : 0;
+
+  // Revenue chart (last 7 days)
+  const revenueChart: { date: string; value: number }[] = [];
+  const tp = await requireTenantPrisma();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dayStart = new Date(d.setHours(0, 0, 0, 0));
+    const dayEnd = new Date(d.setHours(23, 59, 59, 999));
+    const dayInvoices = await tp.invoice.findMany({
+      where: {
+        issuedAt: { gte: dayStart, lte: dayEnd },
+        status: "PAID",
+      },
+    });
+    revenueChart.push({
+      date: new Intl.DateTimeFormat("id-ID", { weekday: "short" }).format(d),
+      value: dayInvoices.reduce((sum, i) => sum + Number(i.grandTotal), 0),
+    });
+  }
+
+  return {
+    revenue,
+    expenses,
+    profit,
+    stockValue,
+    revenueTrend,
+    expensesTrend,
+    profitTrend,
+    stockTrend: 0,
+    revenueChart,
+    pipeline: [
+      { label: "Stok", value: `${inventory.items.length} item`, status: "ok" },
+      { label: "Penjualan", value: formatRupiah(revenue), status: "ok" },
+      { label: "Pengeluaran", value: formatRupiah(expenses), status: "ok" },
+      { label: "Profit", value: formatRupiah(profit), status: profit > 0 ? "ok" : "warning" },
+    ],
   };
 }
