@@ -907,9 +907,13 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
   await requireFeature("ADVANCED_REPORTS");
   const tp = await requireTenantPrisma();
 
+  // Set end date to end of day (23:59:59) to include all transactions on that day
+  const endDateObj = new Date(endDate);
+  endDateObj.setHours(23, 59, 59, 999);
+
   const invoices = await tp.invoice.findMany({
     where: {
-      issuedAt: { gte: new Date(startDate), lte: new Date(endDate) },
+      issuedAt: { gte: new Date(startDate), lte: endDateObj },
       status: { in: ["PAID", "ISSUED", "PARTIAL"] },
     },
     include: {
@@ -1008,20 +1012,24 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
   await requireFeature("ADVANCED_REPORTS");
   const tp = await requireTenantPrisma();
 
+  // Set end date to end of day (23:59:59) to include all transactions on that day
+  const endDateObj = new Date(endDate);
+  endDateObj.setHours(23, 59, 59, 999);
+
   const [expenses, purchases, payments] = await Promise.all([
     tp.expense.findMany({
-      where: { date: { gte: new Date(startDate), lte: new Date(endDate) } },
+      where: { date: { gte: new Date(startDate), lte: endDateObj } },
       orderBy: { date: "desc" },
     }),
     tp.purchase.findMany({
       where: {
-        receivedAt: { gte: new Date(startDate), lte: new Date(endDate) },
+        receivedAt: { gte: new Date(startDate), lte: endDateObj },
         status: { in: ["COMPLETED", "VOID"] },
-        OR: [{ voidAt: null }, { voidAt: { gt: new Date(endDate) } }],
+        OR: [{ voidAt: null }, { voidAt: { gt: endDateObj } }],
       },
     }),
     tp.supplierPayment.findMany({
-      where: { paidAt: { gte: new Date(startDate), lte: new Date(endDate) } },
+      where: { paidAt: { gte: new Date(startDate), lte: endDateObj } },
     }),
   ]);
 
@@ -1040,17 +1048,22 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
   const totalRevenue = invoices.reduce((sum, i) => sum + Number(i.grandTotal), 0);
   const profit = totalRevenue - totalExpenses - totalPurchases;
 
-  // Expense trend (last 7 days)
+  // Expense trend (based on date range)
   const expenseTrend: { date: string; expenses: number }[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const chartDays = Math.min(daysDiff + 1, 30);
+
+  for (let i = chartDays - 1; i >= 0; i--) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + (chartDays - 1 - i));
     const dayStr = d.toISOString().split("T")[0];
     const dayExpenses = expenses.filter(
       (e) => e.date.toISOString().split("T")[0] === dayStr
     );
     expenseTrend.push({
-      date: new Intl.DateTimeFormat("id-ID", { weekday: "short" }).format(d),
+      date: new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d),
       expenses: dayExpenses.reduce((sum, e) => sum + Number(e.amount), 0),
     });
   }
@@ -1105,11 +1118,15 @@ export async function getRoastingReport(startDate: string, endDate: string): Pro
   await requireFeature("ADVANCED_REPORTS");
   const tp = await requireTenantPrisma();
 
+  // Set end date to end of day (23:59:59) to include all transactions on that day
+  const endDateObj = new Date(endDate);
+  endDateObj.setHours(23, 59, 59, 999);
+
   const batches = await tp.parentRoastingBatch.findMany({
     where: {
-      completedAt: { gte: new Date(startDate), lte: new Date(endDate) },
+      completedAt: { gte: new Date(startDate), lte: endDateObj },
       status: { in: ["COMPLETED", "VOID"] },
-      OR: [{ voidAt: null }, { voidAt: { gt: new Date(endDate) } }],
+      OR: [{ voidAt: null }, { voidAt: { gt: endDateObj } }],
     },
     include: {
       inputProduct: { select: { name: true } },
@@ -1132,11 +1149,16 @@ export async function getRoastingReport(startDate: string, endDate: string): Pro
   const avgYield = totalGbUsed > 0 ? (totalRbProduced / totalGbUsed) * 100 : 0;
   const lossPercent = 100 - avgYield;
 
-  // Yield trend (last 7 days)
+  // Yield trend (based on date range)
   const yieldTrend: { date: string; yield: number }[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const chartDays = Math.min(daysDiff + 1, 30);
+
+  for (let i = chartDays - 1; i >= 0; i--) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + (chartDays - 1 - i));
     const dayStr = d.toISOString().split("T")[0];
     const dayBatches = batches.filter(
       (b) => b.completedAt?.toISOString().split("T")[0] === dayStr
@@ -1144,7 +1166,7 @@ export async function getRoastingReport(startDate: string, endDate: string): Pro
     const dayGb = dayBatches.reduce((sum, b) => sum + Number(b.targetWeightKg), 0);
     const dayRb = dayBatches.reduce((sum, b) => sum + Number(b.actualOutputKg || 0), 0);
     yieldTrend.push({
-      date: new Intl.DateTimeFormat("id-ID", { weekday: "short" }).format(d),
+      date: new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d),
       yield: dayGb > 0 ? (dayRb / dayGb) * 100 : 0,
     });
   }
@@ -1195,11 +1217,15 @@ export async function getProductionReport(startDate: string, endDate: string): P
   await requireFeature("ADVANCED_REPORTS");
   const tp = await requireTenantPrisma();
 
+  // Set end date to end of day (23:59:59) to include all transactions on that day
+  const endDateObj = new Date(endDate);
+  endDateObj.setHours(23, 59, 59, 999);
+
   const batches = await tp.productionBatch.findMany({
     where: {
-      producedAt: { gte: new Date(startDate), lte: new Date(endDate) },
+      producedAt: { gte: new Date(startDate), lte: endDateObj },
       status: { in: ["COMPLETED", "VOID"] },
-      OR: [{ voidAt: null }, { voidAt: { gt: new Date(endDate) } }],
+      OR: [{ voidAt: null }, { voidAt: { gt: endDateObj } }],
     },
     include: {
       outputProduct: { select: { name: true } },
@@ -1214,17 +1240,22 @@ export async function getProductionReport(startDate: string, endDate: string): P
   const totalPackagingUsed = batches.reduce((sum, b) => sum + b.unitsProduced, 0); // 1:1 with FG
   const efficiency = totalRbUsed > 0 ? (totalFgProduced / totalRbUsed) * 100 : 0;
 
-  // Production trend (last 7 days)
+  // Production trend (based on date range)
   const productionTrend: { date: string; units: number }[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const chartDays = Math.min(daysDiff + 1, 30);
+
+  for (let i = chartDays - 1; i >= 0; i--) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + (chartDays - 1 - i));
     const dayStr = d.toISOString().split("T")[0];
     const dayBatches = batches.filter(
       (b) => b.producedAt?.toISOString().split("T")[0] === dayStr
     );
     productionTrend.push({
-      date: new Intl.DateTimeFormat("id-ID", { weekday: "short" }).format(d),
+      date: new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d),
       units: dayBatches.reduce((sum, b) => sum + b.unitsProduced, 0),
     });
   }

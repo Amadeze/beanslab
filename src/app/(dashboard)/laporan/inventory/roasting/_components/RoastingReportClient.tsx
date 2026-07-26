@@ -9,6 +9,7 @@ import {
   ReportTable,
   ReportFilters,
   ReportExport,
+  ReportSkeleton,
   type DateRange,
   type ReportColumn,
   type RoastingReportData,
@@ -77,9 +78,7 @@ export default function RoastingReportClient() {
   if (loading || !data) {
     return (
       <ReportLayout activeTab="inventory/roasting">
-        <div className="flex items-center justify-center py-20">
-          <div className="text-sm text-stone-500">Memuat data...</div>
-        </div>
+        <ReportSkeleton />
       </ReportLayout>
     );
   }

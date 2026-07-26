@@ -9,6 +9,7 @@ import {
   ReportTable,
   ReportFilters,
   ReportExport,
+  ReportSkeleton,
   type DateRange,
   type ReportColumn,
   type ProductionReportData,
@@ -83,9 +84,7 @@ export default function ProductionReportClient() {
   if (loading || !data) {
     return (
       <ReportLayout activeTab="inventory/production">
-        <div className="flex items-center justify-center py-20">
-          <div className="text-sm text-stone-500">Memuat data...</div>
-        </div>
+        <ReportSkeleton />
       </ReportLayout>
     );
   }

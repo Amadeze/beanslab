@@ -16,6 +16,7 @@ import {
   ReportChart,
   ReportFilters,
   ReportExport,
+  ReportSkeleton,
   type DateRange,
   type KeuanganOverviewData,
 } from "../../_shared";
@@ -53,9 +54,7 @@ export default function KeuanganOverviewClient() {
   if (loading || !data) {
     return (
       <ReportLayout activeTab="keuangan">
-        <div className="flex items-center justify-center py-20">
-          <div className="text-sm text-stone-500">Memuat data...</div>
-        </div>
+        <ReportSkeleton />
       </ReportLayout>
     );
   }
@@ -149,7 +148,7 @@ export default function KeuanganOverviewClient() {
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Link
-              href="/laporan/sales"
+              href="/laporan/keuangan/sales"
               className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[#00C8DF] hover:bg-[#00C8DF]/5"
             >
               <div className="flex items-center gap-3">
@@ -168,7 +167,7 @@ export default function KeuanganOverviewClient() {
               <ArrowRight size={16} className="text-stone-400" />
             </Link>
             <Link
-              href="/laporan/expense"
+              href="/laporan/keuangan/expenses"
               className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[#00C8DF] hover:bg-[#00C8DF]/5"
             >
               <div className="flex items-center gap-3">

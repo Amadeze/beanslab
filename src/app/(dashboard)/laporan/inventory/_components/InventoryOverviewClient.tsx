@@ -69,19 +69,6 @@ export default function InventoryOverviewClient() {
   // Low stock items count
   const lowStockItems = data.items.filter((item) => item.stock < 100).length;
 
-  // Simulated 7-day trend based on current category values
-  const trendData = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(dateRange.end);
-    date.setDate(date.getDate() - (6 - i));
-    const jitter = 0.92 + Math.random() * 0.16;
-    return {
-      date: date.toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
-      "Green Bean": Math.round(data.totalGreenBeanValue * jitter),
-      "Roasted Bean": Math.round(data.totalRoastedBeanValue * jitter),
-      "Produk Jadi": Math.round(data.totalFinishedGoodsValue * jitter),
-    };
-  });
-
   return (
     <ReportLayout activeTab="inventory">
       <div className="space-y-6">
@@ -133,13 +120,11 @@ export default function InventoryOverviewClient() {
             yFormatter={(v) => formatRupiah(v)}
           />
           <ReportChart
-            title="Tren Nilai Stok (7 Hari)"
-            type="area"
-            data={trendData}
-            xKey="date"
-            yKeys={["Green Bean", "Roasted Bean", "Produk Jadi"]}
-            yFormatter={(v) => formatRupiah(v)}
-            showLegend
+            title="Komposisi Stok"
+            type="pie"
+            data={stockByCategory}
+            xKey="name"
+            yKey="value"
           />
         </div>
 
