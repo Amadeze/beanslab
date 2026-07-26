@@ -28,6 +28,7 @@ interface ReportChartProps {
   xKey?: string;
   yKey?: string;
   yKeys?: string[];
+  yFormatter?: (value: number) => string;
   height?: number;
   colors?: string[];
   showGrid?: boolean;
@@ -44,6 +45,21 @@ const DEFAULT_COLORS = [
   "#2B7567",
 ];
 
+const TOOLTIP_STYLE = {
+  backgroundColor: "#fff",
+  border: "1px solid #E7E5E4",
+  borderRadius: "8px",
+  fontSize: "12px",
+};
+
+// Default compact number formatter
+const formatCompact = (value: number): string => {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}M`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return value.toString();
+};
+
 export function ReportChart({
   title,
   type,
@@ -51,6 +67,7 @@ export function ReportChart({
   xKey = "date",
   yKey = "value",
   yKeys,
+  yFormatter,
   height = 300,
   colors = DEFAULT_COLORS,
   showGrid = true,
@@ -69,21 +86,19 @@ export function ReportChart({
       axisLine: false,
     };
 
+    const yAxisProps = {
+      ...axisProps,
+      tickFormatter: yFormatter || formatCompact,
+    };
+
     switch (type) {
       case "area":
         return (
           <AreaChart {...commonProps}>
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E7E5E4" />}
             <XAxis dataKey={xKey} {...axisProps} />
-            <YAxis {...axisProps} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#fff",
-                border: "1px solid #E7E5E4",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
-            />
+            <YAxis {...yAxisProps} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} />
             {showLegend && <Legend />}
             {(yKeys || [yKey]).map((key, index) => (
               <Area
@@ -104,15 +119,8 @@ export function ReportChart({
           <BarChart {...commonProps}>
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E7E5E4" />}
             <XAxis dataKey={xKey} {...axisProps} />
-            <YAxis {...axisProps} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#fff",
-                border: "1px solid #E7E5E4",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
-            />
+            <YAxis {...yAxisProps} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} />
             {showLegend && <Legend />}
             {(yKeys || [yKey]).map((key, index) => (
               <Bar
@@ -130,15 +138,8 @@ export function ReportChart({
           <LineChart {...commonProps}>
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E7E5E4" />}
             <XAxis dataKey={xKey} {...axisProps} />
-            <YAxis {...axisProps} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#fff",
-                border: "1px solid #E7E5E4",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
-            />
+            <YAxis {...yAxisProps} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} />
             {showLegend && <Legend />}
             {(yKeys || [yKey]).map((key, index) => (
               <Line
@@ -173,14 +174,7 @@ export function ReportChart({
                 />
               ))}
             </Pie>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#fff",
-                border: "1px solid #E7E5E4",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
-            />
+            <Tooltip contentStyle={TOOLTIP_STYLE} />
             {showLegend && <Legend />}
           </PieChart>
         );
@@ -189,6 +183,20 @@ export function ReportChart({
         return null;
     }
   };
+
+  // Handle empty data
+  if (!data || data.length === 0) {
+    return (
+      <div className={cn("rounded-xl border border-stone-200 bg-white p-4", className)}>
+        <p className="mb-4 text-xs font-bold uppercase tracking-wider text-stone-500">
+          {title}
+        </p>
+        <div style={{ height }} className="flex items-center justify-center text-stone-400 text-sm">
+          Tidak ada data
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("rounded-xl border border-stone-200 bg-white p-4", className)}>

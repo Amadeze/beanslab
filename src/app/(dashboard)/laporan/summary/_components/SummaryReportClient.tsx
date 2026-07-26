@@ -13,6 +13,7 @@ import {
   ReportChart,
   ReportFilters,
   ReportExport,
+  ReportSkeleton,
   type DateRange,
   type SummaryReportData,
 } from "../../_shared";
@@ -31,7 +32,7 @@ export default function SummaryReportClient() {
     async function fetchData() {
       setLoading(true);
       try {
-        const result = await getSummaryReport();
+        const result = await getSummaryReport(dateRange.start, dateRange.end);
         setData(result);
       } catch (error) {
         console.error("Failed to fetch summary report:", error);
@@ -45,12 +46,13 @@ export default function SummaryReportClient() {
   if (loading || !data) {
     return (
       <ReportLayout activeTab="summary">
-        <div className="flex items-center justify-center py-20">
-          <div className="text-sm text-stone-500">Memuat data...</div>
-        </div>
+        <ReportSkeleton />
       </ReportLayout>
     );
   }
+
+  // Calculate date range label
+  const dateRangeLabel = `${new Date(dateRange.start).toLocaleDateString("id-ID", { day: "numeric", month: "short" })} - ${new Date(dateRange.end).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}`;
 
   return (
     <ReportLayout
@@ -111,7 +113,7 @@ export default function SummaryReportClient() {
         {/* Charts */}
         <div className="grid gap-4 lg:grid-cols-2">
           <ReportChart
-            title="Revenue Trend (7 hari)"
+            title={`Revenue Trend (${dateRangeLabel})`}
             type="area"
             data={data.revenueChart}
             xKey="date"

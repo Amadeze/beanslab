@@ -25,7 +25,7 @@ export function ReportExport({
   const handlePdf = async () => {
     setExporting("pdf");
     try {
-      exportToPdf({
+      await exportToPdf({
         title,
         filename: `${filename}.pdf`,
         sheetName: title,
@@ -35,6 +35,8 @@ export function ReportExport({
         })),
         data,
       });
+    } catch (error) {
+      console.error("PDF export failed:", error);
     } finally {
       setExporting(null);
     }

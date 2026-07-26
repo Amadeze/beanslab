@@ -107,12 +107,14 @@ export default function ExpenseReportClient() {
             value={formatRupiah(data.totalExpenses)}
             icon={WalletCards}
             color="rose"
+            inverse
           />
           <ReportKpiCard
             label="Biaya Pembelian"
             value={formatRupiah(data.totalPurchases)}
             icon={ReceiptText}
             color="amber"
+            inverse
           />
           <ReportKpiCard
             label="Hutang Tertunda"

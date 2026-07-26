@@ -1260,13 +1260,12 @@ export type SummaryReportData = {
   pipeline: { label: string; value: string; status: string }[];
 };
 
-export async function getSummaryReport(): Promise<SummaryReportData> {
+export async function getSummaryReport(startDate?: string, endDate?: string): Promise<SummaryReportData> {
   await requireFeature("ADVANCED_REPORTS");
 
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+  const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = endDate ? new Date(endDate) : now;
 
   const [currentPnl, lastPnl, inventory] = await Promise.all([
     getPnLReport(now.getMonth() + 1, now.getFullYear()),
@@ -1287,11 +1286,16 @@ export async function getSummaryReport(): Promise<SummaryReportData> {
   const expensesTrend = lastExpenses > 0 ? ((expenses - lastExpenses) / lastExpenses) * 100 : 0;
   const profitTrend = lastProfit > 0 ? ((profit - lastProfit) / lastProfit) * 100 : 0;
 
-  // Revenue chart (last 7 days)
+  // Revenue chart (based on date range or last 7 days)
   const revenueChart: { date: string; value: number }[] = [];
   const tp = await requireTenantPrisma();
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
+
+  // Calculate number of days to show
+  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const chartDays = Math.min(daysDiff, 30); // Cap at 30 days for chart
+
+  for (let i = chartDays - 1; i >= 0; i--) {
+    const d = new Date(end);
     d.setDate(d.getDate() - i);
     const dayStart = new Date(d.setHours(0, 0, 0, 0));
     const dayEnd = new Date(d.setHours(23, 59, 59, 999));
@@ -1302,7 +1306,7 @@ export async function getSummaryReport(): Promise<SummaryReportData> {
       },
     });
     revenueChart.push({
-      date: new Intl.DateTimeFormat("id-ID", { weekday: "short" }).format(d),
+      date: new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d),
       value: dayInvoices.reduce((sum, i) => sum + Number(i.grandTotal), 0),
     });
   }

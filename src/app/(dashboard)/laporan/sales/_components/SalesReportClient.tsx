@@ -9,6 +9,7 @@ import {
   ReportTable,
   ReportFilters,
   ReportExport,
+  ReportSkeleton,
   type DateRange,
   type ReportColumn,
   type SalesReportData,
@@ -77,12 +78,12 @@ export default function SalesReportClient() {
   if (loading || !data) {
     return (
       <ReportLayout activeTab="sales">
-        <div className="flex items-center justify-center py-20">
-          <div className="text-sm text-stone-500">Memuat data...</div>
-        </div>
+        <ReportSkeleton />
       </ReportLayout>
     );
   }
+
+  const dateRangeLabel = `${new Date(dateRange.start).toLocaleDateString("id-ID", { day: "numeric", month: "short" })} - ${new Date(dateRange.end).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}`;
 
   return (
     <ReportLayout
@@ -135,11 +136,12 @@ export default function SalesReportClient() {
         {/* Charts */}
         <div className="grid gap-4 lg:grid-cols-3">
           <ReportChart
-            title="Revenue Trend (7 hari)"
+            title={`Revenue Trend (${dateRangeLabel})`}
             type="area"
             data={data.revenueTrend}
             xKey="date"
             yKey="revenue"
+            yFormatter={(v) => formatRupiah(v)}
             className="lg:col-span-2"
           />
           <ReportChart
