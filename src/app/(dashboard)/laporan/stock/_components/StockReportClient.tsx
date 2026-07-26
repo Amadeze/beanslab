@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Package, AlertTriangle, ArrowUpDown, BarChart3 } from "lucide-react";
 import {
   ReportLayout,
@@ -9,84 +9,85 @@ import {
   ReportTable,
   ReportFilters,
   ReportExport,
+  ReportSkeleton,
   type DateRange,
   type ReportColumn,
 } from "../../_shared";
+import { getInventoryValuationReport, type InventoryValuationReport } from "../../actions";
 import { formatRupiah, formatKg } from "@/lib/format";
-
-// Mock data - replace with real data fetching
-const mockStockItems = [
-  { code: "GB-001", name: "Green Bean Arabica Aceh", category: "Green Bean", stock: 1250, unit: "kg", unitCost: 85000 },
-  { code: "GB-002", name: "Green Bean Robusta Lampung", category: "Green Bean", stock: 890, unit: "kg", unitCost: 65000 },
-  { code: "GB-003", name: "Green Bean Toraja", category: "Green Bean", stock: 2100, unit: "kg", unitCost: 95000 },
-  { code: "RB-001", name: "Roasted Bean Blend House", category: "Roasted Bean", stock: 450, unit: "kg", unitCost: 120000 },
-  { code: "RB-002", name: "Roasted Bean Single Origin", category: "Roasted Bean", stock: 320, unit: "kg", unitCost: 145000 },
-  { code: "PKG-001", name: "Kopi Drip Bag 10g", category: "Packaging", stock: 5000, unit: "pcs", unitCost: 2500 },
-  { code: "PKG-002", name: "Standing Pouch 250g", category: "Packaging", stock: 3200, unit: "pcs", unitCost: 1800 },
-  { code: "PRD-001", name: "Kopi Tubruk 100g", category: "Produk Jadi", stock: 180, unit: "pcs", unitCost: 35000 },
-  { code: "PRD-002", name: "Kopi Bubuk 250g", category: "Produk Jadi", stock: 95, unit: "pcs", unitCost: 65000 },
-  { code: "PRD-003", name: "Espresso Blend 1kg", category: "Produk Jadi", stock: 42, unit: "pcs", unitCost: 180000 },
-];
-
-const columns: ReportColumn<(typeof mockStockItems)[0]>[] = [
-  { key: "code", label: "Kode", sortable: true },
-  { key: "name", label: "Nama Item", sortable: true },
-  { key: "category", label: "Kategori", sortable: true },
-  {
-    key: "stock",
-    label: "Stok",
-    sortable: true,
-    format: (v, row) => (
-      <span className={v < 100 ? "font-semibold text-red-600" : ""}>
-        {row.unit === "kg" ? formatKg(v) : `${v.toLocaleString()} ${row.unit}`}
-      </span>
-    ),
-    className: "text-right",
-  },
-  {
-    key: "unitCost",
-    label: "Harga Satuan",
-    sortable: true,
-    format: (v) => formatRupiah(v),
-    className: "text-right",
-  },
-  {
-    key: "stock",
-    label: "Total Nilai",
-    sortable: false,
-    format: (_v, row) => formatRupiah(row.stock * row.unitCost),
-    className: "text-right",
-  },
-];
-
-const mockData = {
-  totalStockValue: 352500000,
-  itemCount: 10,
-  lowStockItems: 2,
-  recentMovements: 8,
-  stockValueTrend: -3.2,
-  stockByCategory: [
-    { name: "Green Bean", value: 312500000 },
-    { name: "Roasted Bean", value: 100400000 },
-    { name: "Packaging", value: 18100000 },
-    { name: "Produk Jadi", value: 21450000 },
-  ],
-  movementTrend: [
-    { date: "Sen", in: 450, out: 320 },
-    { date: "Sel", in: 280, out: 410 },
-    { date: "Rab", in: 620, out: 350 },
-    { date: "Kam", in: 180, out: 520 },
-    { date: "Jum", in: 390, out: 280 },
-    { date: "Sab", in: 210, out: 190 },
-    { date: "Min", in: 50, out: 30 },
-  ],
-};
 
 export default function StockReportClient() {
   const [dateRange, setDateRange] = useState<DateRange>({
     start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     end: new Date().toISOString().split("T")[0],
   });
+  const [data, setData] = useState<InventoryValuationReport | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      try {
+        const result = await getInventoryValuationReport(new Date(dateRange.end));
+        setData(result);
+      } catch (error) {
+        console.error("Failed to fetch stock report:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [dateRange]);
+
+  const columns: ReportColumn<InventoryValuationReport["items"][0]>[] = [
+    { key: "code", label: "Kode", sortable: true },
+    { key: "name", label: "Nama Item", sortable: true },
+    { key: "category", label: "Kategori", sortable: true },
+    {
+      key: "stock",
+      label: "Stok",
+      sortable: true,
+      format: (v, row) => (
+        <span className={v < 100 ? "font-semibold text-red-600" : ""}>
+          {row.unit === "kg" ? formatKg(v) : `${v.toLocaleString()} ${row.unit}`}
+        </span>
+      ),
+      className: "text-right",
+    },
+    {
+      key: "unitCost",
+      label: "Harga Satuan",
+      sortable: true,
+      format: (v) => formatRupiah(v),
+      className: "text-right",
+    },
+    {
+      key: "totalValue",
+      label: "Total Nilai",
+      sortable: true,
+      format: (v) => formatRupiah(v),
+      className: "text-right",
+    },
+  ];
+
+  if (loading || !data) {
+    return (
+      <ReportLayout activeTab="stock">
+        <ReportSkeleton />
+      </ReportLayout>
+    );
+  }
+
+  // Calculate stock by category
+  const stockByCategory = [
+    { name: "Green Bean", value: data.totalGreenBeanValue },
+    { name: "Roasted Bean", value: data.totalRoastedBeanValue },
+    { name: "Produk Jadi", value: data.totalFinishedGoodsValue },
+    { name: "Kemasan", value: data.totalPackagingValue },
+  ].filter((item) => item.value > 0);
+
+  // Count low stock items (stock < 100)
+  const lowStockItems = data.items.filter((item) => item.stock < 100).length;
 
   return (
     <ReportLayout
@@ -96,7 +97,7 @@ export default function StockReportClient() {
           title="Stock Report"
           filename="stock-report"
           columns={columns.map((c) => ({ header: c.label, key: c.key }))}
-          data={mockStockItems}
+          data={data.items}
         />
       }
     >
@@ -110,31 +111,32 @@ export default function StockReportClient() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <ReportKpiCard
             label="Total Nilai Stok"
-            value={formatRupiah(mockData.totalStockValue)}
-            trend={mockData.stockValueTrend}
+            value={formatRupiah(data.grandTotalValue)}
             icon={BarChart3}
             color="emerald"
           />
           <ReportKpiCard
             label="Jumlah Item"
-            value={mockData.itemCount}
+            value={data.items.length}
             subtitle="item"
             icon={Package}
             color="blue"
           />
           <ReportKpiCard
             label="Stok Menipis"
-            value={mockData.lowStockItems}
+            value={lowStockItems}
             subtitle="< 100 unit"
             icon={AlertTriangle}
             color="rose"
+            inverse
           />
           <ReportKpiCard
-            label="Pergerakan"
-            value={mockData.recentMovements}
-            subtitle="7 hari terakhir"
-            icon={ArrowUpDown}
-            color="purple"
+            label="Zero Cost"
+            value={data.zeroCostItemCount}
+            subtitle="item"
+            icon={AlertTriangle}
+            color="amber"
+            inverse
           />
         </div>
 
@@ -143,16 +145,17 @@ export default function StockReportClient() {
           <ReportChart
             title="Stok per Kategori"
             type="bar"
-            data={mockData.stockByCategory}
+            data={stockByCategory}
             xKey="name"
             yKey="value"
+            yFormatter={(v) => formatRupiah(v)}
           />
           <ReportChart
-            title="Tren Pergerakan Stok"
-            type="area"
-            data={mockData.movementTrend}
-            xKey="date"
-            yKey="in"
+            title="Komposisi Stok"
+            type="pie"
+            data={stockByCategory}
+            xKey="name"
+            yKey="value"
             className="lg:col-span-2"
           />
         </div>
@@ -160,7 +163,7 @@ export default function StockReportClient() {
         {/* Stock Table */}
         <ReportTable
           columns={columns}
-          data={mockStockItems}
+          data={data.items}
           pageSize={10}
         />
       </div>
