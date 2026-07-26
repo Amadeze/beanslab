@@ -9,6 +9,7 @@ import {
   Flame,
   Factory,
   Calendar,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,7 +21,8 @@ export type ReportTab =
   | "stock"
   | "roasting"
   | "production"
-  | "daily";
+  | "daily"
+  | "analysis";
 
 interface TabConfig {
   id: ReportTab;
@@ -37,6 +39,7 @@ const REPORT_TABS: TabConfig[] = [
   { id: "roasting", label: "Roasting", icon: Flame, href: "/laporan/roasting" },
   { id: "production", label: "Produksi", icon: Factory, href: "/laporan/production" },
   { id: "daily", label: "Harian", icon: Calendar, href: "/laporan/daily" },
+  { id: "analysis", label: "Analisis Mendalam", icon: BarChart3, href: "/laporan/analysis" },
 ];
 
 interface ReportLayoutProps {
