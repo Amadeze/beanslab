@@ -12,8 +12,8 @@ import {
   ReportSkeleton,
   type DateRange,
   type ReportColumn,
-} from "../../_shared";
-import { getInventoryValuationReport, type InventoryValuationReport } from "../../actions";
+} from "../../../_shared";
+import { getInventoryValuationReport, type InventoryValuationReport } from "../../../actions";
 import { formatRupiah, formatKg } from "@/lib/format";
 
 export default function StockReportClient() {
@@ -72,7 +72,7 @@ export default function StockReportClient() {
 
   if (loading || !data) {
     return (
-      <ReportLayout activeTab="stock">
+      <ReportLayout activeTab="inventory/stock">
         <ReportSkeleton />
       </ReportLayout>
     );
@@ -91,7 +91,7 @@ export default function StockReportClient() {
 
   return (
     <ReportLayout
-      activeTab="stock"
+      activeTab="inventory/stock"
       actions={
         <ReportExport
           title="Stock Report"

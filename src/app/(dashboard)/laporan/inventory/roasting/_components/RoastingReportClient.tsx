@@ -12,8 +12,8 @@ import {
   type DateRange,
   type ReportColumn,
   type RoastingReportData,
-} from "../../_shared";
-import { getRoastingReport } from "../../actions";
+} from "../../../_shared";
+import { getRoastingReport } from "../../../actions";
 import { formatKg } from "@/lib/format";
 
 export default function RoastingReportClient() {
@@ -76,7 +76,7 @@ export default function RoastingReportClient() {
 
   if (loading || !data) {
     return (
-      <ReportLayout activeTab="roasting">
+      <ReportLayout activeTab="inventory/roasting">
         <div className="flex items-center justify-center py-20">
           <div className="text-sm text-stone-500">Memuat data...</div>
         </div>
@@ -86,7 +86,7 @@ export default function RoastingReportClient() {
 
   return (
     <ReportLayout
-      activeTab="roasting"
+      activeTab="inventory/roasting"
       actions={
         <ReportExport
           title="Roasting Report"

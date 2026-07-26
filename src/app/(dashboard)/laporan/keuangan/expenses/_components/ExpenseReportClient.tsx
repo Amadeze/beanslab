@@ -12,8 +12,8 @@ import {
   type DateRange,
   type ReportColumn,
   type ExpenseReportData,
-} from "../../_shared";
-import { getExpenseReport } from "../../actions";
+} from "../../../_shared";
+import { getExpenseReport } from "../../../actions";
 import { formatRupiah } from "@/lib/format";
 
 export default function ExpenseReportClient() {
@@ -74,7 +74,7 @@ export default function ExpenseReportClient() {
 
   if (loading || !data) {
     return (
-      <ReportLayout activeTab="expense">
+      <ReportLayout activeTab="keuangan/expenses">
         <div className="flex items-center justify-center py-20">
           <div className="text-sm text-stone-500">Memuat data...</div>
         </div>
@@ -84,7 +84,7 @@ export default function ExpenseReportClient() {
 
   return (
     <ReportLayout
-      activeTab="expense"
+      activeTab="keuangan/expenses"
       actions={
         <ReportExport
           title="Expense Report"

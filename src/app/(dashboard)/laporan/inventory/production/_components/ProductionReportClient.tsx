@@ -12,8 +12,8 @@ import {
   type DateRange,
   type ReportColumn,
   type ProductionReportData,
-} from "../../_shared";
-import { getProductionReport } from "../../actions";
+} from "../../../_shared";
+import { getProductionReport } from "../../../actions";
 import { formatKg } from "@/lib/format";
 
 export default function ProductionReportClient() {
@@ -82,7 +82,7 @@ export default function ProductionReportClient() {
 
   if (loading || !data) {
     return (
-      <ReportLayout activeTab="production">
+      <ReportLayout activeTab="inventory/production">
         <div className="flex items-center justify-center py-20">
           <div className="text-sm text-stone-500">Memuat data...</div>
         </div>
@@ -92,7 +92,7 @@ export default function ProductionReportClient() {
 
   return (
     <ReportLayout
-      activeTab="production"
+      activeTab="inventory/production"
       actions={
         <ReportExport
           title="Production Report"

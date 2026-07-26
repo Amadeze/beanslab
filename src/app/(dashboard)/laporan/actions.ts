@@ -1329,3 +1329,100 @@ export async function getSummaryReport(startDate?: string, endDate?: string): Pr
     ],
   };
 }
+
+// =============================================================================
+// KEUANGAN OVERVIEW REPORT
+// =============================================================================
+
+export type KeuanganOverviewData = {
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  cashFlow: number;
+  revenueTrend: number;
+  expensesTrend: number;
+  profitTrend: number;
+  cashFlowTrend: number;
+  revenueVsExpensesChart: { date: string; revenue: number; expenses: number }[];
+  expenseByCategory: { name: string; value: number }[];
+};
+
+export async function getKeuanganOverview(startDate?: string, endDate?: string): Promise<KeuanganOverviewData> {
+  await requireFeature("ADVANCED_REPORTS");
+
+  const now = new Date();
+  const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = endDate ? new Date(endDate) : now;
+
+  // Get PnL report for current month
+  const currentPnl = await getPnLReport(now.getMonth() + 1, now.getFullYear());
+  const lastPnl = await getPnLReport(now.getMonth() === 1 ? 12 : now.getMonth() - 1, now.getMonth() === 1 ? now.getFullYear() - 1 : now.getFullYear());
+
+  // Get expense report for the date range
+  const expenseReport = await getExpenseReport(start.toISOString(), end.toISOString());
+
+  const totalRevenue = currentPnl.netSales;
+  const totalExpenses = currentPnl.opex;
+  const netProfit = currentPnl.netProfit;
+
+  // Cash flow = Revenue collected (payments) - Expenses paid
+  // Simplified: use revenue - expenses for now
+  const cashFlow = totalRevenue - totalExpenses;
+
+  // Trends (vs last month)
+  const lastRevenue = lastPnl.netSales;
+  const lastExpenses = lastPnl.opex;
+  const lastProfit = lastPnl.netProfit;
+  const lastCashFlow = lastRevenue - lastExpenses;
+
+  const revenueTrend = lastRevenue > 0 ? ((totalRevenue - lastRevenue) / lastRevenue) * 100 : 0;
+  const expensesTrend = lastExpenses > 0 ? ((totalExpenses - lastExpenses) / lastExpenses) * 100 : 0;
+  const profitTrend = lastProfit > 0 ? ((netProfit - lastProfit) / lastProfit) * 100 : 0;
+  const cashFlowTrend = lastCashFlow > 0 ? ((cashFlow - lastCashFlow) / lastCashFlow) * 100 : 0;
+
+  // Revenue vs Expenses chart (last 30 days)
+  const tp = await requireTenantPrisma();
+  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const chartDays = Math.min(daysDiff, 30);
+
+  const revenueVsExpensesChart: { date: string; revenue: number; expenses: number }[] = [];
+  for (let i = chartDays - 1; i >= 0; i--) {
+    const d = new Date(end);
+    d.setDate(d.getDate() - i);
+    const dayStart = new Date(d.setHours(0, 0, 0, 0));
+    const dayEnd = new Date(d.setHours(23, 59, 59, 999));
+
+    const [dayInvoices, dayExpenses] = await Promise.all([
+      tp.invoice.findMany({
+        where: {
+          issuedAt: { gte: dayStart, lte: dayEnd },
+          status: "PAID",
+        },
+      }),
+      tp.expense.findMany({
+        where: {
+          date: { gte: dayStart, lte: dayEnd },
+        },
+      }),
+    ]);
+
+    revenueVsExpensesChart.push({
+      date: new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d),
+      revenue: dayInvoices.reduce((sum, i) => sum + Number(i.grandTotal), 0),
+      expenses: dayExpenses.reduce((sum, e) => sum + Number(e.amount), 0),
+    });
+  }
+
+  return {
+    totalRevenue,
+    totalExpenses,
+    netProfit,
+    cashFlow,
+    revenueTrend,
+    expensesTrend,
+    profitTrend,
+    cashFlowTrend,
+    revenueVsExpensesChart,
+    expenseByCategory: expenseReport.expensesByCategory,
+  };
+}

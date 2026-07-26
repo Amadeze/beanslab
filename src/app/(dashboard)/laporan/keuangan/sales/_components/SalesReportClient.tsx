@@ -13,8 +13,8 @@ import {
   type DateRange,
   type ReportColumn,
   type SalesReportData,
-} from "../../_shared";
-import { getSalesReport } from "../../actions";
+} from "../../../_shared";
+import { getSalesReport } from "../../../actions";
 import { formatRupiah } from "@/lib/format";
 
 export default function SalesReportClient() {
@@ -77,7 +77,7 @@ export default function SalesReportClient() {
 
   if (loading || !data) {
     return (
-      <ReportLayout activeTab="sales">
+      <ReportLayout activeTab="keuangan/sales">
         <ReportSkeleton />
       </ReportLayout>
     );
@@ -87,7 +87,7 @@ export default function SalesReportClient() {
 
   return (
     <ReportLayout
-      activeTab="sales"
+      activeTab="keuangan/sales"
       actions={
         <ReportExport
           title="Sales Report"
