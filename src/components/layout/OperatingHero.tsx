@@ -94,29 +94,29 @@ export function OperatingHero({
   return (
     <section className="instrument-grid border-b border-border bg-background">
       <div className="mx-auto grid w-full max-w-[1600px] lg:grid-cols-[minmax(0,1fr)_minmax(560px,0.82fr)]">
-        <div className="flex min-w-0 flex-col justify-center px-4 py-4 sm:px-6 lg:px-8">
-          <div className="mb-2 flex items-center gap-3">
+        <div className="flex min-w-0 flex-col justify-center px-4 py-3 sm:px-6 lg:px-8">
+          <div className="mb-1.5 flex items-center gap-2">
             <span
               className={cn(
-                "font-mono text-[10px] font-bold uppercase tracking-[0.22em]",
+                "font-mono text-[9px] font-bold uppercase tracking-[0.22em]",
                 tone.eyebrow,
               )}
             >
               {stageNumber[stage]} / Fokus operasi
             </span>
-            <span className={cn("h-px w-10", tone.line)} aria-hidden />
+            <span className={cn("h-px w-8", tone.line)} aria-hidden />
           </div>
-          <h2 className="max-w-[900px] text-[clamp(1.25rem,1.85vw,1.8rem)] font-black leading-[1.04] tracking-[-0.04em] text-foreground">
+          <h2 className="max-w-[900px] text-[clamp(1.1rem,1.85vw,1.6rem)] font-black leading-[1.04] tracking-[-0.04em] text-foreground">
             {headline}
           </h2>
-          <div className="mt-1.5 line-clamp-1 max-w-[860px] text-xs leading-5 text-muted-foreground sm:text-[13px]">
+          <div className="mt-1 line-clamp-1 max-w-[860px] text-[11px] leading-4 text-muted-foreground sm:text-[12px]">
             {description}
           </div>
         </div>
 
         <aside
           className={cn(
-            "instrument-grid-dark grid grid-cols-[110px_minmax(0,1fr)] border-t border-black/20 px-4 py-3 text-white sm:grid-cols-[minmax(135px,0.48fr)_minmax(0,1.52fr)] sm:px-6 sm:py-4 lg:border-l lg:border-t-0 lg:px-5",
+            "instrument-grid-dark grid grid-cols-[100px_minmax(0,1fr)] border-t border-black/20 px-3 py-2.5 text-white sm:grid-cols-[minmax(135px,0.48fr)_minmax(0,1.52fr)] sm:px-5 sm:py-3 lg:border-l lg:border-t-0 lg:px-5",
             tone.aside,
           )}
         >

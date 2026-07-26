@@ -13,9 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { formatRupiah, formatDate } from "@/lib/format";
 import { StandardDrawer } from "@/components/StandardDrawer";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
-import { OperatingHero } from "@/components/layout/OperatingHero";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { InvoiceTable } from "./InvoiceTable";
 import { InvoiceForm } from "./InvoiceForm";
@@ -216,10 +215,25 @@ export function SalesClient({
     <>
       <div className="flex min-h-0 flex-1 flex-col">
         {/* Sticky header */}
-        <PageHeader
+        <CompactHeader
           title="Penjualan & Pesanan"
           stage="sales"
           description={`${kpiCards.paidCount} nota lunas · ${kpiCards.unpaidCount} nota tempo`}
+          signal={{
+            label: "Status",
+            value: kpiCards.unpaidCount > 0
+              ? `${kpiCards.unpaidCount} belum lunas`
+              : "Semua lunas",
+            tone: kpiCards.unpaidCount > 0 ? "critical" : "ready",
+            onClick: kpiCards.unpaidCount > 0 ? () => setWorkspace("sales") : undefined,
+          }}
+          metrics={[
+            { label: "Pendapatan", value: formatRupiah(kpiCards.totalRevenue) },
+            { label: "Lunas", value: kpiCards.paidCount },
+            { label: "Aktif", value: kpiCards.totalInvoices },
+            { label: "Rata-rata", value: formatRupiah(avgInvoice) },
+          ]}
+          next={{ label: "Lanjut ke Kas & Piutang", href: "/keuangan" }}
           actions={
             <>
               <Button
@@ -329,32 +343,6 @@ export function SalesClient({
 
         {/* Scrollable content */}
         <div className="custom-scrollbar flex-1 overflow-auto">
-          <OperatingHero
-            stage="sales"
-            headline={
-              kpiCards.unpaidCount > 0
-                ? `${kpiCards.unpaidCount} nota masih menunggu menjadi kas.`
-                : `${kpiCards.paidCount} nota lunas menjaga arus penjualan.`
-            }
-            description="Penjualan bukan akhir dari stok. Nota menghubungkan pelanggan, barang keluar, pembayaran, dan piutang—semuanya harus bergerak sebagai satu transaksi."
-            signalLabel="Status penjualan"
-            signalValue={
-              kpiCards.unpaidCount > 0
-                ? `${kpiCards.unpaidCount} belum lunas`
-                : "Semua lunas"
-            }
-            signalTone={kpiCards.unpaidCount > 0 ? "critical" : "ready"}
-            metrics={[
-              {
-                label: "Pendapatan",
-                value: formatRupiah(kpiCards.totalRevenue),
-              },
-              { label: "Nota lunas", value: kpiCards.paidCount },
-              { label: "Nota aktif", value: kpiCards.totalInvoices },
-              { label: "Rata-rata nota", value: formatRupiah(avgInvoice) },
-            ]}
-            next={{ label: "Lanjut ke Kas & Piutang", href: "/keuangan" }}
-          />
           <WorkspaceNav kind="sales" />
 
           <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">

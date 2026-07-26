@@ -8,9 +8,8 @@ import { GlassPanel } from "@/components/ui/glass-panel";
 import { StandardDrawer } from "@/components/StandardDrawer";
 import { RoastingHistoryTable } from "./RoastingHistoryTable";
 import { RoastingForm } from "./RoastingForm";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
-import { OperatingHero } from "@/components/layout/OperatingHero";
 import { RoastsClient } from "../roasts/_components/RoastsClient";
 import type {
   GBStockOption,
@@ -53,13 +52,38 @@ export function RoastingClient({
     return { count: batches.length, totalGB, totalRB, avgLoss };
   }, [batches]);
 
+  // ── Compact header signal ──
+  const headerSignal = useMemo(() => {
+    if (activeTab === "batches") {
+      return gbOptions.length > 0 && machineOptions.length > 0
+        ? { label: "Sinyal", value: "Siap roasting", tone: "ready" as const }
+        : { label: "Sinyal", value: "Input belum siap", tone: "critical" as const };
+    }
+    return { label: "Profil", value: `${roastProfiles.length} profil`, tone: "neutral" as const };
+  }, [activeTab, gbOptions.length, machineOptions.length, roastProfiles.length]);
+
+  const headerMetrics = useMemo(() => {
+    if (activeTab === "batches") {
+      return [
+        { label: "GB", value: `${gbOptions.length} pilihan` },
+        { label: "Mesin", value: `${machineOptions.length} unit` },
+        { label: "RB", value: `${kpi.totalRB.toFixed(1)} kg` },
+        { label: "Loss", value: `${kpi.avgLoss.toFixed(1)}%` },
+      ];
+    }
+    return [{ label: "Profil", value: roastProfiles.length }];
+  }, [activeTab, gbOptions.length, machineOptions.length, kpi, roastProfiles.length]);
+
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col">
-        <PageHeader
+        <CompactHeader
           title="Roasting"
           description="Batch roasting, profil hasil Artisan, dan produksi lanjutan berada dalam satu konteks kerja."
           stage="roasting"
+          signal={headerSignal}
+          metrics={headerMetrics}
+          next={{ label: "Lanjut ke Produksi", href: "/produksi" }}
           actions={
             activeTab === "batches" ? (
               <Button
@@ -89,40 +113,6 @@ export function RoastingClient({
         />
 
         <div className="custom-scrollbar flex-1 overflow-auto">
-          <OperatingHero
-            stage="roasting"
-            headline={
-              activeTab === "batches"
-                ? `${gbOptions.length} bahan siap masuk panas.`
-                : `${roastProfiles.length} profil menyimpan jejak rasa.`
-            }
-            description={
-              activeTab === "batches"
-                ? "Pilih bahan dan mesin, catat hasil aktual, lalu teruskan output ke produksi."
-                : "Cari profil, bandingkan kurva, dan hubungkan hasil Artisan ke batch produksi."
-            }
-            signalValue={
-              activeTab === "batches"
-                ? gbOptions.length > 0 && machineOptions.length > 0
-                  ? "Siap roasting"
-                  : "Input belum siap"
-                : `${roastProfiles.length} profil`
-            }
-            signalTone={
-              activeTab === "batches"
-                ? gbOptions.length > 0 && machineOptions.length > 0
-                  ? "ready"
-                  : "critical"
-                : "neutral"
-            }
-            metrics={[
-              { label: "Green bean", value: `${gbOptions.length} pilihan` },
-              { label: "Mesin aktif", value: `${machineOptions.length} unit` },
-              { label: "RB dihasilkan", value: `${kpi.totalRB.toFixed(1)} kg` },
-              { label: "Rata-rata loss", value: `${kpi.avgLoss.toFixed(1)}%` },
-            ]}
-            next={{ label: "Lanjut ke Produksi", href: "/produksi" }}
-          />
           {activeTab === "batches" ? (
             <>
               <WorkspaceNav kind="roastery" />

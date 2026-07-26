@@ -16,10 +16,8 @@ import { POList } from "./POList";
 import { PODetail } from "./PODetail";
 import { POForm } from "./POForm";
 import { ReceivingList } from "./ReceivingList";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
-import { KpiRibbon, KpiCard } from "@/components/layout/KpiCards";
-import { OperatingHero } from "@/components/layout/OperatingHero";
 import { SupplierForm } from "../../master-data/_components/SupplierForm";
 import type {
   GBProductOption,
@@ -368,38 +366,69 @@ export function InventoryClient({
     }
   }, [activeView]);
 
-  const heroContent = useMemo(() => {
+  // ── Compact header signal ──
+  const headerSignal = useMemo(() => {
     switch (activeView) {
       case "stock":
-        return {
-          headline: stockMetrics.outOfStockCount > 0
-            ? `${stockMetrics.outOfStockCount} item kosong sedang memutus aliran operasi.`
-            : "Persediaan siap menopang aliran operasi hari ini.",
-          description: "Prioritaskan item habis, lalu pastikan setiap penerimaan dan koreksi stok tercatat.",
-          signal: stockMetrics.outOfStockCount > 0 ? `${stockMetrics.outOfStockCount} habis` : "Terkendali",
-          critical: stockMetrics.outOfStockCount > 0,
-        };
+        return stockMetrics.outOfStockCount > 0
+          ? {
+              label: "Sinyal",
+              value: `${stockMetrics.outOfStockCount} habis`,
+              tone: "critical" as const,
+              onClick: () => toggleMetric("out-of-stock"),
+              active: metricParam === "out-of-stock",
+            }
+          : { label: "Sinyal", value: "Terkendali", tone: "ready" as const };
       case "po":
-        return {
-          headline: `${poMetrics.active} pesanan pembelian sedang menjaga pasokan berikutnya.`,
-          description: "Pantau komitmen supplier, jumlah datang, dan sisa penerimaan dalam satu alur.",
-          signal: poMetrics.active > 0 ? `${poMetrics.active} PO aktif` : "Belum ada PO",
-          critical: poMetrics.waiting > 0,
-        };
+        return poMetrics.active > 0
+          ? {
+              label: "PO",
+              value: `${poMetrics.active} aktif`,
+              tone: "ready" as const,
+              onClick: () => toggleMetric("active"),
+              active: metricParam === "active",
+            }
+          : { label: "PO", value: "Belum ada", tone: "neutral" as const };
       case "receiving":
-        return {
-          headline: `${receivingMetrics.waitingToReceive} kiriman menunggu menjadi stok nyata.`,
-          description: "Cocokkan jumlah fisik dengan pesanan sebelum kiriman masuk ke stok.",
-          signal: receivingMetrics.waitingToReceive > 0 ? "Perlu diterima" : "Tidak ada antrean",
-          critical: receivingMetrics.waitingToReceive > 0,
-        };
+        return receivingMetrics.waitingToReceive > 0
+          ? {
+              label: "Antrean",
+              value: `${receivingMetrics.waitingToReceive} kiriman`,
+              tone: "ready" as const,
+              onClick: () => toggleMetric("waiting"),
+              active: metricParam === "waiting",
+            }
+          : { label: "Antrean", value: "Kosong", tone: "neutral" as const };
       case "mutations":
-        return {
-          headline: `${mutationMetrics.total} pergerakan stok membentuk operasi hari ini.`,
-          description: "Telusuri stok masuk, keluar, dan koreksi beserta sumber transaksinya.",
-          signal: `${mutationMetrics.total} mutasi`,
-          critical: false,
-        };
+        return { label: "Mutasi", value: `${mutationMetrics.total} hari ini`, tone: "neutral" as const };
+    }
+  }, [activeView, mutationMetrics, poMetrics, receivingMetrics, stockMetrics, metricParam, toggleMetric]);
+
+  const headerMetrics = useMemo(() => {
+    switch (activeView) {
+      case "stock":
+        return [
+          { label: "Nilai", value: formatRupiah(stockMetrics.totalValue) },
+          { label: "Habis", value: stockMetrics.outOfStockCount },
+          { label: "Perlu pesan", value: stockMetrics.needsOrderCount },
+        ];
+      case "po":
+        return [
+          { label: "Aktif", value: poMetrics.active },
+          { label: "Menunggu", value: poMetrics.waiting },
+          { label: "Sebagian", value: poMetrics.partial },
+        ];
+      case "receiving":
+        return [
+          { label: "Menunggu", value: receivingMetrics.waitingToReceive },
+          { label: "Hari ini", value: receivingMetrics.receivedToday },
+        ];
+      case "mutations":
+        return [
+          { label: "Masuk", value: mutationMetrics.inbound },
+          { label: "Keluar", value: mutationMetrics.outbound },
+          { label: "Opname", value: mutationMetrics.opname },
+        ];
     }
   }, [activeView, mutationMetrics, poMetrics, receivingMetrics, stockMetrics]);
 
@@ -424,10 +453,13 @@ export function InventoryClient({
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col">
-        <PageHeader
+        <CompactHeader
           title="Pasokan & Stok"
           description="Pembelian, penerimaan, posisi stok, supplier, dan seluruh jejak pergerakannya"
           stage="inventory"
+          signal={headerSignal}
+          metrics={headerMetrics}
+          next={{ label: "Lanjut ke Roasting", href: "/roasting" }}
           actions={
             <>
               <ExportMenu
@@ -468,52 +500,6 @@ export function InventoryClient({
         />
 
         <div className="custom-scrollbar flex-1 overflow-auto">
-          <OperatingHero
-            stage="inventory"
-            headline={heroContent.headline}
-            description={heroContent.description}
-            signalLabel="Sinyal terpenting"
-            signalValue={heroContent.signal}
-            signalTone={heroContent.critical ? "critical" : "ready"}
-            metrics={[
-              { label: "Nilai stok", value: formatRupiah(stockMetrics.totalValue) },
-              { label: "PO aktif", value: poMetrics.active },
-              { label: "Mutasi hari ini", value: mutationMetrics.total },
-              { label: "Belum disetel", value: notConfiguredCount },
-            ]}
-            next={{ label: "Lanjut ke Roasting", href: "/roasting" }}
-          />
-          <KpiRibbon>
-            {activeView === "stock" && (
-              <>
-                <KpiCard label="Nilai Persediaan" value={formatRupiah(stockMetrics.totalValue)} icon={<Package size={12} />} color="var(--domain-inventory)" />
-                <KpiCard label="Stok Habis" value={stockMetrics.outOfStockCount} icon={<XCircle size={12} />} color="var(--destructive)" onClick={() => toggleMetric("out-of-stock")} active={metricParam === "out-of-stock"} />
-                <KpiCard label="Perlu Dipesan" value={stockMetrics.needsOrderCount} icon={<AlertTriangle size={12} />} color="var(--amber-warm)" onClick={() => toggleMetric("needs-reorder")} active={metricParam === "needs-reorder"} />
-                <KpiCard label="Belum Disetel" sub="Stok tetap dihitung" value={notConfiguredCount} icon={<CircleDot size={12} />} color="var(--slate)" onClick={() => toggleMetric("not-configured")} active={metricParam === "not-configured"} />
-              </>
-            )}
-            {activeView === "po" && (
-              <>
-                <KpiCard label="PO Aktif" value={poMetrics.active} icon={<ClipboardList size={12} />} color="var(--domain-production)" onClick={() => toggleMetric("active")} active={metricParam === "active"} />
-                <KpiCard label="Menunggu Supplier" value={poMetrics.waiting} icon={<Clock size={12} />} color="var(--amber-warm)" onClick={() => toggleMetric("waiting")} active={metricParam === "waiting"} />
-                <KpiCard label="Diterima Sebagian" value={poMetrics.partial} icon={<CheckCircle2 size={12} />} color="var(--amber-warm)" onClick={() => toggleMetric("partial")} active={metricParam === "partial"} />
-              </>
-            )}
-            {activeView === "receiving" && (
-              <>
-                <KpiCard label="Menunggu Diterima" value={receivingMetrics.waitingToReceive} icon={<Truck size={12} />} color="var(--domain-inventory)" onClick={() => toggleMetric("waiting")} active={metricParam === "waiting"} />
-                <KpiCard label="Diterima Hari Ini" value={receivingMetrics.receivedToday} icon={<CheckCircle2 size={12} />} color="var(--moss)" onClick={() => toggleMetric("received-today")} active={metricParam === "received-today"} />
-              </>
-            )}
-            {activeView === "mutations" && (
-              <>
-                <KpiCard label="Stok Masuk Hari Ini" value={mutationMetrics.inbound} icon={<ArrowDownCircle size={12} />} color="var(--moss)" onClick={() => toggleMetric("inbound-today")} active={metricParam === "inbound-today"} />
-                <KpiCard label="Stok Keluar Hari Ini" value={mutationMetrics.outbound} icon={<ArrowUpCircle size={12} />} color="var(--destructive)" onClick={() => toggleMetric("outbound-today")} active={metricParam === "outbound-today"} />
-                <KpiCard label="Stock Opname Hari Ini" value={mutationMetrics.opname} icon={<Settings2 size={12} />} color="var(--amber-warm)" onClick={() => toggleMetric("opname-today")} active={metricParam === "opname-today"} />
-                <KpiCard label="Total Mutasi Hari Ini" value={mutationMetrics.total} icon={<History size={12} />} color="var(--domain-inventory)" />
-              </>
-            )}
-          </KpiRibbon>
           <WorkspaceNav kind="supply" />
 
         {/* ── Workspace Content ── */}

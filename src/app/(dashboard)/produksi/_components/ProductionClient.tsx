@@ -8,9 +8,8 @@ import { GlassPanel } from "@/components/ui/glass-panel";
 import { StandardDrawer } from "@/components/StandardDrawer";
 import { ProductionHistoryTable } from "./ProductionHistoryTable";
 import { ProductionForm } from "./ProductionForm";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
-import { OperatingHero } from "@/components/layout/OperatingHero";
 import type {
   FGProductOption,
   PackagingOption,
@@ -45,13 +44,32 @@ export function ProductionClient({
     return { count: batches.length, totalFG, totalRB };
   }, [batches]);
 
+  // ── Compact header signal ──
+  const headerSignal = useMemo(() => {
+    return canProduce
+      ? { label: "Sinyal", value: "Siap produksi", tone: "ready" as const }
+      : { label: "Sinyal", value: "Belum siap", tone: "critical" as const };
+  }, [canProduce]);
+
+  const headerMetrics = useMemo(() => {
+    return [
+      { label: "RB", value: `${rbOptions.length} pilihan` },
+      { label: "Kemasan", value: `${packagingOptions.length} pilihan` },
+      { label: "Output", value: `${kpi.totalFG} pcs` },
+      { label: "RB terpakai", value: `${kpi.totalRB.toFixed(1)} kg` },
+    ];
+  }, [rbOptions.length, packagingOptions.length, kpi]);
+
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col">
-        <PageHeader
+        <CompactHeader
           title="Produksi & Packing"
           description={`${batches.length} batch tercatat`}
           stage="production"
+          signal={headerSignal}
+          metrics={headerMetrics}
+          next={{ label: "Lanjut ke Penjualan", href: "/penjualan" }}
           actions={
             <Button
               size="default"
@@ -77,20 +95,6 @@ export function ProductionClient({
         />
 
         <div className="custom-scrollbar flex-1 overflow-auto">
-          <OperatingHero
-            stage="production"
-            headline={`${fgOptions.length} SKU siap dirakit menjadi produk jual.`}
-            description="Pilih SKU, pastikan bahan tersedia, lalu catat hasil packing."
-            signalValue={canProduce ? "Siap produksi" : "Belum siap"}
-            signalTone={canProduce ? "ready" : "critical"}
-            metrics={[
-              { label: "Roasted bean", value: `${rbOptions.length} pilihan` },
-              { label: "Kemasan", value: `${packagingOptions.length} pilihan` },
-              { label: "Output tercatat", value: `${kpi.totalFG} pcs` },
-              { label: "RB terpakai", value: `${kpi.totalRB.toFixed(1)} kg` },
-            ]}
-            next={{ label: "Lanjut ke Penjualan", href: "/penjualan" }}
-          />
           <WorkspaceNav kind="roastery" />
 
           <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8">

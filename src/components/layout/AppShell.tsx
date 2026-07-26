@@ -93,7 +93,7 @@ function MobileDock({
 }) {
   return (
     <nav
-      className="grid h-[74px] shrink-0 border-t border-white/10 bg-[#05090D] px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_40px_rgba(5,9,13,.18)] md:hidden"
+      className="grid h-[60px] shrink-0 border-t border-white/10 bg-[#05090D] px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_40px_rgba(5,9,13,.18)] md:hidden"
       style={{ gridTemplateColumns: `repeat(${items.length + 1}, minmax(0, 1fr))` }}
       aria-label="Navigasi utama mobile"
     >
@@ -108,9 +108,9 @@ function MobileDock({
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "relative flex min-w-0 flex-col items-center justify-center gap-1 text-[9px] font-semibold transition",
+              "relative flex min-w-0 flex-col items-center justify-center gap-0.5 text-[8px] font-semibold transition",
               active ? tone.text : "text-white/45",
-              prominent && "-mt-2",
+              prominent && "-mt-1.5",
             )}
           >
             {active ? (
@@ -119,22 +119,22 @@ function MobileDock({
             {prominent ? (
               <span
                 className={cn(
-                  "flex h-11 w-11 items-center justify-center rounded-[12px] border-[3px] border-[#05090D] shadow-[0_8px_24px_rgba(0,0,0,.4)]",
+                  "flex h-9 w-9 items-center justify-center rounded-[10px] border-[2px] border-[#05090D] shadow-[0_6px_18px_rgba(0,0,0,.4)]",
                   active ? tone.prominent : `border-white/10 bg-[#0E1C24] ${tone.inactiveIcon}`,
                 )}
               >
-                <Icon size={19} strokeWidth={2.2} />
+                <Icon size={16} strokeWidth={2.2} />
               </span>
             ) : (
               <span
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-[9px] border transition-colors",
+                  "flex h-7 w-7 items-center justify-center rounded-[8px] border transition-colors",
                   active
                     ? tone.activeIcon
                     : "border-transparent bg-transparent text-white/40",
                 )}
               >
-                <Icon size={16} strokeWidth={active ? 2.2 : 1.7} />
+                <Icon size={14} strokeWidth={active ? 2.2 : 1.7} />
               </span>
             )}
             <span className="max-w-full truncate px-1">{item.shortLabel}</span>
@@ -145,23 +145,23 @@ function MobileDock({
         type="button"
         onClick={onOpenMore}
         className={cn(
-          "relative flex min-w-0 flex-col items-center justify-center gap-1 text-[9px] font-semibold transition",
+          "relative flex min-w-0 flex-col items-center justify-center gap-0.5 text-[8px] font-semibold transition",
           moreActive ? "text-[#8EF3FC]" : "text-white/45",
         )}
         aria-label="Buka semua menu"
       >
         {moreActive ? (
-          <span className="absolute top-0 h-[2px] w-9 bg-[#00C8DF] shadow-[0_0_14px_rgba(0,200,223,.8)]" />
+          <span className="absolute top-0 h-[2px] w-8 bg-[#00C8DF] shadow-[0_0_14px_rgba(0,200,223,.8)]" />
         ) : null}
         <span
           className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-[9px] border",
+            "flex h-7 w-7 items-center justify-center rounded-[8px] border",
             moreActive
               ? "border-[#00C8DF]/45 bg-[#00C8DF]/15 text-[#00C8DF]"
               : "border-transparent text-white/40",
           )}
         >
-          <MoreHorizontal size={17} />
+          <MoreHorizontal size={14} />
         </span>
         <span>Lainnya</span>
       </button>
@@ -239,25 +239,22 @@ export function AppShell({
       </div>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background md:my-2 md:mr-2 md:rounded-[18px] md:border md:border-white/10 md:shadow-[0_24px_90px_rgba(0,0,0,.48)]">
-        <header className="flex h-[62px] shrink-0 items-center justify-between border-b border-white/10 bg-[#05090D] px-4 text-white md:hidden">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="flex h-[48px] shrink-0 items-center justify-between border-b border-white/10 bg-[#05090D] px-4 text-white md:hidden">
+          <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.05] text-white/75 transition active:scale-95"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.05] text-white/75 transition active:scale-95"
               aria-label="Buka menu"
             >
-              <Menu size={18} />
+              <Menu size={16} />
             </button>
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border border-[#00C8DF]/40 bg-[#00C8DF]/10 text-[#00C8DF]">
-                <Coffee size={15} />
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] border border-[#00C8DF]/40 bg-[#00C8DF]/10 text-[#00C8DF]">
+                <Coffee size={12} />
               </span>
               <div className="min-w-0">
-                <p className="truncate font-mono text-[8px] uppercase tracking-[0.18em] text-white/35">
-                  {userRole.toLowerCase()} workspace / {subscriptionTier}
-                </p>
-                <p className="truncate text-sm font-bold tracking-[-0.02em] text-white">
+                <p className="truncate text-xs font-bold tracking-[-0.02em] text-white">
                   roastd.id
                 </p>
               </div>

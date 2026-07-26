@@ -90,7 +90,7 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
       className="overflow-x-auto border-b border-white/10 bg-[#05090D]"
       aria-label={`Navigasi workspace ${kind}`}
     >
-      <div className="mx-auto flex w-max min-w-full max-w-[1600px] gap-1 px-4 py-2 md:px-6 lg:px-8">
+      <div className="mx-auto flex w-max min-w-full max-w-[1600px] gap-1 px-4 py-1.5 md:px-6 lg:px-8">
         {WORKSPACES[kind].map((item) => {
           const Icon = item.icon;
           const expectedQuery = "query" in item ? item.query : undefined;
@@ -119,7 +119,7 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex min-h-9 shrink-0 items-center gap-2 rounded-[8px] border px-2.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C8DF]",
+                "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-[7px] border px-2 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C8DF]",
                 active
                   ? workspaceTone.active
                   : "border-transparent text-white/46 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",
@@ -127,7 +127,7 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
             >
               <span
                 className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-[6px] border",
+                  "flex h-5 w-5 items-center justify-center rounded-[5px] border",
                   active
                     ? workspaceTone.icon
                     : cn(
@@ -136,7 +136,7 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
                       ),
                 )}
               >
-                <Icon size={12} strokeWidth={2} />
+                <Icon size={10} strokeWidth={2} />
               </span>
               {item.label}
             </Link>

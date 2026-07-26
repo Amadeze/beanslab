@@ -4,8 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { OperatingHero } from "@/components/layout/OperatingHero";
+import { CompactHeader } from "@/components/layout/CompactHeader";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PiutangTable } from "./PiutangTable";
 import { TerimaPaymentDialog } from "./TerimaPaymentDialog";
@@ -84,10 +83,22 @@ export function KeuanganClient({
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col">
-        <PageHeader
+        <CompactHeader
           title="Kas & Piutang"
           description="Piutang & penerimaan pembayaran"
           stage="finance"
+          signal={{
+            label: "Sinyal",
+            value: overdueCount > 0 ? `${overdueCount} lewat tempo` : "Terkendali",
+            tone: overdueCount > 0 ? "critical" : "ready",
+            onClick: overdueCount > 0 ? () => setActiveTab("piutang") : undefined,
+          }}
+          metrics={[
+            { label: "Piutang", value: formatRupiah(kpi.totalPiutang) },
+            { label: "1-30hr", value: kpi.agingBuckets.overdue1_30.count },
+            { label: "31-60hr", value: kpi.agingBuckets.overdue31_60.count },
+            { label: "60+hr", value: kpi.agingBuckets.overdue61Plus.count },
+          ]}
           actions={
             <Button
               variant="destructive"
@@ -113,35 +124,6 @@ export function KeuanganClient({
         />
 
         <div className="custom-scrollbar flex-1 overflow-auto">
-          <OperatingHero
-            stage="finance"
-            headline={
-              kpi.piutangCount > 0
-                ? `${kpi.piutangCount} nota masih menahan arus kas.`
-                : "Arus kas bersih dari piutang aktif."
-            }
-            description="Keuangan menyelesaikan janji yang dimulai oleh penjualan dan pembelian. Pantau uang yang sudah masuk, yang masih tertahan, dan kewajiban yang harus dibayar."
-            signalLabel="Sinyal kas"
-            signalValue={
-              overdueCount > 0 ? `${overdueCount} lewat tempo` : "Terkendali"
-            }
-            signalTone={overdueCount > 0 ? "critical" : "ready"}
-            metrics={[
-              { label: "Total piutang", value: formatRupiah(kpi.totalPiutang) },
-              {
-                label: "Lewat 1–30",
-                value: kpi.agingBuckets.overdue1_30.count,
-              },
-              {
-                label: "Lewat 31–60",
-                value: kpi.agingBuckets.overdue31_60.count,
-              },
-              {
-                label: "Lewat 60+",
-                value: kpi.agingBuckets.overdue61Plus.count,
-              },
-            ]}
-          />
           <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">
             <Tabs
               value={activeTab}

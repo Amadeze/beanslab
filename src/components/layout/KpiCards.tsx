@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 export function KpiRibbon({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-[1600px] px-4 py-3 sm:px-6 lg:px-8">
       <div className={cn("grid overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_0_rgba(5,9,13,.04)] sm:grid-cols-2 lg:grid-cols-4", className)}>
         {children}
       </div>
@@ -23,18 +23,29 @@ interface KpiCardProps {
   icon?: React.ReactNode;
   onClick?: () => void;
   active?: boolean;
+  signal?: {
+    label: string;
+    value: React.ReactNode;
+    tone?: "critical" | "ready" | "neutral";
+  };
 }
 
-export function KpiCard({ label, value, sub, trend, color = "#A94728", icon, onClick, active }: KpiCardProps) {
+export function KpiCard({ label, value, sub, trend, color = "#A94728", icon, onClick, active, signal }: KpiCardProps) {
   const trendData = trend ? trend.map(v => ({ v })) : [];
   const uid = useId();
   const gradientId = `sparkline-gradient-${uid.replace(/:/g, "")}`;
 
+  const signalColor = signal?.tone === "critical"
+    ? "text-[#DC2626]"
+    : signal?.tone === "ready"
+      ? "text-[#16A34A]"
+      : "text-[#6B7280]";
+
   return (
-    <div 
+    <div
       onClick={onClick}
       className={cn(
-        "group relative flex min-h-[96px] flex-col overflow-hidden border-b border-[#D6DEDE] p-3.5 transition-colors sm:border-r lg:border-b-0 lg:p-4 [&:nth-child(2n)]:sm:border-r-0 [&:nth-child(4n)]:lg:border-r-0",
+        "group relative flex min-h-[80px] flex-col overflow-hidden border-b border-[#D6DEDE] p-3 transition-colors sm:border-r lg:border-b-0 lg:p-3.5 [&:nth-child(2n)]:sm:border-r-0 [&:nth-child(4n)]:lg:border-r-0",
         onClick && "cursor-pointer hover:bg-[#F0F8F8]",
         active && "bg-accent shadow-[inset_0_-3px_0_var(--primary)]"
       )}
@@ -58,6 +69,14 @@ export function KpiCard({ label, value, sub, trend, color = "#A94728", icon, onC
         <h3 className="text-lg font-black leading-none tracking-[-0.035em] text-[#081820] lg:text-xl">{value}</h3>
         {sub && <p className="mt-1.5 text-[10px] text-stone-500">{sub}</p>}
       </div>
+      {/* Signal indicator */}
+      {signal && (
+        <div className={cn("mt-2 flex items-center gap-1.5 text-[10px] font-semibold", signalColor)}>
+          <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
+          <span>{signal.label}</span>
+          <span className="font-bold">{signal.value}</span>
+        </div>
+      )}
       
       {trendData.length > 0 && (
         <div className="pointer-events-none absolute bottom-0 right-0 h-14 w-[48%] opacity-25 transition-opacity group-hover:opacity-50">

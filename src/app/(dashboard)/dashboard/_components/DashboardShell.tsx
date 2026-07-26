@@ -185,7 +185,7 @@ function buildWorkItems(data: DashboardData): WorkItem[] {
   return actions.slice(0, 6);
 }
 
-function ControlHero({
+function CompactDashboardHeader({
   data,
   items,
   asOfLabel,
@@ -194,118 +194,172 @@ function ControlHero({
   items: WorkItem[];
   asOfLabel: string;
 }) {
-  const primary = items[0];
   const criticalCount = items.filter((item) => item.severity === "critical").length;
-  const headline = items.length > 0
-    ? `${items.length} keputusan menjaga operasi tetap mengalir.`
-    : "Seluruh aliran operasi terkendali.";
   const signal = data.lowStock.length > 0
     ? `${data.lowStock.length} stok perlu dipulihkan`
     : data.kpi.piutangCount > 0
       ? `${data.kpi.piutangCount} nota belum menjadi kas`
-      : "Tidak ada hambatan aktif";
+      : "Tidak ada hambatan";
+
+  const brief = data.dailyBrief;
+  const stages = [
+    {
+      number: "01",
+      label: "Pasokan",
+      status: data.lowStock.length > 0 ? `${data.lowStock.length} item` : "OK",
+      href: "/inventory",
+      icon: Boxes,
+      attention: data.lowStock.length > 0,
+      tone: "border-[#2B7567]/60 bg-[#2B7567]/16 text-[#87CDBC]",
+      line: "bg-[#2B7567]",
+    },
+    {
+      number: "02",
+      label: "Roasting",
+      status: `${brief?.roasting.batchCount ?? 0} batch`,
+      href: "/roasting",
+      icon: Flame,
+      attention: false,
+      tone: "border-[#B65331]/60 bg-[#B65331]/16 text-[#E9A17F]",
+      line: "bg-[#B65331]",
+    },
+    {
+      number: "03",
+      label: "Produksi",
+      status: `${brief?.production.unitsProduced ?? 0} unit`,
+      href: "/produksi",
+      icon: Factory,
+      attention: false,
+      tone: "border-[#A66F12]/60 bg-[#A66F12]/16 text-[#E0BC67]",
+      line: "bg-[#A66F12]",
+    },
+    {
+      number: "04",
+      label: "Penjualan",
+      status: formatRupiah(data.kpi.revenueToday),
+      href: "/penjualan",
+      icon: ReceiptText,
+      attention: false,
+      tone: "border-[#6F4A6A]/60 bg-[#6F4A6A]/16 text-[#C7A8C4]",
+      line: "bg-[#6F4A6A]",
+    },
+    {
+      number: "05",
+      label: "Kas",
+      status: formatRupiah(data.kpi.kasToday),
+      href: "/keuangan",
+      icon: WalletCards,
+      attention: data.kpi.piutangCount > 0,
+      tone: "border-[#4B6B3C]/60 bg-[#4B6B3C]/16 text-[#A8C390]",
+      line: "bg-[#4B6B3C]",
+    },
+  ];
 
   return (
     <header
-      data-testid="page-header"
-      className="instrument-grid-dark relative shrink-0 overflow-hidden border-b border-white/10 bg-[#05090D] text-white"
+      data-testid="compact-dashboard-header"
+      className="instrument-grid-dark relative shrink-0 border-b border-white/10 bg-[#05090D] text-white"
     >
-      <div className="mx-auto grid w-full max-w-[1600px] lg:grid-cols-[minmax(0,1fr)_390px]">
-        <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[#69E8F3]">
-              Owner control room
-            </span>
-            <span className="h-px w-10 bg-[#00C8DF]" aria-hidden />
-            <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-white/38">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#00C8DF] shadow-[0_0_10px_rgba(0,200,223,.55)]" />
-              Live · {asOfLabel}
-            </span>
-          </div>
-
-          <h1 className="mt-5 max-w-[760px] text-[clamp(1.8rem,3.25vw,3rem)] font-black leading-[0.97] tracking-[-0.052em] text-white">
-            {items.length > 0 && (
-              <span className="text-[#00C8DF]">{items.length} </span>
-            )}
-            {items.length > 0 ? headline.replace(`${items.length} `, "") : headline}
-          </h1>
-
-          <p className="mt-5 max-w-2xl text-sm leading-6 text-white/52 sm:text-[15px] sm:leading-7">
-            Mulai dari hambatan terbesar, lalu ikuti aliran bahan sampai menjadi kas.
-            Angka di halaman ini berasal dari transaksi workspace aktif.
-          </p>
-
-          {primary ? (
-            <Link
-              href={primary.href}
-              className="group mt-7 grid max-w-2xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-y border-white/12 py-4 transition-colors hover:border-[#00C8DF]/45"
-            >
-              <span className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-[9px]",
-                primary.severity === "critical" ? "bg-[#4C0302] text-[#FFB0AD]" : "bg-[#A66F12]/18 text-[#E0BC67]",
-              )}>
-                {primary.severity === "critical" ? <TriangleAlert size={17} /> : <AlertTriangle size={17} />}
-              </span>
-              <span className="min-w-0">
-                <span className="block font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-white/35">
-                  Keputusan pertama
-                </span>
-                <span className="mt-1 block text-sm font-bold text-white sm:text-base">{primary.title}</span>
-              </span>
-              <ArrowRight size={17} className="text-white/30 transition-transform group-hover:translate-x-1 group-hover:text-[#69E8F3]" />
-            </Link>
-          ) : null}
+      {/* Top bar: Eyebrow + KPIs */}
+      <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[#69E8F3]">
+            Owner control room
+          </span>
+          <span className="h-px w-8 bg-[#00C8DF]" aria-hidden />
+          <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-white/38">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#00C8DF] shadow-[0_0_10px_rgba(0,200,223,.55)]" />
+            Live · {asOfLabel}
+          </span>
         </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">Penjualan</span>
+            <span className="text-xs font-bold tabular-nums text-white/80">{formatRupiah(data.kpi.revenueToday)}</span>
+          </div>
+          <div className="hidden h-3 w-px bg-white/10 sm:block" />
+          <div className="hidden items-center gap-1.5 sm:flex">
+            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">Kas</span>
+            <span className="text-xs font-bold tabular-nums text-white/80">{formatRupiah(data.kpi.kasToday)}</span>
+          </div>
+          <div className="hidden h-3 w-px bg-white/10 sm:block" />
+          <div className="hidden items-center gap-1.5 sm:flex">
+            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">Yield</span>
+            <span className="text-xs font-bold tabular-nums text-white/80">{data.kpi.averageRoastYield.toFixed(1)}%</span>
+          </div>
+        </div>
+      </div>
 
-        <aside className="relative overflow-hidden bg-[#B65331] px-4 py-7 text-white sm:px-6 lg:px-7 lg:py-9">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 opacity-60"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 100% 0%, rgba(255,221,198,.38), transparent 38%), linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px)",
-              backgroundSize: "100% 100%, 100% 28px",
-            }}
-          />
-          <div className="relative">
-            <div className="flex items-center justify-between gap-3">
-              <p className="font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-white/55">
-                Sinyal terpenting
-              </p>
-              <span className="rounded-[6px] border border-white/20 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.14em] text-white/70">
-                {criticalCount} kritis
-              </span>
-            </div>
-            <p className={cn(
-              "mt-4 text-[clamp(1.75rem,3vw,2.35rem)] font-black leading-[0.96] tracking-[-0.05em]",
-              criticalCount > 0 ? "text-[#2E120B]" : "text-white",
+      {/* Signal bar */}
+      <div className="border-t border-white/[0.06] bg-[#0B141B]/60">
+        <div className="mx-auto flex w-full max-w-[1600px] items-center gap-4 px-4 py-2 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "h-2 w-2 rounded-full",
+              criticalCount > 0 ? "bg-[#FF8C88] shadow-[0_0_8px_rgba(255,140,136,.5)]" : "bg-[#22C55E]",
+            )} />
+            <span className={cn(
+              "text-sm font-bold",
+              criticalCount > 0 ? "text-[#FF8C88]" : "text-[#22C55E]",
             )}>
               {signal}
-            </p>
-
-            <dl className="mt-7 grid grid-cols-3 border-y border-white/18 py-5">
-              <div className="pr-3">
-                <dt className="font-mono text-[7px] uppercase tracking-[0.16em] text-white/50">Penjualan</dt>
-                <dd className="mt-2 truncate text-xs font-bold tabular-nums text-white">{formatRupiah(data.kpi.revenueToday)}</dd>
-              </div>
-              <div className="border-x border-white/18 px-3">
-                <dt className="font-mono text-[7px] uppercase tracking-[0.16em] text-white/50">Kas masuk</dt>
-                <dd className="mt-2 truncate text-xs font-bold tabular-nums text-white">{formatRupiah(data.kpi.kasToday)}</dd>
-              </div>
-              <div className="pl-3">
-                <dt className="font-mono text-[7px] uppercase tracking-[0.16em] text-white/50">Yield roast</dt>
-                <dd className="mt-2 text-xs font-black tabular-nums text-white">{data.kpi.averageRoastYield.toFixed(1)}%</dd>
-              </div>
-            </dl>
-
-            <p className="mt-6 font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-white/50">
-              Jalankan operasi
-            </p>
-            <div className="mt-3">
-              <QuickActions mobile onSignal />
-            </div>
+            </span>
           </div>
-        </aside>
+          {criticalCount > 0 && (
+            <span className="rounded-[6px] border border-[#FF8C88]/30 bg-[#4C0302] px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.14em] text-[#FFB0AD]">
+              {criticalCount} kritis
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* 5-stage pipeline */}
+      <div className="border-t border-white/[0.06]">
+        <div className="mx-auto grid w-full max-w-[1600px] grid-cols-5">
+          {stages.map(({ number, label, status, href, icon: Icon, attention, tone, line }, index) => (
+            <Link
+              key={label}
+              href={href}
+              className="group relative min-w-0 border-r border-white/10 px-2 py-3 last:border-r-0 hover:bg-white/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00C8DF] sm:px-4 sm:py-4"
+            >
+              {index > 0 && (
+                <span
+                  className={cn(
+                    "absolute -left-px top-[18px] h-px w-3 -translate-x-1/2 sm:w-5",
+                    attention ? "bg-[#8C2F39]" : line,
+                  )}
+                  aria-hidden
+                />
+              )}
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "relative z-10 flex h-6 w-6 items-center justify-center rounded-[6px] border sm:h-7 sm:w-7",
+                    attention
+                      ? "border-[#FF8C88]/30 bg-[#4C0302] text-[#FFB0AD]"
+                      : tone,
+                  )}
+                  aria-label={`Tahap ${number}: ${label}`}
+                >
+                  <Icon size={11} strokeWidth={2.1} />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-[8px] font-bold text-white/55 sm:text-[10px]">
+                    {label}
+                  </p>
+                  <p
+                    className={cn(
+                      "mt-0.5 truncate text-[9px] font-bold tabular-nums sm:text-xs",
+                      attention ? "text-[#FF8C88]" : "text-white",
+                    )}
+                  >
+                    {status}
+                  </p>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
     </header>
   );
@@ -689,12 +743,10 @@ export function DashboardShell({ data }: { data: DashboardData }) {
 
   return (
     <div data-testid="operations-workbench" className="flex min-h-0 flex-1 flex-col bg-background">
-      <ControlHero data={data} items={workItems} asOfLabel={asOfLabel} />
+      <CompactDashboardHeader data={data} items={workItems} asOfLabel={asOfLabel} />
 
       <main className="custom-scrollbar min-w-0 flex-1 overflow-y-auto" id="main-content">
         <div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 md:p-6 lg:p-7">
-          <OperationalStatus data={data} />
-
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,.55fr)]">
             <WorkQueue items={workItems} />
             <ShiftSummary data={data} />
