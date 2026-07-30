@@ -29,7 +29,10 @@ export const SESSION_OPTIONS = {
   cookieOptions: {
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
-    sameSite: "strict" as const,
+    // OAuth callbacks are top-level cross-site navigations. `strict` can keep
+    // the newly-created session cookie out of the callback redirect chain,
+    // causing the dashboard proxy to send the user straight back to login.
+    sameSite: "lax" as const,
     maxAge: 60 * 60 * 8, // 8 jam
   },
 };
