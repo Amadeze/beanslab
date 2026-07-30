@@ -1,6 +1,5 @@
 "use server";
 import { requireTenantPrisma, requireRole } from "@/lib/auth";
-import { getCurrentUser } from "@/lib/session";
 import { getCurrentDate, getZonedDayRange } from "@/lib/date-utils";
 import type { DailyBriefPayload } from "@/lib/daily-brief";
 
@@ -67,13 +66,19 @@ export type DashboardData = {
   activity:     ActivityItem[];
   asOf:         string; // ISO
   dailyBrief:   DailyBriefPayload | null;
+  operationalQueue: {
+    purchaseOrdersToReceive: number;
+    roastingBatchesOpen: number;
+    paymentReviews: number;
+    fulfillmentNeedsProduction: number;
+    fulfillmentReadyToPack: number;
+    fulfillmentPacked: number;
+    overdueReceivables: {
+      count: number;
+      total: number;
+    };
+  };
 };
-
-// ── Thresholds untuk peringatan stok tipis ──
-const GB_THRESHOLD_KG  = 5;    // < 5 kg
-const RB_THRESHOLD_KG  = 2;    // < 2 kg
-const FG_THRESHOLD_PCS = 10;   // < 10 unit
-const PKG_THRESHOLD_PCS = 30;  // < 30 pcs
 
 // =============================================================================
 // MAIN QUERY
@@ -111,6 +116,11 @@ export async function getDashboardData(): Promise<DashboardData> {
     marginRaw,
     dailyBriefSnapshot,
     sampleMonthAgg,
+    purchaseOrdersToReceive,
+    roastingBatchesOpen,
+    paymentReviews,
+    fulfillmentGroups,
+    overdueReceivables,
   ] = await Promise.all([
 
     // 1. Revenue hari ini (nota PAID yang diterbitkan hari ini)
@@ -138,14 +148,28 @@ export async function getDashboardData(): Promise<DashboardData> {
     // 4a. Stok kg: GB + RB — fetch dari Product cache
     tp.product.findMany({
       where: { isActive: true, type: { in: ["GREEN_BEAN", "ROASTED_BEAN", "FINISHED_GOODS"] } },
-      select: { id: true, name: true, type: true, stockKg: true, stockUnit: true },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        stockKg: true,
+        stockUnit: true,
+        reorderAlertEnabled: true,
+        safetyStockQuantity: true,
+      },
       orderBy: { name: "asc" },
     }),
 
     // 4b. Stok FG (unit) — fetch dari Product cache
     tp.packaging.findMany({
       where: { isActive: true },
-      select: { id: true, name: true, stockUnit: true },
+      select: {
+        id: true,
+        name: true,
+        stockUnit: true,
+        reorderAlertEnabled: true,
+        safetyStockQuantity: true,
+      },
       orderBy: { name: "asc" },
     }),
 
@@ -276,6 +300,32 @@ export async function getDashboardData(): Promise<DashboardData> {
         _count: true,
       });
     })(),
+
+    // 17. Live work queue: PO yang sudah dikirim/diterima sebagian.
+    tp.purchaseOrder.count({ where: { status: { in: ["SENT", "PARTIAL"] } } }),
+
+    // 18. Live work queue: batch roasting aktif yang belum mem-posting hasil.
+    tp.parentRoastingBatch.count({ where: { status: "PENDING" } }),
+
+    // 19. Live work queue: bukti bayar yang belum membentuk kas.
+    tp.paymentSubmission.count({ where: { status: "AWAITING_VERIFICATION" } }),
+
+    // 20. Live work queue: tahap fulfillment yang memerlukan tindakan internal.
+    tp.invoice.groupBy({
+      by: ["fulfillmentStatus"],
+      where: {
+        publicOrderToken: { not: null },
+        fulfillmentStatus: { in: ["NEEDS_PRODUCTION", "READY_TO_PACK", "PACKED"] },
+      },
+      _count: true,
+    }),
+
+    // 21. Live work queue: hanya piutang yang benar-benar lewat jatuh tempo.
+    tp.invoice.aggregate({
+      where: { status: { in: ["ISSUED", "PARTIAL"] }, dueDate: { lt: now } },
+      _count: true,
+      _sum: { grandTotal: true, paidAmount: true },
+    }),
   ]);
 
   // ── KPI calculations ──
@@ -293,24 +343,32 @@ export async function getDashboardData(): Promise<DashboardData> {
   const totalRev = marginRaw[0]?.totalRevenue || 0;
   const totalCogs = marginRaw[0]?.totalCogs || 0;
   const averageGrossMargin = totalRev > 0 ? ((totalRev - totalCogs) / totalRev) * 100 : 0;
+  const fulfillmentCount = new Map(
+    fulfillmentGroups.map((row) => [row.fulfillmentStatus, row._count]),
+  );
+  const overdueReceivablesTotal = Math.max(
+    0,
+    Number(overdueReceivables._sum.grandTotal ?? 0) - Number(overdueReceivables._sum.paidAmount ?? 0),
+  );
 
   // ── Build stock maps ──
   // ── Low stock items ──
   const lowStock: LowStockItem[] = [];
 
   for (const p of stockProducts) {
+    if (!p.reorderAlertEnabled) continue;
+    const threshold = Number(p.safetyStockQuantity);
     if (p.type === "FINISHED_GOODS") {
       const stock = Number(p.stockUnit);
-      if (stock < FG_THRESHOLD_PCS) {
+      if (stock <= threshold) {
         lowStock.push({
           id: p.id, name: p.name, type: "FINISHED_GOODS",
-          stock, unit: "pcs", threshold: FG_THRESHOLD_PCS,
+          stock, unit: "pcs", threshold,
         });
       }
     } else {
       const stock = Number(p.stockKg);
-      const threshold = p.type === "GREEN_BEAN" ? GB_THRESHOLD_KG : RB_THRESHOLD_KG;
-      if (stock < threshold) {
+      if (stock <= threshold) {
         lowStock.push({
           id: p.id, name: p.name,
           type: p.type as "GREEN_BEAN" | "ROASTED_BEAN",
@@ -321,11 +379,13 @@ export async function getDashboardData(): Promise<DashboardData> {
   }
 
   for (const pkg of stockPackagings) {
+    if (!pkg.reorderAlertEnabled) continue;
     const stock = Number(pkg.stockUnit);
-    if (stock < PKG_THRESHOLD_PCS) {
+    const threshold = Number(pkg.safetyStockQuantity);
+    if (stock <= threshold) {
       lowStock.push({
         id: pkg.id, name: pkg.name, type: "PACKAGING",
-        stock, unit: "pcs", threshold: PKG_THRESHOLD_PCS,
+        stock, unit: "pcs", threshold,
       });
     }
   }
@@ -350,12 +410,6 @@ export async function getDashboardData(): Promise<DashboardData> {
       revenue: revenueTrendMap.get(day.dateKey) ?? 0,
     });
   }
-
-  const topProducts: TopProduct[] = topProductsRaw.map(p => ({
-    id: p.id,
-    name: p.name,
-    sold: Number(p.sold),
-  }));
 
   // ── Build activity feed ──
   const STATUS_TX: Record<string, string> = {
@@ -431,5 +485,17 @@ export async function getDashboardData(): Promise<DashboardData> {
     activity: activities,
     asOf: now.toISOString(),
     dailyBrief: dailyBriefSnapshot?.payload as DailyBriefPayload | null ?? null,
+    operationalQueue: {
+      purchaseOrdersToReceive,
+      roastingBatchesOpen,
+      paymentReviews,
+      fulfillmentNeedsProduction: fulfillmentCount.get("NEEDS_PRODUCTION") ?? 0,
+      fulfillmentReadyToPack: fulfillmentCount.get("READY_TO_PACK") ?? 0,
+      fulfillmentPacked: fulfillmentCount.get("PACKED") ?? 0,
+      overdueReceivables: {
+        count: overdueReceivables._count,
+        total: overdueReceivablesTotal,
+      },
+    },
   };
 }

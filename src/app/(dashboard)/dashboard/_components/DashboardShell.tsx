@@ -10,7 +10,6 @@ import {
   CircleCheck,
   Factory,
   Flame,
-  PackagePlus,
   ReceiptText,
   RefreshCw,
   TriangleAlert,
@@ -26,6 +25,10 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { formatKg, formatRupiah } from "@/lib/format";
+import {
+  buildDashboardWorkItems,
+  type DashboardWorkItem,
+} from "@/lib/dashboard-work-queue";
 import type { ActivityItem, DashboardData, LowStockItem } from "../actions";
 
 function formatTimeAgo(iso: string): string {
@@ -53,160 +56,29 @@ const ACTIVITY_HREF: Record<ActivityItem["type"], string> = {
   SALE: "/penjualan",
 };
 
-type WorkItem = {
-  id: string;
-  title: string;
-  context: string;
-  href: string;
-  severity: "critical" | "warning";
-};
-
-const QUICK_ACTIONS = [
-  {
-    label: "Terima barang",
-    mobileLabel: "Terima",
-    href: "/inventory?view=receiving",
-    icon: PackagePlus,
-    accent: false,
-  },
-  {
-    label: "Mulai roasting",
-    mobileLabel: "Roast",
-    href: "/roasting",
-    icon: Flame,
-    accent: false,
-  },
-  {
-    label: "Buka kasir",
-    mobileLabel: "Kasir",
-    href: "/kasir",
-    icon: ReceiptText,
-    accent: true,
-  },
-] as const;
-
-function QuickActions({
-  mobile = false,
-  onDark = false,
-  onSignal = false,
-}: {
-  mobile?: boolean;
-  onDark?: boolean;
-  onSignal?: boolean;
-}) {
-  return (
-    <nav
-      className={cn(
-        mobile ? "grid grid-cols-3 gap-2" : "flex items-center gap-2",
-      )}
-      aria-label="Aksi cepat operasional"
-    >
-      {QUICK_ACTIONS.map((action) => {
-        const Icon = action.icon;
-        return (
-          <Link
-            key={action.href}
-            href={action.href}
-            className={cn(
-              "group inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              mobile && "min-w-0 flex-col gap-1 px-2 py-2",
-              onSignal
-                ? action.accent
-                  ? "border-[#080B0C] bg-[#080B0C] text-[#FFF7EF] hover:bg-[#111617]"
-                  : "border-white/20 bg-white/10 text-white hover:bg-white/16"
-                : action.accent
-                ? onDark
-                  ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
-                : onDark
-                  ? "border-white/15 bg-white/[0.07] text-white hover:border-white/30 hover:bg-white/[0.12]"
-                  : "border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50",
-            )}
-          >
-            <span
-              className={cn(
-                "flex items-center justify-center rounded-[8px]",
-                mobile ? "h-7 w-7" : "h-6 w-6",
-                onDark && !action.accent && "bg-white/[0.08]",
-                action.accent && onDark && "bg-[#0A2138]/10",
-              )}
-            >
-              <Icon size={mobile ? 15 : 13} strokeWidth={2.1} />
-            </span>
-            <span className={mobile ? "truncate" : undefined}>
-              {mobile ? action.mobileLabel : action.label}
-            </span>
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
-function buildWorkItems(data: DashboardData): WorkItem[] {
-  const actions = (data.dailyBrief?.actions ?? [])
-    .filter((action) => action.severity !== "INFO")
-    .map((action, index): WorkItem => ({
-      id: `brief-${index}`,
-      title: action.label,
-      context: action.href === "/inventory"
-        ? "Persediaan"
-        : action.href === "/keuangan"
-          ? "Keuangan"
-          : action.href === "/audit"
-            ? "Integrasi"
-            : "Operasi",
-      href: action.href,
-      severity: action.severity === "CRITICAL" ? "critical" : "warning",
-    }));
-
-  if (!actions.some((item) => item.href === "/inventory")) {
-    actions.push(
-      ...data.lowStock.slice(0, 3).map((item): WorkItem => ({
-        id: `stock-${item.id}`,
-        title: `${item.name} berada di bawah batas aman`,
-        context: `${item.stock.toLocaleString("id-ID")} ${item.unit} tersisa · batas ${item.threshold.toLocaleString("id-ID")} ${item.unit}`,
-        href: "/inventory",
-        severity: item.stock <= 0 ? "critical" : "warning",
-      })),
-    );
-  }
-
-  if (data.kpi.piutangCount > 0 && !actions.some((item) => item.href === "/keuangan")) {
-    actions.push({
-      id: "receivables",
-      title: `${data.kpi.piutangCount} nota belum selesai dibayar`,
-      context: `${formatRupiah(data.kpi.totalPiutang)} masih berada di piutang`,
-      href: "/keuangan",
-      severity: "warning",
-    });
-  }
-
-  return actions.slice(0, 6);
-}
-
 function CompactDashboardHeader({
   data,
   items,
   asOfLabel,
 }: {
   data: DashboardData;
-  items: WorkItem[];
+  items: DashboardWorkItem[];
   asOfLabel: string;
 }) {
   const criticalCount = items.filter((item) => item.severity === "critical").length;
-  const signal = data.lowStock.length > 0
-    ? `${data.lowStock.length} stok perlu dipulihkan`
-    : data.kpi.piutangCount > 0
-      ? `${data.kpi.piutangCount} nota belum menjadi kas`
-      : "Tidak ada hambatan";
+  const hasPendingWork = items.length > 0;
+  const signal = items[0]?.title ?? "Tidak ada hambatan operasional";
 
   const brief = data.dailyBrief;
   const stages = [
     {
       number: "01",
       label: "Pasokan",
-      status: data.lowStock.length > 0 ? `${data.lowStock.length} item` : "OK",
+      status: data.lowStock.length > 0
+        ? `${data.lowStock.length} stok`
+        : data.operationalQueue.purchaseOrdersToReceive > 0
+          ? `${data.operationalQueue.purchaseOrdersToReceive} datang`
+          : "OK",
       href: "/inventory",
       icon: Boxes,
       attention: data.lowStock.length > 0,
@@ -216,7 +88,9 @@ function CompactDashboardHeader({
     {
       number: "02",
       label: "Roasting",
-      status: `${brief?.roasting.batchCount ?? 0} batch`,
+      status: data.operationalQueue.roastingBatchesOpen > 0
+        ? `${data.operationalQueue.roastingBatchesOpen} aktif`
+        : `${brief?.roasting.batchCount ?? 0} kemarin`,
       href: "/roasting",
       icon: Flame,
       attention: false,
@@ -226,10 +100,12 @@ function CompactDashboardHeader({
     {
       number: "03",
       label: "Produksi",
-      status: `${brief?.production.unitsProduced ?? 0} unit`,
+      status: data.operationalQueue.fulfillmentNeedsProduction > 0
+        ? `${data.operationalQueue.fulfillmentNeedsProduction} pesanan`
+        : `${brief?.production.unitsProduced ?? 0} unit`,
       href: "/produksi",
       icon: Factory,
-      attention: false,
+      attention: data.operationalQueue.fulfillmentNeedsProduction > 0,
       tone: "border-[#A66F12]/60 bg-[#A66F12]/16 text-[#E0BC67]",
       line: "bg-[#A66F12]",
     },
@@ -246,10 +122,12 @@ function CompactDashboardHeader({
     {
       number: "05",
       label: "Kas",
-      status: formatRupiah(data.kpi.kasToday),
+      status: data.operationalQueue.paymentReviews > 0
+        ? `${data.operationalQueue.paymentReviews} verifikasi`
+        : formatRupiah(data.kpi.kasToday),
       href: "/keuangan",
       icon: WalletCards,
-      attention: data.kpi.piutangCount > 0,
+      attention: data.operationalQueue.paymentReviews > 0 || data.operationalQueue.overdueReceivables.count > 0,
       tone: "border-[#4B6B3C]/60 bg-[#4B6B3C]/16 text-[#A8C390]",
       line: "bg-[#4B6B3C]",
     },
@@ -296,11 +174,19 @@ function CompactDashboardHeader({
           <div className="flex items-center gap-2">
             <span className={cn(
               "h-2 w-2 rounded-full",
-              criticalCount > 0 ? "bg-[#FF8C88] shadow-[0_0_8px_rgba(255,140,136,.5)]" : "bg-[#22C55E]",
+              criticalCount > 0
+                ? "bg-[#FF8C88] shadow-[0_0_8px_rgba(255,140,136,.5)]"
+                : hasPendingWork
+                  ? "bg-[#E0BC67]"
+                  : "bg-[#22C55E]",
             )} />
             <span className={cn(
               "text-sm font-bold",
-              criticalCount > 0 ? "text-[#FF8C88]" : "text-[#22C55E]",
+              criticalCount > 0
+                ? "text-[#FF8C88]"
+                : hasPendingWork
+                  ? "text-[#E0BC67]"
+                  : "text-[#22C55E]",
             )}>
               {signal}
             </span>
@@ -308,6 +194,11 @@ function CompactDashboardHeader({
           {criticalCount > 0 && (
             <span className="rounded-[6px] border border-[#FF8C88]/30 bg-[#4C0302] px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.14em] text-[#FFB0AD]">
               {criticalCount} kritis
+            </span>
+          )}
+          {criticalCount === 0 && hasPendingWork && (
+            <span className="rounded-[6px] border border-[#E0BC67]/30 bg-[#3A2A0B] px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.14em] text-[#F2D792]">
+              {items.length} tindakan
             </span>
           )}
         </div>
@@ -325,13 +216,13 @@ function CompactDashboardHeader({
               {index > 0 && (
                 <span
                   className={cn(
-                    "absolute -left-px top-[18px] h-px w-3 -translate-x-1/2 sm:w-5",
+                    "absolute -left-px top-6 h-px w-3 -translate-x-1/2 sm:top-[30px] sm:w-5",
                     attention ? "bg-[#8C2F39]" : line,
                   )}
                   aria-hidden
                 />
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2">
                 <span
                   className={cn(
                     "relative z-10 flex h-6 w-6 items-center justify-center rounded-[6px] border sm:h-7 sm:w-7",
@@ -343,7 +234,7 @@ function CompactDashboardHeader({
                 >
                   <Icon size={11} strokeWidth={2.1} />
                 </span>
-                <div className="min-w-0">
+                <div className="min-w-0 max-w-full">
                   <p className="truncate text-[8px] font-bold text-white/55 sm:text-[10px]">
                     {label}
                   </p>
@@ -365,7 +256,7 @@ function CompactDashboardHeader({
   );
 }
 
-function WorkQueue({ items }: { items: WorkItem[] }) {
+function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
   return (
     <section className="overflow-hidden rounded-[14px] border border-border bg-card" aria-labelledby="work-queue-title">
       <div className="flex min-h-16 items-center justify-between border-b border-stone-200 px-4 md:px-5">
@@ -408,10 +299,14 @@ function WorkQueue({ items }: { items: WorkItem[] }) {
                   {item.severity === "critical" ? <TriangleAlert size={15} /> : <AlertTriangle size={15} />}
                 </span>
                 <span className="min-w-0">
+                  <span className="mb-0.5 block font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-stone-400">{item.domain}</span>
                   <span className={cn("block font-semibold text-stone-900", index === 0 ? "text-sm leading-5" : "truncate text-xs")}>{item.title}</span>
                   <span className="mt-0.5 block truncate text-[11px] text-stone-500">{item.context}</span>
                 </span>
-                <ArrowRight size={14} className="text-stone-300 transition-transform group-hover:translate-x-0.5 group-hover:text-stone-700" />
+                <span className="hidden items-center gap-1 text-[10px] font-bold text-stone-500 group-hover:text-stone-900 sm:inline-flex">
+                  {item.actionLabel}
+                  <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+                </span>
               </Link>
             </li>
           ))}
@@ -474,130 +369,6 @@ function ShiftSummary({ data }: { data: DashboardData }) {
           <p className="mt-1 text-sm font-bold text-white">{brief?.production.unitsProduced ?? 0} unit</p>
           <p className="mt-1 text-[10px] text-white/30">{brief?.production.batchCount ?? 0} batch selesai</p>
         </Link>
-      </div>
-    </section>
-  );
-}
-
-function OperationalStatus({ data }: { data: DashboardData }) {
-  const brief = data.dailyBrief;
-  const stages = [
-    {
-      number: "01",
-      label: "Pasokan",
-      status: data.lowStock.length > 0 ? "Perlu tindakan" : "Terkendali",
-      detail: data.lowStock.length > 0 ? `${data.lowStock.length} item di bawah batas` : "Tidak ada stok kritis",
-      href: "/inventory",
-      icon: Boxes,
-      attention: data.lowStock.length > 0,
-      tone: "border-[#2B7567]/60 bg-[#2B7567]/16 text-[#87CDBC]",
-      line: "bg-[#2B7567]",
-    },
-    {
-      number: "02",
-      label: "Roasting",
-      status: `${brief?.roasting.batchCount ?? 0} batch`,
-      detail: brief && brief.roasting.inputKg > 0 ? `${brief.roasting.yieldPercent.toFixed(1)}% yield` : "Belum ada batch kemarin",
-      href: "/roasting",
-      icon: Flame,
-      attention: false,
-      tone: "border-[#B65331]/60 bg-[#B65331]/16 text-[#E9A17F]",
-      line: "bg-[#B65331]",
-    },
-    {
-      number: "03",
-      label: "Produksi",
-      status: `${brief?.production.unitsProduced ?? 0} unit`,
-      detail: `${brief?.production.batchCount ?? 0} batch selesai`,
-      href: "/produksi",
-      icon: Factory,
-      attention: false,
-      tone: "border-[#A66F12]/60 bg-[#A66F12]/16 text-[#E0BC67]",
-      line: "bg-[#A66F12]",
-    },
-    {
-      number: "04",
-      label: "Penjualan",
-      status: formatRupiah(data.kpi.revenueToday),
-      detail: "Nilai nota hari ini",
-      href: "/penjualan",
-      icon: ReceiptText,
-      attention: false,
-      tone: "border-[#6F4A6A]/60 bg-[#6F4A6A]/16 text-[#C7A8C4]",
-      line: "bg-[#6F4A6A]",
-    },
-    {
-      number: "05",
-      label: "Kas",
-      status: formatRupiah(data.kpi.kasToday),
-      detail: data.kpi.piutangCount > 0 ? `${data.kpi.piutangCount} nota belum lunas` : "Piutang bersih",
-      href: "/keuangan",
-      icon: WalletCards,
-      attention: data.kpi.piutangCount > 0,
-      tone: "border-[#4B6B3C]/60 bg-[#4B6B3C]/16 text-[#A8C390]",
-      line: "bg-[#4B6B3C]",
-    },
-  ];
-
-  return (
-    <section className="instrument-grid-dark overflow-hidden rounded-[14px] border border-white/10 bg-[#0B141B] text-white" aria-labelledby="operations-status-title">
-      <div className="flex min-h-16 items-center justify-between border-b border-white/10 px-4 md:px-5">
-        <div>
-          <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#69E8F3]">Live roastery flow</p>
-          <h2 id="operations-status-title" className="mt-1 text-base font-black tracking-[-0.025em] text-white">
-            Bahan bergerak sampai menjadi kas
-          </h2>
-        </div>
-        <Link href="/laporan" className="hidden text-xs font-semibold text-white/42 hover:text-[#69E8F3] sm:inline">
-          Buka laporan
-        </Link>
-      </div>
-      <div className="grid grid-cols-5">
-        {stages.map(({ number, label, status, detail, href, icon: Icon, attention, tone, line }, index) => (
-          <Link
-            key={label}
-            href={href}
-            className="group relative min-w-0 border-r border-white/10 px-2 py-5 last:border-r-0 hover:bg-white/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00C8DF] sm:px-4 sm:py-6"
-          >
-            {index > 0 && (
-              <span
-                className={cn(
-                  "absolute -left-px top-[34px] h-px w-4 -translate-x-1/2 sm:w-7",
-                  attention ? "bg-[#8C2F39]" : line,
-                )}
-                aria-hidden
-              />
-            )}
-            <div className="flex items-center justify-between gap-1">
-              <span
-                className={cn(
-                  "relative z-10 flex h-8 w-8 items-center justify-center rounded-[8px] border sm:h-9 sm:w-9",
-                  attention
-                    ? "border-[#FF8C88]/30 bg-[#4C0302] text-[#FFB0AD]"
-                    : tone,
-                )}
-                aria-label={`Tahap ${number}: ${label}`}
-              >
-                <Icon size={14} strokeWidth={2.1} />
-              </span>
-              <ArrowRight size={13} className="hidden text-white/20 transition-transform group-hover:translate-x-0.5 group-hover:text-[#69E8F3] sm:block" />
-            </div>
-            <div className="mt-3 min-w-0">
-              <p className="truncate text-[9px] font-bold text-white/55 sm:text-xs">
-                {label}
-              </p>
-              <p
-                className={cn(
-                  "mt-1 truncate text-[8px] font-bold tabular-nums sm:text-sm",
-                  attention ? "text-[#FF8C88]" : "text-white",
-                )}
-              >
-                {status}
-              </p>
-              <p className="mt-1 hidden truncate text-[10px] text-white/30 lg:block">{detail}</p>
-            </div>
-          </Link>
-        ))}
       </div>
     </section>
   );
@@ -736,7 +507,11 @@ function StockWatchlist({ items }: { items: LowStockItem[] }) {
 export function DashboardShell({ data }: { data: DashboardData }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const workItems = useMemo(() => buildWorkItems(data), [data]);
+  const workItems = useMemo(() => buildDashboardWorkItems({
+    signals: data.operationalQueue,
+    lowStock: data.lowStock,
+    dailyActions: data.dailyBrief?.actions,
+  }), [data]);
   const asOfLabel = mounted
     ? new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(data.asOf))
     : "—";
