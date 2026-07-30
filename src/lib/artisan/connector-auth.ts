@@ -16,6 +16,7 @@ export type AuthenticatedConnector = {
   tenantId: string;
   machineId: string;
   installationId: string;
+  authorizedByUserId: string | null;
 };
 
 /**
@@ -43,6 +44,7 @@ export async function authenticateConnector(
       installationId: true,
       status: true,
       revokedAt: true,
+      authorizedByUserId: true,
     },
   });
 
@@ -55,6 +57,7 @@ export async function authenticateConnector(
     tenantId: connector.tenantId,
     machineId: connector.machineId,
     installationId: connector.installationId,
+    authorizedByUserId: connector.authorizedByUserId,
   };
 }
 
@@ -66,6 +69,30 @@ export function hashPairingCode(code: string): string {
   return crypto
     .createHash("sha256")
     .update(pepper + code)
+    .digest("hex");
+}
+
+export function generateStudioDeviceCode(): string {
+  return crypto.randomBytes(32).toString("base64url");
+}
+
+export function generateStudioVerificationCode(): string {
+  return crypto.randomBytes(24).toString("base64url");
+}
+
+export function hashStudioDeviceCode(code: string): string {
+  const pepper = process.env.ARTISAN_PAIRING_CODE_PEPPER || "";
+  return crypto
+    .createHash("sha256")
+    .update(`${pepper}:studio-device:${code}`)
+    .digest("hex");
+}
+
+export function hashStudioVerificationCode(code: string): string {
+  const pepper = process.env.ARTISAN_PAIRING_CODE_PEPPER || "";
+  return crypto
+    .createHash("sha256")
+    .update(`${pepper}:studio-browser:${code}`)
     .digest("hex");
 }
 

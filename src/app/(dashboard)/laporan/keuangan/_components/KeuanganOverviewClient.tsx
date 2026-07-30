@@ -24,11 +24,15 @@ import { getKeuanganOverview } from "../../actions";
 import { formatRupiah } from "@/lib/format";
 
 export default function KeuanganOverviewClient() {
+  // Use local timezone for initial date (browser timezone, matches user expectation)
+  const getLocalDateString = (daysOffset = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysOffset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
   const [dateRange, setDateRange] = useState<DateRange>({
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0],
-    end: new Date().toISOString().split("T")[0],
+    start: getLocalDateString(-30),
+    end: getLocalDateString(),
   });
   const [data, setData] = useState<KeuanganOverviewData | null>(null);
   const [loading, setLoading] = useState(true);

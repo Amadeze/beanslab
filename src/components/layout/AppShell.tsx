@@ -85,11 +85,13 @@ function MobileDock({
   activeItem,
   moreActive,
   onOpenMore,
+  pendingPaymentReviews,
 }: {
   items: AppNavLink[];
   activeItem?: AppNavLink;
   moreActive: boolean;
   onOpenMore: () => void;
+  pendingPaymentReviews: number;
 }) {
   return (
     <nav
@@ -138,6 +140,7 @@ function MobileDock({
               </span>
             )}
             <span className="max-w-full truncate px-1">{item.shortLabel}</span>
+            {item.href === "/penjualan" && pendingPaymentReviews > 0 ? <span className="absolute right-[20%] top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-black text-white">{Math.min(pendingPaymentReviews, 99)}</span> : null}
           </Link>
         );
       })}
@@ -173,10 +176,12 @@ export function AppShell({
   children,
   userRole,
   subscriptionTier,
+  pendingPaymentReviews,
 }: {
   children: React.ReactNode;
   userRole: string;
   subscriptionTier: PlanTier;
+  pendingPaymentReviews: number;
 }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
@@ -221,6 +226,7 @@ export function AppShell({
           <Sidebar
             userRole={userRole}
             subscriptionTier={subscriptionTier}
+            pendingPaymentReviews={pendingPaymentReviews}
             forceExpanded
           />
           <button
@@ -235,7 +241,7 @@ export function AppShell({
       </div>
 
       <div className="hidden h-full md:flex">
-        <Sidebar userRole={userRole} subscriptionTier={subscriptionTier} />
+        <Sidebar userRole={userRole} subscriptionTier={subscriptionTier} pendingPaymentReviews={pendingPaymentReviews} />
       </div>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background md:my-2 md:mr-2 md:rounded-[18px] md:border md:border-white/10 md:shadow-[0_24px_90px_rgba(0,0,0,.48)]">
@@ -266,7 +272,7 @@ export function AppShell({
           </span>
         </header>
 
-        <div className="custom-scrollbar relative z-0 flex-1 overflow-auto">
+        <div className="dashboard-canvas custom-scrollbar relative z-0 flex-1 overflow-auto">
           <div className="flex h-full w-full flex-col">{children}</div>
         </div>
 
@@ -275,6 +281,7 @@ export function AppShell({
           activeItem={activeItem}
           moreActive={moreActive}
           onOpenMore={() => setIsMobileMenuOpen(true)}
+          pendingPaymentReviews={pendingPaymentReviews}
         />
       </main>
     </div>

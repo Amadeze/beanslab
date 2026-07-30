@@ -117,6 +117,9 @@ describe("Artisan .alog parser", () => {
       // Temps should be converted from F to C (original ~83F → ~28C)
       expect(result.data.beanTemperatureSeries[0].value).toBeLessThan(50);
       expect(result.data.beanTemperatureSeries[0].value).toBeGreaterThan(20);
+      // Artisan stores ET in temp1 and BT in temp2; keep the channels distinct.
+      expect(result.data.beanTemperatureSeries[0].value).toBeCloseTo((82.2236 - 32) * 5 / 9, 2);
+      expect(result.data.environmentalTemperatureSeries[0].value).toBeCloseTo((83.0912 - 32) * 5 / 9, 2);
     });
 
     it("converts Fahrenheit to Celsius", () => {

@@ -47,16 +47,19 @@ export function ReportFilters({
   const [showFilters, setShowFilters] = useState(false);
 
   const handlePreset = (days: number) => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - days);
-    // Use local timezone dates (YYYY-MM-DD format)
+    // Use local timezone dates (YYYY-MM-DD format) to match user's browser timezone
     const formatDate = (d: Date) => {
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, "0");
       const day = String(d.getDate()).padStart(2, "0");
       return `${year}-${month}-${day}`;
     };
+    const end = new Date();
+    // Reset to start of day to avoid time-of-day issues
+    end.setHours(23, 59, 59, 999);
+    const start = new Date();
+    start.setDate(start.getDate() - days);
+    start.setHours(0, 0, 0, 0);
     onDateRangeChange({
       start: formatDate(start),
       end: formatDate(end),

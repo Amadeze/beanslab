@@ -15,6 +15,13 @@ export { ReportExport } from "./ReportExport";
 
 export { ReportSkeleton } from "./ReportSkeleton";
 
+export { ReportHeader } from "./ReportHeader";
+
+export { ReportInsightCard } from "./ReportInsightCard";
+export type { InsightType } from "./ReportInsightCard";
+
+export { ReportComparisonBar } from "./ReportComparisonBar";
+
 // Re-export server action types for client components
 export type {
   SalesReportData,

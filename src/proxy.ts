@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { tenantSubdomainFromHost } from "@/lib/tenant-host";
 
 const PUBLIC_ROUTES = [
+  "/",
   "/login",
   "/register",
   "/forgot-password",
@@ -11,6 +13,9 @@ const PUBLIC_ROUTES = [
   "/api/webhooks",
   "/api/integrations",
   "/api/auth",
+  "/api/billing/checkout",
+  "/api/portal-theme",
+  "/studio/authorize",
 ];
 
 function isPublicRoute(pathname: string): boolean {
@@ -27,6 +32,17 @@ function isPublicRoute(pathname: string): boolean {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const tenantSubdomain = tenantSubdomainFromHost(request.headers.get("host"));
+
+  if (tenantSubdomain && (pathname === "/" || pathname.startsWith("/order/"))) {
+    const storefrontUrl = request.nextUrl.clone();
+    storefrontUrl.pathname = pathname === "/"
+      ? `/tenant/${tenantSubdomain}`
+      : `/tenant/${tenantSubdomain}${pathname}`;
+    const response = NextResponse.rewrite(storefrontUrl);
+    response.headers.set("x-roastd-tenant", tenantSubdomain);
+    return response;
+  }
 
   if (isPublicRoute(pathname)) {
     return NextResponse.next();

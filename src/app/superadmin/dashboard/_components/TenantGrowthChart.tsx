@@ -1,52 +1,40 @@
-"use client";
+type GrowthPoint = { name: string; tenants: number };
 
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+export function TenantGrowthChart({ data }: { data: GrowthPoint[] }) {
+  if (!data || data.length === 0) {
+    return <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Belum ada data pertumbuhan.</div>;
+  }
 
-export function TenantGrowthChart({ data }: { data: any[] }) {
-  if (!data || data.length === 0) return null;
+  const max = Math.max(1, ...data.map((point) => point.tenants));
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-        <defs>
-          <linearGradient id="colorTenants" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#2B7567" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#2B7567" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#D8D3C8" vertical={false} />
-        <XAxis 
-          dataKey="name" 
-          stroke="#756F65" 
-          fontSize={12} 
-          tickLine={false} 
-          axisLine={false} 
-        />
-        <YAxis 
-          stroke="#756F65" 
-          fontSize={12} 
-          tickLine={false} 
-          axisLine={false} 
-          tickFormatter={(value) => `${value}`} 
-        />
-        <Tooltip 
-          contentStyle={{ 
-            backgroundColor: "#080B0C", 
-            border: "1px solid rgba(255,255,255,0.12)", 
-            borderRadius: "0",
-            color: "#fff"
-          }}
-          itemStyle={{ color: "#A0E5D9" }}
-        />
-        <Area 
-          type="monotone" 
-          dataKey="tenants" 
-          stroke="#2B7567" 
-          strokeWidth={3}
-          fillOpacity={1} 
-          fill="url(#colorTenants)" 
-        />
-      </AreaChart>
-    </ResponsiveContainer>
+    <div className="relative flex h-full min-h-64 flex-col" role="img" aria-label="Grafik pertumbuhan tenant enam bulan">
+      <div className="pointer-events-none absolute inset-x-0 top-2 bottom-8 flex flex-col justify-between" aria-hidden="true">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <span key={index} className="block border-t border-dashed border-border" />
+        ))}
+      </div>
+
+      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-6 items-end gap-3 px-1 md:gap-5">
+        {data.map((point, index) => {
+          const height = point.tenants > 0 ? Math.max(8, (point.tenants / max) * 100) : 0;
+          const latest = index === data.length - 1;
+          return (
+            <div key={`${point.name}-${index}`} className="flex h-full min-w-0 flex-col justify-end">
+              <div className="mb-2 text-center font-mono text-[11px] font-bold tabular-nums text-foreground">{point.tenants}</div>
+              <div className="flex h-[calc(100%-3.5rem)] items-end bg-muted/45">
+                <div
+                  className={`w-full border-t-2 ${latest ? "border-[#B65331] bg-[#B65331]/80" : "border-[#2B7567] bg-[#2B7567]/70"}`}
+                  style={{ height: `${height}%` }}
+                />
+              </div>
+              <div className={`mt-3 text-center text-[10px] font-black uppercase tracking-[0.14em] ${latest ? "text-domain-roasting" : "text-muted-foreground"}`}>
+                {point.name}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

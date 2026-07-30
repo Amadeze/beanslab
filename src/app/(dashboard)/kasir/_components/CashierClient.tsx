@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { createInvoice } from "../../penjualan/actions";
-import type { CustomerOption, FGStockOption } from "../../penjualan/actions";
-import { resolveSalePrice } from "@/lib/sale-intent";
+import type { ContractPriceOption, CustomerOption, FGStockOption } from "../../penjualan/actions";
+import { resolveCustomerUnitPrice } from "@/lib/sale-intent";
 import { formatRupiah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { StandardDrawer } from "@/components/StandardDrawer";
@@ -31,9 +31,11 @@ type PaymentMethod = "CASH" | "QRIS" | "TRANSFER";
 export function CashierClient({
   customers,
   products,
+  contractPrices,
 }: {
   customers: CustomerOption[];
   products: FGStockOption[];
+  contractPrices: ContractPriceOption[];
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -61,10 +63,23 @@ export function CashierClient({
       .filter((product) => (cart[product.id] ?? 0) > 0)
       .map((product) => {
         const quantity = cart[product.id] ?? 0;
-        const unitPrice = resolveSalePrice(product, selectedCustomer?.tier ?? "RETAIL");
-        return { product, quantity, unitPrice, subtotal: quantity * unitPrice };
+        const resolvedPrice = resolveCustomerUnitPrice(
+          product,
+          selectedCustomer?.tier ?? "RETAIL",
+          quantity,
+          contractPrices.filter((price) =>
+            price.customerId === selectedCustomer?.id && price.productId === product.id,
+          ),
+        );
+        return {
+          product,
+          quantity,
+          unitPrice: resolvedPrice.unitPrice,
+          priceSource: resolvedPrice.priceSource,
+          subtotal: quantity * resolvedPrice.unitPrice,
+        };
       }),
-    [cart, products, selectedCustomer?.tier],
+    [cart, contractPrices, products, selectedCustomer?.id, selectedCustomer?.tier],
   );
   const total = cartRows.reduce((sum, row) => sum + row.subtotal, 0);
   const totalUnits = cartRows.reduce((sum, row) => sum + row.quantity, 0);
@@ -211,7 +226,15 @@ export function CashierClient({
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
                 {visibleProducts.map((product) => {
                   const quantity = cart[product.id] ?? 0;
-                  const price = resolveSalePrice(product, selectedCustomer?.tier ?? "RETAIL");
+                  const priceResolution = resolveCustomerUnitPrice(
+                    product,
+                    selectedCustomer?.tier ?? "RETAIL",
+                    Math.max(1, quantity),
+                    contractPrices.filter((price) =>
+                      price.customerId === selectedCustomer?.id && price.productId === product.id,
+                    ),
+                  );
+                  const price = priceResolution.unitPrice;
                   const unavailable = product.stockUnit <= 0;
                   return (
                     <article key={product.id} className="flex min-h-[154px] flex-col rounded-xl border border-stone-200 bg-white p-3.5">
@@ -223,7 +246,12 @@ export function CashierClient({
                         </p>
                       </div>
                       <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-                        <span className="text-xs font-bold tabular-nums text-stone-900">{formatRupiah(price)}</span>
+                        <span className="text-xs font-bold tabular-nums text-stone-900">
+                          {formatRupiah(price)}
+                          {priceResolution.priceSource === "CONTRACT" ? (
+                            <span className="ml-1 text-[9px] font-semibold uppercase text-emerald-700">Kontrak</span>
+                          ) : null}
+                        </span>
                         {quantity > 0 ? (
                           <div className="flex items-center rounded-lg border border-stone-200">
                             <button type="button" onClick={() => changeQuantity(product, -1)} className="flex h-9 w-9 items-center justify-center text-stone-600 hover:bg-stone-100" aria-label={`Kurangi ${product.name}`}>

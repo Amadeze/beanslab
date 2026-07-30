@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
-import { Prisma } from "@prisma/client";
+import { Prisma, PaymentStatus } from "@prisma/client";
 import { claimWebhookEvent, timingSafeEqualText } from "@/lib/webhook-inbox";
 import { getCurrentDate } from "@/lib/date-utils";
 import {
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, duplicate: true });
     }
 
-    let dbStatus = "PENDING";
+    let dbStatus: PaymentStatus = "PENDING";
     let isSuccess = false;
 
     if (transactionStatus == 'capture'){

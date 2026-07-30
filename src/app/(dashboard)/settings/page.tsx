@@ -1,10 +1,17 @@
 import Link from "next/link";
-import { Building2, Cable, ChevronRight, Cpu, CreditCard, Paintbrush, ScrollText, Users } from "lucide-react";
+import { Bell, Building2, Cable, ChevronRight, CircleDollarSign, Cpu, CreditCard, Paintbrush, ScrollText, Users } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SettingsNav } from "./_components/SettingsNav";
 
 const settingsGroups = [
+  {
+    title: "Notifikasi",
+    description: "Atur channel pengingat invoice jatuh tempo untuk pelanggan.",
+    href: "/settings/notifications",
+    icon: Bell,
+    roles: ["OWNER", "MANAGER"],
+  },
   {
     title: "Profil & Portal",
     description: "Identitas roastery, tampilan storefront, kontak, dan pembayaran portal.",
@@ -17,6 +24,13 @@ const settingsGroups = [
     description: "Kelola anggota, peran kerja, dan status akses workspace.",
     href: "/settings/team",
     icon: Users,
+    roles: ["OWNER"],
+  },
+  {
+    title: "Pembayaran Portal",
+    description: "Rekening dan QRIS tenant, unggah bukti, dan verifikasi pembayaran pelanggan.",
+    href: "/settings/payments",
+    icon: CircleDollarSign,
     roles: ["OWNER"],
   },
   {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { appendLedger } from "./stock";
+import { appendFefoLedgerOut, appendLedger } from "./stock";
 
 function transaction(updateCount = 1) {
   return {
@@ -14,6 +14,10 @@ function transaction(updateCount = 1) {
     },
     inventoryLedger: {
       create: vi.fn(async ({ data }) => ({ id: "ledger-1", ...data })),
+    },
+    lot: {
+      findMany: vi.fn().mockResolvedValue([]),
+      update: vi.fn().mockResolvedValue({}),
     },
   };
 }
@@ -196,5 +200,70 @@ describe("appendLedger", () => {
     const updateCall = (tx.product.updateMany as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(updateCall[0].data.stockUnit).toEqual({ increment: 50 });
     expect(updateCall[0].data.avgCostPerKg).toBeUndefined();
+  });
+});
+
+describe("appendFefoLedgerOut", () => {
+  it("allocates from the earliest expiry first and closes exhausted lots", async () => {
+    const tx = transaction();
+    tx.lot.findMany.mockResolvedValue([
+      {
+        id: "lot-early",
+        batchCode: "LOT-EARLY",
+        expiryDate: new Date("2026-08-01"),
+        quantityKg: 5,
+        quantityUnit: 0,
+        inventoryLedgers: [{ entryType: "IN", quantityKg: 5, quantityUnit: null }],
+      },
+      {
+        id: "lot-later",
+        batchCode: "LOT-LATER",
+        expiryDate: new Date("2026-12-01"),
+        quantityKg: 10,
+        quantityUnit: 0,
+        inventoryLedgers: [{ entryType: "IN", quantityKg: 10, quantityUnit: null }],
+      },
+    ]);
+
+    await appendFefoLedgerOut(tx, {
+      tenantId: "tenant-1",
+      productId: "green-bean-1",
+      quantityKg: 8,
+      refType: "ROASTING_GB_OUT",
+      refId: "roast-1",
+      createdById: "user-1",
+    });
+
+    expect(tx.inventoryLedger.create).toHaveBeenNthCalledWith(1, {
+      data: expect.objectContaining({ lotId: "lot-early", quantityKg: 5 }),
+    });
+    expect(tx.inventoryLedger.create).toHaveBeenNthCalledWith(2, {
+      data: expect.objectContaining({ lotId: "lot-later", quantityKg: 3 }),
+    });
+    expect(tx.lot.update).toHaveBeenCalledWith({
+      where: { id: "lot-early" },
+      data: { consumedAt: expect.any(Date) },
+    });
+  });
+
+  it("uses an untracked fallback for legacy stock without lots", async () => {
+    const tx = transaction();
+
+    await appendFefoLedgerOut(tx, {
+      tenantId: "tenant-1",
+      productId: "finished-good-1",
+      quantityUnit: 4,
+      refType: "SALE_FG_OUT",
+      refId: "invoice-1",
+      createdById: "user-1",
+    });
+
+    expect(tx.inventoryLedger.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        lotId: null,
+        productId: "finished-good-1",
+        quantityUnit: 4,
+      }),
+    });
   });
 });

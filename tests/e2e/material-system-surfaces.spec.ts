@@ -57,12 +57,12 @@ test("login and register share the command-dossier motion language", async ({ pa
   await expect(page.getByTestId("auth-ambient-scan")).toHaveCount(0);
 });
 
-test("landing opens with a real operating tableau on desktop and mobile", async ({ page }) => {
+test("landing opens with the live roast trace on desktop and mobile", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: /Dari karung sampai kas/ })).toBeVisible();
-  await expect(page.getByText("Live operating tableau", { exact: true })).toBeVisible();
-  await expect(page.getByText("Decision queue", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Roasting selesai/ })).toBeVisible();
+  await expect(page.getByText("Roastd Studio · Live", { exact: true })).toBeVisible();
+  await expect(page.getByText("Profile match", { exact: true })).toBeVisible();
   await page.screenshot({
     path: "test-results/material-landing-desktop.png",
     fullPage: false,
@@ -70,7 +70,7 @@ test("landing opens with a real operating tableau on desktop and mobile", async 
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: /Dari karung sampai kas/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Roasting selesai/ })).toBeVisible();
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
@@ -99,8 +99,8 @@ test("landing motion communicates flow and respects reduced motion", async ({ pa
   await page.getByText("Artisan roast telemetry", { exact: true }).scrollIntoViewIfNeeded();
   await page.waitForTimeout(700);
   await expect(page.getByTestId("roast-curve-primary")).toBeVisible();
-  await page.getByRole("button", { name: "Apakah roastr.id menggantikan Artisan?" }).scrollIntoViewIfNeeded();
-  await page.getByRole("button", { name: "Apakah roastr.id menggantikan Artisan?" }).click();
+  await page.getByRole("button", { name: "Apakah roastd.id menggantikan Artisan?" }).scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Apakah roastd.id menggantikan Artisan?" }).click();
   await expect(page.getByText(/Artisan tetap menjadi alat kerja roasting/)).toBeVisible();
 
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -128,6 +128,11 @@ test("superadmin control plane uses the same material language", async ({ contex
       },
     });
     test.skip(!superadmin, "An active superadmin is required.");
+    const targetTenant = await prisma.tenant.findFirst({
+      where: { id: { not: "default" } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true },
+    });
 
     const sessionCookie = await sealData(
       { user: superadmin! },
@@ -150,13 +155,38 @@ test("superadmin control plane uses the same material language", async ({ contex
 
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/superadmin/dashboard", { waitUntil: "domcontentloaded", timeout: 90_000 });
-    await expect(page.getByRole("heading", { name: "System overview", exact: true })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: "Kendalikan platform, bukan tabel.", exact: true })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText("Platform pulse", { exact: true })).toBeVisible();
     await page.screenshot({
       path: "test-results/material-superadmin-desktop.png",
       fullPage: false,
     });
 
+    await page.goto("/superadmin/subscriptions", { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await expect(page.getByRole("heading", { name: "Subscription & pembayaran", exact: true })).toBeVisible({ timeout: 60_000 });
+    await page.screenshot({ path: "test-results/material-superadmin-subscriptions.png", fullPage: false });
+    await page.goto("/superadmin/incidents", { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await expect(page.getByRole("heading", { name: "Incident center", exact: true })).toBeVisible({ timeout: 60_000 });
+    await page.screenshot({ path: "test-results/material-superadmin-incidents.png", fullPage: false });
+    await page.goto("/superadmin/studio", { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await expect(page.getByRole("heading", { name: "Studio fleet", exact: true })).toBeVisible({ timeout: 60_000 });
+    await page.screenshot({ path: "test-results/material-superadmin-studio.png", fullPage: false });
+    if (targetTenant) {
+      await page.goto(`/superadmin/tenants/${targetTenant.id}`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+      await expect(page.getByRole("heading", { name: targetTenant.name, exact: true })).toBeVisible({ timeout: 60_000 });
+      await page.screenshot({ path: "test-results/material-superadmin-tenant-360.png", fullPage: false });
+    }
+
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/superadmin/dashboard", { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await expect(page.getByRole("heading", { name: "Kendalikan platform, bukan tabel.", exact: true })).toBeVisible({ timeout: 60_000 });
+    const dashboardOverflows = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    expect(dashboardOverflows).toBe(false);
+    await page.screenshot({
+      path: "test-results/material-superadmin-mobile.png",
+      fullPage: false,
+    });
+
     await page.goto("/superadmin/tenants", { waitUntil: "domcontentloaded", timeout: 90_000 });
     await expect(page.getByRole("heading", { name: "Tenant registry", exact: true })).toBeVisible({ timeout: 60_000 });
     const overflow = await page.evaluate(

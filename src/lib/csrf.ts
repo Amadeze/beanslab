@@ -4,8 +4,6 @@ import { cookies } from "next/headers";
 import { SESSION_OPTIONS } from "./session";
 
 const CSRF_TOKEN_LENGTH = 32;
-const CSRF_SECRET = process.env.SESSION_SECRET || process.env.CSRF_SECRET || "";
-
 /**
  * Generate a CSRF token and store it in the session.
  * Returns the token to include in form data / headers.

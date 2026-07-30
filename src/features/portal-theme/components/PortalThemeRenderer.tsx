@@ -55,8 +55,21 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType<any>> = {
   sticky_narrative: StickyNarrativeSection,
   roast_matrix: WholesaleRadarSection,
   marquee_kinetic: KineticMarqueeSection,
+  // Backward-compatible aliases used by the first official theme config.
+  wholesale_radar: WholesaleRadarSection,
+  kinetic_marquee: KineticMarqueeSection,
   header_nav: HeaderNavSection,
   footer_nav: FooterNavSection,
+};
+
+const CANONICAL_SECTION_ANCHORS: Record<string, string> = {
+  catalog_grid: "catalog",
+  faq: "faq",
+  contact_cta: "contact",
+  sticky_narrative: "narrative",
+  interactive_flavor: "flavor",
+  roast_matrix: "matrix",
+  wholesale_radar: "matrix",
 };
 
 // ── Font Loading ────────────────────────────────────────────────────────────
@@ -314,6 +327,14 @@ export function PortalThemeRenderer({ config, isPreview = false, products = [], 
                 ...getAnimationStyle(section),
               }}
             >
+              {CANONICAL_SECTION_ANCHORS[section.type] &&
+              CANONICAL_SECTION_ANCHORS[section.type] !== section.id ? (
+                <span
+                  id={CANONICAL_SECTION_ANCHORS[section.type]}
+                  className="block scroll-mt-24"
+                  aria-hidden="true"
+                />
+              ) : null}
               <Component
                 settings={section.settings}
                 blocks={section.blocks}

@@ -45,13 +45,13 @@ export function KpiCard({ label, value, sub, trend, color = "#A94728", icon, onC
     <div
       onClick={onClick}
       className={cn(
-        "group relative flex min-h-[80px] flex-col overflow-hidden border-b border-[#D6DEDE] p-3 transition-colors sm:border-r lg:border-b-0 lg:p-3.5 [&:nth-child(2n)]:sm:border-r-0 [&:nth-child(4n)]:lg:border-r-0",
-        onClick && "cursor-pointer hover:bg-[#F0F8F8]",
+        "group relative flex min-h-[86px] flex-col overflow-hidden border-b border-border p-3.5 transition-colors sm:border-r lg:border-b-0 lg:p-4 [&:nth-child(2n)]:sm:border-r-0 [&:nth-child(4n)]:lg:border-r-0",
+        onClick && "cursor-pointer hover:bg-accent/45",
         active && "bg-accent shadow-[inset_0_-3px_0_var(--primary)]"
       )}
     >
       <div className="relative z-10 mb-auto flex items-start justify-between">
-        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#5B696D]">{label}</p>
+        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
         {icon && (
           <div
             className="flex h-7 w-7 items-center justify-center rounded-[8px] border"
@@ -66,8 +66,8 @@ export function KpiCard({ label, value, sub, trend, color = "#A94728", icon, onC
         )}
       </div>
       <div className="relative z-10 mt-2">
-        <h3 className="text-lg font-black leading-none tracking-[-0.035em] text-[#081820] lg:text-xl">{value}</h3>
-        {sub && <p className="mt-1.5 text-[10px] text-stone-500">{sub}</p>}
+        <h3 className="font-heading text-lg font-bold leading-none tracking-[-0.04em] text-foreground lg:text-xl">{value}</h3>
+        {sub && <p className="mt-1.5 text-[10px] text-muted-foreground">{sub}</p>}
       </div>
       {/* Signal indicator */}
       {signal && (

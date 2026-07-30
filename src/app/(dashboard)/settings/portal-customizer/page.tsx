@@ -16,6 +16,7 @@ import { GlobalTypographyPanel } from "@/features/portal-theme/components/global
 import { InlinePreview } from "@/features/portal-theme/components/InlinePreview";
 import { AddSectionDialog } from "@/features/portal-theme/components/AddSectionDialog";
 import { loadPortalTheme } from "@/features/portal-theme/server/actions";
+import { tenantStorefrontUrl } from "@/lib/tenant-host";
 
 type SidebarTab = "presets" | "sections" | "colors" | "typography";
 
@@ -213,7 +214,7 @@ export default function PortalCustomizerPage() {
 
           {/* View Live */}
           <a
-            href={`/tenant/${subdomain}`}
+            href={tenantStorefrontUrl(subdomain)}
             target="_blank"
             rel="noreferrer"
             title="View Live Portal in new tab"

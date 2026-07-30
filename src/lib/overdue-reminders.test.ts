@@ -51,6 +51,7 @@ describe("sendOverdueReminders", () => {
     delete process.env.WA_API_KEY;
     const prisma = {
       invoice: { findMany: vi.fn().mockResolvedValue([overdueInvoice()]) },
+      notificationPreference: { findMany: vi.fn().mockResolvedValue([]) },
       reminderDelivery: {
         create: vi.fn(),
         update: vi.fn(),
@@ -76,6 +77,7 @@ describe("sendOverdueReminders", () => {
     delete process.env.WA_API_KEY;
     const prisma = {
       invoice: { findMany: vi.fn().mockResolvedValue([overdueInvoice()]) },
+      notificationPreference: { findMany: vi.fn().mockResolvedValue([]) },
       reminderDelivery: {
         create: vi.fn().mockResolvedValue({ id: "delivery-1" }),
         update: vi.fn().mockResolvedValue({}),
@@ -101,5 +103,30 @@ describe("sendOverdueReminders", () => {
       where: { id: "delivery-1" },
       data: { status: "SENT", sentAt: expect.any(Date) },
     });
+  });
+
+  it("honors an explicitly disabled tenant channel", async () => {
+    process.env.RESEND_API_KEY = "test-key";
+    const prisma = {
+      invoice: { findMany: vi.fn().mockResolvedValue([overdueInvoice()]) },
+      notificationPreference: {
+        findMany: vi.fn().mockResolvedValue([
+          { tenantId: "tenant-1", channel: "EMAIL", enabled: false },
+        ]),
+      },
+      reminderDelivery: {
+        create: vi.fn(),
+        update: vi.fn(),
+      },
+    };
+
+    const result = await sendOverdueReminders(
+      prisma as never,
+      new Date("2026-07-16T03:00:00.000Z"),
+    );
+
+    expect(result.sent).toBe(0);
+    expect(result.skipped).toBe(1);
+    expect(prisma.reminderDelivery.create).not.toHaveBeenCalled();
   });
 });

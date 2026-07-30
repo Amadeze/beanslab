@@ -14,7 +14,8 @@ import {
 import { recordAudit } from "@/lib/audit";
 import { getCurrentDate, getZonedDayRange, getZonedMonthRange } from "@/lib/date-utils";
 import { resolveSampleRatios, summarizeSampleUsage } from "@/lib/sample-usage";
-import { appendLedger } from "@/lib/stock";
+import { appendFefoLedgerOut, appendLedger } from "@/lib/stock";
+import { postSampleUsage, postVoidReversal } from "@/lib/posting";
 
 export type SampleSourceType = "FINISHED_GOODS" | "RECIPE" | "CUSTOM_BLEND";
 
@@ -123,6 +124,7 @@ const CreateSampleSchema = z.object({
 
 type PlannedComponent = {
   productId?: string;
+  productType?: "GREEN_BEAN" | "ROASTED_BEAN" | "FINISHED_GOODS" | "PACKAGING";
   packagingId?: string;
   label: string;
   quantityKg?: number;
@@ -309,9 +311,9 @@ export async function createSampleUsage(input: CreateSampleInput) {
     const now = getCurrentDate();
     const prefix = `SMP-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
     const sampleCode = `${prefix}-${randomBytes(4).toString("hex").toUpperCase()}`;
+    const components: PlannedComponent[] = [];
 
     const result = await tp.$transaction(async (tx) => {
-      const components: PlannedComponent[] = [];
       let sourceLabel = "Sample";
 
       if (parsed.sourceType === "FINISHED_GOODS") {
@@ -336,6 +338,7 @@ export async function createSampleUsage(input: CreateSampleInput) {
         sourceLabel = product.name;
         components.push({
           productId: product.id,
+          productType: product.type,
           label: product.name,
           quantityUnit: parsed.packCount,
           unitCost,
@@ -372,6 +375,7 @@ export async function createSampleUsage(input: CreateSampleInput) {
           const unitCost = Number(product.avgCostPerKg ?? 0);
           components.push({
             productId: product.id,
+            productType: "ROASTED_BEAN",
             label: product.name,
             quantityKg: ratio.quantityKg,
             ratioPercent: ratio.ratioPercent,
@@ -390,6 +394,7 @@ export async function createSampleUsage(input: CreateSampleInput) {
           const unitCost = Number(packaging.avgCostPerUnit ?? packaging.costPerUnit ?? 0);
           components.push({
             packagingId: packaging.id,
+            productType: "PACKAGING",
             label: packaging.name,
             quantityUnit: parsed.packCount,
             unitCost,
@@ -402,6 +407,7 @@ export async function createSampleUsage(input: CreateSampleInput) {
       const totalCost = components.reduce((sum, component) => sum + component.totalCost, 0);
       const sample = await tx.sampleUsage.create({
         data: {
+          tenantId,
           code: sampleCode,
           operationKey: parsed.operationKey,
           sourceType: parsed.sourceType,
@@ -419,6 +425,7 @@ export async function createSampleUsage(input: CreateSampleInput) {
 
       await tx.sampleUsageComponent.createMany({
         data: components.map((component) => ({
+          tenantId,
           sampleUsageId: sample.id,
           productId: component.productId,
           packagingId: component.packagingId,
@@ -432,18 +439,16 @@ export async function createSampleUsage(input: CreateSampleInput) {
       });
 
       for (const component of components) {
-        await appendLedger(tx, {
-          data: {
+        await appendFefoLedgerOut(tx, {
+            tenantId,
             productId: component.productId,
             packagingId: component.packagingId,
-            entryType: "OUT",
             refType: component.refType,
             refId: sample.id,
             quantityKg: component.quantityKg,
             quantityUnit: component.quantityUnit,
             notes: `Sample ${sampleCode}: ${sourceLabel}`,
             createdById: userId,
-          },
         });
       }
 
@@ -456,10 +461,21 @@ export async function createSampleUsage(input: CreateSampleInput) {
         after: { code: sample.code, sourceType: sample.sourceType, sourceLabel, packCount: sample.packCount, totalGrams, totalCost },
         metadata: { operationKey: parsed.operationKey, componentCount: components.length },
       });
+
+      await postSampleUsage(
+        sample.id,
+        Number(sample.totalCost),
+        components.map((component) => ({
+          productType: component.productType,
+          totalCost: Number(component.totalCost),
+        })),
+        { tx, tenantId, userId },
+      );
       return sample;
     }, { isolationLevel: "Serializable" });
 
     revalidateSamplePaths();
+
     return { success: true as const, sampleCode: result.code };
   } catch (error) {
     console.error("[createSampleUsage]", error);
@@ -507,6 +523,7 @@ export async function voidSampleUsage(sampleId: string, reason: string) {
       for (const entry of sourceEntries) {
         await appendLedger(tx, {
           data: {
+            tenantId,
             productId: entry.productId,
             packagingId: entry.packagingId,
             entryType: "IN",
@@ -514,15 +531,22 @@ export async function voidSampleUsage(sampleId: string, reason: string) {
             refId: sample.id,
             quantityKg: entry.quantityKg,
             quantityUnit: entry.quantityUnit,
+            lotId: entry.lotId,
+            lotNumber: entry.lotNumber,
+            expiryDate: entry.expiryDate,
             notes: `VOID sample: ${sample.code}`,
             createdById: userId,
           },
         });
+        if (entry.lotId) {
+          await tx.lot.update({ where: { id: entry.lotId }, data: { consumedAt: null } });
+        }
       }
       await tx.sampleUsage.update({
         where: { id: sample.id },
         data: { status: "VOID", voidReason: reason.trim(), voidAt: getCurrentDate() },
       });
+      await postVoidReversal("SAMPLE_USAGE", sample.id, reason, { tx, tenantId, userId });
       await recordAudit(tx, {
         tenantId,
         userId,

@@ -16,6 +16,16 @@ export default async function BatchRecapPage({
     where: { id, tenantId: user.tenantId },
     include: {
       childBatches: { orderBy: { recordedAt: "asc" } },
+      referenceRoast: {
+        select: {
+          id: true,
+          title: true,
+          duration: true,
+          beanTemperatureSeries: true,
+          environmentalTemperatureSeries: true,
+          events: true,
+        },
+      },
     },
   });
 
@@ -95,6 +105,16 @@ export default async function BatchRecapPage({
     childCount,
     completedCount: completedChildren.length,
     pendingCount: pendingChildren.length,
+    referenceProfile: batch.referenceRoast
+      ? {
+          id: batch.referenceRoast.id,
+          title: batch.referenceRoast.title ?? "Profil tanpa nama",
+          duration: batch.referenceRoast.duration,
+          beanTemperatureSeries: batch.referenceRoast.beanTemperatureSeries as any,
+          environmentalTemperatureSeries: batch.referenceRoast.environmentalTemperatureSeries as any,
+          events: batch.referenceRoast.events as any,
+        }
+      : null,
     children: batch.childBatches.map((c, idx) => {
       const r = c.roastId ? roastMap.get(c.roastId) : null;
       return {
@@ -104,6 +124,9 @@ export default async function BatchRecapPage({
         roastDuration: c.roastDuration,
         dropTemp: c.dropTemp ? Number(c.dropTemp) : null,
         recordedAt: c.recordedAt.toISOString(),
+        matchScore: c.matchScore,
+        matchStatus: c.matchStatus,
+        matchDetails: c.matchDetails as any,
         roast: r
           ? {
               id: r.id, title: r.title,

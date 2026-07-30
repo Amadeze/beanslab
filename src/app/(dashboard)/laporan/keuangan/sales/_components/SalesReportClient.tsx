@@ -10,17 +10,26 @@ import {
   ReportFilters,
   ReportExport,
   ReportSkeleton,
+  ReportHeader,
+  ReportInsightCard,
   type DateRange,
   type ReportColumn,
   type SalesReportData,
 } from "../../../_shared";
 import { getSalesReport } from "../../../actions";
 import { formatRupiah } from "@/lib/format";
+import { generateSalesInsights } from "@/lib/report-insights";
 
 export default function SalesReportClient() {
+  // Use local timezone for initial date (browser timezone, matches user expectation)
+  const getLocalDateString = (daysOffset = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysOffset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
   const [dateRange, setDateRange] = useState<DateRange>({
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    end: new Date().toISOString().split("T")[0],
+    start: getLocalDateString(-30),
+    end: getLocalDateString(),
   });
   const [data, setData] = useState<SalesReportData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,19 +94,41 @@ export default function SalesReportClient() {
 
   const dateRangeLabel = `${new Date(dateRange.start).toLocaleDateString("id-ID", { day: "numeric", month: "short" })} - ${new Date(dateRange.end).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}`;
 
+  const insights = generateSalesInsights(data).map((i) => ({
+    type: i.severity as "positive" | "negative" | "warning" | "info",
+    text: i.message,
+    value: i.value,
+  }));
+
   return (
     <ReportLayout
       activeTab="keuangan/sales"
       actions={
         <ReportExport
-          title="Sales Report"
+          title="Laporan Penjualan"
           filename="sales-report"
           columns={columns.map((c) => ({ header: c.label, key: c.key }))}
           data={data.invoices}
+          subtitle="Revenue, invoice, dan analisa penjualan"
+          period={dateRangeLabel}
+          status="DRAFT"
+          summary={[
+            { label: "Total Revenue", value: formatRupiah(data.totalRevenue) },
+            { label: "Jumlah Invoice", value: `${data.invoiceCount} nota` },
+            { label: "Rata-rata Invoice", value: formatRupiah(data.avgInvoice) },
+            { label: "Top Customer", value: data.topCustomer },
+          ]}
         />
       }
     >
       <div className="space-y-6">
+        <ReportHeader
+          title="Laporan Penjualan"
+          subtitle="Revenue, invoice, dan analisa penjualan"
+          period={dateRangeLabel}
+          generatedAt={new Date()}
+        />
+
         <ReportFilters
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
@@ -110,6 +141,7 @@ export default function SalesReportClient() {
             value={formatRupiah(data.totalRevenue)}
             icon={TrendingUp}
             color="emerald"
+            sparkline={data.revenueTrend.slice(-7).map((r) => r.revenue)}
           />
           <ReportKpiCard
             label="Invoice"
@@ -133,6 +165,11 @@ export default function SalesReportClient() {
           />
         </div>
 
+        {/* Insights */}
+        {insights.length > 0 && (
+          <ReportInsightCard insights={insights} />
+        )}
+
         {/* Charts */}
         <div className="grid gap-4 lg:grid-cols-3">
           <ReportChart
@@ -154,6 +191,11 @@ export default function SalesReportClient() {
         </div>
 
         {/* Invoice Table */}
+        {data.detailTruncated && (
+          <p className="text-sm text-amber-700">
+            KPI mencakup seluruh {data.invoiceCount.toLocaleString("id-ID")} invoice. Tabel dan ekspor cepat menampilkan {data.detailLimit.toLocaleString("id-ID")} invoice terbaru agar laporan tetap responsif.
+          </p>
+        )}
         <ReportTable
           columns={columns}
           data={data.invoices}

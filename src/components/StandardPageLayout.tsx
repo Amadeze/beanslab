@@ -81,7 +81,7 @@ export function StandardPageLayout({
   const hasMobileAction = hasSpeedDial || hasSingleAction;
 
   return (
-    <div className="flex h-full min-w-0 flex-col overflow-hidden bg-background">
+    <div className="flex h-full min-w-0 flex-col overflow-hidden bg-transparent">
       <PageHeader
         title={title}
         description={description}
@@ -146,7 +146,7 @@ export function StandardPageLayout({
       )}
 
       <div className={cn("custom-scrollbar relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden", hasMobileAction && "pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-0")}>
-        <div className="mx-auto min-w-0 w-full max-w-[1600px] p-4 md:p-6 lg:p-7">
+        <div className="mx-auto min-w-0 w-full max-w-[1600px] p-4 sm:p-5 md:p-6 lg:p-7">
           {isLoading ? <PageSkeleton /> : children}
         </div>
       </div>

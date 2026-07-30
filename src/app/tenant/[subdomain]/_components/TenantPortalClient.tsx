@@ -26,6 +26,17 @@ type ExtendedTenant = Tenant & {
   midtransClientKey?: string | null;
   midtransIsProduction?: boolean;
   themeConfig?: any;
+  paymentMethods?: Array<{
+    id: string;
+    method: "CASH" | "TRANSFER" | "QRIS" | "CREDIT";
+    label: string;
+    bankName: string | null;
+    accountNumber: string | null;
+    accountHolder: string | null;
+    qrisImageUrl: string | null;
+    instructions: string | null;
+    requireProof: boolean;
+  }>;
 };
 
 interface TenantPortalClientProps {
@@ -40,7 +51,9 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");
-  const [shippingMethod, setShippingMethod] = useState("LOCAL_DELIVERY");
+  const defaultShippingMethod = tenant.storefrontPickupEnabled ? "PICKUP" : "LOCAL_DELIVERY";
+  const [shippingMethod, setShippingMethod] = useState(defaultShippingMethod);
+  const [paymentMethodId, setPaymentMethodId] = useState(tenant.paymentMethods?.[0]?.id || "");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const themeMode = tenant.themeMode || "light";
@@ -80,8 +93,9 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
     if (savedName) setCustomerName(savedName);
     if (savedPhone) setCustomerPhone(savedPhone);
     if (savedAddress) setCustomerAddress(savedAddress);
-    if (savedShipping) setShippingMethod(savedShipping);
-  }, []);
+    const savedAllowed = savedShipping === "PICKUP" ? tenant.storefrontPickupEnabled : tenant.storefrontDeliveryEnabled;
+    if (savedShipping && savedAllowed) setShippingMethod(savedShipping);
+  }, [tenant.storefrontDeliveryEnabled, tenant.storefrontPickupEnabled]);
 
   useEffect(() => {
     if (customerName) localStorage.setItem("ros_customer_name", customerName);
@@ -104,8 +118,8 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
 
   const handleCheckout = async () => {
     if (isCheckingOut) return;
-    if (!customerName || !customerPhone || !customerAddress) {
-      alert("Mohon lengkapi Nama, Nomor HP, dan Alamat Pengiriman terlebih dahulu.");
+    if (!customerName || !customerPhone || (shippingMethod !== "PICKUP" && !customerAddress)) {
+      alert("Mohon lengkapi Nama, Nomor HP, dan alamat jika pesanan dikirim.");
       return;
     }
 
@@ -115,7 +129,7 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerName, customerPhone, customerAddress, shippingMethod, items: cart.items[tenant.subdomain || ""] || [],
+          customerName, customerPhone, customerAddress: customerAddress || "Ambil di roastery", shippingMethod, paymentMethodId: paymentMethodId || undefined, items: cart.items[tenant.subdomain || ""] || [],
         }),
       });
 
@@ -127,6 +141,13 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
 
       const data = await res.json();
       const invoiceCode = data.invoice?.code || "-";
+
+      if (data.orderUrl) {
+        cart.clearCart(tenant.subdomain || "");
+        setIsCartOpen(false);
+        window.location.assign(data.orderUrl);
+        return;
+      }
 
       let text = `Halo Admin ${tenant.name},\nSaya ingin memesan (Order B2B):\n\n`;
       text += `*No. Ref:* ${invoiceCode}\n`;
@@ -172,6 +193,8 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
     customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleCheckout, mounted, heroGreeting, aboutText,
     catalogTitle, catalogSubtitle, footerText, waLink, emailLink, igLink, iconProps, iconStroke, isDark,
     isCheckingOut,
+    paymentMethodId,
+    setPaymentMethodId,
   };
 
   return (

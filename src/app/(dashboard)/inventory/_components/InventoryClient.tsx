@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
 import { Boxes, History, ClipboardList, Download, FileText, FileSpreadsheet, Loader2, MoreHorizontal, Package, Plus, Settings2, Truck, ArrowDownCircle, ArrowUpCircle, AlertTriangle, XCircle, Clock, CheckCircle2, CircleDot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -16,6 +15,7 @@ import { POList } from "./POList";
 import { PODetail } from "./PODetail";
 import { POForm } from "./POForm";
 import { ReceivingList } from "./ReceivingList";
+import { QuickReceivePO } from "./QuickReceivePO";
 import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import { SupplierForm } from "../../master-data/_components/SupplierForm";
@@ -249,11 +249,13 @@ export function InventoryClient({
   const [adjDrawerOpen, setAdjDrawerOpen] = useState(false);
   const [poDrawerOpen, setPoDrawerOpen] = useState(false);
   const [poDetailOpen, setPoDetailOpen] = useState(false);
+  const [receiptDrawerOpen, setReceiptDrawerOpen] = useState(false);
   const [supplierDrawerOpen, setSupplierDrawerOpen] = useState(false);
   const [supplierTarget, setSupplierTarget] = useState<"purchase" | "packaging" | "po" | null>(null);
   const [preferredSupplierId, setPreferredSupplierId] = useState<string | null>(null);
   const [supplierOptions, setSupplierOptions] = useState(suppliers);
   const [selectedPoId, setSelectedPoId] = useState<string | null>(null);
+  const [selectedReceivingPoId, setSelectedReceivingPoId] = useState<string | null>(null);
   const [isSubmitting,  setIsSubmitting]  = useState(false);
   const [isSupplierSubmitting, setIsSupplierSubmitting] = useState(false);
   const [filteredLedger, setFilteredLedger] = useState(ledgerEntries);
@@ -361,7 +363,11 @@ export function InventoryClient({
     switch (activeView) {
       case "stock": return { label: "Barang Datang", icon: <Plus size={14} />, onClick: () => setGbDrawerOpen(true) };
       case "po": return { label: "Buat PO", icon: <Plus size={14} />, onClick: () => setPoDrawerOpen(true) };
-      case "receiving": return { label: "Catat Penerimaan", icon: <Truck size={14} />, onClick: () => setGbDrawerOpen(true) };
+      case "receiving": return {
+        label: "Catat Penerimaan",
+        icon: <Truck size={14} />,
+        onClick: () => { setSelectedReceivingPoId(null); setReceiptDrawerOpen(true); },
+      };
       case "mutations": return null;
     }
   }, [activeView]);
@@ -442,7 +448,14 @@ export function InventoryClient({
       case "po": return [
         { label: "Buat PO", icon: <ClipboardList size={16} />, onClick: () => setPoDrawerOpen(true), variant: "primary" as const },
       ];
-      case "receiving": return undefined; // no FAB for receiving
+      case "receiving": return [
+        {
+          label: "Catat Penerimaan",
+          icon: <Truck size={16} />,
+          onClick: () => { setSelectedReceivingPoId(null); setReceiptDrawerOpen(true); },
+          variant: "primary" as const,
+        },
+      ];
       case "mutations": return undefined; // no FAB for mutations
     }
   }, [activeView]);
@@ -506,11 +519,7 @@ export function InventoryClient({
         <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">
       {/* ── Sample Consumption Summary (Stock tab only) ── */}
       {activeView === "stock" && (sampleConsumption.rbConsumedKg > 0 || sampleConsumption.fgConsumedUnits > 0 || sampleConsumption.pkgConsumedUnits > 0) && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6 relative overflow-hidden rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)] px-5 py-4 shadow-[var(--glass-shadow)]"
-        >
+        <div className="page-surface relative mb-5 overflow-hidden px-5 py-4 animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5 pointer-events-none" />
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -531,7 +540,7 @@ export function InventoryClient({
               <p className="text-xl font-black text-[var(--text-primary)] tabular-nums tracking-tight">{formatRupiah(sampleConsumption.totalCost)}</p>
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
 
         {/* ── Workspace Content ── */}
@@ -557,7 +566,10 @@ export function InventoryClient({
           {activeView === "receiving" && (
             <ReceivingList
               refreshKey={poRefreshKey}
-              onSelectPO={(poId) => { setSelectedPoId(poId); setPoDetailOpen(true); }}
+              onSelectPO={(poId) => {
+                setSelectedReceivingPoId(poId);
+                setReceiptDrawerOpen(true);
+              }}
             />
           )}
           {activeView === "mutations" && (
@@ -584,14 +596,35 @@ export function InventoryClient({
         <StockAdjustmentDrawer id="adjustment-form" items={adjustmentItems} onSuccess={() => setAdjDrawerOpen(false)} onPendingChange={setIsSubmitting} />
       </StandardDrawer>
 
-      <StandardDrawer open={poDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setPoDrawerOpen(open); }} title="Buat Purchase Order" description="Buat PO baru untuk supplier." size="lg">
+      <StandardDrawer open={poDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setPoDrawerOpen(open); }} title="Buat Purchase Order" description="Buat PO baru untuk supplier." size="lg" showFooter={false}>
         <POForm suppliers={supplierOptions.map((s) => ({ id: s.id, name: s.name }))} products={gbStocks.map((p) => ({ id: p.id, name: p.name, type: p.type, stockKg: p.stockKg }))} packagings={packagings.map((p) => ({ id: p.id, name: p.name, stockUnit: 0 }))} onAddSupplier={() => openSupplierQuickAdd("po")} preferredSupplierId={supplierTarget === "po" ? preferredSupplierId : null} onSuccess={() => { setPoDrawerOpen(false); handlePORefresh(); finishSupplierFlow(); }} onCancel={() => { setPoDrawerOpen(false); finishSupplierFlow(); }} />
       </StandardDrawer>
 
-      <StandardDrawer open={poDetailOpen} onOpenChange={setPoDetailOpen} title="Detail Purchase Order" size="lg">
+      <StandardDrawer open={poDetailOpen} onOpenChange={setPoDetailOpen} title="Detail Purchase Order" size="lg" showFooter={false}>
         {selectedPoId && (
           <PODetail poId={selectedPoId} onClose={() => setPoDetailOpen(false)} onUpdate={handlePORefresh} />
         )}
+      </StandardDrawer>
+
+      <StandardDrawer
+        open={receiptDrawerOpen}
+        onOpenChange={setReceiptDrawerOpen}
+        title="Catat Penerimaan PO"
+        description="Tarik data PO, koreksi jumlah aktual dan ongkir, lalu simpan."
+        size="lg"
+        showFooter={false}
+      >
+        <QuickReceivePO
+          initialPoId={selectedReceivingPoId}
+          refreshKey={poRefreshKey}
+          onSuccess={() => {
+            setReceiptDrawerOpen(false);
+            setSelectedReceivingPoId(null);
+            handlePORefresh();
+            router.refresh();
+          }}
+          onCancel={() => setReceiptDrawerOpen(false)}
+        />
       </StandardDrawer>
 
       <StandardDrawer

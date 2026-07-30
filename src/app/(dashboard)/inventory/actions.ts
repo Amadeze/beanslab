@@ -11,6 +11,7 @@ import {
   type PurchasePaymentState,
 } from "@/lib/purchase-payments";
 import { getBatchReorderSummaries } from "@/lib/reorder";
+import { postPurchase, postStockAdjustment } from "@/lib/posting";
 
 // =============================================================================
 // TYPES — semua Decimal dikonversi ke number agar bisa di-serialize ke client
@@ -419,9 +420,15 @@ export async function createGreenBeanPurchase(
     const purchaseCode = generatePurchaseCode(receivedAt);
     const itemCost = input.totalCost - shippingCost;
     const pricePerKg = itemCost / input.weightKg;
+    const supplier = await tenantPrisma.supplier.findUnique({
+      where: { id: input.supplierId },
+      select: { id: true, name: true, isActive: true },
+    });
+    if (!supplier?.isActive) {
+      return { success: false, error: "Supplier tidak ditemukan atau sudah nonaktif." };
+    }
 
     await tenantPrisma.$transaction(async (tx) => {
-      const supplier = await tx.supplier.findUnique({ where: { id: input.supplierId }, select: { id: true, isActive: true } });
       if (!supplier?.isActive) throw new Error("Supplier tidak ditemukan atau sudah nonaktif.");
 
       let product = input.productId
@@ -438,6 +445,7 @@ export async function createGreenBeanPurchase(
         if (!product) {
           product = await tx.product.create({
             data: {
+              tenantId,
               code: generateProductCode(productName),
               name: productName,
               type: "GREEN_BEAN",
@@ -450,6 +458,7 @@ export async function createGreenBeanPurchase(
 
       const purchase = await tx.purchase.create({
         data: {
+          tenantId,
           code: purchaseCode,
           operationKey: input.operationKey,
           type: "GREEN_BEAN",
@@ -474,6 +483,7 @@ export async function createGreenBeanPurchase(
       if (payment.paidAmount > 0) {
         await tx.supplierPayment.create({
           data: {
+            tenantId,
             code: generateSupplierPaymentCode(receivedAt),
             purchaseId: purchase.id,
             amount: payment.paidAmount,
@@ -485,6 +495,20 @@ export async function createGreenBeanPurchase(
         });
       }
 
+      const lot = await tx.lot.create({
+        data: {
+          tenantId,
+          productId: product.id,
+          supplierId: input.supplierId,
+          purchaseId: purchase.id,
+          batchCode: purchase.code,
+          quantityKg: input.weightKg,
+          expiryDate: input.bestBeforeDate ? new Date(`${input.bestBeforeDate}T00:00:00`) : null,
+          receivedAt,
+          notes: input.lotNumber ? `Lot supplier: ${input.lotNumber}` : null,
+        },
+      });
+
       await appendLedger(tx, {
         data: {
           productId: product.id,
@@ -493,7 +517,8 @@ export async function createGreenBeanPurchase(
           refId: purchase.id,
           quantityKg: input.weightKg,
           incomingPrice: input.totalCost / input.weightKg,
-          lotNumber: input.lotNumber ?? null,
+          lotId: lot.id,
+          lotNumber: lot.batchCode,
           expiryDate: input.bestBeforeDate ? new Date(`${input.bestBeforeDate}T00:00:00`) : null,
           notes: `Barang datang: ${purchase.code}`,
           createdById: userId,
@@ -515,12 +540,22 @@ export async function createGreenBeanPurchase(
         },
         metadata: { operationKey: input.operationKey, balance: payment.balance },
       });
+
+      await postPurchase(
+        purchase.id,
+        "GREEN_BEAN",
+        Number(input.totalCost),
+        Number(payment.paidAmount),
+        supplier.name,
+        { tx, tenantId, userId },
+      );
     }, { isolationLevel: "Serializable" });
 
     revalidatePath("/inventory");
     revalidatePath("/dashboard");
     revalidatePath("/keuangan");
     revalidatePath("/laporan");
+
     return { success: true, purchaseCode };
   } catch (err) {
     console.error("[createGreenBeanPurchase]", err);
@@ -578,17 +613,24 @@ export async function createPackagingPurchase(
     const dueDate = parsePurchaseDueDate(payment.paymentStatus, input.dueDate, receivedAt);
     const purchaseCode = generatePurchaseCode(receivedAt);
     const pricePerUnit = (input.totalCost - shippingCost) / input.quantityUnits;
+    const [supplier, packaging] = await Promise.all([
+      tenantPrisma.supplier.findUnique({ where: { id: input.supplierId }, select: { id: true, name: true, isActive: true } }),
+      tenantPrisma.packaging.findUnique({ where: { id: input.packagingId }, select: { id: true, name: true, isActive: true } }),
+    ]);
+    if (!supplier?.isActive) {
+      return { success: false, error: "Supplier tidak ditemukan atau sudah nonaktif." };
+    }
+    if (!packaging?.isActive) {
+      return { success: false, error: "Kemasan tidak ditemukan atau sudah nonaktif." };
+    }
 
     await tenantPrisma.$transaction(async (tx) => {
-      const [supplier, packaging] = await Promise.all([
-        tx.supplier.findUnique({ where: { id: input.supplierId }, select: { id: true, isActive: true } }),
-        tx.packaging.findUnique({ where: { id: input.packagingId }, select: { id: true, isActive: true } }),
-      ]);
       if (!supplier?.isActive) throw new Error("Supplier tidak ditemukan atau sudah nonaktif.");
       if (!packaging?.isActive) throw new Error("Kemasan tidak ditemukan atau sudah nonaktif.");
 
       const purchase = await tx.purchase.create({
         data: {
+          tenantId,
           code:         purchaseCode,
           operationKey: input.operationKey,
           type:         "PACKAGING",
@@ -613,6 +655,7 @@ export async function createPackagingPurchase(
       if (payment.paidAmount > 0) {
         await tx.supplierPayment.create({
           data: {
+            tenantId,
             code: generateSupplierPaymentCode(receivedAt),
             purchaseId: purchase.id,
             amount: payment.paidAmount,
@@ -624,6 +667,20 @@ export async function createPackagingPurchase(
         });
       }
 
+      const lot = await tx.lot.create({
+        data: {
+          tenantId,
+          packagingId: input.packagingId,
+          supplierId: input.supplierId,
+          purchaseId: purchase.id,
+          batchCode: purchase.code,
+          quantityUnit: input.quantityUnits,
+          expiryDate: input.bestBeforeDate ? new Date(`${input.bestBeforeDate}T00:00:00`) : null,
+          receivedAt,
+          notes: input.lotNumber ? `Lot supplier: ${input.lotNumber}` : null,
+        },
+      });
+
       await appendLedger(tx, {
         data: {
           packagingId:  input.packagingId,
@@ -632,7 +689,8 @@ export async function createPackagingPurchase(
           refId:        purchase.id,
           quantityUnit: input.quantityUnits,
           incomingPrice: input.totalCost / input.quantityUnits,
-          lotNumber: input.lotNumber ?? null,
+          lotId: lot.id,
+          lotNumber: lot.batchCode,
           expiryDate: input.bestBeforeDate ? new Date(`${input.bestBeforeDate}T00:00:00`) : null,
           notes:        `Kemasan datang: ${purchase.code}`,
           createdById:  userId,
@@ -654,12 +712,22 @@ export async function createPackagingPurchase(
         },
         metadata: { operationKey: input.operationKey, balance: payment.balance },
       });
+
+      await postPurchase(
+        purchase.id,
+        "PACKAGING",
+        Number(input.totalCost),
+        Number(payment.paidAmount),
+        supplier.name,
+        { tx, tenantId, userId },
+      );
     }, { isolationLevel: "Serializable" });
 
     revalidatePath("/inventory");
     revalidatePath("/dashboard");
     revalidatePath("/keuangan");
     revalidatePath("/laporan");
+
     return { success: true, purchaseCode };
   } catch (err) {
     console.error("[createPackagingPurchase]", err);
@@ -694,6 +762,7 @@ export async function createPackaging(data: {
       return { success: false as const, error: "Harga kemasan tidak valid." };
     }
 
+    const tenantId = await getCurrentTenantId();
     const tp = await requireTenantPrisma();
     const duplicate = await tp.packaging.findFirst({
       where: { name: { equals: name, mode: "insensitive" } },
@@ -706,6 +775,7 @@ export async function createPackaging(data: {
     const code = data.code?.trim().toUpperCase() || `PKG-${randomBytes(3).toString("hex").toUpperCase()}`;
     const newPkg = await tp.packaging.create({
       data: {
+        tenantId,
         code,
         name,
         weightGrams: data.weightGrams,
@@ -770,35 +840,32 @@ export async function adjustStock(input: {
     await (await requireTenantPrisma()).$transaction(async (tx) => {
       let qtyKg: number | null = null;
       let qtyUnit: number | null = null;
+      let unitCost = 0;
+      let productType: "GREEN_BEAN" | "ROASTED_BEAN" | "FINISHED_GOODS" | "PACKAGING" = "PACKAGING";
       const refType: "ADJUSTMENT_IN" | "ADJUSTMENT_OUT" = input.type === "IN" ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT";
 
       if (input.isPackaging) {
+        const packaging = await tx.packaging.findUnique({
+          where: { id: input.targetId },
+          select: { avgCostPerUnit: true, costPerUnit: true },
+        });
+        if (!packaging) throw new Error("Kemasan tidak ditemukan");
         qtyUnit = input.quantity;
+        unitCost = Number(packaging.avgCostPerUnit ?? packaging.costPerUnit ?? 0);
       } else {
-        const prod = await tx.product.findUnique({ where: { id: input.targetId } });
+        const prod = await tx.product.findUnique({
+          where: { id: input.targetId },
+          select: { type: true, avgCostPerKg: true, lastHpp: true },
+        });
         if (!prod) throw new Error("Produk tidak ditemukan");
+        productType = prod.type;
+        unitCost = prod.type === "FINISHED_GOODS"
+          ? Number(prod.lastHpp ?? 0)
+          : Number(prod.avgCostPerKg ?? 0);
         if (prod.type === "FINISHED_GOODS") {
           qtyUnit = input.quantity;
         } else {
           qtyKg = input.quantity;
-        }
-      }
-
-      // For IN adjustments, preserve the current moving average
-      let incomingPrice: number | undefined;
-      if (input.type === "IN") {
-        if (input.isPackaging) {
-          const pkg = await tx.packaging.findUnique({
-            where: { id: input.targetId },
-            select: { avgCostPerUnit: true },
-          });
-          incomingPrice = Number(pkg?.avgCostPerUnit ?? 0);
-        } else {
-          const prod = await tx.product.findUnique({
-            where: { id: input.targetId },
-            select: { avgCostPerKg: true },
-          });
-          incomingPrice = Number(prod?.avgCostPerKg ?? 0);
         }
       }
 
@@ -811,7 +878,7 @@ export async function adjustStock(input: {
           refId,
           quantityKg:    qtyKg,
           quantityUnit:  qtyUnit,
-          incomingPrice: incomingPrice,
+          incomingPrice: input.type === "IN" ? unitCost || undefined : undefined,
           notes:         input.notes || "Penyesuaian stok fisik (Opname)",
           createdById:   userId,
         }
@@ -829,9 +896,19 @@ export async function adjustStock(input: {
           notes: input.notes,
         },
       });
+
+      await postStockAdjustment(
+        refId,
+        productType,
+        input.type,
+        input.quantity,
+        unitCost,
+        { tx, tenantId, userId },
+      );
     }, { isolationLevel: "Serializable" });
 
     revalidatePath("/inventory");
+
     return { success: true };
   } catch (err) {
     console.error("[adjustStock]", err);

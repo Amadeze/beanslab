@@ -54,14 +54,14 @@ export default async function ArtisanIntegrationPage() {
     machine: c.machine,
   }));
 
-  const downloadUrl = process.env.ARTISAN_CONNECTOR_DOWNLOAD_URL || "/downloads/ArtisanSync-1.0.0-Setup.exe";
+  const downloadUrl = process.env.ARTISAN_CONNECTOR_DOWNLOAD_URL || "/downloads/RoastdStudio-0.10.2-x64-setup.exe";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader
-        title="Koneksi Artisan"
+        title="Roastd Studio & Artisan"
         eyebrow="Pengaturan"
-        description="Hubungkan Artisan Coffee Roaster dengan roastd.id melalui desktop sync."
+        description="Rekam kurva roast, hasilkan profil .alog kompatibel Artisan, dan sinkronkan ke roastd.id."
       />
       <SettingsNav userRole={user.role} />
       <div className="custom-scrollbar flex-1 overflow-auto">

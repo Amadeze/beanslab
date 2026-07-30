@@ -9,92 +9,74 @@ interface ReportKpiCardProps {
   subtitle?: string;
   trend?: number;
   icon?: LucideIcon;
-  color?: "emerald" | "amber" | "rose" | "blue" | "purple" | "default";
-  inverse?: boolean; // For metrics where lower is better (e.g., expenses)
+  color?: "emerald" | "amber" | "rose" | "blue" | "purple" | "stone";
+  inverse?: boolean;
+  sparkline?: number[];
+  target?: string;
 }
 
 const colorMap = {
-  emerald: {
-    bg: "bg-emerald-50",
-    icon: "text-emerald-600",
-  },
-  amber: {
-    bg: "bg-amber-50",
-    icon: "text-amber-600",
-  },
-  rose: {
-    bg: "bg-rose-50",
-    icon: "text-rose-600",
-  },
-  blue: {
-    bg: "bg-blue-50",
-    icon: "text-blue-600",
-  },
-  purple: {
-    bg: "bg-purple-50",
-    icon: "text-purple-600",
-  },
-  default: {
-    bg: "bg-stone-50",
-    icon: "text-stone-600",
-  },
+  emerald: { bg: "bg-emerald-50", icon: "text-emerald-600", ring: "ring-emerald-200/50", bar: "bg-emerald-500" },
+  amber: { bg: "bg-amber-50", icon: "text-amber-600", ring: "ring-amber-200/50", bar: "bg-amber-500" },
+  rose: { bg: "bg-rose-50", icon: "text-rose-600", ring: "ring-rose-200/50", bar: "bg-rose-500" },
+  blue: { bg: "bg-blue-50", icon: "text-blue-600", ring: "ring-blue-200/50", bar: "bg-blue-500" },
+  purple: { bg: "bg-purple-50", icon: "text-purple-600", ring: "ring-purple-200/50", bar: "bg-purple-500" },
+  stone: { bg: "bg-stone-100", icon: "text-stone-600", ring: "ring-stone-200/50", bar: "bg-stone-500" },
 };
 
-export function ReportKpiCard({
-  label,
-  value,
-  subtitle,
-  trend,
-  icon: Icon,
-  color = "default",
-  inverse = false,
-}: ReportKpiCardProps) {
-  const colors = colorMap[color];
+function MiniSparkline({ data, color }: { data: number[]; color: { bar: string } }) {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data) || 1;
+  return (
+    <div className="flex items-end gap-[2px] h-7">
+      {data.map((v, i) => (
+        <div
+          key={i}
+          className={cn("w-1.5 rounded-t transition-all", color.bar)}
+          style={{ height: `${(v / max) * 100}%`, opacity: 0.3 + (i / data.length) * 0.7 }}
+        />
+      ))}
+    </div>
+  );
+}
 
-  // Calculate trend color based on direction
+export function ReportKpiCard({
+  label, value, subtitle, trend, icon: Icon, color = "stone", inverse = false, sparkline, target,
+}: ReportKpiCardProps) {
+  const c = colorMap[color];
   const trendColor = (() => {
     if (trend === undefined || trend === 0) return "text-stone-500";
-    // For inverse metrics (expenses, losses), negative is good
-    if (inverse) {
-      return trend < 0 ? "text-emerald-600" : "text-rose-600";
-    }
-    // For normal metrics (revenue, profit), positive is good
+    if (inverse) return trend < 0 ? "text-emerald-600" : "text-rose-600";
     return trend > 0 ? "text-emerald-600" : "text-rose-600";
   })();
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-4">
-      <div className="flex items-start justify-between">
+    <div className="group relative rounded-xl border border-stone-200 bg-white p-4 transition-all hover:shadow-md hover:border-stone-300">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
-            {label}
-          </p>
-          <p className="mt-2 text-xl font-black tracking-tight text-stone-900" style={{ fontVariantNumeric: "tabular-nums" }}>
-            {value}
-          </p>
-          {subtitle && (
-            <p className="mt-1 text-[11px] text-stone-500">{subtitle}</p>
-          )}
+          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">{label}</p>
+          <p className="mt-1.5 text-xl font-black tracking-tight text-stone-900 tabular-nums">{value}</p>
+          {subtitle && <p className="mt-0.5 text-[11px] text-stone-500">{subtitle}</p>}
+          {target && <p className="mt-0.5 text-[10px] text-stone-400">Target: {target}</p>}
         </div>
-        {Icon && (
-          <div className={cn("rounded-lg p-2", colors.bg)}>
-            <Icon size={16} className={colors.icon} />
-          </div>
-        )}
+        <div className="flex flex-col items-end gap-1.5">
+          {Icon && (
+            <div className={cn("rounded-lg p-2 ring-1", c.bg, c.icon, c.ring)}>
+              <Icon size={16} />
+            </div>
+          )}
+          {sparkline && <MiniSparkline data={sparkline} color={c} />}
+        </div>
       </div>
       {trend !== undefined && (
-        <div className="mt-3 flex items-center gap-1" role="status" aria-label={`Trend: ${trend > 0 ? "Naik" : trend < 0 ? "Turun" : "Tetap"} ${Math.abs(trend)}%`}>
-          {trend > 0 ? (
-            <TrendingUp size={12} className={trendColor} />
-          ) : trend < 0 ? (
-            <TrendingDown size={12} className={trendColor} />
-          ) : (
-            <Minus size={12} className={trendColor} />
-          )}
-          <span className={cn("text-xs font-semibold", trendColor)}>
+        <div className="mt-3 flex items-center gap-1.5 border-t border-stone-100 pt-2.5">
+          {trend > 0 ? <TrendingUp size={12} className={trendColor} />
+            : trend < 0 ? <TrendingDown size={12} className={trendColor} />
+            : <Minus size={12} className={trendColor} />}
+          <span className={cn("text-xs font-semibold tabular-nums", trendColor)}>
             {trend > 0 ? "+" : ""}{trend.toFixed(1)}%
           </span>
-          <span className="text-[10px] text-stone-400">vs period lalu</span>
+          <span className="text-[10px] text-stone-400">vs periode lalu</span>
         </div>
       )}
     </div>

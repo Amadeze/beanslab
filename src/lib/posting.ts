@@ -1,0 +1,527 @@
+import { requireTenantPrisma, getCurrentTenantId, getSystemUserId } from "@/lib/auth";
+import { getCurrentDate } from "@/lib/date-utils";
+import { ensureDefaultChartOfAccounts } from "@/lib/coa-templates";
+import { Prisma, ProductType, type JournalRefType } from "@prisma/client";
+import { randomBytes } from "node:crypto";
+
+type PostingLine = {
+  accountCode: string;
+  debit: number;
+  credit: number;
+};
+
+type PostingInput = {
+  date: Date;
+  description: string;
+  reference: string;
+  refType: JournalRefType;
+  lines: PostingLine[];
+};
+
+export type PostingOptions = {
+  tx?: unknown;
+  tenantId?: string;
+  userId?: string;
+};
+
+type PostingTransaction = Pick<Prisma.TransactionClient, "account" | "journalEntry">;
+
+function generateJournalCode(): string {
+  const now = getCurrentDate();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `JE-${year}-${month}-${randomBytes(5).toString("hex").toUpperCase()}`;
+}
+
+async function getAccountIdByCode(
+  tx: PostingTransaction,
+  tenantId: string,
+  code: string,
+): Promise<string> {
+  const account = await tx.account.findUnique({
+    where: { tenantId_code: { tenantId, code } },
+    select: { id: true },
+  });
+  if (!account) throw new Error(`Akun dengan kode "${code}" tidak ditemukan`);
+  return account.id;
+}
+
+export async function postJournalEntry(
+  input: PostingInput,
+  options: PostingOptions = {},
+): Promise<string> {
+  const tenantId = options.tenantId ?? await getCurrentTenantId();
+  const userId = options.userId ?? await getSystemUserId();
+
+  const totalDebit = input.lines.reduce((s, l) => s + l.debit, 0);
+  const totalCredit = input.lines.reduce((s, l) => s + l.credit, 0);
+
+  if (Math.abs(totalDebit - totalCredit) > 0.01) {
+    throw new Error(`Jurnal tidak balance: debit ${totalDebit} ≠ credit ${totalCredit}`);
+  }
+
+  const createEntry = async (tx: PostingTransaction): Promise<string> => {
+    const existing = await tx.journalEntry.findFirst({
+      where: { tenantId, refType: input.refType, reference: input.reference },
+      select: { code: true },
+    });
+    if (existing) return existing.code;
+
+    await ensureDefaultChartOfAccounts(tx, tenantId);
+    const code = generateJournalCode();
+    const accountIds = await Promise.all(
+      input.lines.map((l) => getAccountIdByCode(tx, tenantId, l.accountCode)),
+    );
+
+    await tx.journalEntry.create({
+      data: {
+        code,
+        date: input.date,
+        description: input.description,
+        reference: input.reference,
+        refType: input.refType,
+        tenantId,
+        createdById: userId,
+        lines: {
+          create: input.lines.map((l, i) => ({
+            sideId: i,
+            debit: l.debit,
+            credit: l.credit,
+            accountId: accountIds[i],
+          })),
+        },
+      },
+    });
+
+    return code;
+  };
+
+  if (options.tx) return createEntry(options.tx as PostingTransaction);
+
+  const tp = await requireTenantPrisma();
+  return tp.$transaction(
+    (tx) => createEntry(tx as unknown as PostingTransaction),
+    { isolationLevel: "Serializable" },
+  );
+}
+
+/** Membalik jurnal sumber secara utuh dan menandai jurnal sumber sebagai void. */
+export async function postVoidReversal(
+  sourceRefType: JournalRefType,
+  sourceReference: string,
+  reason: string,
+  options: PostingOptions = {},
+): Promise<string> {
+  const tenantId = options.tenantId ?? await getCurrentTenantId();
+  const userId = options.userId ?? await getSystemUserId();
+
+  if (!options.tx) {
+    const tp = await requireTenantPrisma();
+    return tp.$transaction(
+      (tx) => postVoidReversal(sourceRefType, sourceReference, reason, {
+        tx,
+        tenantId,
+        userId,
+      }),
+      { isolationLevel: "Serializable" },
+    );
+  }
+
+  const tx = options.tx as PostingTransaction;
+  const source = await tx.journalEntry.findFirst({
+    where: {
+      tenantId,
+      refType: sourceRefType,
+      reference: sourceReference,
+      voidAt: null,
+    },
+    include: {
+      lines: {
+        orderBy: { sideId: "asc" },
+        include: { account: { select: { code: true } } },
+      },
+    },
+  });
+  if (!source) {
+    throw new Error(`Jurnal sumber ${sourceRefType}/${sourceReference} tidak ditemukan atau sudah dibatalkan.`);
+  }
+
+  const reversalCode = await postJournalEntry({
+    date: getCurrentDate(),
+    description: `Pembatalan: ${source.description}`,
+    reference: sourceReference,
+    refType: "VOID_REVERSAL",
+    lines: source.lines.map((line) => ({
+      accountCode: line.account.code,
+      debit: Number(line.credit),
+      credit: Number(line.debit),
+    })),
+  }, { tx, tenantId, userId });
+
+  await tx.journalEntry.update({
+    where: { id: source.id },
+    data: { voidAt: getCurrentDate(), voidReason: reason.trim() },
+  });
+  return reversalCode;
+}
+
+// ── Auto-posting helpers ──
+
+export async function postSalesInvoice(
+  invoiceId: string,
+  total: number,
+  paidAmount: number,
+  customerName: string,
+  items: Array<{ productType?: ProductType; hpp: number; quantity: number }> = [],
+  options: PostingOptions = {},
+): Promise<string> {
+  const remaining = total - paidAmount;
+  const lines: PostingLine[] = [];
+
+  if (paidAmount > 0) {
+    lines.push({ accountCode: "1-1000", debit: paidAmount, credit: 0 });
+  }
+  if (remaining > 0) {
+    lines.push({ accountCode: "1-1100", debit: remaining, credit: 0 });
+  }
+
+  lines.push({ accountCode: "4-1000", debit: 0, credit: total });
+
+  const totalCogs = items.reduce((sum, item) => sum + item.hpp * item.quantity, 0);
+  if (totalCogs > 0) {
+    const cogsAccount = getCogsAccountCode(items);
+    lines.push({ accountCode: cogsAccount, debit: totalCogs, credit: 0 });
+    const inventoryAccount = getInventoryAccountCode(items);
+    lines.push({ accountCode: inventoryAccount, debit: 0, credit: totalCogs });
+  }
+
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Penjualan ke ${customerName} (Invoice ${invoiceId})`,
+    reference: invoiceId,
+    refType: "INVOICE",
+    lines,
+  }, options);
+}
+
+function getCogsAccountCode(items: Array<{ productType?: ProductType; hpp: number; quantity: number }>): string {
+  const hasPackaging = items.some((item) => item.productType === "PACKAGING");
+  const hasGreenBean = items.some((item) => item.productType === "GREEN_BEAN");
+  const hasRoastedBean = items.some((item) => item.productType === "ROASTED_BEAN");
+  const hasFinishedGoods = items.some((item) => item.productType === "FINISHED_GOODS");
+
+  if (hasPackaging && !hasGreenBean && !hasRoastedBean && !hasFinishedGoods) return "5-1030";
+  if (hasGreenBean && !hasRoastedBean && !hasFinishedGoods) return "5-1000";
+  if (hasRoastedBean && !hasFinishedGoods) return "5-1000";
+  if (hasFinishedGoods) return "5-1000";
+
+  return "5-1000";
+}
+
+function getInventoryAccountCode(items: Array<{ productType?: ProductType; hpp: number; quantity: number }>): string {
+  const hasPackaging = items.some((item) => item.productType === "PACKAGING");
+  const hasGreenBean = items.some((item) => item.productType === "GREEN_BEAN");
+  const hasRoastedBean = items.some((item) => item.productType === "ROASTED_BEAN");
+  const hasFinishedGoods = items.some((item) => item.productType === "FINISHED_GOODS");
+
+  if (hasPackaging && !hasGreenBean && !hasRoastedBean && !hasFinishedGoods) return "1-1230";
+  if (hasGreenBean && !hasRoastedBean && !hasFinishedGoods) return "1-1200";
+  if (hasRoastedBean && !hasFinishedGoods) return "1-1210";
+  if (hasFinishedGoods) return "1-1220";
+
+  return "1-1220";
+}
+
+export async function postExpense(
+  expenseId: string,
+  amount: number,
+  categoryCode: string,
+  description: string,
+  options: PostingOptions = {},
+): Promise<string> {
+  const accountMap: Record<string, string> = {
+    GAJI: "5-2000",
+    UTILITAS: "5-2020",
+    OPERASIONAL: "5-2030",
+    SEWA: "5-2010",
+    PEMASARAN: "5-2050",
+    LAINNYA: "5-2060",
+  };
+
+  const expenseAccount = accountMap[categoryCode] ?? "5-2060";
+
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Beban: ${description}`,
+    reference: expenseId,
+    refType: "EXPENSE",
+    lines: [
+      { accountCode: expenseAccount, debit: amount, credit: 0 },
+      { accountCode: "1-1000", debit: 0, credit: amount },
+    ],
+  }, options);
+}
+
+export async function postCapitalInjection(
+  capitalTxnId: string,
+  amount: number,
+  description: string,
+  options: PostingOptions = {},
+): Promise<string> {
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Setoran modal: ${description}`,
+    reference: capitalTxnId,
+    refType: "CAPITAL",
+    lines: [
+      { accountCode: "1-1000", debit: amount, credit: 0 },
+      { accountCode: "3-1000", debit: 0, credit: amount },
+    ],
+  }, options);
+}
+
+export async function postOwnerWithdrawal(
+  capitalTxnId: string,
+  amount: number,
+  description: string,
+  options: PostingOptions = {},
+): Promise<string> {
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Prive: ${description}`,
+    reference: capitalTxnId,
+    refType: "CAPITAL",
+    lines: [
+      { accountCode: "3-1010", debit: amount, credit: 0 },
+      { accountCode: "1-1000", debit: 0, credit: amount },
+    ],
+  }, options);
+}
+
+export async function postCustomerPayment(
+  paymentId: string,
+  amount: number,
+  invoiceCode: string,
+  customerName: string,
+  options: PostingOptions = {},
+): Promise<string> {
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Pembayaran dari ${customerName} — ${invoiceCode}`,
+    reference: paymentId,
+    refType: "PAYMENT",
+    lines: [
+      { accountCode: "1-1000", debit: amount, credit: 0 },
+      { accountCode: "1-1100", debit: 0, credit: amount },
+    ],
+  }, options);
+}
+
+export async function postCreditNote(
+  creditNoteId: string,
+  totalReturned: number,
+  invoiceCode: string,
+  items: Array<{ productType?: ProductType; hpp: number; quantity: number }> = [],
+  options: PostingOptions = {},
+): Promise<string> {
+  const lines: PostingLine[] = [
+    { accountCode: "4-1000", debit: totalReturned, credit: 0 },
+    { accountCode: "1-1100", debit: 0, credit: totalReturned },
+  ];
+  const totalCogs = items.reduce((sum, item) => sum + item.hpp * item.quantity, 0);
+  if (totalCogs > 0) {
+    lines.push({ accountCode: getInventoryAccountCode(items), debit: totalCogs, credit: 0 });
+    lines.push({ accountCode: getCogsAccountCode(items), debit: 0, credit: totalCogs });
+  }
+
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Retur penjualan — ${invoiceCode}`,
+    reference: creditNoteId,
+    refType: "CREDIT_NOTE",
+    lines,
+  }, options);
+}
+
+export async function postSupplierPayment(
+  paymentId: string,
+  amount: number,
+  purchaseCode: string,
+  supplierName: string,
+  options: PostingOptions = {},
+): Promise<string> {
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Pembayaran ke ${supplierName} — ${purchaseCode}`,
+    reference: paymentId,
+    refType: "SUPPLIER_PAYMENT",
+    lines: [
+      { accountCode: "2-1000", debit: amount, credit: 0 },
+      { accountCode: "1-1000", debit: 0, credit: amount },
+    ],
+  }, options);
+}
+
+export async function postProductionBatch(
+  batchId: string,
+  totalRbCost: number,
+  packagingCost: number,
+  laborCost: number,
+  overheadCost: number,
+  fgProductName: string,
+  options: PostingOptions = {},
+): Promise<string> {
+  const totalCost = totalRbCost + packagingCost + laborCost + overheadCost;
+  const lines: PostingLine[] = [
+    { accountCode: "1-1220", debit: totalCost, credit: 0 },
+    { accountCode: "1-1210", debit: 0, credit: totalRbCost },
+    { accountCode: "1-1230", debit: 0, credit: packagingCost },
+  ];
+  if (laborCost > 0) {
+    lines.push({ accountCode: "5-1010", debit: 0, credit: laborCost });
+  }
+  if (overheadCost > 0) {
+    lines.push({ accountCode: "5-1020", debit: 0, credit: overheadCost });
+  }
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Produksi: ${fgProductName}`,
+    reference: batchId,
+    refType: "PRODUCTION",
+    lines,
+  }, options);
+}
+
+export async function postRoastingBatch(
+  batchId: string,
+  inputCost: number,
+  inputKg: number,
+  outputKg: number,
+  gbProductName: string,
+  rbProductName: string,
+  options: PostingOptions = {},
+): Promise<string> {
+  if (inputKg <= 0 || outputKg < 0 || inputCost < 0) {
+    throw new Error("Data biaya roasting tidak valid.");
+  }
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Roasting: ${gbProductName} → ${rbProductName}`,
+    reference: batchId,
+    refType: "ROASTING",
+    lines: [
+      // Normal shrinkage is part of RB conversion cost. A total-loss batch has no asset.
+      outputKg > 0
+        ? { accountCode: "1-1210", debit: inputCost, credit: 0 }
+        : { accountCode: "5-1000", debit: inputCost, credit: 0 },
+      { accountCode: "1-1200", debit: 0, credit: inputCost },
+    ],
+  }, options);
+}
+
+export async function postPurchase(
+  purchaseId: string,
+  type: "GREEN_BEAN" | "PACKAGING",
+  totalCost: number,
+  paidAmount: number,
+  supplierName: string,
+  options: PostingOptions = {},
+): Promise<string> {
+  const inventoryAccount =
+    type === "GREEN_BEAN" ? "1-1200" : "1-1230";
+
+  const lines: PostingLine[] = [
+    { accountCode: inventoryAccount, debit: totalCost, credit: 0 },
+  ];
+
+  if (paidAmount > 0) {
+    lines.push({ accountCode: "1-1000", debit: 0, credit: paidAmount });
+  }
+  const remaining = totalCost - paidAmount;
+  if (remaining > 0.01) {
+    lines.push({ accountCode: "2-1000", debit: 0, credit: remaining });
+  }
+
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Pembelian ${type === "GREEN_BEAN" ? "Green Bean" : "Kemasan"} dari ${supplierName} — ${purchaseId}`,
+    reference: purchaseId,
+    refType: "PURCHASE",
+    lines,
+  }, options);
+}
+
+export async function postStockAdjustment(
+  adjustmentId: string,
+  productType: ProductType | "PACKAGING",
+  entryType: "IN" | "OUT",
+  quantity: number,
+  unitCost: number,
+  options: PostingOptions = {},
+): Promise<string> {
+  const value = quantity * unitCost;
+  const inventoryAccount =
+    productType === "GREEN_BEAN"
+      ? "1-1200"
+      : productType === "ROASTED_BEAN"
+        ? "1-1210"
+        : productType === "FINISHED_GOODS"
+          ? "1-1220"
+          : "1-1230";
+
+  const lines: PostingLine[] = [];
+
+  if (entryType === "IN") {
+    lines.push({ accountCode: inventoryAccount, debit: value, credit: 0 });
+    lines.push({ accountCode: "5-1040", debit: 0, credit: value });
+  } else {
+    lines.push({ accountCode: "5-1040", debit: value, credit: 0 });
+    lines.push({ accountCode: inventoryAccount, debit: 0, credit: value });
+  }
+
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Penyesuaian stok ${productType} — ${adjustmentId}`,
+    reference: adjustmentId,
+    refType: "ADJUSTMENT",
+    lines,
+  }, options);
+}
+
+export async function postSampleUsage(
+  sampleId: string,
+  totalCost: number,
+  components: Array<{ productType?: ProductType; totalCost: number }>,
+  options: PostingOptions = {},
+): Promise<string> {
+  const lines: PostingLine[] = [
+    { accountCode: "5-2050", debit: totalCost, credit: 0 },
+  ];
+
+  const distribution: Record<string, number> = {};
+
+  for (const component of components) {
+    const account =
+      component.productType === "GREEN_BEAN"
+        ? "1-1200"
+        : component.productType === "ROASTED_BEAN"
+          ? "1-1210"
+          : component.productType === "FINISHED_GOODS"
+            ? "1-1220"
+            : "1-1230";
+
+    distribution[account] = (distribution[account] || 0) + component.totalCost;
+  }
+
+  for (const [account, amount] of Object.entries(distribution)) {
+    lines.push({ accountCode: account, debit: 0, credit: amount });
+  }
+
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Sample / Promosi — ${sampleId}`,
+    reference: sampleId,
+    refType: "SAMPLE_USAGE",
+    lines,
+  }, options);
+}

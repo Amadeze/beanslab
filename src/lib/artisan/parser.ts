@@ -247,19 +247,20 @@ function parsePythonDictFormat(content: string, filename: string): ParseResult {
 
   // Extract temperature curves
   const timex = getNumberArray(data, "timex");
-  const temp1 = getNumberArray(data, "temp1"); // BT
-  const temp2 = getNumberArray(data, "temp2"); // ET
+  // Artisan profile convention: temp1 is ET and temp2 is BT.
+  const temp1 = getNumberArray(data, "temp1"); // ET
+  const temp2 = getNumberArray(data, "temp2"); // BT
 
   const beanTemperatureSeries: ParsedArtisanRoast["beanTemperatureSeries"] = [];
   const environmentalTemperatureSeries: ParsedArtisanRoast["environmentalTemperatureSeries"] = [];
 
   for (let i = 0; i < timex.length; i++) {
     const second = Math.round(timex[i] * 100) / 100;
-    if (i < temp1.length && !isNaN(temp1[i])) {
-      beanTemperatureSeries.push({ second, value: convertTemp(temp1[i]) });
-    }
     if (i < temp2.length && !isNaN(temp2[i])) {
-      environmentalTemperatureSeries.push({ second, value: convertTemp(temp2[i]) });
+      beanTemperatureSeries.push({ second, value: convertTemp(temp2[i]) });
+    }
+    if (i < temp1.length && !isNaN(temp1[i])) {
+      environmentalTemperatureSeries.push({ second, value: convertTemp(temp1[i]) });
     }
   }
 
@@ -275,8 +276,8 @@ function parsePythonDictFormat(content: string, filename: string): ParseResult {
     if (idx > 0 && idx < timex.length) {
       const second = timex[idx];
       const eventType = eventTypes[i];
-      const btTemp = idx < temp1.length ? convertTemp(temp1[idx]) : undefined;
-      const etTemp = idx < temp2.length ? convertTemp(temp2[idx]) : undefined;
+      const btTemp = idx < temp2.length ? convertTemp(temp2[idx]) : undefined;
+      const etTemp = idx < temp1.length ? convertTemp(temp1[idx]) : undefined;
 
       events.push({
         second,
@@ -342,6 +343,7 @@ function parsePythonDictFormat(content: string, filename: string): ParseResult {
       roastedWeightGrams,
       lossPercent: lossPercent ?? computed.weight_loss,
       computed,
+      roastdContext: data.roastd_context,
     },
   };
 

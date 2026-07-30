@@ -3,10 +3,10 @@ import crypto from "crypto";
 const PREFIX = "enc:v1";
 
 function runtimeEncryptionSecret() {
-  const secret = process.env.CREDENTIAL_ENCRYPTION_KEY || process.env.SESSION_SECRET;
+  const secret = process.env.CREDENTIAL_ENCRYPTION_KEY;
   if (!secret) {
     throw new Error(
-      "CREDENTIAL_ENCRYPTION_KEY or SESSION_SECRET is required for credentials.",
+      "CREDENTIAL_ENCRYPTION_KEY is required for credentials.",
     );
   }
   return secret;
@@ -44,6 +44,7 @@ export function encryptCredentialWithSecret(value: string, secret: string) {
 }
 
 export function decryptCredential(value: string | null | undefined) {
+  if (!value || !isEncryptedCredential(value)) return value ?? "";
   return decryptCredentialWithSecret(value, runtimeEncryptionSecret());
 }
 

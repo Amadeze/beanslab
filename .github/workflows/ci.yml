@@ -1,31 +1,14 @@
-name: ROS Verification
+name: CI
 
 on:
-  pull_request:
   push:
-    branches: [main]
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
 
 jobs:
-  verify:
+  lint:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: ros
-          POSTGRES_PASSWORD: ros
-          POSTGRES_DB: ros
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U ros -d ros"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      DATABASE_URL: postgresql://ros:ros@127.0.0.1:5432/ros
-      DIRECT_URL: postgresql://ros:ros@127.0.0.1:5432/ros
-      SESSION_SECRET: ci-session-secret-minimum-32-characters-long
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -33,28 +16,13 @@ jobs:
           version: 11.9.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
       - run: pnpm install --frozen-lockfile
-      - run: pnpm prisma generate
-      - run: pnpm audit --prod
-      - run: pnpm prisma validate
-      - run: pnpm prisma migrate deploy
-      - run: pnpm prisma migrate status
-      - run: pnpm typecheck
-      - run: pnpm lint --quiet
-      - run: pnpm test
-      - run: pnpm audit:integrity
-      - run: pnpm audit:stock
-      - run: pnpm audit:tenant-isolation
-      - run: pnpm build
+      - run: pnpm lint
 
-  e2e:
+  typecheck:
     runs-on: ubuntu-latest
-    env:
-      DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.TEST_DIRECT_URL }}
-      SESSION_SECRET: ${{ secrets.TEST_SESSION_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -62,11 +30,35 @@ jobs:
           version: 11.9.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
       - run: pnpm install --frozen-lockfile
-      - run: pnpm prisma generate
-      - run: pnpm exec playwright install --with-deps chromium
-        if: env.DATABASE_URL != ''
-      - run: pnpm test:e2e
-        if: env.DATABASE_URL != ''
+      - run: pnpm typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build

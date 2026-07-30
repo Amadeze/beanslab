@@ -22,6 +22,7 @@ export function UniversalTheme({
   customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleCheckout, mounted, heroGreeting, aboutText,
   catalogTitle, catalogSubtitle, footerText, waLink, emailLink, igLink, iconProps, iconStroke, isDark,
   isCheckingOut, customerTier,
+  paymentMethodId, setPaymentMethodId,
 }: ThemeProps) {
 
   const products = tenant.products || [];
@@ -38,6 +39,7 @@ export function UniversalTheme({
     tenant: themeTenant, products, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
     customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleCheckout, mounted, heroGreeting, aboutText,
     catalogTitle, catalogSubtitle, footerText, waLink, emailLink, igLink, iconProps, iconStroke, isDark, isCheckingOut, customerTier
+    , paymentMethodId, setPaymentMethodId
   };
 
   return (
@@ -188,13 +190,13 @@ export function UniversalTheme({
                       type="tel"
                       className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-sm focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
                     />
-                    <textarea 
+                    {shippingMethod !== "PICKUP" ? <textarea
                       value={customerAddress} 
                       onChange={e => setCustomerAddress(e.target.value)} 
                       placeholder="Alamat Lengkap (Jalan, Kec, Kota, Kode Pos)" 
                       rows={3}
                       className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-sm focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
-                    />
+                    /> : null}
 
                     <div className="mb-4 mt-2">
                       <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Metode Pengiriman</label>
@@ -203,11 +205,33 @@ export function UniversalTheme({
                         onChange={e => setShippingMethod(e.target.value)}
                         className="w-full border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-sm focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors bg-[var(--t-bg)] text-[var(--t-text)]"
                       >
-                        <option value="LOCAL_DELIVERY">Dalam Kota - Kurir Lokal (Lalamove / Gojek)</option>
-                        <option value="STORE_COURIER">Dalam Kota - Kurir Pribadi Toko</option>
-                        <option value="COURIER">Luar Kota - Ekspedisi (JNE/J&T/Sicepat)</option>
+                        {tenant.storefrontPickupEnabled ? <option value="PICKUP">Ambil di roastery · gratis</option> : null}
+                        {tenant.storefrontDeliveryEnabled ? <>
+                          <option value="LOCAL_DELIVERY">Kurir lokal</option>
+                          <option value="STORE_COURIER">Kurir roastery</option>
+                          <option value="COURIER">Ekspedisi luar kota</option>
+                        </> : null}
                       </select>
+                      {shippingMethod !== "PICKUP" ? <p className="mt-2 text-xs text-[var(--t-text-muted)]">Ongkir {tenant.storefrontFreeShippingMinimum && cart.getTotalPrice(tenant.subdomain || "") >= Number(tenant.storefrontFreeShippingMinimum) ? "gratis" : `Rp ${Number(tenant.storefrontFlatShippingRate || 0).toLocaleString("id-ID")}`}; total final dihitung aman di server.</p> : null}
                     </div>
+                    {tenant.paymentMethods?.length ? (
+                      <div className="mb-4 mt-2">
+                        <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Metode Pembayaran</label>
+                        <div className="space-y-2">
+                          {tenant.paymentMethods.map((method: any) => (
+                            <button
+                              key={method.id}
+                              type="button"
+                              onClick={() => setPaymentMethodId?.(method.id)}
+                              className={`w-full rounded-[var(--t-radius)] border px-4 py-3 text-left text-sm transition-colors ${paymentMethodId === method.id ? "border-[var(--t-primary)] bg-[var(--t-bg)] ring-1 ring-[var(--t-primary)]" : "border-[var(--t-border)] bg-[var(--t-bg)]"}`}
+                            >
+                              <span className="block font-bold text-[var(--t-text)]">{method.label}</span>
+                              <span className="mt-0.5 block text-xs text-[var(--t-text-muted)]">{method.method === "QRIS" ? "Scan QRIS setelah pesanan dibuat" : `${method.bankName} • ${method.accountNumber}`}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -227,7 +251,7 @@ export function UniversalTheme({
                     className="w-full py-4 rounded-[var(--t-radius)] font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 bg-[var(--t-primary)] text-[var(--t-bg)] shadow-lg disabled:cursor-wait disabled:opacity-60"
                   >
                     <Phone size={18} weight="bold" />
-                    {isCheckingOut ? "Memproses Pesanan..." : "Checkout via WhatsApp"}
+                    {isCheckingOut ? "Memproses Pesanan..." : tenant.paymentMethods?.length ? "Buat Pesanan" : "Checkout via WhatsApp"}
                   </button>
                 </div>
               )}

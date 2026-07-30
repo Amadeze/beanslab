@@ -14,9 +14,19 @@ function getAssertionClient() {
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL || "";
+  const configuredPoolMax = Number.parseInt(process.env.DATABASE_POOL_MAX || "", 10);
+  // A serverless deployment can create many application instances. Keep each
+  // instance's local pool deliberately small and let the transaction pooler
+  // multiplex them onto the finite Postgres connection budget.
+  const defaultPoolMax = process.env.VERCEL ? 5 : 10;
+  const poolMax = Number.isFinite(configuredPoolMax) && configuredPoolMax > 0
+    ? configuredPoolMax
+    : defaultPoolMax;
   const pool = new Pool({
     connectionString,
-    max: 10, // Allow sufficient connections for concurrent queries
+    // Keep this configurable: serverless instances each own a pool, while the
+    // dashboard intentionally runs several independent queries in parallel.
+    max: poolMax,
     connectionTimeoutMillis: 5000,
     idleTimeoutMillis: 30000,
   });
@@ -45,10 +55,15 @@ type OwnedRelation = {
 };
 
 const ownedRelations: Record<string, OwnedRelation[]> = {
+  Product: [
+    { foreignKey: "sourceGreenBeanId", relation: "sourceGreenBean", delegate: "product" },
+  ],
   Recipe: [
+    { foreignKey: "productId", relation: "product", delegate: "product" },
     { foreignKey: "packagingId", relation: "packaging", delegate: "packaging" },
   ],
   RecipeItem: [
+    { foreignKey: "recipeId", relation: "recipe", delegate: "recipe" },
     { foreignKey: "productId", relation: "product", delegate: "product" },
   ],
   Purchase: [
@@ -56,11 +71,13 @@ const ownedRelations: Record<string, OwnedRelation[]> = {
     { foreignKey: "productId", relation: "product", delegate: "product" },
     { foreignKey: "packagingId", relation: "packaging", delegate: "packaging" },
     { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
+    { foreignKey: "purchaseOrderId", relation: "purchaseOrder", delegate: "purchaseOrder" },
   ],
   ParentRoastingBatch: [
     { foreignKey: "inputProductId", relation: "inputProduct", delegate: "product" },
     { foreignKey: "outputProductId", relation: "outputProduct", delegate: "product" },
     { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
+    { foreignKey: "machineId", relation: "machine", delegate: "machine" },
   ],
   ProductionBatch: [
     { foreignKey: "recipeId", relation: "recipe", delegate: "recipe" },
@@ -73,20 +90,73 @@ const ownedRelations: Record<string, OwnedRelation[]> = {
     { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
   ],
   InvoiceItem: [
+    { foreignKey: "invoiceId", relation: "invoice", delegate: "invoice" },
     { foreignKey: "productId", relation: "product", delegate: "product" },
+    { foreignKey: "contractPriceId", relation: "contractPrice", delegate: "contractPrice" },
   ],
   Payment: [
+    { foreignKey: "invoiceId", relation: "invoice", delegate: "invoice" },
     { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
   ],
+  PaymentSubmission: [
+    { foreignKey: "invoiceId", relation: "invoice", delegate: "invoice" },
+    { foreignKey: "paymentMethodId", relation: "paymentMethod", delegate: "tenantPaymentMethod" },
+    { foreignKey: "paymentId", relation: "payment", delegate: "payment" },
+    { foreignKey: "reviewedById", relation: "reviewedBy", delegate: "user" },
+    { foreignKey: "suspectedDuplicateOfId", relation: "suspectedDuplicateOf", delegate: "paymentSubmission" },
+  ],
+  PaymentNotificationDelivery: [
+    { foreignKey: "paymentSubmissionId", relation: "submission", delegate: "paymentSubmission" },
+  ],
   SupplierPayment: [
+    { foreignKey: "purchaseId", relation: "purchase", delegate: "purchase" },
     { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
   ],
   InventoryLedger: [
     { foreignKey: "productId", relation: "product", delegate: "product" },
     { foreignKey: "packagingId", relation: "packaging", delegate: "packaging" },
+    { foreignKey: "lotId", relation: "lot", delegate: "lot" },
     { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
   ],
+  CreditNote: [
+    { foreignKey: "invoiceId", relation: "invoice", delegate: "invoice" },
+  ],
+  CreditNoteItem: [
+    { foreignKey: "creditNoteId", relation: "creditNote", delegate: "creditNote" },
+    { foreignKey: "productId", relation: "product", delegate: "product" },
+  ],
+  SampleUsage: [
+    { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
+  ],
+  SampleUsageComponent: [
+    { foreignKey: "sampleUsageId", relation: "sampleUsage", delegate: "sampleUsage" },
+    { foreignKey: "productId", relation: "product", delegate: "product" },
+    { foreignKey: "packagingId", relation: "packaging", delegate: "packaging" },
+  ],
   Expense: [
+    { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
+  ],
+  Contract: [
+    { foreignKey: "customerId", relation: "customer", delegate: "customer" },
+  ],
+  ContractPrice: [
+    { foreignKey: "contractId", relation: "contract", delegate: "contract" },
+    { foreignKey: "productId", relation: "product", delegate: "product" },
+  ],
+  Lot: [
+    { foreignKey: "productId", relation: "product", delegate: "product" },
+    { foreignKey: "packagingId", relation: "packaging", delegate: "packaging" },
+    { foreignKey: "supplierId", relation: "supplier", delegate: "supplier" },
+    { foreignKey: "purchaseId", relation: "purchase", delegate: "purchase" },
+  ],
+  CuppingSession: [
+    { foreignKey: "batchId", relation: "batch", delegate: "parentRoastingBatch" },
+    { foreignKey: "productId", relation: "product", delegate: "product" },
+  ],
+  JournalEntry: [
+    { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
+  ],
+  CapitalTransaction: [
     { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
   ],
   AuditLog: [
@@ -94,6 +164,18 @@ const ownedRelations: Record<string, OwnedRelation[]> = {
   ],
   ReminderDelivery: [
     { foreignKey: "invoiceId", relation: "invoice", delegate: "invoice" },
+  ],
+  PurchaseOrder: [
+    { foreignKey: "supplierId", relation: "supplier", delegate: "supplier" },
+    { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
+  ],
+  PurchaseOrderItem: [
+    { foreignKey: "purchaseOrderId", relation: "purchaseOrder", delegate: "purchaseOrder" },
+    { foreignKey: "productId", relation: "product", delegate: "product" },
+    { foreignKey: "packagingId", relation: "packaging", delegate: "packaging" },
+  ],
+  ChildRoastingBatch: [
+    { foreignKey: "parentId", relation: "parent", delegate: "parentRoastingBatch" },
   ],
 };
 

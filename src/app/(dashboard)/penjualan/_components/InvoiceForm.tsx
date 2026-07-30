@@ -26,9 +26,14 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 
 import { formatRupiah } from "@/lib/format";
 import { calculateTax } from "@/lib/tax";
-import { createInvoice, type CustomerOption, type FGStockOption } from "../actions";
+import {
+  createInvoice,
+  type ContractPriceOption,
+  type CustomerOption,
+  type FGStockOption,
+} from "../actions";
 import { getCurrentDate, getTodayString } from "@/lib/date-utils";
-import { defaultDueDate, resolveSalePrice } from "@/lib/sale-intent";
+import { defaultDueDate, resolveCustomerUnitPrice } from "@/lib/sale-intent";
 
 // =============================================================================
 // Schema
@@ -143,6 +148,7 @@ interface InvoiceFormProps {
   id: string;
   customers: CustomerOption[];
   fgOptions: FGStockOption[];
+  contractPrices: ContractPriceOption[];
   onSuccess: (invoiceId: string) => void;
   onPendingChange: (pending: boolean) => void;
   onAddCustomer?: () => void;
@@ -153,6 +159,7 @@ export function InvoiceForm({
   id,
   customers,
   fgOptions,
+  contractPrices,
   onSuccess,
   onPendingChange,
   onAddCustomer,
@@ -204,12 +211,23 @@ export function InvoiceForm({
     "customerId",
   ]);
 
-  const subtotal = (watchedItems ?? []).reduce((acc, item) => {
+  const resolvePreviewPrice = (product: FGStockOption, quantity: number) => {
     const customer = customers.find((option) => option.id === selectedCustomerId);
+    return resolveCustomerUnitPrice(
+      product,
+      customer?.tier ?? "RETAIL",
+      quantity,
+      contractPrices.filter((price) =>
+        price.customerId === selectedCustomerId && price.productId === product.id,
+      ),
+    );
+  };
+
+  const subtotal = (watchedItems ?? []).reduce((acc, item) => {
     const product = fgOptions.find((option) => option.id === item.productId);
-    const price = product ? resolveSalePrice(product, customer?.tier ?? "RETAIL") : 0;
     const disc = Number(item.discount) || 0;
     const qty = Number(item.quantity) || 0;
+    const price = product ? resolvePreviewPrice(product, qty).unitPrice : 0;
     return acc + (price - disc) * qty;
   }, 0);
 
@@ -370,11 +388,11 @@ export function InvoiceForm({
         <div className="space-y-4">
           {fields.map((field, index) => {
             const item = watchedItems?.[index];
-            const customer = customers.find((option) => option.id === selectedCustomerId);
             const product = fgOptions.find((option) => option.id === item?.productId);
-            const price = product ? resolveSalePrice(product, customer?.tier ?? "RETAIL") : 0;
             const disc = Number(item?.discount) || 0;
             const qty = Number(item?.quantity) || 0;
+            const priceResolution = product ? resolvePreviewPrice(product, qty) : null;
+            const price = priceResolution?.unitPrice ?? 0;
             const rowSubtotal = (price - disc) * qty;
 
             const selectedProduct = fgOptions.find((p) => p.id === item?.productId);
@@ -469,7 +487,9 @@ export function InvoiceForm({
                     />
                   </div>
                   <div className="flex-1 min-w-[100px]">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">Harga otomatis</Label>
+                    <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">
+                      {priceResolution?.priceSource === "CONTRACT" ? "Harga kontrak" : "Harga otomatis"}
+                    </Label>
                     <div className="flex h-9 items-center justify-end rounded-md border border-white/40 bg-white/50 px-3 font-mono text-sm font-semibold text-slate-700">
                       {formatRupiah(price)}
                     </div>

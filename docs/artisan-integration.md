@@ -7,9 +7,9 @@ Artisan Software
     │ menyimpan file .alog
     ▼
 Folder Autosave lokal
-    │ dipantau oleh Artisan Sync
+    │ dipantau oleh Roastd Studio
     ▼
-Artisan Sync (Desktop App)
+Roastd Studio (Desktop App)
     │ HTTPS
     ▼
 Node.js API (ROS Backend)
@@ -18,29 +18,30 @@ Node.js API (ROS Backend)
 Tenant → Machine → Roast Import → RoastingBatch
 ```
 
-Desktop app tidak berkomunikasi langsung dengan Artisan. App hanya memantau folder Autosave yang dikonfigurasi.
+Roastd Studio bersifat read-only: app membaca telemetry MQTT bila tersedia dan memantau folder Autosave Artisan. Studio tidak mengontrol burner, fan, atau aktuator mesin.
 
-## Alur Pairing
+## Alur Login Studio
 
-1. User login ke dashboard ROS
-2. Buka **Settings → Integrasi Artisan** atau sidebar **Integrasi Artisan**
-3. Pilih mesin roasting yang sudah dibuat di **Master Data → Mesin Roasting**
-4. Klik **"Hubungkan Artisan"**
-5. Dashboard menampilkan kode 6-digit (berlaku 10 menit, sekali pakai)
-6. User install **Artisan Sync** di komputer Windows
-7. Masukkan kode 6-digit di aplikasi
-8. Aplikasi otomatis mendapatkan credential dan terhubung
+1. User install dan membuka **Roastd Studio** di komputer Windows
+2. Klik **Masuk dengan Roastd**; Studio membuka browser default
+3. Jika belum login, user masuk memakai akun Roastd
+4. Owner memilih mesin roasting untuk komputer tersebut
+5. Klik **Izinkan dan hubungkan**
+6. Studio menerima token connector khusus mesin dan tersambung otomatis
+
+Password dan cookie akun tidak disimpan di desktop. Device authorization berlaku 10 menit, menggunakan dua secret terpisah untuk browser dan polling desktop, serta hanya dapat dikonsumsi sekali.
 
 ## Alur Upload
 
 1. Artisan menyimpan file `.alog` ke folder Autosave
-2. Artisan Sync memantau folder tersebut (chokidar)
+2. Roastd Studio memantau folder tersebut (chokidar)
 3. File yang stabil (tidak berubah selama 5 detik) dimasukkan ke antrian
 4. File dihitung SHA-256 untuk deduplikasi
 5. File diupload ke backend via multipart/form-data
 6. Backend memvalidasi: ekstensi .alog, ukuran, hash
-7. Import disimpan dengan status (UPLOADED → IMPORTED/FAILED)
-8. File yang sama tidak akan diupload dua kali (idempotency)
+7. File mentah disimpan di private object storage untuk audit dan reprocessing
+8. Import disimpan dengan status (UPLOADED → IMPORTED/FAILED)
+9. File yang sama tidak akan diupload dua kali (idempotency)
 
 ## Auto-Match Roast ke Batch
 
@@ -110,7 +111,7 @@ pnpm build
 cd desktop
 npm run build
 npm run package:portable
-# Output: desktop/release/ArtisanSync-1.0.0-Setup.exe
+# Output: desktop/release/RoastdStudio-0.3.0-x64.exe
 ```
 
 ## Revoke Connector
@@ -128,7 +129,7 @@ Log backend menggunakan structured JSON ke stdout/stderr.
 
 ### Desktop App
 1. Klik **"Buka Log"** di aplikasi
-2. Atau buka: `%APPDATA%/Roastery OS/Artisan Sync/logs/`
+2. Atau buka folder log dari panel Roastd Studio
 3. Log dirotasi otomatis (5 file, 5MB per file)
 
 ## Menambahkan Sample `.alog`
@@ -152,11 +153,11 @@ Untuk reprocess:
 
 ## Security Notes
 
-- Pairing code dihash dengan pepper sebelum disimpan di database
+- Device code dan verification code disimpan hanya dalam bentuk hash
 - Connector token dihash dengan pepper dan disimpan di database
-- Credential tidak pernah ditampilkan setelah pairing pertama
-- Tenant ID dan Machine ID selalu diambil dari pairing code, bukan dari request desktop app
-- Rate limiting diterapkan pada pairing dan upload endpoint
+- Credential tidak pernah ditampilkan setelah otorisasi pertama
+- Tenant ID dan Machine ID ditentukan oleh owner dari session browser, bukan request desktop
+- Rate limiting diterapkan pada device login, polling, dan upload endpoint
 - Audit log dicatat untuk pair, revoke, upload, import failure, dan auto-match
 - Bearer token tidak pernah di-log
 - HTTPS wajib di production
@@ -166,12 +167,12 @@ Untuk reprocess:
 1. Desktop app hanya mendukung Windows (Electron + portable installer)
 2. Credential storage menggunakan JSON encryption — production sebaiknya menggunakan Windows Credential Manager via keytar
 3. Auto-launch menggunakan registry approach — production sebaiknya menggunakan `auto-launch` package
-4. Parser `.alog` sudah diimplementasi dengan dummy format — perlu validasi dengan file Artisan asli
+4. Kompatibilitas `.alog` perlu diuji ulang setiap ada versi mayor Artisan baru
 
 ## Customer Quick Start
 
 1. Aktifkan Autosave `.alog` di Artisan
-2. Install **Artisan Sync** dari link download di dashboard
-3. Masukkan kode pairing 6 digit
-4. Pilih folder Autosave Artisan
+2. Install **Roastd Studio** dari link download di dashboard
+3. Klik **Masuk dengan Roastd**, login di browser, dan pilih mesin
+4. Pilih folder Autosave Artisan jika belum terdeteksi
 5. Lakukan roast seperti biasa — file otomatis terkirim ke ROS

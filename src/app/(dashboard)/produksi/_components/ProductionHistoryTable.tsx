@@ -6,7 +6,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatDate, formatKg } from "@/lib/format";
+import { formatDate, formatKg, formatRupiah } from "@/lib/format";
 import { VoidConfirmDialog } from "@/components/VoidConfirmDialog";
 import { voidProductionBatch } from "../actions";
 import type { ProductionBatchRow } from "../actions";
@@ -28,7 +28,7 @@ function StatusBadge({ status }: { status: string }) {
 function EmptyState({ isFiltered }: { isFiltered: boolean }) {
   return (
     <TableRow>
-      <TableCell colSpan={8} className="py-12 text-center">
+      <TableCell colSpan={9} className="py-12 text-center">
         <p className="text-sm font-medium text-zinc-400">
           {isFiltered ? "Tidak ada batch produksi yang cocok." : "Belum ada batch produksi."}
         </p>
@@ -95,6 +95,7 @@ export function ProductionHistoryTable({ batches }: ProductionHistoryTableProps)
             <TableHead className=" text-right text-xs font-bold uppercase tracking-widest text-slate-500">Jml Bahan</TableHead>
             <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-500">Hasil Keluar</TableHead>
             <TableHead className=" text-right text-xs font-bold uppercase tracking-widest text-slate-500">Jml Hasil</TableHead>
+            <TableHead className="text-right text-xs font-bold uppercase tracking-widest text-slate-500">HPP/Unit</TableHead>
             <TableHead className=" text-xs font-bold uppercase tracking-widest text-slate-500">Tanggal</TableHead>
             <TableHead className="w-24 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Status</TableHead>
             <TableHead className="w-16 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Aksi</TableHead>
@@ -120,6 +121,9 @@ export function ProductionHistoryTable({ batches }: ProductionHistoryTableProps)
                 </TableCell>
                 <TableCell  className="text-right font-mono text-sm font-semibold text-emerald-700">
                   {b.unitsProduced} <span className="text-xs text-emerald-600/60">pcs</span>
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm font-semibold text-slate-700">
+                  {formatRupiah(b.hppPerUnit)}
                 </TableCell>
                 <TableCell className="text-sm text-zinc-500">
                   {formatDate(b.producedAt)}
@@ -166,6 +170,7 @@ export function ProductionHistoryTable({ batches }: ProductionHistoryTableProps)
               <div className="text-right">
                 <p className="font-mono text-sm font-black text-emerald-600">{b.unitsProduced} Unit</p>
                 <p className="font-mono text-[10px] font-bold text-slate-500 mt-0.5">Bahan: {formatKg(b.totalRbUsedKg)}</p>
+                <p className="font-mono text-[11px] font-bold text-slate-700 mt-0.5">HPP: {formatRupiah(b.hppPerUnit)}/pcs</p>
               </div>
             </div>
             

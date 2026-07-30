@@ -11,6 +11,7 @@ export default async function PenjualanPage() {
       invoices={data.invoices}
       customers={data.customers}
       fgOptions={data.fgOptions}
+      contractPrices={data.contractPrices}
       sampleData={sampleData}
     />
   );

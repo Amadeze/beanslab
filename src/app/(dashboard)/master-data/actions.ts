@@ -388,6 +388,7 @@ export type CreateSupplierInput = Omit<SupplierInput, "isActive">;
 export async function createSupplier(input: CreateSupplierInput): Promise<ActionResult<CreatedSupplier>> {
   try {
     await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const tenantId = await getCurrentTenantId();
     const parsed = supplierInputSchema.safeParse({ ...input, isActive: true });
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data supplier tidak valid." };
 
@@ -410,7 +411,7 @@ export async function createSupplier(input: CreateSupplierInput): Promise<Action
     for (let attempt = 0; attempt < 4 && !supplier; attempt += 1) {
       const code = await nextSupplierCode(tp);
       try {
-        supplier = await tp.supplier.create({ data: { code, ...data } });
+        supplier = await tp.supplier.create({ data: { tenantId, code, ...data } });
       } catch (error) {
         if (!isUniqueConstraintError(error) || attempt === 3) throw error;
       }
@@ -476,6 +477,7 @@ export type CreateCustomerInput = Omit<CustomerInput, "isActive">;
 export async function createCustomer(input: CreateCustomerInput): Promise<ActionResult<CreatedCustomer>> {
   try {
     await requireRole("OWNER", "MANAGER", "OPERATOR", "CASHIER");
+    const tenantId = await getCurrentTenantId();
     const parsed = customerInputSchema.safeParse({ ...input, isActive: true });
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data pelanggan tidak valid." };
     const data = {
@@ -498,7 +500,7 @@ export async function createCustomer(input: CreateCustomerInput): Promise<Action
     for (let attempt = 0; attempt < 4 && !customer; attempt += 1) {
       const code = await nextCustomerCode(tp);
       try {
-        customer = await tp.customer.create({ data: { code, ...data } });
+        customer = await tp.customer.create({ data: { tenantId, code, ...data } });
       } catch (error) {
         if (!isUniqueConstraintError(error) || attempt === 3) throw error;
       }
@@ -600,6 +602,7 @@ function validatePassword(password: string): string | null {
 export async function createUser(input: CreateUserInput): Promise<ActionResult> {
   try {
     await requireRole("OWNER");
+    const tenantId = await getCurrentTenantId();
     const name = input.name?.trim();
     const email = input.email?.toLowerCase().trim();
     const password = input.password?.trim();
@@ -617,7 +620,7 @@ export async function createUser(input: CreateUserInput): Promise<ActionResult> 
 
     const hashedPassword = await bcrypt.hash(password, 10);
     await tp.user.create({
-      data: { name, email, password: hashedPassword, role: input.role },
+      data: { tenantId, name, email, password: hashedPassword, role: input.role },
     });
 
     revalidatePath("/master-data");
@@ -771,6 +774,7 @@ const TYPE_PREFIX: Record<CreateProductInput["type"], string> = {
 export async function createProduct(input: CreateProductInput): Promise<ActionResult> {
   try {
     await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const tenantId = await getCurrentTenantId();
     if (!input.name?.trim()) return { success: false, error: "Nama produk wajib diisi." };
 
     if (input.type === "FINISHED_GOODS" && input.recipe && input.recipe.items.length > 0) {
@@ -796,6 +800,7 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
         await tp.$transaction(async (tx) => {
           const product = await tx.product.create({
             data: {
+              tenantId,
               code, name: input.name.trim(), type: input.type,
               coffeeSpecies: input.coffeeSpecies?.trim() || null,
               category:    input.category?.trim()    || null,
@@ -821,6 +826,7 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
 
             const recipe = await tx.recipe.create({
               data: {
+                tenantId,
                 code:        rCode,
                 name:        input.name.trim(),
                 productId:   product.id,
@@ -832,6 +838,7 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
             if (r.items.length > 0) {
               await tx.recipeItem.createMany({
                 data: r.items.map((item) => ({
+                  tenantId,
                   recipeId:     recipe.id,
                   productId:    item.rbProductId,
                   gramsPerUnit: item.gramsPerUnit,
@@ -870,6 +877,7 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
 export async function updateProduct(input: UpdateProductInput): Promise<ActionResult> {
   try {
     await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const tenantId = await getCurrentTenantId();
     if (!input.name?.trim()) return { success: false, error: "Nama produk wajib diisi." };
 
     const tp = await requireTenantPrisma();
@@ -931,6 +939,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
             });
             await tx.recipeItem.createMany({
               data: r.items.map((item) => ({
+                tenantId,
                 recipeId:     existingRecipe.id,
                 productId:    item.rbProductId,
                 gramsPerUnit: item.gramsPerUnit,
@@ -945,6 +954,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
             const rCode  = `RCP-${String(rCount + 1).padStart(3, "0")}`;
             const recipe = await tx.recipe.create({
               data: {
+                tenantId,
                 code:        rCode,
                 name:        input.name!.trim(),
                 productId:   input.id,
@@ -955,6 +965,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
             });
             await tx.recipeItem.createMany({
               data: r.items.map((item) => ({
+                tenantId,
                 recipeId:     recipe.id,
                 productId:    item.rbProductId,
                 gramsPerUnit: item.gramsPerUnit,
@@ -991,6 +1002,7 @@ type UpdatePackagingInput = CreatePackagingInput & { id: string };
 export async function createPackaging(input: CreatePackagingInput): Promise<ActionResult> {
   try {
     await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const tenantId = await getCurrentTenantId();
     const parsed = packagingSchema.safeParse(input);
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data kemasan tidak valid." };
     const tp = await requireTenantPrisma();
@@ -1004,7 +1016,7 @@ export async function createPackaging(input: CreatePackagingInput): Promise<Acti
     for (let attempt = 0; attempt < 4 && !packaging; attempt += 1) {
       const code = await nextPackagingCode(tp);
       try {
-        packaging = await tp.packaging.create({ data: { code, ...parsed.data } });
+        packaging = await tp.packaging.create({ data: { tenantId, code, ...parsed.data } });
       } catch (error) {
         if (!isUniqueConstraintError(error) || attempt === 3) throw error;
       }

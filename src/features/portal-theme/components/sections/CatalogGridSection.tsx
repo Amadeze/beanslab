@@ -143,6 +143,7 @@ export function CatalogGridSection({ settings, typography, products = [], onAddT
                     )}
                     <button
                       onClick={() => onAddToCart && onAddToCart(product)}
+                      aria-label={`Add ${product.name} to cart`}
                       className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all shadow-sm active:scale-95"
                       style={{
                         backgroundColor: "var(--portal-primary, #D4A574)",
@@ -204,4 +205,3 @@ export function CatalogGridSection({ settings, typography, products = [], onAddT
     </section>
   );
 }
-

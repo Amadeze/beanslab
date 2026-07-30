@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+import Image from "next/image";
 import { TenantForm } from "./_components/TenantForm";
 import { EditTenantDialog } from "./_components/EditTenantDialog";
 import { Coffee, ExternalLink } from "lucide-react";
+import { tenantStorefrontUrl } from "@/lib/tenant-host";
 
 export default async function TenantsPage() {
   const tenants = await prisma.tenant.findMany({
@@ -49,13 +52,13 @@ export default async function TenantsPage() {
                     <div className="flex items-center gap-3">
                       <div className="flex size-10 shrink-0 items-center justify-center border border-domain-inventory/20 bg-domain-inventory/8">
                         {t.logoUrl ? (
-                          <img src={t.logoUrl} alt="" className="w-6 h-6 object-contain" />
+                          <Image src={t.logoUrl} alt="" width={24} height={24} unoptimized className="size-6 object-contain" />
                         ) : (
                           <Coffee size={18} className="text-domain-inventory" />
                         )}
                       </div>
                       <div>
-                        <p className="font-bold text-foreground">{t.name}</p>
+                        <Link href={`/superadmin/tenants/${t.id}`} className="font-bold text-foreground hover:text-primary hover:underline">{t.name}</Link>
                         <p className="font-mono text-xs text-muted-foreground">{t.code}</p>
                       </div>
                     </div>
@@ -66,7 +69,7 @@ export default async function TenantsPage() {
                   </td>
                   <td className="px-6 py-4">
                     <a 
-                      href={`http://${t.subdomain}.localhost:3000`} 
+                      href={t.subdomain ? tenantStorefrontUrl(t.subdomain) : "#"}
                       target="_blank" rel="noreferrer"
                       className="inline-flex items-center gap-1.5 border border-domain-roasting/20 bg-domain-roasting/8 px-2.5 py-1 font-mono text-xs text-domain-roasting transition-colors hover:bg-domain-roasting/15"
                     >
@@ -125,7 +128,7 @@ export default async function TenantsPage() {
                   <Coffee size={18} className="text-domain-inventory" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="truncate font-bold">{t.name}</h3>
+                  <Link href={`/superadmin/tenants/${t.id}`} className="block truncate font-bold hover:text-primary hover:underline">{t.name}</Link>
                   <p className="font-mono text-xs text-muted-foreground">{t.code}</p>
                 </div>
               </div>

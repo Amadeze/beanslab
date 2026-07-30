@@ -1,15 +1,15 @@
 "use client";
 
-import { Download, Monitor, CheckCircle, ArrowRight } from "lucide-react";
+import { Download, Monitor, CheckCircle } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 export default function DownloadPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader
-        title="Download Artisan Sync"
+        title="Download Roastd Studio"
         eyebrow="Pengaturan"
-        description="Aplikasi desktop untuk sinkronisasi data roast dari Artisan ke roastd.id."
+        description="Logger roast ringan berbasis Tauri dengan profil .alog kompatibel Artisan."
       />
       <div className="custom-scrollbar flex-1 overflow-auto">
         <div className="mx-auto max-w-[800px] p-4 md:p-6 lg:p-8">
@@ -20,14 +20,14 @@ export default function DownloadPage() {
             </div>
 
             <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
-              Artisan Sync v1.0.0
+              Roastd Studio v0.10.2
             </h2>
             <p className="text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
-              Aplikasi desktop yang memantau folder autosave Artisan dan otomatis mengunggah file .alog ke roastd.id.
+              Rekam kurva roast dan simpan setiap hasil sebagai profil .alog yang dapat dipakai kembali.
             </p>
 
             <a
-              href="/downloads/ArtisanSync-1.0.0-Setup.exe"
+              href="/downloads/RoastdStudio-0.10.2-x64-setup.exe"
               download
               className="inline-flex items-center gap-2 rounded-xl bg-[var(--amber-warm)] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-amber-500/20 hover:brightness-110 transition"
             >
@@ -36,7 +36,7 @@ export default function DownloadPage() {
             </a>
 
             <p className="mt-3 text-xs text-[var(--text-tertiary)]">
-              Windows 10/11 (64-bit) • 70.8 MB • Portable (tidak perlu install)
+              Windows 10/11 (64-bit) · Tauri installer · 16,8 MB
             </p>
           </div>
 
@@ -45,17 +45,17 @@ export default function DownloadPage() {
             <FeatureCard
               step="1"
               title="Install & Buka"
-              desc="Jalankan file yang sudah didownload, lalu buka aplikasinya."
+              desc="Jalankan installer sekali, lalu buka Roastd Studio."
             />
             <FeatureCard
               step="2"
-              title="Pairing"
-              desc="Masukkan kode 6 digit dari halaman Integrasi Artisan di dashboard roastd.id."
+              title="Login & Deteksi"
+              desc="Login di browser; Studio lalu memindai koneksi USB/serial otomatis."
             />
             <FeatureCard
               step="3"
-              title="Auto Sync"
-              desc="Pilih folder Autosave Artisan. File .alog akan otomatis terupload."
+              title="Auto .alog"
+              desc="Saat DROP, .alog, hasil timbang, stok, lot, dan batch disinkronkan otomatis."
             />
           </div>
 
@@ -69,11 +69,11 @@ export default function DownloadPage() {
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle size={16} className="mt-0.5 shrink-0 text-emerald-500" />
-                Artisan sudah terinstall dengan fitur Autosave aktif
+                Mesin atau temperature reader USB/serial yang didukung; Artisan tetap opsional
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle size={16} className="mt-0.5 shrink-0 text-emerald-500" />
-                Koneksi internet aktif
+                Internet boleh terputus sementara; antrean dikirim ulang saat online
               </li>
             </ul>
           </div>

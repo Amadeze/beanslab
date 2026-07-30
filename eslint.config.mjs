@@ -38,6 +38,7 @@ const eslintConfig = defineConfig([
     "delete_gaji.ts",
     "clear-capital.ts",
     ".codex/**",
+    ".ua/**",
   ]),
 ]);
 

@@ -19,6 +19,7 @@ interface StandardDrawerProps {
   description?: string;
   children: React.ReactNode;
   submitButton?: React.ReactNode;
+  showFooter?: boolean;
   size?: "sm" | "md" | "lg" | "xl";
   isLoading?: boolean;
 }
@@ -37,6 +38,7 @@ export function StandardDrawer({
   description,
   children,
   submitButton,
+  showFooter = true,
   size = "md",
   isLoading = false,
 }: StandardDrawerProps) {
@@ -47,17 +49,17 @@ export function StandardDrawer({
         className={[
           SIZE_MAP[size],
           "flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 sm:max-h-[calc(100dvh-3rem)]",
-          "rounded-xl border border-stone-200 bg-white shadow-xl",
+          "rounded-[14px] border border-border bg-card shadow-[0_32px_100px_rgba(5,9,13,.38)]",
         ].join(" ")}
       >
         {/* ── Modal Header ── */}
-        <DialogHeader className="flex shrink-0 flex-row items-start justify-between gap-4 border-b border-stone-200/70 px-5 py-5 sm:px-6">
+        <DialogHeader className="instrument-grid-dark flex shrink-0 flex-row items-start justify-between gap-4 border-b border-white/10 bg-[#0B141B] px-5 py-4 sm:px-6">
           <div className="min-w-0 pt-0.5 text-left">
-            <DialogTitle className="truncate text-lg font-bold tracking-tight text-stone-900 sm:text-xl">
+            <DialogTitle className="truncate font-heading text-lg font-bold tracking-[-0.035em] text-white sm:text-xl">
               {title}
             </DialogTitle>
             {description && (
-              <DialogDescription className="mt-1 text-xs font-medium leading-5 text-stone-500 line-clamp-2">
+              <DialogDescription className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-white/52">
                 {description}
               </DialogDescription>
             )}
@@ -66,7 +68,7 @@ export function StandardDrawer({
           <DialogClose
             render={
               <button
-                className="mt-0.5 flex shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-white p-2 text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-none"
+                className="mt-0.5 flex shrink-0 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.06] p-2 text-white/55 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none"
                 aria-label="Tutup"
               />
             }
@@ -81,26 +83,26 @@ export function StandardDrawer({
         </div>
 
         {/* ── Modal Footer ── */}
-        <div className="shrink-0 border-t border-stone-200 bg-stone-50 px-5 py-4 sm:px-6">
+        {showFooter && <div className="shrink-0 border-t border-border bg-muted/55 px-5 py-4 sm:px-6">
           <DialogFooter className="flex-row justify-end gap-3 sm:justify-end bg-transparent border-none p-0">
             <DialogClose
               render={
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-lg border-stone-200 bg-white px-5 text-stone-700 shadow-none hover:bg-stone-50 hover:text-stone-900"
+                  className="rounded-[8px] border-border bg-card px-5 text-foreground shadow-none hover:bg-muted"
                 />
               }
             >
               Batal
             </DialogClose>
             {submitButton && (
-              <div className="[&>button]:rounded-lg [&>button]:px-6 [&>button]:font-semibold [&>button]:shadow-none">
+              <div className="[&>button]:rounded-[8px] [&>button]:px-6 [&>button]:font-bold [&>button]:shadow-none">
                 {submitButton}
               </div>
             )}
           </DialogFooter>
-        </div>
+        </div>}
       </DialogContent>
     </Dialog>
   );
@@ -119,7 +121,7 @@ function FormSkeleton() {
           <Skeleton className="h-9 w-full rounded-md" />
         </div>
       ))}
-      <Separator className="my-2 bg-zinc-100" />
+      <Separator className="my-2 bg-border" />
       <div className="space-y-1.5">
         <Skeleton className="h-3.5 w-16" />
         <Skeleton className="h-20 w-full rounded-md" />

@@ -1,13 +1,20 @@
 allowBuilds:
+  '@mohammednagy/graphify-ts': true
   '@prisma/engines': true
   core-js: false
   esbuild: true
+  onnxruntime-node: true
   prisma: true
+  protobufjs: true
   sharp: true
+  'understand-anything@https://codeload.github.com/Egonex-AI/Understand-Anything/tar.gz/2cda14e89535049e49120198886bc0b82e9e630f': true
   unrs-resolver: true
 minimumReleaseAgeExclude:
   - tsx@4.22.5
 overrides:
   '@hono/node-server': 1.19.14
+  fast-uri: 3.1.4
+  find-my-way: 9.7.0
   postcss: 8.5.19
-
+  sharp: 0.35.3
+  valibot: 1.4.2

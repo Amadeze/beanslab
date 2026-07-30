@@ -11,7 +11,8 @@ import { formatDate, formatRupiah } from "@/lib/format";
 import { VoidConfirmDialog } from "@/components/VoidConfirmDialog";
 import { TerimaPaymentDialog } from "../../keuangan/_components/TerimaPaymentDialog";
 import { ResiDialog } from "./ResiDialog";
-import { Truck } from "lucide-react";
+import { ReturDialog } from "./ReturDialog";
+import { Truck, ArrowLeftRight } from "lucide-react";
 import { voidInvoice, approveInvoiceForMidtrans } from "../actions";
 import type { InvoiceRow } from "../actions";
 
@@ -66,6 +67,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
   const [voidTarget, setVoidTarget] = useState<InvoiceRow | null>(null);
   const [payTarget, setPayTarget] = useState<InvoiceRow | null>(null);
   const [resiTarget, setResiTarget] = useState<InvoiceRow | null>(null);
+  const [returTarget, setReturTarget] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [isApproving, setIsApproving] = useState<string | null>(null);
@@ -220,6 +222,17 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                         Resi
                       </Button>
                     )}
+                    {inv.status !== "DRAFT" && inv.status !== "VOID" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 gap-1 px-2.5 text-[11px] font-bold uppercase tracking-wide text-amber-600 hover:bg-amber-50 hover:text-amber-700 rounded-lg"
+                        onClick={() => setReturTarget(inv.id)}
+                      >
+                        <ArrowLeftRight size={12} />
+                        Retur
+                      </Button>
+                    )}
                     <button
                       onClick={() => triggerSilentPrint(`/nota/${inv.id}?print=true`)}
                       className="inline-flex items-center gap-1 h-7 rounded-lg border border-white/60 bg-white/40 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-900 hover:text-white hover:border-slate-800 transition-all shadow-sm"
@@ -295,6 +308,11 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                 {(inv.shippingMethod && inv.shippingMethod !== "PICKUP") && (
                   <Button size="sm" onClick={() => setResiTarget(inv)} className="h-7 bg-domain-production/10 px-2 text-domain-production hover:bg-domain-production/15">Resi</Button>
                 )}
+                {inv.status !== "DRAFT" && inv.status !== "VOID" && (
+                  <Button size="sm" variant="ghost" onClick={() => setReturTarget(inv.id)} className="h-7 px-2 text-[11px] font-bold uppercase text-amber-600 hover:bg-amber-50">
+                    Retur
+                  </Button>
+                )}
                 <button onClick={() => triggerSilentPrint(`/nota/${inv.id}?print=true`)} className="inline-flex items-center justify-center h-7 px-2.5 rounded-lg border border-slate-300 text-[11px] font-bold uppercase text-slate-600 hover:bg-slate-900 hover:text-white bg-white/40 shadow-sm">
                   Print
                 </button>
@@ -329,6 +347,13 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
       invoice={resiTarget}
       open={!!resiTarget}
       onOpenChange={(v) => { if (!v) setResiTarget(null); }}
+    />
+
+    <ReturDialog
+      invoiceId={returTarget}
+      open={!!returTarget}
+      onOpenChange={(v) => { if (!v) setReturTarget(null); }}
+      onSuccess={() => setReturTarget(null)}
     />
     </>
   );

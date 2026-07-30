@@ -10,17 +10,26 @@ import {
   ReportFilters,
   ReportExport,
   ReportSkeleton,
+  ReportHeader,
+  ReportInsightCard,
   type DateRange,
   type ReportColumn,
   type ExpenseReportData,
 } from "../../../_shared";
 import { getExpenseReport } from "../../../actions";
 import { formatRupiah } from "@/lib/format";
+import { generateExpenseInsights } from "@/lib/report-insights";
 
 export default function ExpenseReportClient() {
+  // Use local timezone for initial date (browser timezone, matches user expectation)
+  const getLocalDateString = (daysOffset = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysOffset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
   const [dateRange, setDateRange] = useState<DateRange>({
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    end: new Date().toISOString().split("T")[0],
+    start: getLocalDateString(-30),
+    end: getLocalDateString(),
   });
   const [data, setData] = useState<ExpenseReportData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,19 +90,43 @@ export default function ExpenseReportClient() {
     );
   }
 
+  const dateRangeLabel = `${new Date(dateRange.start).toLocaleDateString("id-ID", { day: "numeric", month: "short" })} - ${new Date(dateRange.end).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}`;
+
+  const insights = generateExpenseInsights(data).map((i) => ({
+    type: i.severity as "positive" | "negative" | "warning" | "info",
+    text: i.message,
+    value: i.value,
+  }));
+
   return (
     <ReportLayout
       activeTab="keuangan/expenses"
       actions={
         <ReportExport
-          title="Expense Report"
+          title="Laporan Pengeluaran"
           filename="expense-report"
           columns={columns.map((c) => ({ header: c.label, key: c.key }))}
           data={data.expenses}
+          subtitle="Biaya operasional, pembelian, dan analisa pengeluaran"
+          period={dateRangeLabel}
+          status="DRAFT"
+          summary={[
+            { label: "Total Pengeluaran", value: formatRupiah(data.totalExpenses) },
+            { label: "Biaya Pembelian", value: formatRupiah(data.totalPurchases) },
+            { label: "Hutang Tertunda", value: formatRupiah(data.outstandingPayable) },
+            { label: "Profit", value: formatRupiah(data.profit) },
+          ]}
         />
       }
     >
       <div className="space-y-6">
+        <ReportHeader
+          title="Laporan Pengeluaran"
+          subtitle="Biaya operasional, pembelian, dan analisa pengeluaran"
+          period={dateRangeLabel}
+          generatedAt={new Date()}
+        />
+
         <ReportFilters
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
@@ -107,6 +140,7 @@ export default function ExpenseReportClient() {
             icon={WalletCards}
             color="rose"
             inverse
+            sparkline={data.expenseTrend.slice(-7).map((e) => e.expenses)}
           />
           <ReportKpiCard
             label="Biaya Pembelian"
@@ -129,10 +163,15 @@ export default function ExpenseReportClient() {
           />
         </div>
 
+        {/* Insights */}
+        {insights.length > 0 && (
+          <ReportInsightCard insights={insights} />
+        )}
+
         {/* Charts */}
         <div className="grid gap-4 lg:grid-cols-3">
           <ReportChart
-            title="Expense Trend (7 hari)"
+            title={`Expense Trend (${dateRangeLabel})`}
             type="area"
             data={data.expenseTrend}
             xKey="date"

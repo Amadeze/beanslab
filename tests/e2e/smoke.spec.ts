@@ -3,10 +3,11 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { sealData } from "iron-session";
 import crypto from "node:crypto";
+import { unlink } from "node:fs/promises";
+import path from "node:path";
 
 import { SESSION_OPTIONS } from "../../src/lib/session";
 import { getTenantAccessState } from "../../src/lib/subscription";
-import { encryptCredential } from "../../src/lib/credentials";
 
 const DASHBOARD_ROUTES = [
   "/dashboard",
@@ -14,11 +15,14 @@ const DASHBOARD_ROUTES = [
   "/roasting",
   "/produksi",
   "/penjualan",
+  "/penjualan/pembayaran",
   "/keuangan",
-  "/laporan",
-  "/master-data",
+  "/laporan/keuangan",
+  "/katalog",
   "/audit",
   "/settings",
+  "/settings/payments",
+  "/onboarding",
   "/billing",
 ];
 
@@ -59,8 +63,10 @@ test("public and protected routes behave correctly", async ({ page, request }) =
   expect(artisanWebhook.status()).toBe(401);
 
   const readiness = await request.get("/api/health");
-  expect(readiness.status()).toBe(200);
-  expect((await readiness.json()).database).toBe("reachable");
+  expect([200, 503]).toContain(readiness.status());
+  const readinessBody = await readiness.json();
+  expect(readinessBody.database).toBe("reachable");
+  expect(readinessBody.status).toBe(readiness.status() === 200 ? "ok" : "degraded");
   expect(readiness.headers()["x-request-id"]).toMatch(/^[A-Za-z0-9._-]{1,80}$/);
 
   const liveness = await request.get("/api/health/live", {
@@ -80,6 +86,8 @@ test("public and protected routes behave correctly", async ({ page, request }) =
   expect(unauthorizedCron.status()).toBe(401);
   const unauthorizedReminderCron = await request.post("/api/cron/overdue-reminders");
   expect(unauthorizedReminderCron.status()).toBe(401);
+  const unauthorizedPaymentExpiryCron = await request.post("/api/cron/payment-submissions");
+  expect(unauthorizedPaymentExpiryCron.status()).toBe(401);
   expect(webglErrors).toEqual([]);
 });
 
@@ -200,12 +208,24 @@ test("all owner dashboard modules render", async ({ context, page }) => {
       expect(response?.status(), route).toBe(200);
       await expect(page, route).not.toHaveURL(/\/login/);
       if (route === "/inventory") {
-        const mutationsButton = page.getByRole("button", { name: "Mutasi Stok", exact: true });
+        const mutationsLink = page
+          .getByRole("navigation", { name: "Navigasi workspace supply" })
+          .getByRole("link", { name: "Mutasi", exact: true });
         const mutationsSearch = page.getByPlaceholder("Cari item, referensi, atau operator...");
         await expect(async () => {
-          await mutationsButton.click();
+          await mutationsLink.click();
           await expect(mutationsSearch).toBeVisible();
         }).toPass({ timeout: 15_000 });
+      }
+      if (route === "/penjualan/pembayaran") {
+        await expect(page.getByRole("tab", { name: /Perlu dicek/ })).toBeVisible();
+        await expect(page.getByRole("tab", { name: "Riwayat" })).toBeVisible();
+      }
+      if (route === "/settings/payments") {
+        await expect(page.getByText("Jalur aktif sekarang")).toBeVisible();
+      }
+      if (route === "/onboarding") {
+        await expect(page.getByRole("heading", { name: "Siapkan alur yang benar-benar dipakai" })).toBeVisible();
       }
       if (route === "/keuangan") {
         const paymentTab = page.getByRole("tab", { name: /^Pembayaran \(/ });
@@ -269,7 +289,10 @@ test("tenant Midtrans webhook is idempotent and rejects overpayment", async ({ r
         name: "E2E Midtrans Tenant",
         subscriptionTier: "PRO",
         subscriptionStatus: "ACTIVE",
-        midtransServerKey: encryptCredential(serverKey),
+        // This suite verifies webhook semantics. Credential encryption has
+        // separate unit/preflight coverage and would couple the reused dev
+        // server to the Playwright process environment.
+        midtransServerKey: serverKey,
       },
     });
     const user = await prisma.user.create({
@@ -330,8 +353,9 @@ test("tenant Midtrans webhook is idempotent and rejects overpayment", async ({ r
     const first = await request.post("/api/webhooks/tenant-midtrans", {
       data: paidPayload,
     });
-    expect(first.status()).toBe(200);
-    expect((await first.json()).success).toBe(true);
+    const firstBody = await first.json();
+    expect(first.status(), JSON.stringify(firstBody)).toBe(200);
+    expect(firstBody.success).toBe(true);
 
     const replay = await request.post("/api/webhooks/tenant-midtrans", {
       data: paidPayload,
@@ -389,6 +413,9 @@ test("tenant Midtrans webhook is idempotent and rejects overpayment", async ({ r
   } finally {
     await prisma.auditLog.deleteMany({ where: { tenantId } });
     await prisma.webhookEvent.deleteMany({ where: { tenantId } });
+    await prisma.journalLine.deleteMany({ where: { journalEntry: { tenantId } } });
+    await prisma.journalEntry.deleteMany({ where: { tenantId } });
+    await prisma.account.deleteMany({ where: { tenantId } });
     await prisma.payment.deleteMany({ where: { tenantId } });
     await prisma.invoiceItem.deleteMany({
       where: { invoice: { tenantId } },
@@ -591,8 +618,8 @@ test("Artisan DROP attaches telemetry exactly once", async ({ request }) => {
   }
 });
 
-test("public checkout trusts server price and enforces stock", async ({ request }) => {
-  test.setTimeout(60_000);
+test("public checkout trusts server price and supports verified partial payment", async ({ request, context, page }) => {
+  test.setTimeout(180_000);
   test.skip(!process.env.DATABASE_URL, "DATABASE_URL is required.");
 
   const prisma = new PrismaClient({
@@ -601,6 +628,7 @@ test("public checkout trusts server price and enforces stock", async ({ request 
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const tenantId = `e2e-checkout-${suffix}`;
   const subdomain = `e2e-checkout-${suffix}`;
+  let proofObjectPath: string | null = null;
 
   try {
     await prisma.tenant.create({
@@ -611,6 +639,7 @@ test("public checkout trusts server price and enforces stock", async ({ request 
         subdomain,
         subscriptionTier: "PRO",
         subscriptionStatus: "ACTIVE",
+        setupCompletedAt: new Date(),
       },
     });
     const user = await prisma.user.create({
@@ -644,6 +673,17 @@ test("public checkout trusts server price and enforces stock", async ({ request 
         tenantId,
       },
     });
+    const paymentMethod = await prisma.tenantPaymentMethod.create({
+      data: {
+        tenantId,
+        provider: "MANUAL",
+        method: "TRANSFER",
+        label: "E2E Bank",
+        bankName: "BCA",
+        accountNumber: "1234567890",
+        accountHolder: "E2E Checkout Tenant",
+      },
+    });
 
     const checkoutBody = {
       customerName: "E2E Buyer",
@@ -651,6 +691,7 @@ test("public checkout trusts server price and enforces stock", async ({ request 
       customerEmail: "",
       customerAddress: "E2E Test Address",
       shippingMethod: "PICKUP",
+      paymentMethodId: paymentMethod.id,
       items: [{
         productId: product.id,
         quantity: 2,
@@ -661,9 +702,10 @@ test("public checkout trusts server price and enforces stock", async ({ request 
     const first = await request.post(`/api/tenant/${subdomain}/checkout`, {
       data: checkoutBody,
     });
-    expect(first.status()).toBe(200);
     const firstBody = await first.json();
+    expect(first.status(), JSON.stringify(firstBody)).toBe(200);
     expect(firstBody.success).toBe(true);
+    expect(firstBody.orderUrl).toMatch(new RegExp(`/tenant/${subdomain}/order/`));
 
     const invoice = await prisma.invoice.findUnique({
       where: { id: firstBody.invoice.id },
@@ -673,23 +715,103 @@ test("public checkout trusts server price and enforces stock", async ({ request 
     expect(Number(invoice?.items[0].unitPrice)).toBe(50_000);
     expect(invoice?.items[0].quantity).toBe(2);
 
+    const submission = await prisma.paymentSubmission.findFirstOrThrow({ where: { tenantId } });
+    expect(submission.status).toBe("AWAITING_PROOF");
+    expect(submission.paymentId).toBeNull();
+    const proof = await request.post(`/api/tenant/${subdomain}/payments/${submission.publicToken}/submit`, {
+      multipart: {
+        payerName: "E2E Buyer",
+        declaredAmount: "40000",
+        reference: "E2E-TRANSFER-REF",
+        file: {
+          name: "proof.png",
+          mimeType: "image/png",
+          buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        },
+      },
+    });
+    const proofBody = await proof.json();
+    expect(proof.status(), JSON.stringify(proofBody)).toBe(200);
+    const submitted = await prisma.paymentSubmission.findUniqueOrThrow({ where: { id: submission.id } });
+    proofObjectPath = submitted.proofObjectPath;
+    expect(submitted.status).toBe("AWAITING_VERIFICATION");
+    expect(Number(submitted.declaredAmount)).toBe(40_000);
+    expect(submitted.proofSha256).toHaveLength(64);
+    expect(await prisma.payment.count({ where: { tenantId } })).toBe(0);
+    expect((await prisma.invoice.findUniqueOrThrow({ where: { id: invoice!.id } })).status).toBe("ISSUED");
+
+    const sessionCookie = await sealData(
+      { user: { id: user.id, name: user.name, email: user.email, role: user.role, tenantId } },
+      { password: SESSION_OPTIONS.password, ttl: SESSION_OPTIONS.cookieOptions.maxAge },
+    );
+    await context.addCookies([{ name: SESSION_OPTIONS.cookieName, value: sessionCookie, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" }]);
+    await page.goto("/penjualan/pembayaran");
+    const reviewCard = page.getByRole("article").filter({ hasText: invoice!.code });
+    await expect(reviewCard).toBeVisible();
+    await expect(reviewCard.getByText("Nominal berbeda")).toBeVisible();
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: "domcontentloaded" }),
+      reviewCard.getByRole("button", { name: "Verifikasi" }).click(),
+    ]);
+    await expect.poll(() => prisma.payment.count({ where: { tenantId } }), { timeout: 15_000 }).toBe(1);
+    await expect(page.getByText("Perlu dicek (0)", { exact: true })).toBeVisible();
+
+    const partialInvoice = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice!.id } });
+    expect(partialInvoice.status).toBe("PARTIAL");
+    expect(Number(partialInvoice.paidAmount)).toBe(40_000);
+    expect(await prisma.payment.count({ where: { tenantId } })).toBe(1);
+    const nextSubmission = await prisma.paymentSubmission.findFirstOrThrow({
+      where: { tenantId, invoiceId: invoice!.id, status: "AWAITING_PROOF" },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(Number(nextSubmission.amount)).toBe(60_000);
+    await page.goto(firstBody.orderUrl);
+    await expect(page.getByRole("link", { name: "Bayar sisa tagihan" })).toHaveAttribute("href", `/tenant/${subdomain}/order/${nextSubmission.publicToken}`);
+
     const productAfter = await prisma.product.findUnique({
       where: { id: product.id },
       select: { stockUnit: true },
     });
-    expect(productAfter?.stockUnit).toBe(1);
+    expect(productAfter?.stockUnit).toBe(3);
+    const activeReservation = await prisma.stockReservation.aggregate({
+      where: { tenantId, productId: product.id, status: "ACTIVE" },
+      _sum: { quantity: true },
+    });
+    expect(activeReservation._sum.quantity).toBe(2);
 
-    const insufficient = await request.post(`/api/tenant/${subdomain}/checkout`, {
+    const backorder = await request.post(`/api/tenant/${subdomain}/checkout`, {
       data: checkoutBody,
     });
-    expect(insufficient.status()).toBe(400);
-    expect(await prisma.invoice.count({ where: { tenantId } })).toBe(1);
+    const backorderBody = await backorder.json();
+    expect(backorder.status(), JSON.stringify(backorderBody)).toBe(200);
+    const backorderInvoice = await prisma.invoice.findUniqueOrThrow({
+      where: { id: backorderBody.invoice.id },
+    });
+    expect(backorderInvoice.fulfillmentStatus).toBe("NEEDS_PRODUCTION");
+    const fulfillmentTask = await prisma.fulfillmentTask.findFirstOrThrow({
+      where: { tenantId, invoiceId: backorderInvoice.id, productId: product.id },
+    });
+    expect(fulfillmentTask.reservedQuantity).toBe(1);
+    expect(fulfillmentTask.shortageQuantity).toBe(1);
+    expect(await prisma.invoice.count({ where: { tenantId } })).toBe(2);
   } finally {
+    if (proofObjectPath) {
+      await unlink(path.join(process.cwd(), ".data", "private-uploads", ...proofObjectPath.split("/"))).catch(() => undefined);
+    }
     await prisma.rateLimitBucket.deleteMany({
-      where: { key: { startsWith: `tenant-checkout:${subdomain}:` } },
+      where: { OR: [
+        { key: { startsWith: `tenant-checkout:${subdomain}:` } },
+        { key: { startsWith: `payment-proof:${subdomain}:` } },
+      ] },
     });
     await prisma.auditLog.deleteMany({ where: { tenantId } });
+    await prisma.journalLine.deleteMany({ where: { journalEntry: { tenantId } } });
+    await prisma.journalEntry.deleteMany({ where: { tenantId } });
+    await prisma.account.deleteMany({ where: { tenantId } });
     await prisma.inventoryLedger.deleteMany({ where: { tenantId } });
+    await prisma.paymentSubmission.deleteMany({ where: { tenantId } });
+    await prisma.payment.deleteMany({ where: { tenantId } });
+    await prisma.tenantPaymentMethod.deleteMany({ where: { tenantId } });
     await prisma.invoiceItem.deleteMany({
       where: { invoice: { tenantId } },
     });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Tenant } from "@prisma/client";
+import type { Tenant } from "@prisma/client";
 import { CreditCard, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { formatRupiah, formatDate } from "@/lib/format";
 import Script from "next/script";
@@ -10,8 +10,14 @@ import { toastSafe } from "@/lib/toast";
 import { PLAN_CATALOG } from "@/lib/plans";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SettingsNav } from "../../settings/_components/SettingsNav";
+import { midtransSnapUrl } from "@/lib/midtrans-environment";
 
-export default function BillingClient({ tenant }: { tenant: Tenant }) {
+type BillingTenant = Pick<
+  Tenant,
+  "subscriptionTier" | "subscriptionStatus" | "trialEndsAt" | "nextBillingDate"
+>;
+
+export default function BillingClient({ tenant }: { tenant: BillingTenant }) {
   const isTrial = tenant.subscriptionTier === "TRIAL";
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
   
@@ -67,7 +73,7 @@ export default function BillingClient({ tenant }: { tenant: Tenant }) {
   return (
     <>
       <Script 
-        src={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY?.includes("sandbox") ? "https://app.sandbox.midtrans.com/snap/snap.js" : "https://app.midtrans.com/snap/snap.js"} 
+        src={midtransSnapUrl({ clientKey: process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY, explicitProduction: process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION })}
         data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY} 
         strategy="lazyOnload" 
       />

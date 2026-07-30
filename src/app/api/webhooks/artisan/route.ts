@@ -173,6 +173,7 @@ export async function POST(req: Request) {
       }
       await tx.childRoastingBatch.create({
         data: {
+          tenantId: tenant.id,
           parentId: parent.id,
           artisanEventId: `${tenant.id}:${eventId}`,
           roastDuration: data.metrics?.duration_seconds ?? null,

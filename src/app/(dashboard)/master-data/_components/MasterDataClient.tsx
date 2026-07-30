@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Plus, Building2, Users, Package, CheckCircle2, XCircle, Pencil, UserCog, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -422,11 +421,9 @@ export function MasterDataClient({
                       {count}
                     </span>
                     {active && (
-                      <motion.div
-                        layoutId="masterdata-tab-indicator"
-                        className="absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[var(--amber-warm)] to-[var(--amber-deep)] rounded-t-full shadow-[0_-2px_10px_rgba(196,122,51,0.4)]"
-                        initial={false}
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      <span
+                        aria-hidden="true"
+                        className="absolute bottom-0 left-0 right-0 h-[3px] animate-in fade-in duration-200 rounded-t-full bg-gradient-to-r from-[var(--amber-warm)] to-[var(--amber-deep)] shadow-[0_-2px_10px_rgba(196,122,51,0.4)]"
                       />
                     )}
                   </button>

@@ -42,6 +42,21 @@ export async function sendOverdueReminders(
   });
 
   const date = reminderDate(now);
+  const tenantIds = [...new Set(invoices.map((invoice) => invoice.tenantId))];
+  const preferences = tenantIds.length > 0
+    ? await prisma.notificationPreference.findMany({
+        where: { tenantId: { in: tenantIds }, event: "OVERDUE_INVOICE" },
+        select: { tenantId: true, channel: true, enabled: true },
+      })
+    : [];
+  const preferenceMap = new Map(
+    preferences.map((preference) => [
+      `${preference.tenantId}:${preference.channel}`,
+      preference.enabled,
+    ]),
+  );
+  const channelEnabled = (tenantId: string, channel: string) =>
+    preferenceMap.get(`${tenantId}:${channel}`) !== false;
   const result = {
     overdueInvoices: invoices.length,
     sent: 0,
@@ -60,10 +75,10 @@ export async function sendOverdueReminders(
       continue;
     }
     const channels = [
-      process.env.RESEND_API_KEY && invoice.customer.email
+      channelEnabled(invoice.tenantId, "EMAIL") && process.env.RESEND_API_KEY && invoice.customer.email
         ? { channel: "EMAIL", destination: invoice.customer.email }
         : null,
-      process.env.WA_API_KEY && invoice.customer.phone
+      channelEnabled(invoice.tenantId, "WHATSAPP") && process.env.WA_API_KEY && invoice.customer.phone
         ? { channel: "WHATSAPP", destination: invoice.customer.phone }
         : null,
     ].filter((channel): channel is { channel: string; destination: string } => Boolean(channel));

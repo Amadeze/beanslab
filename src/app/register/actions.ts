@@ -11,6 +11,7 @@ import {
   RateLimitError,
   requestIdentifier,
 } from "@/lib/rate-limit";
+import { isReservedTenantSubdomain } from "@/lib/tenant-host";
 
 export async function registerTenant(data: {
   roasteryName: string;
@@ -49,7 +50,7 @@ export async function registerTenant(data: {
       return { success: false, error: "Subdomain can only contain lowercase letters, numbers, and hyphens" };
     }
 
-    if (["www", "app", "admin", "api", "mail", "support"].includes(subdomain)) {
+    if (isReservedTenantSubdomain(subdomain)) {
       return { success: false, error: "Subdomain is reserved" };
     }
 
@@ -168,6 +169,10 @@ export async function registerTenantWithGoogle(data: {
       !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(subdomain)
     ) {
       return { success: false, error: "Subdomain can only contain lowercase letters, numbers, and hyphens" };
+    }
+
+    if (isReservedTenantSubdomain(subdomain)) {
+      return { success: false, error: "Subdomain is reserved" };
     }
 
     const cookieStore = await cookies();

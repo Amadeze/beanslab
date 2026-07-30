@@ -48,7 +48,7 @@ export function InlinePreview({ products = [], subdomain = "your-roastery" }: In
             <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
             <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
             <div className="ml-3 flex-1 bg-white rounded-md px-3 py-1 text-[10px] text-gray-400 font-mono border border-gray-200 truncate">
-              https://roastd.id/tenant/{subdomain}
+              https://{subdomain}.roastd.id
             </div>
           </div>
 

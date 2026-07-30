@@ -11,8 +11,10 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { toastSafe } from "@/lib/toast";
 import { formatRupiah, formatDate as formatDateUtil } from "@/lib/format";
-import { getPODetail, cancelPOAction } from "../po-actions";
+import { getPODetail, cancelPOAction, sendPOAction } from "../po-actions";
 import { ReceivePOForm } from "./ReceivePOForm";
 import type { POStatus } from "@prisma/client";
 
@@ -26,17 +28,22 @@ type PODetailData = {
   status: POStatus;
   supplierName: string;
   expectedDate: string | null;
+  estimatedShippingCost: number;
   totalEstimate: number;
   sentAt: string | null;
   receivedAt: string | null;
   createdAt: string;
   itemCount: number;
   notes: string | null;
+  receivedShippingCost: number;
+  remainingShippingEstimate: number;
   items: Array<{
     id: string;
     productName: string | null;
     packagingName: string | null;
     quantity: number;
+    receivedQuantity: number;
+    remainingQuantity: number;
     unitPrice: number;
     totalPrice: number;
     reorderPoint: number | null;
@@ -46,6 +53,7 @@ type PODetailData = {
     id: string;
     code: string;
     receivedAt: string;
+    shippingCost: number;
     totalCost: number;
   }>;
 };
@@ -83,6 +91,7 @@ interface PODetailProps {
 export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
   const [detail, setDetail] = useState<PODetailData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionPending, setActionPending] = useState(false);
   const [showReceiveForm, setShowReceiveForm] = useState(false);
 
   const loadDetail = useCallback(async () => {
@@ -105,6 +114,22 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
     if (result.success) {
       onUpdate();
       loadDetail();
+    }
+  };
+
+  const handleSend = async () => {
+    setActionPending(true);
+    try {
+      const result = await sendPOAction(poId);
+      if (!result.success) {
+        toastSafe.error(result.error);
+        return;
+      }
+      toast.success("PO dikirim ke supplier dan masuk antrean penerimaan.");
+      onUpdate();
+      await loadDetail();
+    } finally {
+      setActionPending(false);
     }
   };
 
@@ -136,6 +161,7 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
   }
 
   const canReceive = detail.status === "SENT" || detail.status === "PARTIAL";
+  const canSend = detail.status === "DRAFT";
   const canCancel = detail.status === "DRAFT" || detail.status === "SENT";
 
   return (
@@ -207,9 +233,14 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
       </div>
 
       {/* Total */}
-      <div className="flex justify-end items-center gap-2">
-        <span className="text-xs font-bold text-slate-500">Total Estimasi:</span>
-        <span className="text-lg font-black text-slate-900">{formatRupiah(detail.totalEstimate)}</span>
+      <div className="space-y-0.5 text-right">
+        <p className="text-[11px] text-slate-500">
+          Termasuk estimasi ongkir {formatRupiah(detail.estimatedShippingCost)}
+        </p>
+        <div className="flex items-center justify-end gap-2">
+          <span className="text-xs font-bold text-slate-500">Total Estimasi:</span>
+          <span className="text-lg font-black text-slate-900">{formatRupiah(detail.totalEstimate)}</span>
+        </div>
       </div>
 
       {/* Purchase History */}
@@ -222,6 +253,7 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
                 <TableRow className="bg-white/40">
                   <TableHead className="text-[10px] font-bold uppercase">Kode</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase">Tanggal</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase text-right">Ongkir</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase text-right">Total</TableHead>
                 </TableRow>
               </TableHeader>
@@ -230,6 +262,7 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
                   <TableRow key={purchase.id}>
                     <TableCell className="text-xs font-medium">{purchase.code}</TableCell>
                     <TableCell className="text-xs">{formatDate(purchase.receivedAt)}</TableCell>
+                    <TableCell className="text-xs text-right">{formatRupiah(purchase.shippingCost)}</TableCell>
                     <TableCell className="text-xs text-right font-bold">{formatRupiah(purchase.totalCost)}</TableCell>
                   </TableRow>
                 ))}
@@ -245,8 +278,13 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
           Tutup
         </Button>
         {canCancel && (
-          <Button variant="outline" onClick={handleCancel} className="text-red-600 border-red-200 hover:bg-red-50">
+          <Button variant="outline" onClick={handleCancel} disabled={actionPending} className="text-red-600 border-red-200 hover:bg-red-50">
             Batalkan
+          </Button>
+        )}
+        {canSend && (
+          <Button onClick={handleSend} disabled={actionPending} className="bg-primary text-primary-foreground hover:bg-primary/90">
+            {actionPending ? "Mengirim..." : "Kirim ke Supplier"}
           </Button>
         )}
         {canReceive && (
@@ -264,6 +302,7 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
             <ReceivePOForm
               poId={poId}
               items={detail.items}
+              estimatedShippingCost={detail.remainingShippingEstimate}
               onSuccess={handleReceiveSuccess}
               onCancel={() => setShowReceiveForm(false)}
             />

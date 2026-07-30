@@ -1,4 +1,6 @@
 import { formatInTimeZone, fromZonedTime, toZonedTime } from "date-fns-tz";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 
 const DEFAULT_TIMEZONE = "Asia/Jakarta";
 
@@ -73,7 +75,9 @@ export function getCurrentDate(): Date {
  * Contoh output: "17 Juli 2026 15:30:00"
  */
 export function formatLocal(date: Date, formatStr: string = "d MMMM yyyy HH:mm:ss"): string {
-  return formatInTimeZone(date, DEFAULT_TIMEZONE, formatStr);
+  const zone = normalizeTimeZone();
+  const zoned = toZonedTime(date, zone);
+  return format(zoned, formatStr, { locale: id });
 }
 
 /**
@@ -112,4 +116,70 @@ export function isTodayWIB(date: Date): boolean {
   const start = getStartOfTodayWIB();
   const end = getStartOfNextDayWIB();
   return date >= start && date < end;
+}
+
+// =============================================================================
+// TIMEZONE-AWARE DATE HELPERS FOR REPORTS
+// =============================================================================
+
+/**
+ * Convert date string (YYYY-MM-DD) ke UTC range berdasarkan timezone tenant.
+ * Digunakan untuk query database yang benar berdasarkan timezone user.
+ *
+ * Contoh: dateStr="2025-07-26", timezone="Asia/Jakarta"
+ * → start = 2025-07-25T17:00:00Z (26 Juli 00:00 WIB)
+ * → end   = 2025-07-26T16:59:59.999Z (26 Juli 23:59 WIB)
+ */
+export function dateToLocalRange(
+  dateStr: string,
+  timezone?: string | null,
+): { start: Date; end: Date; timezone: string } {
+  const zone = normalizeTimeZone(timezone);
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const localStart = new Date(year, month - 1, day, 0, 0, 0, 0);
+  const localEnd = new Date(year, month - 1, day, 23, 59, 59, 999);
+  return {
+    start: fromZonedTime(localStart, zone),
+    end: fromZonedTime(localEnd, zone),
+    timezone: zone,
+  };
+}
+
+/**
+ * Format tanggal menggunakan timezone tenant untuk chart/label.
+ * Contoh: formatChartDate(date, "Asia/Jakarta") → "26 Jul"
+ */
+export function formatChartDate(date: Date, timezone?: string | null): string {
+  const zone = normalizeTimeZone(timezone);
+  const zoned = toZonedTime(date, zone);
+  return format(zoned, "d MMM", { locale: id });
+}
+
+/**
+ * Format tanggal lengkap menggunakan timezone tenant.
+ * Contoh: formatReportDate(date, "Asia/Jakarta") → "26 Juli 2025"
+ */
+export function formatReportDate(date: Date, timezone?: string | null): string {
+  const zone = normalizeTimeZone(timezone);
+  const zoned = toZonedTime(date, zone);
+  return format(zoned, "d MMMM yyyy", { locale: id });
+}
+
+/**
+ * Mendapatkan string YYYY-MM-DD hari ini berdasarkan timezone tenant.
+ * Berguna untuk date picker default.
+ */
+export function getTodayStringForTimezone(timezone?: string | null): string {
+  const zone = normalizeTimeZone(timezone);
+  return formatInTimeZone(new Date(), zone, "yyyy-MM-dd");
+}
+
+/**
+ * Mendapatkan string YYYY-MM-DD N hari lalu berdasarkan timezone tenant.
+ */
+export function getDateStringDaysAgo(days: number, timezone?: string | null): string {
+  const zone = normalizeTimeZone(timezone);
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return formatInTimeZone(date, zone, "yyyy-MM-dd");
 }

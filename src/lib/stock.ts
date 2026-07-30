@@ -9,6 +9,7 @@ type TransactionClient = any;
 type FlexibleNumber = number | string | { toNumber(): number } | null | undefined;
 
 interface LedgerEntryData {
+  tenantId?: string;
   productId?: string | null;
   packagingId?: string | null;
   entryType: "IN" | "OUT";
@@ -21,6 +22,13 @@ interface LedgerEntryData {
   notes?: string;
   [key: string]: unknown;
 }
+
+type FefoLedgerEntryData = Omit<
+  LedgerEntryData,
+  "entryType" | "incomingPrice" | "lotNumber" | "expiryDate" | "lotId"
+> & {
+  tenantId: string;
+};
 
 /**
  * Hitung stok kopi (kg) untuk satu product dari agregasi InventoryLedger.
@@ -170,4 +178,111 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
   delete dataToSave.incomingPrice; // Ensure incomingPrice is not saved to InventoryLedger
   
   return tx.inventoryLedger.create({ data: dataToSave });
+}
+
+/**
+ * Keluarkan stok berdasarkan FEFO (expiry paling dekat, lalu lot paling lama).
+ *
+ * Stok historis yang dibuat sebelum fitur lot tetap dapat dipakai: jika jumlah
+ * pada lot tidak menutup kebutuhan, sisanya dicatat tanpa lot. Dengan begitu
+ * rollout traceability tidak memblokir operasi tenant lama, sementara semua
+ * stok baru tetap memiliki jejak lot yang lengkap.
+ */
+export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedgerEntryData) {
+  const quantityKg = Number(data.quantityKg ?? 0);
+  const quantityUnit = Number(data.quantityUnit ?? 0);
+  const requestedQuantity = quantityKg > 0 ? quantityKg : quantityUnit;
+  const quantityField = quantityKg > 0 ? "quantityKg" : "quantityUnit";
+
+  if (!data.tenantId) {
+    throw new Error("Tenant wajib diisi untuk alokasi FEFO.");
+  }
+  if (Boolean(data.productId) === Boolean(data.packagingId)) {
+    throw new Error("FEFO entry must target exactly one product or packaging item.");
+  }
+  if (requestedQuantity <= 0 || (quantityKg > 0 && quantityUnit > 0)) {
+    throw new Error("FEFO quantity must use exactly one positive unit.");
+  }
+
+  const lots = await tx.lot.findMany({
+    where: {
+      tenantId: data.tenantId,
+      productId: data.productId ?? undefined,
+      packagingId: data.packagingId ?? undefined,
+      consumedAt: null,
+    },
+    orderBy: [
+      { expiryDate: { sort: "asc", nulls: "last" } },
+      { receivedAt: "asc" },
+      { createdAt: "asc" },
+    ],
+    select: {
+      id: true,
+      batchCode: true,
+      expiryDate: true,
+      quantityKg: true,
+      quantityUnit: true,
+      inventoryLedgers: {
+        select: {
+          entryType: true,
+          quantityKg: true,
+          quantityUnit: true,
+        },
+      },
+    },
+  });
+
+  let remaining = requestedQuantity;
+  const entries = [];
+  const epsilon = quantityField === "quantityKg" ? 0.000001 : 0;
+
+  for (const lot of lots) {
+    if (remaining <= epsilon) break;
+
+    const originalQuantity = Number(lot[quantityField] ?? 0);
+    const ledgerBalance = lot.inventoryLedgers.reduce((balance: number, entry: {
+      entryType: "IN" | "OUT";
+      quantityKg: FlexibleNumber;
+      quantityUnit: FlexibleNumber;
+    }) => {
+      const amount = Number(entry[quantityField] ?? 0);
+      return balance + (entry.entryType === "IN" ? amount : -amount);
+    }, 0);
+    // Lot lama mungkin belum memiliki ledger IN yang tertaut. Dalam kasus itu,
+    // quantity awal pada lot menjadi sumber saldo.
+    const available = Math.max(0, lot.inventoryLedgers.length > 0 ? ledgerBalance : originalQuantity);
+    if (available <= epsilon) continue;
+
+    const allocated = Math.min(remaining, available);
+    const entry = await appendLedger(tx, {
+      ...data,
+      entryType: "OUT",
+      [quantityField]: allocated,
+      lotId: lot.id,
+      lotNumber: lot.batchCode,
+      expiryDate: lot.expiryDate,
+    });
+    entries.push(entry);
+    remaining -= allocated;
+
+    if (available - allocated <= epsilon) {
+      await tx.lot.update({
+        where: { id: lot.id },
+        data: { consumedAt: new Date() },
+      });
+    }
+  }
+
+  if (remaining > epsilon) {
+    entries.push(await appendLedger(tx, {
+      ...data,
+      entryType: "OUT",
+      [quantityField]: remaining,
+      lotId: null,
+      lotNumber: null,
+      expiryDate: null,
+    }));
+  }
+
+  return entries;
 }

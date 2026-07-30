@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Download, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { exportToPdf, exportToExcel } from "@/lib/export-utils";
+import { exportToPdf, exportToExcel, exportToProfessionalPdf, exportToProfessionalExcel } from "@/lib/export-utils";
 
 interface ReportExportProps {
   title: string;
@@ -11,6 +11,12 @@ interface ReportExportProps {
   columns: { header: string; key: string; width?: number }[];
   data: Record<string, any>[];
   className?: string;
+  // Professional export options
+  subtitle?: string;
+  period?: string;
+  status?: "DRAFT" | "FINAL";
+  summary?: { label: string; value: string }[];
+  useProfessional?: boolean;
 }
 
 export function ReportExport({
@@ -19,22 +25,48 @@ export function ReportExport({
   columns,
   data,
   className,
+  subtitle,
+  period,
+  status,
+  summary,
+  useProfessional = true,
 }: ReportExportProps) {
   const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
+
+  const exportColumns = columns.map((col) => ({
+    header: col.header,
+    accessor: (row: Record<string, any>) => row[col.key] ?? null,
+  }));
 
   const handlePdf = async () => {
     setExporting("pdf");
     try {
-      await exportToPdf({
-        title,
-        filename: `${filename}.pdf`,
-        sheetName: title,
-        columns: columns.map((col) => ({
-          header: col.header,
-          accessor: (row: Record<string, any>) => row[col.key] ?? null,
-        })),
-        data,
-      });
+      if (useProfessional) {
+        await exportToProfessionalPdf({
+          title,
+          filename: `${filename}.pdf`,
+          sheetName: title,
+          columns: exportColumns,
+          data,
+          subtitle,
+          period,
+          status,
+          summary,
+          showHeader: true,
+          showFooter: true,
+          showPageNumbers: true,
+          showTimestamp: true,
+          generatedBy: "roastd.id",
+        });
+      } else {
+        await exportToPdf({
+          title,
+          filename: `${filename}.pdf`,
+          sheetName: title,
+          columns: exportColumns,
+          data,
+        });
+      }
     } catch (error) {
       console.error("PDF export failed:", error);
     } finally {
@@ -45,16 +77,27 @@ export function ReportExport({
   const handleExcel = async () => {
     setExporting("excel");
     try {
-      await exportToExcel({
-        title,
-        filename: `${filename}.xlsx`,
-        sheetName: title,
-        columns: columns.map((col) => ({
-          header: col.header,
-          accessor: (row: Record<string, any>) => row[col.key] ?? null,
-        })),
-        data,
-      });
+      if (useProfessional) {
+        await exportToProfessionalExcel({
+          title,
+          filename: `${filename}.xlsx`,
+          sheetName: title,
+          columns: exportColumns,
+          data,
+          subtitle,
+          period,
+          status,
+          summary,
+        });
+      } else {
+        await exportToExcel({
+          title,
+          filename: `${filename}.xlsx`,
+          sheetName: title,
+          columns: exportColumns,
+          data,
+        });
+      }
     } finally {
       setExporting(null);
     }

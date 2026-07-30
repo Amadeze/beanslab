@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.github
+graphify-out
+tests
+e2e
+*.log
+.env*
+!*.env.example
+.DS_Store
+.vscode
+.idea
+coverage
+*.tsbuildinfo

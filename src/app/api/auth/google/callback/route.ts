@@ -14,6 +14,10 @@ export async function GET(request: Request) {
   const cookieStore = await cookies();
   const storedState = cookieStore.get("google_oauth_state")?.value ?? null;
   const storedCodeVerifier = cookieStore.get("google_code_verifier")?.value ?? null;
+  const storedReturnPath = cookieStore.get("google_oauth_from")?.value ?? "/dashboard";
+  const returnPath = storedReturnPath.startsWith("/") && !storedReturnPath.startsWith("//")
+    ? storedReturnPath
+    : "/dashboard";
 
   if (!code || !state || !storedState || !storedCodeVerifier || state !== storedState) {
     return NextResponse.redirect(new URL("/login?error=InvalidState", request.url));
@@ -79,7 +83,8 @@ export async function GET(request: Request) {
     };
     await session.save();
 
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    cookieStore.delete("google_oauth_from");
+    return NextResponse.redirect(new URL(returnPath, request.url));
 
   } catch (e) {
     console.error("Google Callback Error:", e);

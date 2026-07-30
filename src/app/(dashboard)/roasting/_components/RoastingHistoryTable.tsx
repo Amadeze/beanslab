@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search, Target, X } from "lucide-react";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import {
@@ -18,7 +18,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatKg, formatDate } from "@/lib/format";
 import { VoidConfirmDialog } from "@/components/VoidConfirmDialog";
-import { voidParentRoastingBatch, completeParentRoastingBatch, splitBatchByCapacity, type ParentRoastingBatchRow } from "../actions";
+import {
+  voidParentRoastingBatch,
+  completeParentRoastingBatch,
+  searchRoastReferenceProfiles,
+  setBatchReferenceProfile,
+  splitBatchByCapacity,
+  type ParentRoastingBatchRow,
+  type RoastReferenceOption,
+} from "../actions";
 
 // ─────────────────────────────────────────────
 // Shrinkage badge
@@ -67,7 +75,7 @@ function StatusBadge({ status }: { status: string }) {
 function EmptyState({ isFiltered }: { isFiltered: boolean }) {
   return (
     <TableRow>
-      <TableCell colSpan={9} className="py-12 text-center">
+      <TableCell colSpan={10} className="py-12 text-center">
         <p className="text-sm font-medium text-zinc-400">
           {isFiltered ? "Tidak ada batch roasting yang cocok." : "Belum ada batch roasting."}
         </p>
@@ -102,6 +110,11 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
   const [selectedMachineId, setSelectedMachineId] = useState("");
   const [actualOutputKg, setActualOutputKg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [referenceTarget, setReferenceTarget] = useState<ParentRoastingBatchRow | null>(null);
+  const [referenceSearch, setReferenceSearch] = useState("");
+  const [referenceOptions, setReferenceOptions] = useState<RoastReferenceOption[]>([]);
+  const [referencePending, setReferencePending] = useState(false);
+  const [referenceSaving, setReferenceSaving] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -116,6 +129,45 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
       return matchSearch && matchStatus;
     });
   }, [batches, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    if (!referenceTarget) return;
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setReferencePending(true);
+      const result = await searchRoastReferenceProfiles(referenceSearch);
+      if (cancelled) return;
+      setReferencePending(false);
+      if (!result.success) {
+        toastSafe.error(result.error);
+        return;
+      }
+      setReferenceOptions(result.data);
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [referenceSearch, referenceTarget]);
+
+  const handleSetReference = async (referenceRoastId: string | null) => {
+    if (!referenceTarget || referenceSaving) return;
+    setReferenceSaving(true);
+    const result = await setBatchReferenceProfile({
+      batchId: referenceTarget.id,
+      referenceRoastId,
+    });
+    setReferenceSaving(false);
+    if (!result.success) {
+      toastSafe.error(result.error);
+      return;
+    }
+    toast.success(result.data.title
+      ? `${result.data.title} menjadi acuan ${referenceTarget.code}.`
+      : `Acuan ${referenceTarget.code} dihapus.`);
+    setReferenceTarget(null);
+    setReferenceSearch("");
+  };
 
   const handleComplete = async () => {
     if (!completeTarget) return;
@@ -168,7 +220,7 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <Input
           placeholder="Cari kode atau nama beans..."
-          className="pl-9 h-10 bg-white/40 border-white/60 backdrop-blur-md rounded-xl focus-visible:ring-slate-400"
+          className="h-10 rounded-[9px] pl-9"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -176,7 +228,7 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
       <select
         value={statusFilter}
         onChange={(e) => setStatusFilter(e.target.value)}
-        className="h-10 px-3 rounded-xl border border-white/60 bg-white/40 backdrop-blur-md text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-slate-400"
+        className="h-10 rounded-[9px] border border-input bg-card px-3 text-sm font-medium text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
       >
         <option value="ALL">Semua Status</option>
         <option value="COMPLETED">Selesai</option>
@@ -185,19 +237,20 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
       </select>
     </div>
 
-    <div className="hidden md:block overflow-hidden rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl shadow-lg shadow-slate-200/30">
+    <div className="hidden md:block">
       <Table>
         <TableHeader>
-          <TableRow className="bg-white/40 border-b border-white/50 backdrop-blur-md hover:bg-white/40">
-            <TableHead className="w-36 text-xs font-bold uppercase tracking-widest text-slate-500">Kode Batch</TableHead>
-            <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-500">Green Bean</TableHead>
-            <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-500">Roasted Bean</TableHead>
-            <TableHead className=" text-right text-xs font-bold uppercase tracking-widest text-slate-500">Masuk</TableHead>
-            <TableHead className=" text-right text-xs font-bold uppercase tracking-widest text-slate-500">Keluar</TableHead>
-            <TableHead className=" text-center text-xs font-bold uppercase tracking-widest text-slate-500">Susut</TableHead>
-            <TableHead className=" text-xs font-bold uppercase tracking-widest text-slate-500">Tanggal</TableHead>
-            <TableHead className="w-24 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Status</TableHead>
-            <TableHead className="w-16 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Aksi</TableHead>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="w-36">Kode Batch</TableHead>
+            <TableHead>Green Bean</TableHead>
+            <TableHead>Roasted Bean</TableHead>
+            <TableHead className="text-right">Masuk</TableHead>
+            <TableHead className="text-right">Keluar</TableHead>
+            <TableHead className="text-center">Susut</TableHead>
+            <TableHead>Tanggal</TableHead>
+            <TableHead className="w-24 text-center">Status</TableHead>
+            <TableHead>Acuan</TableHead>
+            <TableHead className="w-16 text-center">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -205,7 +258,7 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
             <EmptyState isFiltered={batches.length > 0} />
           ) : (
             filteredBatches.map((b) => (
-              <TableRow key={b.id} className="hover:bg-white/40 transition-colors">
+              <TableRow key={b.id}>
                 <TableCell className="font-mono text-xs font-medium text-zinc-700">
                   <Link
                     href={`/roasting/batch/${b.id}`}
@@ -234,6 +287,26 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
                 </TableCell>
                 <TableCell className="text-center">
                   <StatusBadge status={b.status} />
+                </TableCell>
+                <TableCell>
+                  {b.status === "PENDING" ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 max-w-52 justify-start gap-1.5 px-2 text-xs text-indigo-600"
+                      onClick={() => {
+                        setReferenceTarget(b);
+                        setReferenceSearch("");
+                      }}
+                    >
+                      <Target size={13} />
+                      <span className="truncate">{b.referenceProfile?.title ?? "Atur acuan"}</span>
+                    </Button>
+                  ) : (
+                    <span className="block max-w-48 truncate text-xs text-zinc-500">
+                      {b.referenceProfile?.title ?? "-"}
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell className="text-center">
                   {b.status === "COMPLETED" && (
@@ -290,12 +363,12 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
 
     <div className="md:hidden flex flex-col gap-3">
       {filteredBatches.length === 0 ? (
-        <div className="py-12 text-center rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl">
+        <div className="instrument-grid page-surface rounded-[12px] border-dashed py-12 text-center">
            <p className="text-sm font-medium text-zinc-400">Belum ada riwayat roasting.</p>
         </div>
       ) : (
         filteredBatches.map((b) => (
-          <div key={b.id} className="flex flex-col gap-2 rounded-[1.25rem] border border-white/60 bg-white/30 p-4 shadow-sm backdrop-blur-xl">
+          <div key={b.id} className="page-surface flex flex-col gap-2 p-4">
             <div className="flex justify-between items-start">
               <div>
                 <p className="font-bold text-slate-900">{b.outputProductName}</p>
@@ -347,10 +420,104 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
                 )}
               </div>
             </div>
+            {b.status === "PENDING" && (
+              <button
+                type="button"
+                className="flex items-center justify-between rounded-lg bg-indigo-50 px-3 py-2 text-left text-xs text-indigo-700"
+                onClick={() => {
+                  setReferenceTarget(b);
+                  setReferenceSearch("");
+                }}
+              >
+                <span className="flex items-center gap-1.5 font-semibold"><Target size={13} /> Profil acuan</span>
+                <span className="max-w-44 truncate">{b.referenceProfile?.title ?? "Atur dari web"}</span>
+              </button>
+            )}
           </div>
         ))
       )}
     </div>
+
+    {referenceTarget && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
+          <div className="flex items-start justify-between border-b border-stone-100 p-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-500">Acuan dari web</p>
+              <h3 className="mt-1 text-lg font-bold text-slate-900">{referenceTarget.code}</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Studio hanya membaca pilihan ini dan tidak dapat menggantinya.
+              </p>
+            </div>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              disabled={referenceSaving}
+              onClick={() => setReferenceTarget(null)}
+              aria-label="Tutup"
+            >
+              <X size={16} />
+            </Button>
+          </div>
+
+          <div className="p-5">
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                autoFocus
+                value={referenceSearch}
+                onChange={(event) => setReferenceSearch(event.target.value)}
+                placeholder="Cari nama profil roasting..."
+                className="pl-9"
+              />
+            </div>
+            <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+              {referencePending ? (
+                <p className="py-8 text-center text-sm text-slate-400">Mencari profil...</p>
+              ) : referenceOptions.length === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-400">Profil tidak ditemukan.</p>
+              ) : referenceOptions.map((profile) => {
+                const incompatible = Boolean(referenceTarget.machineId && referenceTarget.machineId !== profile.machineId);
+                return (
+                  <button
+                    key={profile.id}
+                    type="button"
+                    disabled={referenceSaving || incompatible}
+                    onClick={() => void handleSetReference(profile.id)}
+                    className="flex w-full items-center justify-between rounded-xl border border-stone-200 px-4 py-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <span className="min-w-0">
+                      <strong className="block truncate text-sm text-slate-900">{profile.title}</strong>
+                      <small className="text-xs text-slate-500">{profile.machineName}{profile.duration ? ` · ${Math.round(profile.duration / 60)} menit` : ""}</small>
+                    </span>
+                    <span className="ml-3 shrink-0 text-[10px] font-semibold uppercase text-slate-400">
+                      {incompatible ? "Mesin berbeda" : profile.id === referenceTarget.referenceProfile?.id ? "Terpilih" : "Pilih"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-stone-100 bg-stone-50 px-5 py-4">
+            <span className="text-xs text-slate-500">
+              {referenceTarget.machineName ? `Mesin: ${referenceTarget.machineName}` : "Mesin mengikuti profil pertama"}
+            </span>
+            {referenceTarget.referenceProfile && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={referenceSaving}
+                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => void handleSetReference(null)}
+              >
+                Hapus acuan
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
 
     <VoidConfirmDialog
       open={!!voidTarget}

@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Cable, Cpu, CreditCard, LayoutGrid, ScrollText, Users } from "lucide-react";
+import { Bell, Building2, Cable, CircleDollarSign, Cpu, CreditCard, LayoutGrid, ScrollText, Truck, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { label: "Ringkasan", href: "/settings", icon: LayoutGrid, roles: ["OWNER", "MANAGER"] },
   { label: "Profil & Portal", href: "/settings/organization", icon: Building2, roles: ["OWNER"] },
+  { label: "Pembayaran Portal", href: "/settings/payments", icon: CircleDollarSign, roles: ["OWNER"] },
+  { label: "Toko & Pengiriman", href: "/settings/commerce", icon: Truck, roles: ["OWNER"] },
   { label: "Anggota Tim", href: "/settings/team", icon: Users, roles: ["OWNER"] },
   { label: "Mesin", href: "/settings/machines", icon: Cpu, roles: ["OWNER", "MANAGER"] },
   { label: "Koneksi Artisan", href: "/settings/integrations/artisan", icon: Cable, roles: ["OWNER"] },
+  { label: "Notifikasi", href: "/settings/notifications", icon: Bell, roles: ["OWNER", "MANAGER"] },
   { label: "Aktivitas & Audit", href: "/audit", icon: ScrollText, roles: ["OWNER", "MANAGER"] },
   { label: "Paket & Tagihan", href: "/billing", icon: CreditCard, roles: ["OWNER"] },
 ] as const;

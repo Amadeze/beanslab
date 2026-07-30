@@ -4,6 +4,10 @@ import {
   hashPairingCode,
   generateConnectorToken,
   hashConnectorToken,
+  generateStudioDeviceCode,
+  generateStudioVerificationCode,
+  hashStudioDeviceCode,
+  hashStudioVerificationCode,
 } from "../connector-auth";
 
 describe("Artisan pairing code", () => {
@@ -66,5 +70,25 @@ describe("Artisan connector token", () => {
     const hash1 = hashConnectorToken(token1);
     const hash2 = hashConnectorToken(token2);
     expect(hash1).not.toBe(hash2);
+  });
+});
+
+describe("Roastd Studio browser authorization", () => {
+  it("uses separate high-entropy secrets for desktop polling and browser approval", () => {
+    const deviceCode = generateStudioDeviceCode();
+    const verificationCode = generateStudioVerificationCode();
+
+    expect(deviceCode.length).toBeGreaterThanOrEqual(40);
+    expect(verificationCode.length).toBeGreaterThanOrEqual(30);
+    expect(deviceCode).not.toBe(verificationCode);
+    expect(hashStudioDeviceCode(deviceCode)).not.toBe(hashStudioVerificationCode(deviceCode));
+  });
+
+  it("hashes device authorization secrets consistently", () => {
+    const deviceCode = generateStudioDeviceCode();
+    const verificationCode = generateStudioVerificationCode();
+
+    expect(hashStudioDeviceCode(deviceCode)).toBe(hashStudioDeviceCode(deviceCode));
+    expect(hashStudioVerificationCode(verificationCode)).toBe(hashStudioVerificationCode(verificationCode));
   });
 });

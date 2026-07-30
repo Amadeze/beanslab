@@ -7,12 +7,15 @@ import {
   ClipboardList,
   Factory,
   Flame,
+  FlaskConical,
   History,
   ReceiptText,
   ShoppingCart,
   Truck,
   Users,
   Waves,
+  PackageCheck,
+  BadgeCheck,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -46,6 +49,7 @@ const WORKSPACES = {
       icon: History,
     },
     { label: "Supplier", href: "/inventory/suppliers", icon: Users },
+    { label: "Lot & FEFO", href: "/inventory/lots", icon: PackageCheck },
   ],
   roastery: [
     { label: "Batch roasting", href: "/roasting", icon: Flame },
@@ -56,9 +60,12 @@ const WORKSPACES = {
       icon: Waves,
     },
     { label: "Produksi & packing", href: "/produksi", icon: Factory },
+    { label: "Cupping", href: "/cupping", icon: FlaskConical },
   ],
   sales: [
     { label: "Invoice & pesanan", href: "/penjualan", icon: ReceiptText },
+    { label: "Fulfillment", href: "/penjualan/fulfillment", icon: PackageCheck },
+    { label: "Bukti bayar", href: "/penjualan/pembayaran", icon: BadgeCheck },
     { label: "Kasir", href: "/kasir", icon: ShoppingCart },
     { label: "Pelanggan", href: "/penjualan/pelanggan", icon: Users },
   ],

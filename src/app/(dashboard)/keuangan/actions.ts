@@ -8,6 +8,7 @@ import { appendLedger } from "@/lib/stock";
 import { getPurchasePaymentStatus, getReceivableAgingBucket, type ReceivableAgingBucket as _ReceivableAgingBucket } from "@/lib/purchase-payments";
 export type ReceivableAgingBucket = _ReceivableAgingBucket;
 import { getCurrentDate, getZonedMonthRange } from "@/lib/date-utils";
+import { postCapitalInjection, postOwnerWithdrawal, postCustomerPayment, postExpense, postSupplierPayment, postVoidReversal } from "@/lib/posting";
 import { calculateSalesPerformance } from "@/lib/financial-reporting";
 import { prisma } from "@/lib/prisma";
 
@@ -142,6 +143,7 @@ export type PnLReport = {
   opexBreakdown: { category: string; amount: number }[];
   revenueBreakdown: { category: string; amount: number }[];
   cogsBreakdown: { category: string; amount: number }[];
+  cogsComponentBreakdown: { category: string; amount: number }[];
   salesVolumeUnits: number;
   topProducts: { name: string; quantity: number; revenue: number }[];
   topCustomers: { name: string; count: number; revenue: number }[];
@@ -305,7 +307,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
     const result = await tenantPrisma.$transaction(async (tx) => {
       const inv = await tx.invoice.findUnique({
         where: { id: input.invoiceId },
-        select: { id: true, code: true, grandTotal: true, paidAmount: true, status: true },
+        select: { id: true, code: true, grandTotal: true, paidAmount: true, status: true, customer: { select: { name: true } } },
       });
       if (!inv) throw new Error("Nota tidak ditemukan.");
       if (inv.status === "DRAFT") throw new Error("Nota belum diterbitkan.");
@@ -322,7 +324,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
         newPaidTotal >= grandTotal - 0.01 ? "PAID" : "PARTIAL";
 
       const payment = await tx.payment.create({
-        data: { code: payCode, operationKey: opKey, invoiceId: inv.id, amount: input.amount, method: input.method, reference: refString, paidAt, notes: input.notes, createdById: userId },
+        data: { tenantId, code: payCode, operationKey: opKey, invoiceId: inv.id, amount: input.amount, method: input.method, reference: refString, paidAt, notes: input.notes, createdById: userId },
       });
       await tx.invoice.update({ where: { id: inv.id }, data: { paidAmount: newPaidTotal, status: newStatus } });
       await recordAudit(tx, {
@@ -338,10 +340,18 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
           method: payment.method,
         },
       });
-      return { newStatus };
+      await postCustomerPayment(
+        payment.id,
+        input.amount,
+        inv.code,
+        inv.customer?.name ?? "Customer",
+        { tx, tenantId, userId },
+      );
+      return { newStatus, invoiceCode: inv.code, customerName: inv.customer?.name ?? "Customer" };
     }, { isolationLevel: "Serializable" });
     revalidatePath("/keuangan");
     revalidatePath("/penjualan");
+
     return { success: true, paymentCode: payCode, newStatus: result.newStatus };
   } catch (err) {
     if (
@@ -374,7 +384,7 @@ export async function createExpense(input: CreateExpenseInput): Promise<CreateEx
     if (input.amount <= 0) return { success: false, error: "Nominal harus lebih dari 0." };
     const expense = await (await requireTenantPrisma()).$transaction(async (tx) => {
       const created = await tx.expense.create({
-        data: { date: new Date(input.date + "T00:00:00"), category: input.category, amount: input.amount, description: input.description || null, createdById: userId },
+        data: { tenantId, date: new Date(input.date + "T00:00:00"), category: input.category, amount: input.amount, description: input.description || null, createdById: userId },
       });
       await recordAudit(tx, {
         tenantId,
@@ -389,6 +399,13 @@ export async function createExpense(input: CreateExpenseInput): Promise<CreateEx
           description: created.description,
         },
       });
+      await postExpense(
+        created.id,
+        input.amount,
+        input.category,
+        input.description ?? "Pengeluaran",
+        { tx, tenantId, userId },
+      );
       return created;
     });
     
@@ -398,6 +415,7 @@ export async function createExpense(input: CreateExpenseInput): Promise<CreateEx
 
     revalidatePath("/keuangan");
     revalidatePath("/laporan");
+
     return { success: true, id: expense.id };
   } catch (err: any) {
     if (err.code === "P2002") {
@@ -405,6 +423,216 @@ export async function createExpense(input: CreateExpenseInput): Promise<CreateEx
     }
     console.error("[createExpense]", err);
     return { success: false, error: "Gagal mencatat pengeluaran. Coba lagi." };
+  }
+}
+
+// =============================================================================
+// CAPITAL MANAGEMENT (Mutasi Modal)
+// =============================================================================
+
+export type CapitalTransactionRow = {
+  id: string;
+  type: "INITIAL" | "INJECTION" | "WITHDRAWAL" | "DIVIDEND";
+  amount: number;
+  description: string | null;
+  transactionDate: string;
+  createdByName: string;
+  createdAt: string;
+};
+
+export type CapitalSummary = {
+  totalInitial: number;
+  totalInjections: number;
+  totalWithdrawals: number;
+  totalDividends: number;
+  netCapital: number;
+  count: number;
+};
+
+export type RecordCapitalInput = {
+  type: "INJECTION" | "WITHDRAWAL" | "DIVIDEND";
+  amount: number;
+  description?: string;
+  transactionDate: string;
+};
+
+export async function getCapitalHistory(): Promise<CapitalTransactionRow[]> {
+  await requireRole("OWNER", "MANAGER");
+  const rows = await (await requireTenantPrisma()).capitalTransaction.findMany({
+    orderBy: { transactionDate: "desc" },
+    include: { createdBy: { select: { name: true } } },
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    type: row.type as CapitalTransactionRow["type"],
+    amount: Number(row.amount),
+    description: row.description,
+    transactionDate: row.transactionDate.toISOString(),
+    createdByName: row.createdBy.name,
+    createdAt: row.createdAt.toISOString(),
+  }));
+}
+
+export async function getCapitalSummary(): Promise<CapitalSummary> {
+  await requireRole("OWNER", "MANAGER");
+  const tp = await requireTenantPrisma();
+  const [initial, injections, withdrawals, dividends] = await Promise.all([
+    tp.capitalTransaction.aggregate({ where: { type: "INITIAL" }, _sum: { amount: true } }),
+    tp.capitalTransaction.aggregate({ where: { type: "INJECTION" }, _sum: { amount: true } }),
+    tp.capitalTransaction.aggregate({ where: { type: "WITHDRAWAL" }, _sum: { amount: true } }),
+    tp.capitalTransaction.aggregate({ where: { type: "DIVIDEND" }, _sum: { amount: true } }),
+  ]);
+  const totalInitial = Number(initial._sum.amount ?? 0);
+  const totalInjections = Number(injections._sum.amount ?? 0);
+  const totalWithdrawals = Number(withdrawals._sum.amount ?? 0);
+  const totalDividends = Number(dividends._sum.amount ?? 0);
+  return {
+    totalInitial,
+    totalInjections,
+    totalWithdrawals,
+    totalDividends,
+    netCapital: totalInitial + totalInjections - totalWithdrawals - totalDividends,
+    count: 0,
+  };
+}
+
+export async function getCapitalSummaryQuick(): Promise<CapitalSummary> {
+  await requireRole("OWNER", "MANAGER");
+  const tp = await requireTenantPrisma();
+  const [rows, countResult] = await Promise.all([
+    tp.capitalTransaction.findMany({ select: { type: true, amount: true } }),
+    tp.capitalTransaction.count(),
+  ]);
+  let totalInitial = 0, totalInjections = 0, totalWithdrawals = 0, totalDividends = 0;
+  for (const row of rows) {
+    const amt = Number(row.amount);
+    switch (row.type) {
+      case "INITIAL": totalInitial += amt; break;
+      case "INJECTION": totalInjections += amt; break;
+      case "WITHDRAWAL": totalWithdrawals += amt; break;
+      case "DIVIDEND": totalDividends += amt; break;
+    }
+  }
+  return {
+    totalInitial,
+    totalInjections,
+    totalWithdrawals,
+    totalDividends,
+    netCapital: totalInitial + totalInjections - totalWithdrawals - totalDividends,
+    count: countResult,
+  };
+}
+
+export async function recordCapitalInjection(
+  input: RecordCapitalInput,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    await requireRole("OWNER");
+    if (!Number.isFinite(input.amount) || input.amount <= 0) {
+      return { success: false, error: "Nominal harus lebih dari 0." };
+    }
+    const transDate = new Date(`${input.transactionDate}T00:00:00`);
+    if (Number.isNaN(transDate.getTime())) {
+      return { success: false, error: "Tanggal tidak valid." };
+    }
+    const userId = await getSystemUserId();
+    const tenantId = await getCurrentTenantId();
+    const tp = await requireTenantPrisma();
+    await tp.$transaction(async (tx) => {
+      const capitalTxn = await tx.capitalTransaction.create({
+        data: {
+          tenantId,
+          type: "INJECTION",
+          amount: input.amount,
+          description: input.description?.trim() || null,
+          transactionDate: transDate,
+          createdById: userId,
+        },
+      });
+      await recordAudit(tx, {
+        tenantId,
+        userId,
+        action: "CREATE",
+        entityType: "CapitalTransaction",
+        entityId: capitalTxn.id,
+        after: { type: capitalTxn.type, amount: Number(capitalTxn.amount) },
+      });
+      await postCapitalInjection(
+        capitalTxn.id,
+        input.amount,
+        input.description ?? "Setoran modal",
+        { tx, tenantId, userId },
+      );
+    }, { isolationLevel: "Serializable" });
+    revalidatePath("/keuangan");
+    revalidatePath("/laporan");
+    return { success: true };
+  } catch (error) {
+    console.error("[recordCapitalInjection]", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Gagal mencatat transaksi modal.",
+    };
+  }
+}
+
+export async function recordOwnerWithdrawal(
+  input: RecordCapitalInput,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    await requireRole("OWNER");
+    if (!Number.isFinite(input.amount) || input.amount <= 0) {
+      return { success: false, error: "Nominal harus lebih dari 0." };
+    }
+    const transDate = new Date(`${input.transactionDate}T00:00:00`);
+    if (Number.isNaN(transDate.getTime())) {
+      return { success: false, error: "Tanggal tidak valid." };
+    }
+    const summary = await getCapitalSummary();
+    if (input.amount > summary.netCapital) {
+      return {
+        success: false,
+        error: `Saldo modal hanya Rp ${summary.netCapital.toLocaleString("id-ID")}, tidak cukup untuk prive sebesar Rp ${input.amount.toLocaleString("id-ID")}.`,
+      };
+    }
+    const userId = await getSystemUserId();
+    const tenantId = await getCurrentTenantId();
+    const tp = await requireTenantPrisma();
+    await tp.$transaction(async (tx) => {
+      const capitalTxn = await tx.capitalTransaction.create({
+        data: {
+          tenantId,
+          type: "WITHDRAWAL",
+          amount: input.amount,
+          description: input.description?.trim() || null,
+          transactionDate: transDate,
+          createdById: userId,
+        },
+      });
+      await recordAudit(tx, {
+        tenantId,
+        userId,
+        action: "CREATE",
+        entityType: "CapitalTransaction",
+        entityId: capitalTxn.id,
+        after: { type: capitalTxn.type, amount: Number(capitalTxn.amount) },
+      });
+      await postOwnerWithdrawal(
+        capitalTxn.id,
+        input.amount,
+        input.description ?? "Penarikan prive",
+        { tx, tenantId, userId },
+      );
+    }, { isolationLevel: "Serializable" });
+    revalidatePath("/keuangan");
+    revalidatePath("/laporan");
+    return { success: true };
+  } catch (error) {
+    console.error("[recordOwnerWithdrawal]", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Gagal mencatat prive.",
+    };
   }
 }
 
@@ -438,9 +666,9 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
   const previousPeriod = getZonedMonthRange(prevYear, prevMonth, tenant?.timezone);
   const tp = await requireTenantPrisma();
 
-  const [invoices, expenses, sampleComponents, prevInvoices, prevExpenses, prevSampleComponents] = await Promise.all([
+  const [invoices, expenses, sampleComponents, prevInvoices, prevExpenses, prevSampleComponents, productionBatches] = await Promise.all([
     tp.invoice.findMany({
-      where: { status: { in: ["PAID", "PARTIAL", "ISSUED"] }, issuedAt: { gte: period.start, lt: period.end } },
+      where: { voidAt: null, status: { in: ["PAID", "PARTIAL", "ISSUED"] }, issuedAt: { gte: period.start, lt: period.end } },
       select: { subtotal: true, discount: true, tax: true, customer: { select: { name: true } }, items: { select: { quantity: true, subtotal: true, hpp: true, product: { select: { type: true, name: true } } } } },
     }),
     tp.expense.findMany({ where: { voidAt: null, date: { gte: period.start, lt: period.end } }, select: { category: true, amount: true } }),
@@ -449,13 +677,24 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
       select: { unitCost: true, quantityKg: true, quantityUnit: true, product: { select: { type: true } }, packagingId: true },
     }),
     tp.invoice.findMany({
-      where: { status: { in: ["PAID", "PARTIAL", "ISSUED"] }, issuedAt: { gte: previousPeriod.start, lt: previousPeriod.end } },
+      where: { voidAt: null, status: { in: ["PAID", "PARTIAL", "ISSUED"] }, issuedAt: { gte: previousPeriod.start, lt: previousPeriod.end } },
       select: { subtotal: true, discount: true, tax: true, customer: { select: { name: true } }, items: { select: { quantity: true, subtotal: true, hpp: true, product: { select: { type: true, name: true } } } } },
     }),
     tp.expense.findMany({ where: { voidAt: null, date: { gte: previousPeriod.start, lt: previousPeriod.end } }, select: { category: true, amount: true } }),
     tp.sampleUsageComponent.findMany({
       where: { sampleUsage: { status: "COMPLETED", givenAt: { gte: previousPeriod.start, lt: previousPeriod.end } } },
       select: { unitCost: true, quantityKg: true, quantityUnit: true, product: { select: { type: true } }, packagingId: true },
+    }),
+    tp.productionBatch.findMany({
+      where: { status: "COMPLETED", voidAt: null, producedAt: { gte: period.start, lt: period.end } },
+      select: {
+        hppPerUnit: true,
+        unitsProduced: true,
+        laborCost: true,
+        overheadAllocated: true,
+        totalRbUsedKg: true,
+        packaging: { select: { costPerUnit: true, avgCostPerUnit: true } },
+      },
     }),
   ]);
 
@@ -481,6 +720,7 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
       where: {
         refType: { in: ["ADJUSTMENT_IN", "ADJUSTMENT_OUT"] },
         createdAt: { gte: start, lt: end },
+        NOT: { refType: "VOID_REVERSAL" },
       },
       select: {
         refType: true,
@@ -542,6 +782,41 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
   const opexBreakdown = Object.entries(opexMap).map(([category, amount]) => ({ category, amount }));
   const opex = opexBreakdown.reduce((sum, row) => sum + row.amount, 0);
 
+  // COGS component breakdown from production batches
+  let batchRawMaterial = 0, batchLabor = 0, batchOverhead = 0, batchPackaging = 0;
+  for (const b of productionBatches) {
+    const totalBatchCost = Number(b.hppPerUnit) * b.unitsProduced;
+    const labor = Number(b.laborCost ?? 0);
+    const overhead = Number(b.overheadAllocated ?? 0);
+    const pkgUnitCost = Number(b.packaging.avgCostPerUnit || b.packaging.costPerUnit || 0);
+    const packaging = pkgUnitCost * b.unitsProduced;
+    const rawMaterial = totalBatchCost - labor - overhead - packaging;
+    if (rawMaterial > 0) batchRawMaterial += rawMaterial;
+    batchLabor += labor;
+    batchOverhead += overhead;
+    batchPackaging += packaging;
+  }
+  const totalBatchComponent = batchRawMaterial + batchLabor + batchOverhead + batchPackaging;
+  const cogs = currentSales.cogs;
+  let cogsComponentBreakdown: { category: string; amount: number }[];
+  if (totalBatchComponent > 0) {
+    const rawMaterialCOGS = Math.round((batchRawMaterial / totalBatchComponent) * cogs);
+    const laborCOGS = Math.round((batchLabor / totalBatchComponent) * cogs);
+    const overheadCOGS = Math.round((batchOverhead / totalBatchComponent) * cogs);
+    const packagingCOGS = cogs - rawMaterialCOGS - laborCOGS - overheadCOGS;
+    cogsComponentBreakdown = [
+      { category: "BAHAN_BAKU", amount: rawMaterialCOGS },
+      { category: "TENAGA_KERJA", amount: laborCOGS },
+      { category: "OVERHEAD_PABRIK", amount: overheadCOGS },
+      { category: "KEMASAN", amount: packagingCOGS },
+    ].filter((c) => c.amount > 0);
+  } else {
+    cogsComponentBreakdown = [
+      { category: "BAHAN_BAKU", amount: Math.round(cogs * 0.75) },
+      { category: "KEMASAN", amount: Math.round(cogs * 0.25) },
+    ].filter((c) => c.amount > 0);
+  }
+
   const prevSampleCost = Object.values(previousSampleBreakdown).reduce((sum, v) => sum + v, 0);
   const previousOpex = prevExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0) + previousAdjustments.loss + prevSampleCost;
   const revenue = currentSales.netSales + currentAdjustments.income;
@@ -571,6 +846,7 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
     opexBreakdown,
     revenueBreakdown,
     cogsBreakdown: currentSales.cogsBreakdown,
+    cogsComponentBreakdown,
     salesVolumeUnits: currentSales.salesVolumeUnits,
     topProducts: currentSales.topProducts,
     topCustomers: currentSales.topCustomers,
@@ -615,6 +891,7 @@ export async function voidExpense(expenseId: string, reason: string) {
         where: { id: expense.id },
         data: { voidReason: reason.trim(), voidAt: getCurrentDate() },
       });
+      await postVoidReversal("EXPENSE", expense.id, reason, { tx, tenantId, userId });
       await recordAudit(tx, {
         tenantId,
         userId,
@@ -751,6 +1028,7 @@ export async function recordSupplierPayment(input: RecordSupplierPaymentInput) {
           paymentStatus: true,
           totalCost: true,
           paidAmount: true,
+          supplier: { select: { name: true } },
         },
       });
       if (!purchase) throw new Error("Pembelian tidak ditemukan.");
@@ -769,6 +1047,7 @@ export async function recordSupplierPayment(input: RecordSupplierPaymentInput) {
 
       const payment = await tx.supplierPayment.create({
         data: {
+          tenantId,
           code: paymentCode,
           purchaseId: purchase.id,
           amount: input.amount,
@@ -796,7 +1075,14 @@ export async function recordSupplierPayment(input: RecordSupplierPaymentInput) {
           paymentStatus,
         },
       });
-      return { paymentStatus };
+      await postSupplierPayment(
+        payment.id,
+        input.amount,
+        purchase.code,
+        purchase.supplier?.name ?? "Supplier",
+        { tx, tenantId, userId },
+      );
+      return { paymentStatus, purchaseCode: purchase.code, supplierName: purchase.supplier?.name ?? "Supplier" };
     }, { isolationLevel: "Serializable" });
 
     if ('isDuplicate' in result && result.isDuplicate) {
@@ -805,6 +1091,7 @@ export async function recordSupplierPayment(input: RecordSupplierPaymentInput) {
 
     revalidatePath("/inventory");
     revalidatePath("/keuangan");
+
     return { success: true, newStatus: result.paymentStatus };
   } catch (error: any) {
     if (error.code === "P2002") {
@@ -849,6 +1136,7 @@ export async function voidSupplierPayment(paymentId: string, reason: string) {
         where: { id: payment.id },
         data: { voidReason: reason.trim(), voidAt: getCurrentDate() },
       });
+      await postVoidReversal("SUPPLIER_PAYMENT", payment.id, reason, { tx, tenantId, userId });
       await tx.purchase.update({
         where: { id: payment.purchaseId },
         data: { paidAmount: newPaidAmount, paymentStatus },
@@ -939,6 +1227,7 @@ export async function voidPayment(paymentId: string, reason: string) {
         where: { id: payment.id },
         data: { voidReason: reason.trim(), voidAt: getCurrentDate() },
       });
+      await postVoidReversal("PAYMENT", payment.id, reason, { tx, tenantId, userId });
       await tx.invoice.update({
         where: { id: payment.invoiceId },
         data: { paidAmount: newPaidAmount, status: newStatus },
@@ -1009,8 +1298,21 @@ export async function voidPurchase(purchaseId: string, reason: string) {
       }
 
       const source = sourceEntries[0];
+      if (source.lotId) {
+        const downstreamCount = await tx.inventoryLedger.count({
+          where: {
+            lotId: source.lotId,
+            entryType: "OUT",
+            refType: { not: "VOID_REVERSAL" },
+          },
+        });
+        if (downstreamCount > 0) {
+          throw new Error("Lot pembelian sudah dipakai. Batalkan transaksi turunannya terlebih dahulu.");
+        }
+      }
       await appendLedger(tx, {
         data: {
+          tenantId,
           productId: source.productId,
           packagingId: source.packagingId,
           entryType: "OUT",
@@ -1018,6 +1320,9 @@ export async function voidPurchase(purchaseId: string, reason: string) {
           refId: purchase.id,
           quantityKg: source.quantityKg,
           quantityUnit: source.quantityUnit,
+          lotId: source.lotId,
+          lotNumber: source.lotNumber,
+          expiryDate: source.expiryDate,
           notes: `VOID pembelian: ${purchase.code}`,
           createdById: userId,
         },
@@ -1030,6 +1335,10 @@ export async function voidPurchase(purchaseId: string, reason: string) {
           voidAt: getCurrentDate(),
         },
       });
+      if (source.lotId) {
+        await tx.lot.update({ where: { id: source.lotId }, data: { consumedAt: getCurrentDate() } });
+      }
+      await postVoidReversal("PURCHASE", purchase.id, reason, { tx, tenantId, userId });
       await recordAudit(tx, {
         tenantId,
         userId,

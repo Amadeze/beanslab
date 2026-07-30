@@ -1,13 +1,98 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { getPnLReport } from "../keuangan/actions";
-import { getSystemUserId, requireFeature, requireTenantPrisma } from "@/lib/auth";
+import { getSystemUserId, getCurrentTenantId, requireFeature, requireTenantPrisma, getTenantTimezone } from "@/lib/auth";
 import { getPayableAgingBucket } from "@/lib/purchase-payments";
 import { revalidatePath } from "next/cache";
-import { getCurrentDate } from "@/lib/date-utils";
+import { getCurrentDate, dateToLocalRange, formatChartDate, getZonedDayRange } from "@/lib/date-utils";
 import { weightedAverageCost } from "@/lib/financial-reporting";
 import { formatRupiah } from "@/lib/format";
 import { getRbCostPrioritizingCache, getFgHppPrioritizingCache } from "@/lib/costing";
+import { prisma } from "@/lib/prisma";
+
+type DailyFinancialTotalRow = {
+  dateKey: string;
+  revenue: string;
+  expenses: string;
+};
+
+type DailyChartPoint = {
+  dateKey: string;
+  label: string;
+  start: Date;
+  end: Date;
+};
+
+async function getDailyFinancialTotals(input: {
+  tenantId: string;
+  timezone: string;
+  start: Date;
+  end: Date;
+}) {
+  const rows = await prisma.$queryRaw<DailyFinancialTotalRow[]>`
+    SELECT
+      daily."dateKey",
+      COALESCE(SUM(daily.revenue), 0)::text AS revenue,
+      COALESCE(SUM(daily.expenses), 0)::text AS expenses
+    FROM (
+      SELECT
+        to_char(i."issuedAt" AT TIME ZONE ${input.timezone}, 'YYYY-MM-DD') AS "dateKey",
+        i."grandTotal" AS revenue,
+        0::numeric AS expenses
+      FROM invoices i
+      WHERE i."tenantId" = ${input.tenantId}
+        AND i.status = 'PAID'
+        AND i."issuedAt" >= ${input.start}
+        AND i."issuedAt" < ${input.end}
+
+      UNION ALL
+
+      SELECT
+        to_char(e.date AT TIME ZONE ${input.timezone}, 'YYYY-MM-DD') AS "dateKey",
+        0::numeric AS revenue,
+        e.amount AS expenses
+      FROM expenses e
+      WHERE e."tenantId" = ${input.tenantId}
+        AND e.date >= ${input.start}
+        AND e.date < ${input.end}
+    ) daily
+    GROUP BY daily."dateKey"
+  `;
+
+  return new Map(
+    rows.map((row) => [
+      row.dateKey,
+      { revenue: Number(row.revenue), expenses: Number(row.expenses) },
+    ]),
+  );
+}
+
+function buildChartDaysEndingAt(end: Date, count: number, timezone: string): DailyChartPoint[] {
+  return Array.from({ length: count }, (_, index) => {
+    const offset = index - (count - 1);
+    const day = getZonedDayRange(end, timezone, offset);
+    return {
+      dateKey: day.dateKey,
+      label: formatChartDate(day.start, timezone),
+      start: day.start,
+      end: day.end,
+    };
+  });
+}
+
+function buildChartDaysFrom(startDate: string, count: number, timezone: string): DailyChartPoint[] {
+  const seed = dateToLocalRange(startDate, timezone).start;
+  return Array.from({ length: count }, (_, index) => {
+    const day = getZonedDayRange(seed, timezone, index);
+    return {
+      dateKey: day.dateKey,
+      label: formatChartDate(day.start, timezone),
+      start: day.start,
+      end: day.end,
+    };
+  });
+}
 
 export type ValuationRow = {
   id: string;
@@ -336,6 +421,7 @@ export type BalanceSheetReport = {
   };
   equity: {
     contributedCapital: number;
+    withdrawals: number;
     retainedEarnings: number;
     distributedProfit: number;
     totalEquity: number;
@@ -348,71 +434,69 @@ export async function getBalanceSheetReport(
 ): Promise<BalanceSheetReport> {
   await requireFeature("ADVANCED_REPORTS");
   const tp = await requireTenantPrisma();
-  const [customerPayments, expenses, supplierPayments] = await Promise.all([
-    tp.payment.aggregate({
-      where: {
-        paidAt: { lte: asOf },
-        OR: [{ voidAt: null }, { voidAt: { gt: asOf } }],
-      },
-      _sum: { amount: true },
-    }),
-    tp.expense.aggregate({
-      where: {
-        date: { lte: asOf },
-        OR: [{ voidAt: null }, { voidAt: { gt: asOf } }],
-      },
-      _sum: { amount: true },
-    }),
-    tp.supplierPayment.aggregate({
-      where: {
-        paidAt: { lte: asOf },
-        OR: [{ voidAt: null }, { voidAt: { gt: asOf } }],
-      },
-      _sum: { amount: true },
-    }),
-  ]);
 
-  const totalInjected = 0;
-  const totalWithdrawn = 0;
-  const totalDistributed = 0;
-
-  const cashIn = Number(customerPayments._sum.amount) || 0;
-  const cashOut = (Number(expenses._sum.amount) || 0) + (Number(supplierPayments._sum.amount) || 0);
-  
-  // Kas = Uang Masuk Penjualan - Uang Keluar Operasional + Suntikan Modal - Penarikan Prive - Bagi Hasil
-  const cashAndBank = cashIn - cashOut + totalInjected - totalWithdrawn - totalDistributed;
-
-  // Accounts Receivable (Piutang)
-  const piutangInvoices = await tp.invoice.findMany({
-    where: {
-      status: { not: "DRAFT" },
-      issuedAt: { lte: asOf },
-      OR: [{ voidAt: null }, { voidAt: { gt: asOf } }],
-    },
-    select: {
-      grandTotal: true,
-      payments: {
-        where: {
-          paidAt: { lte: asOf },
-          OR: [{ voidAt: null }, { voidAt: { gt: asOf } }],
-        },
-        select: { amount: true },
-      },
-    },
+  const accounts = await tp.account.findMany({
+    where: { isActive: true },
+    select: { id: true, code: true, name: true, type: true },
   });
-  const accountsReceivable = piutangInvoices.reduce((sum, invoice) => {
-    const paid = invoice.payments.reduce((paymentSum, payment) => paymentSum + Number(payment.amount), 0);
-    return sum + Math.max(0, Number(invoice.grandTotal) - paid);
+  const accountIds = accounts.map((a) => a.id);
+
+  const lineGroups = accountIds.length > 0
+    ? await prisma.journalLine.groupBy({
+        by: ["accountId"],
+        where: { accountId: { in: accountIds }, journalEntry: { voidAt: null } },
+        _sum: { debit: true, credit: true },
+      })
+    : [];
+
+  const balanceMap = new Map(lineGroups.map((l) => [
+    l.accountId,
+    { debit: Number(l._sum.debit ?? 0), credit: Number(l._sum.credit ?? 0) },
+  ]));
+
+  const saldo = (acctId: string, type: string) => {
+    const b = balanceMap.get(acctId) ?? { debit: 0, credit: 0 };
+    return type === "ASSET" || type === "EXPENSE" ? b.debit - b.credit : b.credit - b.debit;
+  };
+
+  const assetAccounts = accounts.filter((a) => a.type === "ASSET");
+  const liabilityAccounts = accounts.filter((a) => a.type === "LIABILITY");
+  const revenueAccounts = accounts.filter((a) => a.type === "REVENUE");
+  const expenseAccounts = accounts.filter((a) => a.type === "EXPENSE");
+
+  const byCode = (code: string) => accounts.find((a) => a.code === code);
+  const sumBal = (codes: string[]) => codes.reduce((s, c) => {
+    const a = byCode(c);
+    return s + (a ? saldo(a.id, a.type) : 0);
   }, 0);
 
-  // Inventory
-  let inventory = inventoryValue || 0;
-  if (inventoryValue === undefined) {
+  const cashCodes = ["1-1000", "1-1010", "1-1020"];
+  const receivCodes = ["1-1100"];
+  const invCodes = ["1-1200", "1-1210", "1-1220", "1-1230"];
+
+  const cashAndBank = sumBal(cashCodes);
+  const accountsReceivable = sumBal(receivCodes);
+  const inventoryFromGl = sumBal(invCodes);
+
+  let inventory = inventoryFromGl;
+  if (inventoryValue !== undefined) {
+    inventory = inventoryValue;
+  } else if (inventoryFromGl <= 0) {
     const inventoryReport = await getInventoryValuationReport(asOf);
     inventory = inventoryReport.grandTotalValue;
   }
 
-  const totalAssets = cashAndBank + accountsReceivable + inventory;
+  const otherAssets = assetAccounts
+    .filter((a) => ![...cashCodes, ...receivCodes, ...invCodes].includes(a.code))
+    .reduce((s, a) => s + Math.max(0, saldo(a.id, a.type)), 0);
+  const totalAssets = cashAndBank + accountsReceivable + inventory + otherAssets;
+
+  const payableCodes = ["2-1000"];
+  const accountsPayable = sumBal(payableCodes);
+  const otherLiabilities = liabilityAccounts
+    .filter((a) => !payableCodes.includes(a.code))
+    .reduce((s, a) => s + Math.max(0, saldo(a.id, a.type)), 0);
+  const totalLiabilities = accountsPayable + otherLiabilities;
 
   const payablePurchases = await tp.purchase.findMany({
     where: {
@@ -421,71 +505,57 @@ export async function getBalanceSheetReport(
       OR: [{ voidAt: null }, { voidAt: { gt: asOf } }],
     },
     select: {
-      totalCost: true,
-      dueDate: true,
-      payments: {
-        where: {
-          paidAt: { lte: asOf },
-          OR: [{ voidAt: null }, { voidAt: { gt: asOf } }],
-        },
-        select: { amount: true },
-      },
+      totalCost: true, dueDate: true,
+      payments: { where: { paidAt: { lte: asOf }, OR: [{ voidAt: null }, { voidAt: { gt: asOf } }] }, select: { amount: true } },
     },
   });
-  const aging = {
-    current: 0,
-    overdue1To30: 0,
-    overdue31To60: 0,
-    overdue61Plus: 0,
-  };
-  let unpaidCount = 0;
-  for (const purchase of payablePurchases) {
-    const paid = purchase.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-    const balance = Math.max(0, Number(purchase.totalCost) - paid);
-    if (balance <= 0.01) continue;
-    unpaidCount++;
-    const bucket = getPayableAgingBucket(purchase.dueDate, asOf);
-    if (bucket === "CURRENT") aging.current += balance;
-    if (bucket === "OVERDUE_1_30") aging.overdue1To30 += balance;
-    if (bucket === "OVERDUE_31_60") aging.overdue31To60 += balance;
-    if (bucket === "OVERDUE_61_PLUS") aging.overdue61Plus += balance;
+  const aging: BalanceSheetReport["liabilities"]["aging"] = { current: 0, overdue1To30: 0, overdue31To60: 0, overdue61Plus: 0 };
+  for (const p of payablePurchases) {
+    const paid = p.payments.reduce((s, pm) => s + Number(pm.amount), 0);
+    const bal = Math.max(0, Number(p.totalCost) - paid);
+    if (bal <= 0.01) continue;
+    const bucket = getPayableAgingBucket(p.dueDate, asOf);
+    if (bucket === "CURRENT") aging.current += bal;
+    else if (bucket === "OVERDUE_1_30") aging.overdue1To30 += bal;
+    else if (bucket === "OVERDUE_31_60") aging.overdue31To60 += bal;
+    else aging.overdue61Plus += bal;
   }
-  const accountsPayable =
-    aging.current + aging.overdue1To30 + aging.overdue31To60 + aging.overdue61Plus;
-  const totalLiabilities = accountsPayable;
 
-  // Equity
-  const totalEquity = totalAssets - totalLiabilities;
-  const contributedCapital = totalInjected - totalWithdrawn;
-  const retainedEarnings = totalEquity - contributedCapital;
+  const contributedCapital = sumBal(["3-1000"]);
+  const withdrawals = sumBal(["3-1010"]);
+  const retainedEarnings = sumBal(["3-1020"]);
+  const currentYearProfit = sumBal(["3-1030"]);
+
+  const totalRevenue = revenueAccounts.reduce((s, a) => s + saldo(a.id, a.type), 0);
+  const totalExpense = expenseAccounts.reduce((s, a) => s + saldo(a.id, a.type), 0);
+  const netIncome = totalRevenue - totalExpense;
+
+  const totalEquity = Math.max(0, contributedCapital - withdrawals + retainedEarnings + currentYearProfit + netIncome);
+
+  const warnings: string[] = [];
+  if (accountsReceivable > 0) warnings.push(`Piutang: ${formatRupiah(accountsReceivable)} (dari GL)`);
+  if (accountsPayable > 0) warnings.push(`Hutang: ${formatRupiah(accountsPayable)} (dari GL)`);
+  if (inventoryFromGl <= 0 && inventory > 0) warnings.push("Persediaan dari Inventory Valuation");
+  warnings.push(`${accountIds.length} akun GL aktif, ${lineGroups.length} memiliki saldo`);
 
   return {
     asOf: asOf.toISOString(),
     status: "DRAFT",
-    warnings: [
-      "Modal pemilik, aset tetap, pinjaman bank, dan pajak belum memiliki subledger khusus; ekuitas masih dihitung sebagai nilai residual.",
-      "Kas & bank adalah estimasi arus transaksi tercatat dan belum direkonsiliasi dengan rekening bank fisik.",
-    ],
-    assets: {
-      cashAndBank,
-      accountsReceivable,
-      inventory,
-      totalAssets
-    },
+    warnings,
+    assets: { cashAndBank, accountsReceivable, inventory, totalAssets },
     liabilities: {
       accountsPayable,
       totalLiabilities,
       aging,
-      trackingNote: unpaidCount > 0
-        ? `${unpaidCount} dari ${payablePurchases.length} pembelian supplier masih memiliki saldo hutang.`
-        : "Semua pembelian supplier sudah lunas.",
+      trackingNote: otherLiabilities > 0 ? `Termasuk ${formatRupiah(otherLiabilities)} kewajiban lain` : "",
     },
     equity: {
       contributedCapital,
+      withdrawals,
       retainedEarnings,
-      distributedProfit: totalDistributed,
-      totalEquity
-    }
+      distributedProfit: 0,
+      totalEquity,
+    },
   };
 }
 
@@ -893,6 +963,8 @@ export type SalesReportData = {
   topCustomer: string;
   revenueTrend: { date: string; revenue: number }[];
   salesByProduct: { name: string; value: number }[];
+  detailLimit: number;
+  detailTruncated: boolean;
   invoices: {
     id: string;
     code: string;
@@ -906,68 +978,96 @@ export type SalesReportData = {
 export async function getSalesReport(startDate: string, endDate: string): Promise<SalesReportData> {
   await requireFeature("ADVANCED_REPORTS");
   const tp = await requireTenantPrisma();
+  const tenantId = await getCurrentTenantId();
 
-  // Set end date to end of day (23:59:59) to include all transactions on that day
-  const endDateObj = new Date(endDate);
-  endDateObj.setUTCHours(23, 59, 59, 999);
+  // Get tenant timezone for correct date handling
+  const timezone = await getTenantTimezone();
 
-  const invoices = await tp.invoice.findMany({
-    where: {
-      issuedAt: { gte: new Date(startDate), lte: endDateObj },
-      status: { in: ["PAID", "ISSUED", "PARTIAL"] },
-    },
-    include: {
-      customer: { select: { name: true } },
-      items: { include: { product: { select: { name: true, category: true } } } },
-    },
-    orderBy: { issuedAt: "desc" },
-  });
+  // Convert date strings to UTC range using tenant timezone
+  const { start: startUTC, end: endUTC } = dateToLocalRange(endDate, timezone);
+  // Use start of startDate for the lower bound
+  const { start: rangeStartUTC } = dateToLocalRange(startDate, timezone);
 
-  const totalRevenue = invoices
-    .filter((i) => i.status === "PAID")
-    .reduce((sum, i) => sum + Number(i.grandTotal), 0);
-
-  const invoiceCount = invoices.length;
-  const avgInvoice = invoiceCount > 0 ? totalRevenue / invoiceCount : 0;
-
-  // Top customer
-  const customerMap = new Map<string, number>();
-  invoices.forEach((i) => {
-    const name = i.customer.name;
-    customerMap.set(name, (customerMap.get(name) || 0) + Number(i.grandTotal));
-  });
-  const topCustomer = Array.from(customerMap.entries())
-    .sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
-
-  // Revenue trend (based on date range)
-  const revenueTrend: { date: string; revenue: number }[] = [];
+  const reportWhere = {
+    issuedAt: { gte: rangeStartUTC, lte: endUTC },
+    status: { in: ["PAID", "ISSUED", "PARTIAL"] },
+  } satisfies Prisma.InvoiceWhereInput;
+  const detailLimit = 500;
   const start = new Date(startDate);
   const end = new Date(endDate);
   const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  const chartDays = Math.min(daysDiff + 1, 30); // Cap at 30 days
+  const chartDayCount = Math.max(1, Math.min(daysDiff + 1, 30));
+  const chartDays = buildChartDaysFrom(startDate, chartDayCount, timezone);
 
-  for (let i = chartDays - 1; i >= 0; i--) {
-    const d = new Date(start);
-    d.setDate(d.getDate() + (chartDays - 1 - i));
-    const dayStr = d.toISOString().split("T")[0];
-    const dayInvoices = invoices.filter(
-      (inv) => inv.issuedAt.toISOString().split("T")[0] === dayStr && inv.status === "PAID"
-    );
-    revenueTrend.push({
-      date: new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d),
-      revenue: dayInvoices.reduce((sum, inv) => sum + Number(inv.grandTotal), 0),
-    });
-  }
+  type ProductSalesRow = { name: string; value: string };
+  type TopCustomerRow = { name: string };
+  const [paidTotal, invoiceCount, topCustomers, invoices, dailyTotals, productSales] = await Promise.all([
+    tp.invoice.aggregate({
+      where: { issuedAt: reportWhere.issuedAt, status: "PAID" },
+      _sum: { grandTotal: true },
+    }),
+    tp.invoice.count({ where: reportWhere }),
+    prisma.$queryRaw<TopCustomerRow[]>`
+      SELECT c.name
+      FROM invoices i
+      JOIN customers c ON c.id = i."customerId"
+      WHERE i."tenantId" = ${tenantId}
+        AND c."tenantId" = ${tenantId}
+        AND i."issuedAt" >= ${rangeStartUTC}
+        AND i."issuedAt" <= ${endUTC}
+        AND i.status IN ('PAID', 'ISSUED', 'PARTIAL')
+      GROUP BY c.id, c.name
+      ORDER BY SUM(i."grandTotal") DESC
+      LIMIT 1
+    `,
+    tp.invoice.findMany({
+      where: reportWhere,
+      select: {
+        id: true,
+        code: true,
+        issuedAt: true,
+        grandTotal: true,
+        status: true,
+        customer: { select: { name: true } },
+      },
+      orderBy: [{ issuedAt: "desc" }, { id: "desc" }],
+      take: detailLimit,
+    }),
+    getDailyFinancialTotals({
+      tenantId,
+      timezone,
+      start: chartDays[0].start,
+      end: chartDays.at(-1)!.end,
+    }),
+    prisma.$queryRaw<ProductSalesRow[]>`
+      SELECT
+        COALESCE(p.category::text, 'OTHER') AS name,
+        COALESCE(SUM(ii.subtotal), 0)::text AS value
+      FROM invoice_items ii
+      JOIN invoices i ON i.id = ii."invoiceId"
+      JOIN products p ON p.id = ii."productId"
+      WHERE i."tenantId" = ${tenantId}
+        AND ii."tenantId" = ${tenantId}
+        AND i."issuedAt" >= ${rangeStartUTC}
+        AND i."issuedAt" <= ${endUTC}
+        AND i.status IN ('PAID', 'ISSUED', 'PARTIAL')
+      GROUP BY p.category
+      ORDER BY SUM(ii.subtotal) DESC
+    `,
+  ]);
 
-  // Sales by product category
-  const productMap = new Map<string, number>();
-  invoices.forEach((i) => {
-    i.items.forEach((item) => {
-      const cat = item.product?.category || "OTHER";
-      productMap.set(cat, (productMap.get(cat) || 0) + Number(item.hpp || 0) * item.quantity);
-    });
-  });
-  const salesByProduct = Array.from(productMap.entries()).map(([name, value]) => ({ name, value }));
+  const totalRevenue = Number(paidTotal._sum.grandTotal ?? 0);
+  const avgInvoice = invoiceCount > 0 ? totalRevenue / invoiceCount : 0;
+
+  const topCustomer = topCustomers[0]?.name ?? "-";
+  const revenueTrend = chartDays.map((day) => ({
+    date: day.label,
+    revenue: dailyTotals.get(day.dateKey)?.revenue ?? 0,
+  }));
+  const salesByProduct = productSales.map((row) => ({
+    name: row.name,
+    value: Number(row.value),
+  }));
 
   return {
     totalRevenue,
@@ -976,6 +1076,8 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
     topCustomer,
     revenueTrend,
     salesByProduct,
+    detailLimit,
+    detailTruncated: invoiceCount > detailLimit,
     invoices: invoices.map((i) => ({
       id: i.id,
       code: i.code,
@@ -1012,24 +1114,27 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
   await requireFeature("ADVANCED_REPORTS");
   const tp = await requireTenantPrisma();
 
-  // Set end date to end of day (23:59:59) to include all transactions on that day
-  const endDateObj = new Date(endDate);
-  endDateObj.setUTCHours(23, 59, 59, 999);
+  // Get tenant timezone for correct date handling
+  const timezone = await getTenantTimezone();
+
+  // Convert date strings to UTC range using tenant timezone
+  const { start: rangeStartUTC, end: rangeEndUTC } = dateToLocalRange(endDate, timezone);
+  const { start: rangeStartOnly } = dateToLocalRange(startDate, timezone);
 
   const [expenses, purchases, payments] = await Promise.all([
     tp.expense.findMany({
-      where: { date: { gte: new Date(startDate), lte: endDateObj } },
+      where: { date: { gte: rangeStartOnly, lte: rangeEndUTC } },
       orderBy: { date: "desc" },
     }),
     tp.purchase.findMany({
       where: {
-        receivedAt: { gte: new Date(startDate), lte: endDateObj },
+        receivedAt: { gte: rangeStartOnly, lte: rangeEndUTC },
         status: { in: ["COMPLETED", "VOID"] },
-        OR: [{ voidAt: null }, { voidAt: { gt: endDateObj } }],
+        OR: [{ voidAt: null }, { voidAt: { gt: rangeEndUTC } }],
       },
     }),
     tp.supplierPayment.findMany({
-      where: { paidAt: { gte: new Date(startDate), lte: endDateObj } },
+      where: { paidAt: { gte: rangeStartOnly, lte: rangeEndUTC } },
     }),
   ]);
 
@@ -1041,14 +1146,14 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
   // Get revenue for profit calculation
   const invoices = await tp.invoice.findMany({
     where: {
-      issuedAt: { gte: new Date(startDate), lte: new Date(endDate) },
+      issuedAt: { gte: rangeStartOnly, lte: rangeEndUTC },
       status: "PAID",
     },
   });
   const totalRevenue = invoices.reduce((sum, i) => sum + Number(i.grandTotal), 0);
   const profit = totalRevenue - totalExpenses - totalPurchases;
 
-  // Expense trend (based on date range)
+  // Expense trend (based on date range) using tenant timezone
   const expenseTrend: { date: string; expenses: number }[] = [];
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -1058,12 +1163,12 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
   for (let i = chartDays - 1; i >= 0; i--) {
     const d = new Date(start);
     d.setDate(d.getDate() + (chartDays - 1 - i));
-    const dayStr = d.toISOString().split("T")[0];
+    const dayStr = formatChartDate(d, timezone);
     const dayExpenses = expenses.filter(
-      (e) => e.date.toISOString().split("T")[0] === dayStr
+      (e) => formatChartDate(e.date, timezone) === dayStr
     );
     expenseTrend.push({
-      date: new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d),
+      date: dayStr,
       expenses: dayExpenses.reduce((sum, e) => sum + Number(e.amount), 0),
     });
   }
@@ -1118,15 +1223,18 @@ export async function getRoastingReport(startDate: string, endDate: string): Pro
   await requireFeature("ADVANCED_REPORTS");
   const tp = await requireTenantPrisma();
 
-  // Set end date to end of day (23:59:59) to include all transactions on that day
-  const endDateObj = new Date(endDate);
-  endDateObj.setUTCHours(23, 59, 59, 999);
+  // Get tenant timezone for correct date handling
+  const timezone = await getTenantTimezone();
+
+  // Convert date strings to UTC range using tenant timezone
+  const { start: rangeStartUTC, end: rangeEndUTC } = dateToLocalRange(endDate, timezone);
+  const { start: rangeStartOnly } = dateToLocalRange(startDate, timezone);
 
   const batches = await tp.parentRoastingBatch.findMany({
     where: {
-      completedAt: { gte: new Date(startDate), lte: endDateObj },
+      completedAt: { gte: rangeStartOnly, lte: rangeEndUTC },
       status: { in: ["COMPLETED", "VOID"] },
-      OR: [{ voidAt: null }, { voidAt: { gt: endDateObj } }],
+      OR: [{ voidAt: null }, { voidAt: { gt: rangeEndUTC } }],
     },
     include: {
       inputProduct: { select: { name: true } },
@@ -1149,7 +1257,7 @@ export async function getRoastingReport(startDate: string, endDate: string): Pro
   const avgYield = totalGbUsed > 0 ? (totalRbProduced / totalGbUsed) * 100 : 0;
   const lossPercent = 100 - avgYield;
 
-  // Yield trend (based on date range)
+  // Yield trend (based on date range) using tenant timezone
   const yieldTrend: { date: string; yield: number }[] = [];
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -1159,14 +1267,14 @@ export async function getRoastingReport(startDate: string, endDate: string): Pro
   for (let i = chartDays - 1; i >= 0; i--) {
     const d = new Date(start);
     d.setDate(d.getDate() + (chartDays - 1 - i));
-    const dayStr = d.toISOString().split("T")[0];
+    const dayStr = formatChartDate(d, timezone);
     const dayBatches = batches.filter(
-      (b) => b.completedAt?.toISOString().split("T")[0] === dayStr
+      (b) => formatChartDate(b.completedAt || b.createdAt, timezone) === dayStr
     );
     const dayGb = dayBatches.reduce((sum, b) => sum + Number(b.targetWeightKg), 0);
     const dayRb = dayBatches.reduce((sum, b) => sum + Number(b.actualOutputKg || 0), 0);
     yieldTrend.push({
-      date: new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d),
+      date: dayStr,
       yield: dayGb > 0 ? (dayRb / dayGb) * 100 : 0,
     });
   }
@@ -1217,15 +1325,18 @@ export async function getProductionReport(startDate: string, endDate: string): P
   await requireFeature("ADVANCED_REPORTS");
   const tp = await requireTenantPrisma();
 
-  // Set end date to end of day (23:59:59) to include all transactions on that day
-  const endDateObj = new Date(endDate);
-  endDateObj.setUTCHours(23, 59, 59, 999);
+  // Get tenant timezone for correct date handling
+  const timezone = await getTenantTimezone();
+
+  // Convert date strings to UTC range using tenant timezone
+  const { start: rangeStartUTC, end: rangeEndUTC } = dateToLocalRange(endDate, timezone);
+  const { start: rangeStartOnly } = dateToLocalRange(startDate, timezone);
 
   const batches = await tp.productionBatch.findMany({
     where: {
-      producedAt: { gte: new Date(startDate), lte: endDateObj },
+      producedAt: { gte: rangeStartOnly, lte: rangeEndUTC },
       status: { in: ["COMPLETED", "VOID"] },
-      OR: [{ voidAt: null }, { voidAt: { gt: endDateObj } }],
+      OR: [{ voidAt: null }, { voidAt: { gt: rangeEndUTC } }],
     },
     include: {
       outputProduct: { select: { name: true } },
@@ -1240,7 +1351,7 @@ export async function getProductionReport(startDate: string, endDate: string): P
   const totalPackagingUsed = batches.reduce((sum, b) => sum + b.unitsProduced, 0); // 1:1 with FG
   const efficiency = totalRbUsed > 0 ? (totalFgProduced / totalRbUsed) * 100 : 0;
 
-  // Production trend (based on date range)
+  // Production trend (based on date range) using tenant timezone
   const productionTrend: { date: string; units: number }[] = [];
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -1250,12 +1361,12 @@ export async function getProductionReport(startDate: string, endDate: string): P
   for (let i = chartDays - 1; i >= 0; i--) {
     const d = new Date(start);
     d.setDate(d.getDate() + (chartDays - 1 - i));
-    const dayStr = d.toISOString().split("T")[0];
+    const dayStr = formatChartDate(d, timezone);
     const dayBatches = batches.filter(
-      (b) => b.producedAt?.toISOString().split("T")[0] === dayStr
+      (b) => formatChartDate(b.producedAt || b.createdAt, timezone) === dayStr
     );
     productionTrend.push({
-      date: new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d),
+      date: dayStr,
       units: dayBatches.reduce((sum, b) => sum + b.unitsProduced, 0),
     });
   }
@@ -1300,6 +1411,8 @@ export async function getSummaryReport(startDate?: string, endDate?: string): Pr
   await requireFeature("ADVANCED_REPORTS");
 
   const now = new Date();
+  const timezone = await getTenantTimezone();
+  const tenantId = await getCurrentTenantId();
   const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
   const end = endDate ? new Date(endDate) : now;
 
@@ -1322,30 +1435,20 @@ export async function getSummaryReport(startDate?: string, endDate?: string): Pr
   const expensesTrend = lastExpenses > 0 ? ((expenses - lastExpenses) / lastExpenses) * 100 : 0;
   const profitTrend = lastProfit > 0 ? ((profit - lastProfit) / lastProfit) * 100 : 0;
 
-  // Revenue chart (based on date range or last 7 days)
-  const revenueChart: { date: string; value: number }[] = [];
-  const tp = await requireTenantPrisma();
-
-  // Calculate number of days to show
+  // One grouped query replaces up to 30 sequential invoice queries.
   const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  const chartDays = Math.min(daysDiff, 30); // Cap at 30 days for chart
-
-  for (let i = chartDays - 1; i >= 0; i--) {
-    const d = new Date(end);
-    d.setDate(d.getDate() - i);
-    const dayStart = new Date(d.setHours(0, 0, 0, 0));
-    const dayEnd = new Date(d.setHours(23, 59, 59, 999));
-    const dayInvoices = await tp.invoice.findMany({
-      where: {
-        issuedAt: { gte: dayStart, lte: dayEnd },
-        status: "PAID",
-      },
-    });
-    revenueChart.push({
-      date: new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d),
-      value: dayInvoices.reduce((sum, i) => sum + Number(i.grandTotal), 0),
-    });
-  }
+  const chartDayCount = Math.max(1, Math.min(daysDiff + 1, 30));
+  const chartDays = buildChartDaysEndingAt(end, chartDayCount, timezone);
+  const dailyTotals = await getDailyFinancialTotals({
+    tenantId,
+    timezone,
+    start: chartDays[0].start,
+    end: chartDays.at(-1)!.end,
+  });
+  const revenueChart = chartDays.map((day) => ({
+    date: day.label,
+    value: dailyTotals.get(day.dateKey)?.revenue ?? 0,
+  }));
 
   return {
     revenue,
@@ -1387,65 +1490,71 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
   await requireFeature("ADVANCED_REPORTS");
 
   const now = new Date();
-  const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = endDate ? new Date(endDate) : now;
+  const timezone = await getTenantTimezone();
 
-  // Set end to end of day in UTC to include all transactions
-  const endOfDay = new Date(end);
-  endOfDay.setUTCHours(23, 59, 59, 999);
+  // Use tenant timezone for date ranges
+  const startStr = startDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const endStr = endDate || formatChartDate(now, timezone).split(" ").reverse().join("-");
+
+  const { start: rangeStart } = dateToLocalRange(startStr, timezone);
+  const { end: rangeEnd } = dateToLocalRange(endStr, timezone);
 
   const tp = await requireTenantPrisma();
+  const tenantId = await getCurrentTenantId();
 
-  // Query invoices and expenses directly for the date range (not hardcoded to current month)
-  const [invoices, expenses] = await Promise.all([
-    tp.invoice.findMany({
+  const periodLength = rangeEnd.getTime() - rangeStart.getTime();
+  const prevStart = new Date(rangeStart.getTime() - periodLength);
+  const prevEnd = new Date(rangeStart.getTime() - 1);
+
+  const daysDiff = Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24));
+  const chartDayCount = Math.max(1, Math.min(daysDiff + 1, 30));
+  const chartDays = buildChartDaysFrom(startStr, chartDayCount, timezone);
+
+  // Aggregate in PostgreSQL instead of loading every invoice/expense into Node.
+  const [invoiceTotal, expenseGroups, prevInvoiceTotal, prevExpenseTotal, dailyTotals] = await Promise.all([
+    tp.invoice.aggregate({
       where: {
-        issuedAt: { gte: start, lte: endOfDay },
-        status: { in: ["PAID", "ISSUED", "PARTIAL"] },
+        issuedAt: { gte: rangeStart, lte: rangeEnd },
+        status: "PAID",
       },
-      select: { grandTotal: true, status: true },
+      _sum: { grandTotal: true },
     }),
-    tp.expense.findMany({
+    tp.expense.groupBy({
+      by: ["category"],
       where: {
-        date: { gte: start, lte: endOfDay },
+        date: { gte: rangeStart, lte: rangeEnd },
       },
-      select: { amount: true, category: true },
+      _sum: { amount: true },
+    }),
+    tp.invoice.aggregate({
+      where: {
+        issuedAt: { gte: prevStart, lte: prevEnd },
+        status: "PAID",
+      },
+      _sum: { grandTotal: true },
+    }),
+    tp.expense.aggregate({
+      where: { date: { gte: prevStart, lte: prevEnd } },
+      _sum: { amount: true },
+    }),
+    getDailyFinancialTotals({
+      tenantId,
+      timezone,
+      start: chartDays[0].start,
+      end: chartDays.at(-1)!.end,
     }),
   ]);
 
-  // Calculate totals from actual data
-  const totalRevenue = invoices
-    .filter((i) => i.status === "PAID")
-    .reduce((sum, i) => sum + Number(i.grandTotal), 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalRevenue = Number(invoiceTotal._sum.grandTotal ?? 0);
+  const totalExpenses = expenseGroups.reduce(
+    (sum, group) => sum + Number(group._sum.amount ?? 0),
+    0,
+  );
   const netProfit = totalRevenue - totalExpenses;
   const cashFlow = totalRevenue - totalExpenses;
 
-  // Calculate trends (compare with previous period of same length)
-  const periodLength = endOfDay.getTime() - start.getTime();
-  const prevStart = new Date(start.getTime() - periodLength);
-  const prevEnd = new Date(start.getTime() - 1);
-
-  const [prevInvoices, prevExpenses] = await Promise.all([
-    tp.invoice.findMany({
-      where: {
-        issuedAt: { gte: prevStart, lte: prevEnd },
-        status: { in: ["PAID", "ISSUED", "PARTIAL"] },
-      },
-      select: { grandTotal: true, status: true },
-    }),
-    tp.expense.findMany({
-      where: {
-        date: { gte: prevStart, lte: prevEnd },
-      },
-      select: { amount: true },
-    }),
-  ]);
-
-  const lastRevenue = prevInvoices
-    .filter((i) => i.status === "PAID")
-    .reduce((sum, i) => sum + Number(i.grandTotal), 0);
-  const lastExpenses = prevExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const lastRevenue = Number(prevInvoiceTotal._sum.grandTotal ?? 0);
+  const lastExpenses = Number(prevExpenseTotal._sum.amount ?? 0);
   const lastProfit = lastRevenue - lastExpenses;
   const lastCashFlow = lastRevenue - lastExpenses;
 
@@ -1454,48 +1563,20 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
   const profitTrend = lastProfit > 0 ? ((netProfit - lastProfit) / lastProfit) * 100 : 0;
   const cashFlowTrend = lastCashFlow > 0 ? ((cashFlow - lastCashFlow) / lastCashFlow) * 100 : 0;
 
-  // Revenue vs Expenses chart (based on date range)
-  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  const chartDays = Math.min(daysDiff + 1, 30);
-
-  const revenueVsExpensesChart: { date: string; revenue: number; expenses: number }[] = [];
-  for (let i = chartDays - 1; i >= 0; i--) {
-    const d = new Date(start);
-    d.setDate(d.getDate() + (chartDays - 1 - i));
-    const dayStart = new Date(d);
-    dayStart.setUTCHours(0, 0, 0, 0);
-    const dayEnd = new Date(d);
-    dayEnd.setUTCHours(23, 59, 59, 999);
-
-    const [dayInvoices, dayExpenses] = await Promise.all([
-      tp.invoice.findMany({
-        where: {
-          issuedAt: { gte: dayStart, lte: dayEnd },
-          status: "PAID",
-        },
-        select: { grandTotal: true },
-      }),
-      tp.expense.findMany({
-        where: {
-          date: { gte: dayStart, lte: dayEnd },
-        },
-        select: { amount: true },
-      }),
-    ]);
-
-    revenueVsExpensesChart.push({
-      date: new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d),
-      revenue: dayInvoices.reduce((sum, i) => sum + Number(i.grandTotal), 0),
-      expenses: dayExpenses.reduce((sum, e) => sum + Number(e.amount), 0),
-    });
-  }
+  const revenueVsExpensesChart = chartDays.map((day) => {
+    const totals = dailyTotals.get(day.dateKey);
+    return {
+      date: day.label,
+      revenue: totals?.revenue ?? 0,
+      expenses: totals?.expenses ?? 0,
+    };
+  });
 
   // Expense by category
-  const categoryMap = new Map<string, number>();
-  expenses.forEach((e) => {
-    categoryMap.set(e.category, (categoryMap.get(e.category) || 0) + Number(e.amount));
-  });
-  const expenseByCategory = Array.from(categoryMap.entries()).map(([name, value]) => ({ name, value }));
+  const expenseByCategory = expenseGroups.map((group) => ({
+    name: group.category,
+    value: Number(group._sum.amount ?? 0),
+  }));
 
   return {
     totalRevenue,

@@ -67,9 +67,7 @@ test("dashboard operations workbench renders on desktop and mobile", async ({ co
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/dashboard", { waitUntil: "networkidle" });
     await expect(page.getByTestId("operations-workbench")).toBeVisible();
-    await expect(page.getByRole("heading", { name: /keputusan menjaga operasi tetap mengalir|Seluruh aliran operasi terkendali/ })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Yang perlu diputuskan" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Bahan bergerak sampai menjadi kas" })).toBeVisible();
     await page.screenshot({
       path: "test-results/dashboard-command-center-desktop.png",
       fullPage: false,
@@ -78,11 +76,11 @@ test("dashboard operations workbench renders on desktop and mobile", async ({ co
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/dashboard", { waitUntil: "networkidle" });
     await expect(page.getByTestId("operations-workbench")).toBeVisible();
-    const quickActions = page.locator('nav[aria-label="Aksi cepat operasional"]:visible');
-    await expect(quickActions).toBeVisible();
-    await expect(quickActions.getByRole("link", { name: "Terima" })).toBeVisible();
-    await expect(quickActions.getByRole("link", { name: "Roast" })).toBeVisible();
-    await expect(quickActions.getByRole("link", { name: "Kasir" })).toBeVisible();
+    const mobileNavigation = page.getByRole("navigation", { name: "Navigasi utama mobile" });
+    await expect(mobileNavigation).toBeVisible();
+    await expect(mobileNavigation.getByRole("link", { name: "Pasokan" })).toBeVisible();
+    await expect(mobileNavigation.getByRole("link", { name: "Roast" })).toBeVisible();
+    await expect(mobileNavigation.getByRole("link", { name: "Kasir" })).toBeVisible();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );

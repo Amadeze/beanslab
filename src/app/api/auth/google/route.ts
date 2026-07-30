@@ -2,8 +2,13 @@ import { generateState, generateCodeVerifier } from "arctic";
 import { googleAuth } from "@/lib/google";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export async function GET() {
+function safeReturnPath(value: string | null): string {
+  return value?.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+}
+
+export async function GET(request: NextRequest) {
   const state = generateState();
   const codeVerifier = generateCodeVerifier();
 
@@ -27,6 +32,13 @@ export async function GET() {
     httpOnly: true,
     maxAge: 60 * 10,
     sameSite: "lax"
+  });
+  cookieStore.set("google_oauth_from", safeReturnPath(request.nextUrl.searchParams.get("from")), {
+    path: "/",
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    maxAge: 60 * 10,
+    sameSite: "lax",
   });
 
   return NextResponse.redirect(url);

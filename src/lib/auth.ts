@@ -20,8 +20,37 @@ export const getTenantAccessRecord = cache(async (tenantId: string) =>
   }),
 );
 
+const getValidatedCurrentUser = cache(async (): Promise<SessionUser | null> => {
+  const sessionUser = await getCurrentUser();
+  if (!sessionUser) return null;
+
+  const currentUser = await prisma.user.findFirst({
+    where: {
+      id: sessionUser.id,
+      tenantId: sessionUser.tenantId,
+      isActive: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      tenantId: true,
+    },
+  });
+  if (!currentUser) return null;
+
+  return {
+    id: currentUser.id,
+    name: currentUser.name,
+    email: currentUser.email,
+    role: currentUser.role,
+    tenantId: currentUser.tenantId,
+  };
+});
+
 export async function requireCurrentUser() {
-  const user = await getCurrentUser();
+  const user = await getValidatedCurrentUser();
   if (!user) {
     redirect("/login");
   }
@@ -87,4 +116,17 @@ export async function requireFeature(feature: PlanFeature) {
  */
 export async function getSystemUserId(): Promise<string> {
   return (await requireCurrentUser()).id;
+}
+
+/**
+ * Gets the timezone for the current tenant.
+ * Used by report functions to ensure date operations use the correct timezone.
+ */
+export async function getTenantTimezone(): Promise<string> {
+  const user = await requireCurrentUser();
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: user.tenantId },
+    select: { timezone: true },
+  });
+  return tenant?.timezone ?? "Asia/Jakarta";
 }

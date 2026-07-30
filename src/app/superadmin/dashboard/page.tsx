@@ -7,7 +7,10 @@ import { getCurrentDate } from "@/lib/date-utils";
 export const dynamic = "force-dynamic";
 
 export default async function SuperadminDashboard() {
-  const [tenants, gmvTotal] = await Promise.all([
+  const now = getCurrentDate();
+  const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const nextSevenDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const [tenants, gmvTotal, connectorTotal, connectorOnline, pendingPayments, failedImports24h, failedJobs24h] = await Promise.all([
     prisma.tenant.findMany({ 
       where: { id: { not: "default" } },
       orderBy: { createdAt: 'desc' }
@@ -15,7 +18,12 @@ export default async function SuperadminDashboard() {
     prisma.invoice.aggregate({
       where: { status: { in: ["PAID", "ISSUED", "PARTIAL"] } },
       _sum: { grandTotal: true }
-    })
+    }),
+    prisma.artisanConnector.count({ where: { revokedAt: null } }),
+    prisma.artisanConnector.count({ where: { status: "ONLINE", revokedAt: null } }),
+    prisma.subscriptionPayment.count({ where: { status: "PENDING" } }),
+    prisma.artisanRoastImport.count({ where: { status: "FAILED", uploadedAt: { gte: last24Hours } } }),
+    prisma.jobRun.count({ where: { status: "FAILED", startedAt: { gte: last24Hours } } }),
   ]);
 
   const totalGmv = gmvTotal._sum.grandTotal ? Number(gmvTotal._sum.grandTotal) : 0;
@@ -32,7 +40,6 @@ export default async function SuperadminDashboard() {
   });
 
   // Calculate new tenants this month
-  const now = getCurrentDate();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const newTenantsThisMonth = tenants.filter(t => new Date(t.createdAt) >= startOfMonth).length;
 
@@ -53,7 +60,42 @@ export default async function SuperadminDashboard() {
     subdomain: t.subdomain,
     tier: t.subscriptionTier,
     status: t.subscriptionStatus,
-    createdAt: t.createdAt.toISOString()
+    createdAt: t.createdAt.toISOString(),
+    accessState: getTenantAccessState(t),
+  }));
+
+  const attentionTenants: Array<{
+    id: string;
+    name: string;
+    code: string;
+    reason: string;
+    severity: "warning" | "critical";
+  }> = [];
+  for (const tenant of tenants) {
+      const accessState = getTenantAccessState(tenant, now);
+      if (!tenant.isActive) {
+        attentionTenants.push({ id: tenant.id, name: tenant.name, code: tenant.code, reason: "Tenant dinonaktifkan", severity: "critical" });
+        continue;
+      }
+      if (accessState !== "ACTIVE") {
+        attentionTenants.push({ id: tenant.id, name: tenant.name, code: tenant.code, reason: "Akses subscription tertahan", severity: "critical" });
+        continue;
+      }
+      if (
+        tenant.subscriptionTier === "TRIAL" &&
+        tenant.trialEndsAt &&
+        tenant.trialEndsAt > now &&
+        tenant.trialEndsAt <= nextSevenDays
+      ) {
+        const days = Math.max(1, Math.ceil((tenant.trialEndsAt.getTime() - now.getTime()) / 86_400_000));
+        attentionTenants.push({ id: tenant.id, name: tenant.name, code: tenant.code, reason: `Trial berakhir ${days} hari lagi`, severity: "warning" });
+      }
+  }
+  attentionTenants.splice(6);
+
+  const planDistribution = (["TRIAL", "BASIC", "PRO", "ENTERPRISE"] as const).map((tier) => ({
+    tier,
+    count: tenants.filter((tenant) => tenant.subscriptionTier === tier).length,
   }));
 
   const data = {
@@ -63,7 +105,16 @@ export default async function SuperadminDashboard() {
     mrr,
     totalGmv,
     growthData,
-    recentTenants
+    recentTenants,
+    attentionTenants,
+    planDistribution,
+    connectorTotal,
+    connectorOnline,
+    connectorOffline: Math.max(0, connectorTotal - connectorOnline),
+    pendingPayments,
+    failedImports24h,
+    failedJobs24h,
+    generatedAt: now.toISOString(),
   };
 
   return <SuperadminShell data={data} />;

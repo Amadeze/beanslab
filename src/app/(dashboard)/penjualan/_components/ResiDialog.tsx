@@ -26,6 +26,7 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
   const [courierName, setCourierName] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [shippingCost, setShippingCost] = useState("");
+  const [fulfillmentStatus, setFulfillmentStatus] = useState("SHIPPED");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
         courierName,
         trackingNumber,
         shippingCost: shippingCost ? Number(shippingCost) : 0,
+        fulfillmentStatus,
       });
       if (res.error) {
         toastSafe.error(res.error);
@@ -83,6 +85,15 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
               {invoice.shippingAddress}
             </div>
           )}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Status Operasional</label>
+            <select value={fulfillmentStatus} onChange={(event) => setFulfillmentStatus(event.target.value)} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
+              <option value="READY_TO_PACK">Siap dikemas</option>
+              <option value="PACKED">Sudah dikemas</option>
+              <option value="SHIPPED">Dalam pengiriman</option>
+              <option value="DELIVERED">Pesanan selesai</option>
+            </select>
+          </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Nama Ekspedisi/Kurir</label>
             <input

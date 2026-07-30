@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { PurchasePaymentSection } from "./PurchasePaymentSection";
 import { formatRupiah } from "@/lib/format";
 import { getTodayString } from "@/lib/date-utils";
@@ -44,7 +43,6 @@ const schema = z
     paymentMethod: z.enum(["CASH", "TRANSFER", "QRIS"]),
     dueDate: z.string().optional(),
     notes: z.string().optional(),
-    lotNumber: z.string().optional(),
     bestBeforeDate: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -104,26 +102,6 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-xs text-red-500">{message}</p>;
 }
 
-function ReadonlyField({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <FieldGroup>
-      <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">{label}</Label>
-      <div className={cn("flex h-9 items-center px-3 cursor-not-allowed opacity-80", glassInput)}>
-        <span className="text-sm font-semibold text-slate-800">{value}</span>
-      </div>
-      {hint && <p className="text-[10px] font-medium text-slate-400">{hint}</p>}
-    </FieldGroup>
-  );
-}
-
 // =============================================================================
 // Props
 // =============================================================================
@@ -154,12 +132,11 @@ export function PurchaseForm({
   const today = getTodayString();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
-  const [showCostDetails, setShowCostDetails] = useState(false);
+  const [showOptionalDetails, setShowOptionalDetails] = useState(false);
 
   const {
     register,
     handleSubmit,
-    control,
     watch,
     reset,
     setValue,
@@ -181,7 +158,6 @@ export function PurchaseForm({
       paymentMethod: "CASH",
       dueDate: "",
       notes: "",
-      lotNumber: "",
       bestBeforeDate: "",
     },
   });
@@ -235,7 +211,6 @@ export function PurchaseForm({
         paymentMethod: values.paymentMethod,
         dueDate: values.dueDate,
         notes: values.notes,
-        lotNumber: values.lotNumber || undefined,
         bestBeforeDate: values.bestBeforeDate || undefined,
       });
 
@@ -294,74 +269,30 @@ export function PurchaseForm({
       </FieldGroup>
 
       {/* ── Tanggal ── */}
-      <div className="grid grid-cols-2 gap-4">
-        <FieldGroup>
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-            Tanggal Terima <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            type="date"
-            className={cn("h-9", glassInput)}
-            {...register("receivedAt")}
-          />
-          <FieldError message={errors.receivedAt?.message} />
-        </FieldGroup>
-        <FieldGroup>
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-            Best Before
-          </Label>
-          <Input
-            type="date"
-            className={cn("h-9", glassInput)}
-            {...register("bestBeforeDate")}
-          />
-          <FieldError message={errors.bestBeforeDate?.message} />
-        </FieldGroup>
-      </div>
-
       <FieldGroup>
         <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-          Lot Number / Batch
+          Tanggal Terima <span className="text-red-500">*</span>
         </Label>
         <Input
-          type="text"
-          placeholder="e.g. LOT-12345"
+          type="date"
           className={cn("h-9", glassInput)}
-          {...register("lotNumber")}
+          {...register("receivedAt")}
         />
-        <FieldError message={errors.lotNumber?.message} />
+        <FieldError message={errors.receivedAt?.message} />
       </FieldGroup>
 
-      <Separator className="bg-white/50" />
-
-      {/* ── Mode produk ── */}
-      <div>
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-2 block">
+      {/* ── Produk ── */}
+      <div className="flex items-center justify-between gap-3">
+        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
           Green Bean <span className="text-red-500">*</span>
         </Label>
-        <Controller
-          control={control}
-          name="productMode"
-          render={({ field }) => (
-            <div className="flex gap-2">
-              {(["existing", "new"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => field.onChange(mode)}
-                  className={cn(
-                    "flex-1 rounded-xl border py-2 text-xs font-bold transition-all shadow-sm",
-                    field.value === mode
-                      ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/20 ring-offset-1 hover:bg-primary/90"
-                      : "border-white/60 bg-white/40 text-slate-500 hover:bg-white/60"
-                  )}
-                >
-                  {mode === "existing" ? "Produk Existing" : "+ Produk Baru"}
-                </button>
-              ))}
-            </div>
-          )}
-        />
+        <button
+          type="button"
+          onClick={() => setValue("productMode", productMode === "existing" ? "new" : "existing", { shouldDirty: true })}
+          className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 hover:text-amber-900"
+        >
+          <Plus size={12} /> {productMode === "existing" ? "Produk baru" : "Pilih produk lama"}
+        </button>
       </div>
 
       {/* ── Pilih existing ── */}
@@ -416,10 +347,8 @@ export function PurchaseForm({
         </div>
       )}
 
-      <Separator className="bg-white/50" />
-
       {/* ── Berat & Harga ── */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <FieldGroup>
           <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
             Berat (kg) <span className="text-red-500">*</span>
@@ -449,51 +378,70 @@ export function PurchaseForm({
           />
           <FieldError message={errors.totalCost?.message} />
         </FieldGroup>
-      </div>
 
-      {/* ── Ongkir ── */}
-      <button
-        type="button"
-        onClick={() => setShowCostDetails((current) => !current)}
-        className="flex w-full items-center justify-between rounded-lg px-1 py-1 text-xs font-semibold text-slate-500 hover:text-slate-700"
-      >
-        Rincian biaya (opsional)
-        <ChevronDown size={14} className={cn("transition-transform", showCostDetails && "rotate-180")} />
-      </button>
-      {showCostDetails && (
         <FieldGroup>
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Ongkos kirim yang termasuk dalam total</Label>
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+            Ongkir <span className="font-medium normal-case tracking-normal text-slate-400">(opsional)</span>
+          </Label>
           <Input
             type="number"
             step="1"
             min="0"
             placeholder="0"
-            className={cn("h-9 tabular-nums", glassInput)}
+            className={cn("h-9 tabular-nums font-semibold", glassInput)}
             {...register("shippingCost", { valueAsNumber: true })}
           />
+          <p className="text-[10px] leading-4 text-slate-500">Bagian dari total pembelian</p>
           <FieldError message={errors.shippingCost?.message} />
         </FieldGroup>
-      )}
-
-      {/* ── HPP auto-computed ── */}
-      <div className="grid grid-cols-2 gap-4">
-        <ReadonlyField
-          label="Total tercatat"
-          value={totalCost > 0 ? formatRupiah(totalCost) : "—"}
-        />
-        <ReadonlyField
-          label="HPP /kg (otomatis)"
-          value={hppPerKg > 0 ? formatRupiah(hppPerKg) : "—"}
-          hint="Total pembelian ÷ berat"
-        />
       </div>
 
-      <PurchasePaymentSection
-        register={register}
-        setValue={setValue}
-        errors={errors}
-        paymentStatus={paymentStatus}
-      />
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-bold text-emerald-900">Serba otomatis setelah disimpan</p>
+          <p className="whitespace-nowrap text-xs font-bold tabular-nums text-emerald-800">
+            {hppPerKg > 0 ? `${formatRupiah(hppPerKg)}/kg` : "HPP otomatis"}
+          </p>
+        </div>
+        <p className="mt-0.5 text-[11px] leading-4 text-emerald-700">
+          ID barang datang = kode lot · stok & ledger · HPP & jurnal · urutan FIFO/FEFO
+        </p>
+      </div>
+
+      {/* ── Semua isian non-wajib ── */}
+      <button
+        type="button"
+        onClick={() => setShowOptionalDetails((current) => !current)}
+        className="flex w-full items-center justify-between rounded-xl border border-white/60 bg-white/30 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-white/50"
+        aria-expanded={showOptionalDetails}
+      >
+        Detail opsional
+        <ChevronDown size={14} className={cn("transition-transform", showOptionalDetails && "rotate-180")} />
+      </button>
+      {showOptionalDetails && (
+        <div className={cn(glassCard, "space-y-4")}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FieldGroup>
+              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+                Tanggal Review Mutu
+              </Label>
+              <Input
+                type="date"
+                className={cn("h-9", glassInput)}
+                {...register("bestBeforeDate")}
+              />
+              <FieldError message={errors.bestBeforeDate?.message} />
+            </FieldGroup>
+          </div>
+
+          <PurchasePaymentSection
+            register={register}
+            setValue={setValue}
+            errors={errors}
+            paymentStatus={paymentStatus}
+          />
+        </div>
+      )}
 
       {/* Hidden submit — dipanggil via tombol di drawer footer */}
       <button type="submit" className="hidden" aria-hidden disabled={isSubmitting} />

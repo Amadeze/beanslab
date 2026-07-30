@@ -98,16 +98,17 @@ export function ReceivingList({ onSelectPO, refreshKey }: ReceivingListProps) {
               <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Status</TableHead>
               <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">Total</TableHead>
               <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Estimasi</TableHead>
+              <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-6 text-center text-sm text-slate-400">Memuat data...</TableCell>
+                <TableCell colSpan={7} className="py-6 text-center text-sm text-slate-400">Memuat data...</TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-8">
+                <TableCell colSpan={7} className="py-8">
                   <InventoryEmptyState label="Tidak ada penerimaan menunggu" description="Semua PO sudah diterima atau belum ada PO dikirim." />
                 </TableCell>
               </TableRow>
@@ -143,6 +144,15 @@ export function ReceivingList({ onSelectPO, refreshKey }: ReceivingListProps) {
                       {formatDate(po.expectedDate)}
                       {isOverdue(po.expectedDate) && " (lewat)"}
                     </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <button
+                      type="button"
+                      onClick={(event) => { event.stopPropagation(); onSelectPO(po.id); }}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground hover:bg-primary/90"
+                    >
+                      Terima
+                    </button>
                   </TableCell>
                 </TableRow>
               ))
@@ -186,6 +196,7 @@ export function ReceivingList({ onSelectPO, refreshKey }: ReceivingListProps) {
                 </span>
                 <span className="font-semibold text-slate-900 tabular-nums">{formatRupiah(po.totalEstimate)}</span>
               </div>
+              <p className="mt-1 text-[10px] font-bold text-primary">Ketuk untuk catat penerimaan →</p>
             </div>
           ))
         )}

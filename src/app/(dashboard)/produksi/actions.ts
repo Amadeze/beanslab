@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { appendLedger } from "@/lib/stock";
+import { appendFefoLedgerOut, appendLedger } from "@/lib/stock";
+import { allocateProducedStockToDemand } from "@/lib/storefront-commerce";
 import { getCurrentTenantId, getSystemUserId, requireRole, requireTenantPrisma } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { randomBytes } from "crypto";
 import { normalizeProductionComponents } from "@/lib/operations";
 import { getCurrentDate } from "@/lib/date-utils";
+import { postProductionBatch, postVoidReversal } from "@/lib/posting";
 import { Prisma } from "@prisma/client";
 
 // =============================================================================
@@ -27,6 +29,8 @@ export type CreateProductionBatchInput = {
   packagingId: string;
   unitsProduced: number;
   rbComponents: RBComponentInput[];
+  laborCost?: number;          // biaya tenaga kerja langsung batch ini
+  overheadAllocated?: number;  // biaya overhead pabrik dialokasikan ke batch ini
   notes?: string;
 };
 
@@ -82,6 +86,8 @@ export type ProductionBatchRow = {
   unitsProduced: number;
   totalRbUsedKg: number;
   hppPerUnit: number;
+  laborCost: number;
+  overheadAllocated: number;
   producedAt: string;
   status: string;
   notes: string | null;
@@ -208,6 +214,8 @@ async function fetchBatchHistory(): Promise<ProductionBatchRow[]> {
     unitsProduced:     b.unitsProduced,
     totalRbUsedKg:     Number(b.totalRbUsedKg),
     hppPerUnit:        Number(b.hppPerUnit),
+    laborCost:         Number(b.laborCost ?? 0),
+    overheadAllocated: Number(b.overheadAllocated ?? 0),
     producedAt:        b.producedAt.toISOString(),
     status:            b.status,
     notes:             b.notes,
@@ -277,7 +285,7 @@ export async function createProductionBatch(
         }),
         tx.product.findUnique({
           where: { id: input.outputProductId },
-          select: { id: true, type: true, isActive: true },
+          select: { id: true, name: true, type: true, isActive: true },
         }),
         input.recipeId
           ? tx.recipe.findUnique({
@@ -366,9 +374,11 @@ export async function createProductionBatch(
         };
       }
 
-      // 4. Hitung HPP per unit
+      // 4. Hitung HPP per unit (termasuk labor & overhead)
       const pkgCostTotal = Number(packaging.avgCostPerUnit || packaging.costPerUnit) * input.unitsProduced;
-      const totalCost = totalRbCost + pkgCostTotal;
+      const laborCost = Number(input.laborCost ?? 0);
+      const overheadCost = Number(input.overheadAllocated ?? 0);
+      const totalCost = totalRbCost + pkgCostTotal + laborCost + overheadCost;
       const hppPerUnit = totalCost / input.unitsProduced;
 
       // 5. Generate kode
@@ -376,46 +386,45 @@ export async function createProductionBatch(
 
       const batch = await tx.productionBatch.create({
         data: {
-          code:            batchCode,
-          operationKey:    input.operationKey,
-          recipeId:        input.recipeId ?? null,
-          outputProductId: input.outputProductId,
-          packagingId:     input.packagingId,
-          unitsProduced:   input.unitsProduced,
-          totalRbUsedKg:   totalRbUsedKg,
-          hppPerUnit:      hppPerUnit,
-          status:          "COMPLETED",
-          notes:           input.notes?.trim() || null,
-          createdById:     userId,
+          tenantId,
+          code:              batchCode,
+          operationKey:      input.operationKey,
+          recipeId:          input.recipeId ?? null,
+          outputProductId:   input.outputProductId,
+          packagingId:       input.packagingId,
+          unitsProduced:     input.unitsProduced,
+          totalRbUsedKg:     totalRbUsedKg,
+          hppPerUnit:        hppPerUnit,
+          laborCost:         laborCost > 0 ? laborCost : undefined,
+          overheadAllocated: overheadCost > 0 ? overheadCost : undefined,
+          status:            "COMPLETED",
+          notes:             input.notes?.trim() || null,
+          createdById:       userId,
         },
       });
 
       // RB keluar per komponen
       for (const rb of rbDetails) {
-        await appendLedger(tx, {
-          data: {
+        await appendFefoLedgerOut(tx, {
+            tenantId,
             productId:   rb.productId,
-            entryType:   "OUT",
             refType:     "PRODUCTION_RB_OUT",
             refId:       batch.id,
             quantityKg:  rb.actualKg,
             notes:       `Produksi: ${batch.code}`,
             createdById: userId,
-          },
         });
       }
 
       // Packaging keluar
-      await appendLedger(tx, {
-        data: {
+      await appendFefoLedgerOut(tx, {
+          tenantId,
           packagingId:  input.packagingId,
-          entryType:    "OUT",
           refType:      "PRODUCTION_PKG_OUT",
           refId:        batch.id,
           quantityUnit: input.unitsProduced,
           notes:        `Produksi: ${batch.code}`,
           createdById:  userId,
-        },
       });
 
       // Read current stock BEFORE incrementing (for weighted HPP calculation)
@@ -425,16 +434,38 @@ export async function createProductionBatch(
       });
 
       // Finished Goods masuk
+      const outputLot = await tx.lot.create({
+        data: {
+          tenantId,
+          productId: input.outputProductId,
+          batchCode: `${batch.code}-FG`,
+          quantityUnit: input.unitsProduced,
+          receivedAt: getCurrentDate(),
+          notes: `Hasil produksi ${batch.code}`,
+        },
+      });
       await appendLedger(tx, {
         data: {
+          tenantId,
           productId:    input.outputProductId,
           entryType:    "IN",
           refType:      "PRODUCTION_FG_IN",
           refId:        batch.id,
           quantityUnit: input.unitsProduced,
+          lotId:        outputLot.id,
+          lotNumber:    outputLot.batchCode,
           notes:        `Produksi: ${batch.code}`,
           createdById:  userId,
         },
+      });
+
+      // Oldest storefront shortage gets this finished stock first. Paid orders
+      // are posted out immediately; unpaid orders receive a time-bound reservation.
+      await allocateProducedStockToDemand(tx, {
+        tenantId,
+        productId: input.outputProductId,
+        createdById: userId,
+        now: getCurrentDate(),
       });
 
       // Weighted average: blend current stock cost with new batch cost
@@ -448,6 +479,16 @@ export async function createProductionBatch(
         where: { id: input.outputProductId },
         data: { lastHpp: weightedHpp },
       });
+
+      await postProductionBatch(
+        batch.id,
+        totalRbCost,
+        pkgCostTotal,
+        laborCost,
+        overheadCost,
+        outputProduct.name ?? batchCode,
+        { tx, tenantId, userId },
+      );
 
       await recordAudit(tx, {
         tenantId,
@@ -521,11 +562,23 @@ export async function voidProductionBatch(
       if (ledgerEntries.length === 0) {
         throw new Error("Ledger produksi tidak ditemukan; void dibatalkan untuk menjaga integritas stok.");
       }
+      const outputLotIds = ledgerEntries
+        .filter((entry) => entry.refType === "PRODUCTION_FG_IN" && entry.lotId)
+        .map((entry) => entry.lotId!);
+      if (outputLotIds.length > 0) {
+        const downstreamCount = await tx.inventoryLedger.count({
+          where: { lotId: { in: outputLotIds }, entryType: "OUT", refType: { not: "VOID_REVERSAL" } },
+        });
+        if (downstreamCount > 0) {
+          throw new Error("Barang jadi batch ini sudah dijual atau dipakai. Batalkan transaksi turunannya terlebih dahulu.");
+        }
+      }
 
       // Balik setiap ledger entry
       for (const entry of ledgerEntries) {
         await appendLedger(tx, {
           data: {
+            tenantId,
             productId:    entry.productId,
             packagingId:  entry.packagingId,
             entryType:    entry.entryType === "IN" ? "OUT" : "IN",
@@ -533,16 +586,26 @@ export async function voidProductionBatch(
             refId:        batchId,
             quantityKg:   entry.quantityKg,
             quantityUnit: entry.quantityUnit,
+            lotId:         entry.lotId,
+            lotNumber:     entry.lotNumber,
+            expiryDate:    entry.expiryDate,
             notes:        `VOID reversal: ${batch.code}`,
             createdById:  userId,
           },
         });
+        if (entry.lotId) {
+          await tx.lot.update({
+            where: { id: entry.lotId },
+            data: { consumedAt: entry.entryType === "OUT" ? null : getCurrentDate() },
+          });
+        }
       }
 
       await tx.productionBatch.update({
         where: { id: batchId },
         data: { status: "VOID", voidReason: reason.trim(), voidAt: getCurrentDate() },
       });
+      await postVoidReversal("PRODUCTION", batch.id, reason, { tx, tenantId, userId });
       const previousBatch = await tx.productionBatch.findFirst({
         where: {
           outputProductId: batch.outputProductId,

@@ -3,8 +3,9 @@ import { getIronSession } from "iron-session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SESSION_OPTIONS, type SessionUser } from "@/lib/session";
-import { LayoutDashboard, Users, LogOut, Coffee, ShieldCheck } from "lucide-react";
+import { LogOut, Coffee, ShieldCheck } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
+import { SuperadminNav } from "./SuperadminNav";
 
 import { AppToastProvider } from "@/components/AppToastProvider";
 
@@ -32,14 +33,7 @@ export default async function SuperadminLayout({
             <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.22em] text-white/45">Control plane</span>
           </span>
         </Link>
-        <nav className="flex items-center gap-1">
-          <Link href="/superadmin/dashboard" aria-label="Dashboard" className="flex size-10 items-center justify-center text-white/65 hover:bg-white/8 hover:text-white">
-            <LayoutDashboard size={18} />
-          </Link>
-          <Link href="/superadmin/tenants" aria-label="Roastery" className="flex size-10 items-center justify-center text-white/65 hover:bg-white/8 hover:text-white">
-            <Users size={18} />
-          </Link>
-        </nav>
+        <SuperadminNav mobile />
       </header>
 
       <aside className="hidden w-72 shrink-0 flex-col border-r border-white/10 bg-[#080B0C] text-white lg:flex">
@@ -57,23 +51,13 @@ export default async function SuperadminLayout({
           <div className="flex items-center gap-3 border border-white/10 bg-white/4 p-4">
             <ShieldCheck className="size-5 text-[#15B8C6]" />
             <div>
-              <p className="text-xs font-bold">Platform sehat</p>
-              <p className="mt-1 text-[10px] text-white/45">Semua sistem terhubung</p>
+              <p className="text-xs font-bold">Akses terverifikasi</p>
+              <p className="mt-1 text-[10px] text-white/45">Superadmin · seluruh tenant</p>
             </div>
           </div>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 p-4">
-          <p className="px-3 pb-3 pt-2 text-[9px] font-bold uppercase tracking-[0.24em] text-white/30">Command</p>
-          <Link href="/superadmin/dashboard" className="group flex items-center gap-3 px-4 py-3 text-sm font-semibold text-white/60 transition-colors hover:bg-white/6 hover:text-white">
-            <LayoutDashboard size={18} className="text-[#15B8C6]" />
-            <span>System overview</span>
-          </Link>
-          <Link href="/superadmin/tenants" className="group flex items-center gap-3 px-4 py-3 text-sm font-semibold text-white/60 transition-colors hover:bg-white/6 hover:text-white">
-            <Users size={18} className="text-[#B65331]" />
-            <span>Roastery network</span>
-          </Link>
-        </nav>
+        <SuperadminNav />
 
         <div className="border-t border-white/10 p-4">
           <form action={logoutAction}>

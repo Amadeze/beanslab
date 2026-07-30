@@ -74,7 +74,7 @@ test("product IA groups roasting, settings, and offline cashier correctly", asyn
     await expect(page.getByRole("link", { name: "Produksi & packing" })).toBeVisible();
     await page.getByRole("link", { name: "Profil & log" }).click();
     await expect(page).toHaveURL(/\/roasting\?tab=profiles$/);
-    await expect(page.getByRole("button", { name: /Upload \.alog/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Impor \.alog/ })).toBeVisible();
     await page.screenshot({ path: "test-results/product-ia-roasting-tabs.png", fullPage: false });
 
     await page.goto("/roasting/roasts", { waitUntil: "networkidle" });

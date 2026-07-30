@@ -71,10 +71,11 @@ export function getFgHppPrioritizingCache(
   rbCostMap: Map<string, number>,
   packagingCostMap: Map<string, number>,
   packagingMasterCost: number,
+  laborOverheadPerUnit?: number,
 ): number {
   if (lastHpp && lastHpp > 0) return Number(lastHpp);
   if (productionBatchHpp && productionBatchHpp > 0) return Number(productionBatchHpp);
-  return fgHppFromRecipe(recipeItems, recipePackagingId, rbCostMap, packagingCostMap, packagingMasterCost);
+  return fgHppFromRecipe(recipeItems, recipePackagingId, rbCostMap, packagingCostMap, packagingMasterCost, laborOverheadPerUnit);
 }
 
 type RecipeItem = { productId: string; gramsPerUnit: DecimalLike };
@@ -89,6 +90,7 @@ export function fgHppFromRecipe(
   rbCostMap: Map<string, number>,
   packagingCostMap: Map<string, number>,
   packagingMasterCost: number,
+  laborOverheadPerUnit?: number,
 ): number {
   let cost = 0;
   for (const item of items) {
@@ -97,6 +99,9 @@ export function fgHppFromRecipe(
   }
   if (packagingId) {
     cost += packagingCostMap.get(packagingId) ?? packagingMasterCost;
+  }
+  if (laborOverheadPerUnit && laborOverheadPerUnit > 0) {
+    cost += laborOverheadPerUnit;
   }
   return cost;
 }

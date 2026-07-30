@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Coffee } from "lucide-react";
 import type { ReactNode } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
+import { useHydratedReducedMotion } from "@/lib/use-reduced-motion";
 
 export function AuthFrame({
   eyebrow,
@@ -22,7 +23,7 @@ export function AuthFrame({
   children: ReactNode;
   footer?: ReactNode;
 }) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useHydratedReducedMotion();
   const ease = [0.22, 1, 0.36, 1] as const;
 
   return (

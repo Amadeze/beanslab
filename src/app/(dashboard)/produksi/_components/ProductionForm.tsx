@@ -41,6 +41,8 @@ const schema = z.object({
   packagingId:     z.string().min(1, "Wajib pilih kemasan"),
   unitsProduced:   z.number().int().positive("Minimal 1 unit"),
   rbComponents:    z.array(rbComponentSchema).min(1, "Minimal 1 komponen RB"),
+  laborCost:       z.number().min(0).optional(),
+  overheadAllocated: z.number().min(0).optional(),
   notes:           z.string().optional(),
 });
 
@@ -72,12 +74,16 @@ function HppSummary({
   packagingOptions,
   packagingId,
   unitsProduced,
+  laborCost,
+  overheadAllocated,
 }: {
   rbComponents: Array<{ productId: string; actualGrams?: number; gramsPerUnit: number }>;
   rbOptions: RBStockOption[];
   packagingOptions: PackagingOption[];
   packagingId: string;
   unitsProduced: number;
+  laborCost: number;
+  overheadAllocated: number;
 }) {
   if (unitsProduced < 1) return null;
 
@@ -97,7 +103,7 @@ function HppSummary({
     };
   }, { rbCostPerUnit: 0, hasMissingCost: false });
 
-  const estimatedHpp = rbCostPerUnit + (pkg?.costPerUnit || 0);
+  const estimatedHpp = rbCostPerUnit + (pkg?.costPerUnit || 0) + (laborCost || 0) + (overheadAllocated || 0);
   const isUnrealistic = rbPerUnit > 0 && rbPerUnit < 500; // < 500g RB per 1kg FG is suspicious
 
   return (
@@ -122,6 +128,20 @@ function HppSummary({
             <span className="font-semibold text-slate-900 text-right text-xs mt-0.5">
               1 unit {pkg.name} / unit FG
             </span>
+          </>
+        )}
+        {(laborCost || 0) > 0 && (
+          <><span className="text-slate-600">Biaya Tenaga Kerja</span>
+            <span className="font-semibold text-slate-900 text-right">{formatRupiah(laborCost)}</span>
+            <span className="text-[10px] text-slate-400 text-right -mt-1">per batch ({formatRupiah((laborCost || 0) / unitsProduced)}/unit)</span>
+            <span></span>
+          </>
+        )}
+        {(overheadAllocated || 0) > 0 && (
+          <><span className="text-slate-600">Alokasi Overhead</span>
+            <span className="font-semibold text-slate-900 text-right">{formatRupiah(overheadAllocated)}</span>
+            <span className="text-[10px] text-slate-400 text-right -mt-1">per batch ({formatRupiah((overheadAllocated || 0) / unitsProduced)}/unit)</span>
+            <span></span>
           </>
         )}
         <span className="text-slate-600 mt-1 pt-2 border-t border-slate-200/50">Estimasi HPP/unit</span>
@@ -200,11 +220,13 @@ export function ProductionForm({
     name: "rbComponents",
   });
 
-  const [outputProductId, unitsProduced, packagingId, rbComponents] = watch([
+  const [outputProductId, unitsProduced, packagingId, rbComponents, laborCost, overheadAllocated] = watch([
     "outputProductId",
     "unitsProduced",
     "packagingId",
     "rbComponents",
+    "laborCost",
+    "overheadAllocated",
   ]);
 
   // ── Auto-fill dari resep saat user pilih FG ──
@@ -251,6 +273,8 @@ export function ProductionForm({
           productName: c.productName,
           actualGrams: Math.round(c.gramsPerUnit * values.unitsProduced),
         })),
+        laborCost:         values.laborCost,
+        overheadAllocated: values.overheadAllocated,
         notes: values.notes,
       });
 
@@ -513,6 +537,38 @@ export function ProductionForm({
         </>
       )}
 
+      {/* ── Biaya Tenaga Kerja & Overhead ── */}
+      {(!selectedFG?.recipe || showRecipeDetails) && <div className="grid grid-cols-2 gap-4">
+        <FieldGroup>
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+            Biaya Tenaga Kerja (opsional)
+          </Label>
+          <Input
+            type="number"
+            step="1000"
+            min="0"
+            placeholder="0"
+            className={cn("h-9 tabular-nums font-semibold", glassInput)}
+            {...register("laborCost", { valueAsNumber: true })}
+          />
+          <p className="text-[10px] text-slate-400">Total upah/gaji untuk batch ini</p>
+        </FieldGroup>
+        <FieldGroup>
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+            Alokasi Overhead (opsional)
+          </Label>
+          <Input
+            type="number"
+            step="1000"
+            min="0"
+            placeholder="0"
+            className={cn("h-9 tabular-nums font-semibold", glassInput)}
+            {...register("overheadAllocated", { valueAsNumber: true })}
+          />
+          <p className="text-[10px] text-slate-400">Listrik, gas, air, penyusutan, dll.</p>
+        </FieldGroup>
+      </div>}
+
       {/* ── Ringkasan ── */}
       <HppSummary
         rbComponents={rbComponents ?? []}
@@ -520,6 +576,8 @@ export function ProductionForm({
         packagingOptions={packagingOptions}
         packagingId={packagingId ?? ""}
         unitsProduced={Number(unitsProduced) || 0}
+        laborCost={Number(laborCost) || 0}
+        overheadAllocated={Number(overheadAllocated) || 0}
       />
 
       {/* ── Catatan ── */}

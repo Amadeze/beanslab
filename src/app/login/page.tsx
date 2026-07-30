@@ -129,7 +129,7 @@ function LoginForm() {
       </div>
 
       <a
-        href="/api/auth/google"
+        href={`/api/auth/google?from=${encodeURIComponent(from)}`}
         className="flex h-12 w-full items-center justify-center gap-2 rounded-[10px] border border-input bg-background font-bold text-foreground shadow-sm transition-colors hover:bg-muted"
       >
         <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">

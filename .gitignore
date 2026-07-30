@@ -14,6 +14,7 @@
 /coverage
 /test-results
 /playwright-report
+/output
 
 # next.js
 /.next/
@@ -31,10 +32,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+/server-fork-smoke*.log
 
 # env files (can opt-in for committing if needed)
 .env*
 !.env.local.example
+
+# local private object-storage fallback
+.data/
 
 # vercel
 .vercel
@@ -45,5 +50,19 @@ next-env.d.ts
 
 # mimocode
 .mimocode/
+.ua/
+
+# local AI/tool configuration
+/.claude/
+/.kilo/
+/.mcp.json
+
+# generated codebase graph (regenerable)
+/graphify-out/
+
+# Desktop release artifacts: keep only the current production installer.
+/public/downloads/RoastdStudio-*.exe
+!/public/downloads/RoastdStudio-0.10.2-x64-setup.exe
+/public/downloads/ArtisanSync-*.exe
 
 .vercel

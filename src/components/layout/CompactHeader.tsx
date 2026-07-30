@@ -1,21 +1,12 @@
 import React from "react";
 import Link from "next/link";
-import {
-  Boxes,
-  Factory,
-  Flame,
-  ReceiptText,
-  WalletCards,
-  type LucideIcon,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type OperatingStage =
-  | "inventory"
-  | "roasting"
-  | "production"
-  | "sales"
-  | "finance";
+import {
+  operatingStages,
+  operatingStageTones,
+  titleStages,
+  type OperatingStage,
+} from "@/components/layout/operating-stages";
 
 interface CompactHeaderMetric {
   label: string;
@@ -44,70 +35,6 @@ interface CompactHeaderProps {
   };
 }
 
-const titleStages: Record<string, OperatingStage | undefined> = {
-  Inventory: "inventory",
-  Pasokan: "inventory",
-  "Pasokan & Stok": "inventory",
-  "Bahan & Stok": "inventory",
-  Roasting: "roasting",
-  Produksi: "production",
-  "Produksi & Packing": "production",
-  Penjualan: "sales",
-  "Penjualan & Pesanan": "sales",
-  Keuangan: "finance",
-  "Kas & Piutang": "finance",
-};
-
-const operatingStages: Array<{
-  id: OperatingStage;
-  number: string;
-  shortLabel: string;
-  label: string;
-  href: string;
-  icon: LucideIcon;
-}> = [
-  {
-    id: "inventory",
-    number: "01",
-    shortLabel: "Stok",
-    label: "Pasokan & Stok",
-    href: "/inventory",
-    icon: Boxes,
-  },
-  {
-    id: "roasting",
-    number: "02",
-    shortLabel: "Roast",
-    label: "Roasting",
-    href: "/roasting",
-    icon: Flame,
-  },
-  {
-    id: "production",
-    number: "03",
-    shortLabel: "Produksi",
-    label: "Produksi",
-    href: "/produksi",
-    icon: Factory,
-  },
-  {
-    id: "sales",
-    number: "04",
-    shortLabel: "Jual",
-    label: "Penjualan",
-    href: "/penjualan",
-    icon: ReceiptText,
-  },
-  {
-    id: "finance",
-    number: "05",
-    shortLabel: "Kas",
-    label: "Kas & Piutang",
-    href: "/keuangan",
-    icon: WalletCards,
-  },
-];
-
 export function CompactHeader({
   title,
   description,
@@ -122,54 +49,7 @@ export function CompactHeader({
   const activeIndex = operatingStages.findIndex(
     (item) => item.id === activeStage,
   );
-  const stageTone = {
-    inventory: {
-      eyebrow: "text-[#87CDBC]",
-      active:
-        "border-[#2B7567] bg-[#2B7567] text-white shadow-[0_0_22px_rgba(43,117,103,.3)]",
-      complete: "border-[#2B7567]/55 bg-[#2B7567]/14 text-[#87CDBC]",
-      label: "text-[#9AD7C8]",
-      line: "bg-[#2B7567]",
-      signal: "text-[#8CD1C1]",
-    },
-    roasting: {
-      eyebrow: "text-[#E9A17F]",
-      active:
-        "border-[#B65331] bg-[#B65331] text-white shadow-[0_0_22px_rgba(182,83,49,.3)]",
-      complete: "border-[#B65331]/55 bg-[#B65331]/14 text-[#E9A17F]",
-      label: "text-[#F0AC8C]",
-      line: "bg-[#B65331]",
-      signal: "text-[#E9A17F]",
-    },
-    production: {
-      eyebrow: "text-[#E0BC67]",
-      active:
-        "border-[#A66F12] bg-[#A66F12] text-white shadow-[0_0_22px_rgba(166,111,18,.3)]",
-      complete: "border-[#A66F12]/55 bg-[#A66F12]/14 text-[#E0BC67]",
-      label: "text-[#E7C778]",
-      line: "bg-[#A66F12]",
-      signal: "text-[#E0BC67]",
-    },
-    sales: {
-      eyebrow: "text-[#C7A8C4]",
-      active:
-        "border-[#6F4A6A] bg-[#6F4A6A] text-white shadow-[0_0_22px_rgba(111,74,106,.3)]",
-      complete: "border-[#6F4A6A]/55 bg-[#6F4A6A]/14 text-[#C7A8C4]",
-      label: "text-[#D2B5CF]",
-      line: "bg-[#6F4A6A]",
-      signal: "text-[#C7A8C4]",
-    },
-    finance: {
-      eyebrow: "text-[#A8C390]",
-      active:
-        "border-[#4B6B3C] bg-[#4B6B3C] text-white shadow-[0_0_22px_rgba(75,107,60,.3)]",
-      complete: "border-[#4B6B3C]/55 bg-[#4B6B3C]/14 text-[#A8C390]",
-      label: "text-[#B7CE9F]",
-      line: "bg-[#4B6B3C]",
-      signal: "text-[#A8C390]",
-    },
-  } as const;
-  const headerTone = activeStage ? stageTone[activeStage] : undefined;
+  const headerTone = activeStage ? operatingStageTones[activeStage] : undefined;
 
   const signalColor =
     signal?.tone === "critical"
@@ -193,7 +73,7 @@ export function CompactHeader({
       >
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <h1 className="truncate text-[clamp(1.1rem,2vw,1.5rem)] font-black leading-none tracking-[-0.045em] text-white">
+            <h1 className="truncate font-heading text-[clamp(1.1rem,2vw,1.5rem)] font-bold leading-none tracking-[-0.045em] text-white">
               {title}
             </h1>
             {activeIndex >= 0 && (
@@ -219,7 +99,7 @@ export function CompactHeader({
                 const isActive = item.id === activeStage;
                 const isComplete = activeIndex > index;
                 const Icon = item.icon;
-                const tone = stageTone[item.id];
+                const tone = operatingStageTones[item.id];
 
                 return (
                   <Link
@@ -290,7 +170,7 @@ export function CompactHeader({
                 type="button"
                 onClick={signal.onClick}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all",
+                  "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-1.5 transition-all sm:w-auto sm:justify-start",
                   signal.onClick && "cursor-pointer hover:bg-white/5",
                   signal.active && "bg-white/10 ring-1 ring-white/20",
                 )}
@@ -298,7 +178,7 @@ export function CompactHeader({
                 <span className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-white/35">
                   {signal.label}
                 </span>
-                <span className={cn("text-sm font-black", signalColor)}>
+                <span className={cn("font-heading text-sm font-bold", signalColor)}>
                   {signal.value}
                 </span>
               </button>
@@ -308,13 +188,13 @@ export function CompactHeader({
             {metrics && metrics.length > 0 && (
               <>
                 <span className="hidden h-4 w-px bg-white/10 sm:block" aria-hidden />
-                <div className="flex items-center gap-4">
+                <div className="grid w-full min-w-0 grid-cols-4 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-4">
                   {metrics.map((metric) => (
-                    <div key={metric.label} className="flex items-center gap-1.5">
-                      <span className="font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-white/30">
+                    <div key={metric.label} className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-1.5">
+                      <span className="truncate font-mono text-[7px] font-bold uppercase tracking-[0.1em] text-white/30 sm:text-[8px] sm:tracking-[0.12em]">
                         {metric.label}
                       </span>
-                      <span className="text-xs font-bold tabular-nums text-white/80">
+                      <span className="max-w-full truncate font-heading text-[10px] font-bold tabular-nums text-white/80 sm:text-xs">
                         {metric.value}
                       </span>
                     </div>
@@ -354,7 +234,7 @@ export function CompactHeader({
               const isActive = item.id === activeStage;
               const isComplete = activeIndex > index;
               const Icon = item.icon;
-              const tone = stageTone[item.id];
+              const tone = operatingStageTones[item.id];
 
               return (
                 <Link

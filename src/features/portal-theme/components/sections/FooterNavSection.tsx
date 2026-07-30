@@ -130,7 +130,7 @@ export function FooterNavSection({ settings, isPreview = false }: FooterNavProps
         {/* Giant Ticker Brand */}
         <div className="py-12 sm:py-20 px-4 sm:px-8 border-b-4 border-white text-center sm:text-left bg-[var(--portal-accent,#D4A574)] text-black">
           <h2 className="text-4xl sm:text-7xl md:text-8xl font-black uppercase tracking-tighter leading-none break-words">
-            {logoText} // WHOLESALE
+            {logoText} | WHOLESALE
           </h2>
           <p className="text-sm sm:text-xl font-bold uppercase tracking-widest mt-4">
             PRECISION ROASTING ENGINE FOR B2B PARTNERS
@@ -140,12 +140,12 @@ export function FooterNavSection({ settings, isPreview = false }: FooterNavProps
         {/* Links & Info Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 border-b-4 border-white divide-y md:divide-y-0 md:divide-x-4 divide-white text-sm">
           <div className="p-6 sm:p-10 space-y-4">
-            <span className="bg-white text-black px-2 py-0.5 text-xs font-black uppercase">01 // ABOUT</span>
+            <span className="bg-white text-black px-2 py-0.5 text-xs font-black uppercase">01 — ABOUT</span>
             <p className="text-white/80 leading-relaxed">{bioText}</p>
           </div>
 
           <div className="p-6 sm:p-10 space-y-4">
-            <span className="bg-white text-black px-2 py-0.5 text-xs font-black uppercase">02 // INDEX</span>
+            <span className="bg-white text-black px-2 py-0.5 text-xs font-black uppercase">02 — INDEX</span>
             <ul className="space-y-3 font-bold text-base">
               {navLinks.map((link, i) => (
                 <li key={link.label}>
@@ -159,7 +159,7 @@ export function FooterNavSection({ settings, isPreview = false }: FooterNavProps
 
           <div className="p-6 sm:p-10 space-y-4 flex flex-col justify-between">
             <div>
-              <span className="bg-white text-black px-2 py-0.5 text-xs font-black uppercase">03 // DISPATCH</span>
+              <span className="bg-white text-black px-2 py-0.5 text-xs font-black uppercase">03 — DISPATCH</span>
               <p className="text-white/80 mt-3">DIRECT TRADE TRACEABILITY & SYSTEM METRICS ONLINE.</p>
             </div>
             <div className="pt-6">
@@ -222,7 +222,7 @@ export function FooterNavSection({ settings, isPreview = false }: FooterNavProps
         <div className="md:col-span-5 space-y-4">
           <div className="flex items-center gap-2 text-sm font-black uppercase text-white">
             <Activity size={18} className="text-[#00FF66] animate-pulse" />
-            <span>{logoText} // TERMINAL SUBSYSTEM</span>
+            <span>{logoText} | TERMINAL SUBSYSTEM</span>
           </div>
           <div className="p-4 rounded bg-[#00FF66]/5 border border-[#00FF66]/25 space-y-2 text-[11px] text-[#00FF66]/90">
             <div className="flex justify-between">
@@ -231,7 +231,7 @@ export function FooterNavSection({ settings, isPreview = false }: FooterNavProps
             </div>
             <div className="flex justify-between">
               <span>TELEMETRY SYNC:</span>
-              <span className="font-bold text-[#00FF66]">LIVE // 100% UPTIME</span>
+              <span className="font-bold text-[#00FF66]">LIVE | 100% UPTIME</span>
             </div>
             <div className="flex justify-between">
               <span>SECURITY PROTOCOL:</span>
@@ -246,7 +246,7 @@ export function FooterNavSection({ settings, isPreview = false }: FooterNavProps
         {/* Matrix Links (4 cols) */}
         <div className="md:col-span-4 space-y-3">
           <span className="text-[11px] font-black uppercase text-white tracking-widest block border-b border-[#00FF66]/20 pb-2">
-            // INDEX_DIRECTORIES
+            INDEX_DIRECTORIES
           </span>
           <ul className="space-y-2 text-xs">
             {navLinks.map((link, idx) => (
@@ -263,7 +263,7 @@ export function FooterNavSection({ settings, isPreview = false }: FooterNavProps
         {/* System Command (3 cols) */}
         <div className="md:col-span-3 space-y-3">
           <span className="text-[11px] font-black uppercase text-white tracking-widest block border-b border-[#00FF66]/20 pb-2">
-            // EXECUTE_ORDER
+            EXECUTE_ORDER
           </span>
           <p className="text-[11px] text-white/60">Ready to instantiate monthly recurring wholesale contract?</p>
           <a

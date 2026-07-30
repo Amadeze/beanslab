@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { createPairingCode, revokeConnector } from "../actions";
+import { revokeConnector } from "../actions";
 import {
   ResponsiveContainer,
   LineChart,
@@ -12,7 +12,6 @@ import {
   Tooltip,
 } from "recharts";
 import {
-  Link2,
   Unlink,
   Download,
   Monitor,
@@ -68,15 +67,9 @@ function formatRelativeTime(iso: string | null): string {
 }
 
 export function ArtisanIntegrationClient({
-  machines,
   connectors: initialConnectors,
   downloadUrl,
 }: Props) {
-  const [selectedMachine, setSelectedMachine] = useState("");
-  const [pairingCode, setPairingCode] = useState<string | null>(null);
-  const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [countdown, setCountdown] = useState(0);
   const [connectors, setConnectors] = useState(initialConnectors);
 
   useEffect(() => {
@@ -99,44 +92,6 @@ export function ArtisanIntegrationClient({
     const interval = window.setInterval(refreshConnectors, 10_000);
     return () => window.clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    if (!expiresAt) return;
-    const interval = setInterval(() => {
-      const remaining = Math.max(
-        0,
-        Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000),
-      );
-      setCountdown(remaining);
-      if (remaining <= 0) {
-        setPairingCode(null);
-        setExpiresAt(null);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [expiresAt]);
-
-  async function handlePair() {
-    if (!selectedMachine) {
-      toast.error("Pilih mesin terlebih dahulu.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const result = await createPairingCode(selectedMachine);
-      if (result.success) {
-        setPairingCode(result.code);
-        setExpiresAt(result.expiresAt);
-        toast.success(
-          `Kode pairing untuk ${result.machineName} berhasil dibuat.`,
-        );
-      } else {
-        toast.error(result.error);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleRevoke(connectorId: string) {
     if (!confirm("Yakin ingin memutuskan connector ini?")) return;
@@ -177,70 +132,37 @@ export function ArtisanIntegrationClient({
 
   return (
     <div className="space-y-8">
-      {/* Pairing Section */}
+      {/* Browser login guidance */}
       <section className="glass-card rounded-2xl p-6">
         <h3 className="mb-4 flex items-center gap-2 font-bold text-[var(--text-primary)]">
-          <Link2 size={18} className="text-[var(--amber-warm)]" />
-          Hubungkan Artisan Sync
+          <Monitor size={18} className="text-[var(--amber-warm)]" />
+          Masuk langsung dari Roastd Studio
         </h3>
         <p className="mb-4 text-sm text-[var(--text-secondary)]">
-          Buat kode pairing untuk menghubungkan desktop Artisan Sync dengan
-          mesin roasting Anda.
+          Buka aplikasi desktop dan tekan <strong>Masuk dengan Roastd</strong>.
+          Browser akan meminta Anda memilih mesin, lalu Studio tersambung otomatis.
         </p>
 
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="min-w-[200px] flex-1">
-            <label className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">
-              Pilih Mesin
-            </label>
-            <select
-              value={selectedMachine}
-              onChange={(e) => setSelectedMachine(e.target.value)}
-              className="w-full rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] px-4 py-2.5 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber-warm)]/50"
-            >
-              <option value="">-- Pilih Mesin --</option>
-              {machines.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            onClick={handlePair}
-            disabled={loading || !selectedMachine}
-            className="rounded-xl bg-[var(--amber-warm)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition disabled:opacity-50"
-          >
-            {loading ? "Membuat..." : "Hubungkan Artisan"}
-          </button>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {["Buka Studio", "Login di browser", "Pilih mesin"].map((label, index) => (
+            <div key={label} className="rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] px-4 py-3 text-sm text-[var(--text-secondary)]">
+              <span className="mr-2 font-mono text-xs font-bold text-[var(--amber-warm)]">0{index + 1}</span>
+              {label}
+            </div>
+          ))}
         </div>
 
-        {pairingCode && (
-          <div className="mt-6 rounded-xl border-2 border-dashed border-[var(--amber-warm)]/30 bg-[var(--amber-warm)]/5 p-6 text-center">
-            <p className="mb-2 text-sm font-medium text-[var(--text-secondary)]">
-              Masukkan kode ini di Artisan Sync:
-            </p>
-            <p className="mb-3 text-4xl font-black tracking-[0.3em] text-[var(--amber-warm)]">
-              {pairingCode}
-            </p>
-            <p className="text-xs text-[var(--text-tertiary)]">
-              Kode berlaku selama {Math.floor(countdown / 60)}:
-              {String(countdown % 60).padStart(2, "0")} menit · hanya bisa
-              digunakan sekali
-            </p>
-          </div>
-        )}
       </section>
 
       {/* Download Section */}
       <section className="glass-card rounded-2xl p-6">
         <h3 className="mb-4 flex items-center gap-2 font-bold text-[var(--text-primary)]">
           <Download size={18} className="text-[var(--amber-warm)]" />
-          Download Artisan Sync
+          Download Roastd Studio
         </h3>
         <p className="mb-4 text-sm text-[var(--text-secondary)]">
-          Instal aplikasi desktop untuk menghubungkan Artisan dengan roastd.id
-          secara otomatis.
+          Instal logger desktop read-only untuk melihat telemetry dan menyinkronkan
+          hasil Artisan ke roastd.id secara otomatis.
         </p>
         {downloadUrl ? (
           <a

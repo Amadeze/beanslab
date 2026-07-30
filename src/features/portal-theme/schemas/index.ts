@@ -8,7 +8,10 @@ import { z } from "zod";
 
 const hexColor = z
   .string()
-  .regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color (e.g. #FF5733)");
+  .regex(
+    /^(?:#[0-9A-Fa-f]{6}|rgba?\(\s*(?:\d{1,3}\s*,\s*){2}\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\))$/,
+    "Must be a valid hex, rgb, or rgba color",
+  );
 
 const sanitizedUrl = z
   .string()

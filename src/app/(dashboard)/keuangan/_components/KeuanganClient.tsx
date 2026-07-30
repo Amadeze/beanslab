@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Minus } from "lucide-react";
+import { Minus, Plus, HandCoins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CompactHeader } from "@/components/layout/CompactHeader";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -15,7 +15,11 @@ import { PaymentTable } from "./PaymentTable";
 import { SupplierPaymentDialog } from "./SupplierPaymentDialog";
 import { SupplierPaymentTable } from "./SupplierPaymentTable";
 import { formatRupiah } from "@/lib/format";
+import { CapitalTable } from "./CapitalTable";
+import { CatatModalDialog } from "./CatatModalDialog";
 import type {
+  CapitalTransactionRow,
+  CapitalSummary,
   ExpenseRow,
   KeuanganPageData,
   PaymentRow,
@@ -32,7 +36,7 @@ import {
 import { VoidConfirmDialog } from "@/components/VoidConfirmDialog";
 
 type Tab =
-  "piutang" | "pembayaran" | "pengeluaran" | "pembelian" | "pembayaranSupplier";
+  "piutang" | "pembayaran" | "pengeluaran" | "pembelian" | "pembayaranSupplier" | "modal";
 
 interface KeuanganClientProps {
   data: KeuanganPageData;
@@ -40,6 +44,8 @@ interface KeuanganClientProps {
   purchases: PurchaseRow[];
   payments: PaymentRow[];
   supplierPayments: SupplierPaymentRow[];
+  capitalTransactions: CapitalTransactionRow[];
+  capitalSummary: CapitalSummary;
 }
 
 export function KeuanganClient({
@@ -48,6 +54,8 @@ export function KeuanganClient({
   purchases,
   payments,
   supplierPayments,
+  capitalTransactions,
+  capitalSummary,
 }: KeuanganClientProps) {
   const [selectedInvoice, setSelectedInvoice] = useState<PiutangRow | null>(
     null,
@@ -68,6 +76,7 @@ export function KeuanganClient({
     useState<PurchaseRow | null>(null);
   const [selectedSupplierPayment, setSelectedSupplierPayment] =
     useState<SupplierPaymentRow | null>(null);
+  const [capitalDialogType, setCapitalDialogType] = useState<"INJECTION" | "WITHDRAWAL" | null>(null);
 
   const { kpi, piutangRows } = data;
   const overdueCount =
@@ -124,13 +133,13 @@ export function KeuanganClient({
         />
 
         <div className="custom-scrollbar flex-1 overflow-auto">
-          <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">
+          <div className="relative z-10 mx-auto max-w-[1600px] px-4 pb-8 sm:px-5 md:px-6 lg:px-8">
             <Tabs
               value={activeTab}
               onValueChange={(v) => setActiveTab(v as Tab)}
               className="w-full"
             >
-              <div className="custom-scrollbar overflow-x-auto border-b border-[var(--glass-border)] mb-8 pb-1">
+              <div className="custom-scrollbar mb-5 overflow-x-auto border-b border-border pb-1">
                 <TabsList className="flex w-max items-center h-auto p-0 bg-transparent gap-2">
                   {[
                     { id: "piutang", label: `Piutang (${piutangRows.length})` },
@@ -150,6 +159,10 @@ export function KeuanganClient({
                       id: "pembayaranSupplier",
                       label: `Bayar Supplier (${supplierPayments.length})`,
                     },
+                    {
+                      id: "modal",
+                      label: `Modal (${capitalTransactions.length})`,
+                    },
                   ].map((tab) => {
                     const isActive = activeTab === tab.id;
                     return (
@@ -157,7 +170,7 @@ export function KeuanganClient({
                         key={tab.id}
                         value={tab.id}
                         className={cn(
-                          "relative flex items-center gap-2.5 px-4 py-3 text-sm font-semibold transition-all rounded-t-xl data-[state=active]:bg-transparent data-[state=active]:shadow-none",
+                          "relative flex items-center gap-2.5 rounded-t-[8px] px-4 py-3 text-sm font-semibold transition-all data-[state=active]:bg-transparent data-[state=active]:shadow-none",
                           isActive
                             ? "text-[var(--amber-deep)] dark:text-[var(--amber-warm)]"
                             : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)]",
@@ -214,6 +227,58 @@ export function KeuanganClient({
                     onVoid={setSelectedSupplierPayment}
                   />
                 </TabsContent>
+                <TabsContent
+                  value="modal"
+                  className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300"
+                >
+                  <div className="space-y-4">
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-700">Modal Disetor</p>
+                        <p className="text-lg font-bold text-emerald-800 mt-1">{formatRupiah(capitalSummary.totalInitial + capitalSummary.totalInjections)}</p>
+                        {capitalSummary.totalInjections > 0 && <p className="text-[10px] text-emerald-600 mt-0.5">+{formatRupiah(capitalSummary.totalInjections)} tambahan</p>}
+                      </div>
+                      <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-amber-700">Prive & Bagi Hasil</p>
+                        <p className="text-lg font-bold text-amber-800 mt-1">{formatRupiah(capitalSummary.totalWithdrawals + capitalSummary.totalDividends)}</p>
+                      </div>
+                      <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-blue-700">Modal Bersih</p>
+                        <p className="text-lg font-bold text-blue-800 mt-1">{formatRupiah(capitalSummary.netCapital)}</p>
+                      </div>
+                      <div className="rounded-xl border border-stone-200 bg-stone-50/50 p-4">
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-stone-700">Total Transaksi</p>
+                        <p className="text-lg font-bold text-stone-800 mt-1">{capitalSummary.count} mutasi</p>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => setCapitalDialogType("INJECTION")}
+                      >
+                        <Plus size={14} />
+                        Tambah Modal
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => setCapitalDialogType("WITHDRAWAL")}
+                      >
+                        <HandCoins size={14} />
+                        Catat Prive
+                      </Button>
+                    </div>
+
+                    {/* Table */}
+                    <CapitalTable rows={capitalTransactions} />
+                  </div>
+                </TabsContent>
               </div>
             </Tabs>
           </div>
@@ -230,6 +295,15 @@ export function KeuanganClient({
         onSuccess={() => {
           setDialogOpen(false);
           setSelectedInvoice(null);
+        }}
+      />
+      <CatatModalDialog
+        type={capitalDialogType || "INJECTION"}
+        open={Boolean(capitalDialogType)}
+        onOpenChange={(v) => { if (!v) setCapitalDialogType(null); }}
+        onSuccess={() => {
+          setCapitalDialogType(null);
+          window.location.reload();
         }}
       />
       <CatatPengeluaranDrawer

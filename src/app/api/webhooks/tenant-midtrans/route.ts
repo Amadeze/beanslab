@@ -5,6 +5,10 @@ import { decryptCredential } from "@/lib/credentials";
 import { Prisma } from "@prisma/client";
 import { recordAudit } from "@/lib/audit";
 import { getCurrentDate } from "@/lib/date-utils";
+import { postCustomerPayment } from "@/lib/posting";
+import { postVoidReversal } from "@/lib/posting";
+import { appendLedger } from "@/lib/stock";
+import { consumeInvoiceReservations, releaseInvoiceReservations } from "@/lib/storefront-commerce";
 import {
   getRequestId,
   internalErrorResponse,
@@ -33,6 +37,10 @@ function isSuccessfulPayment(transactionStatus?: string, fraudStatus?: string) {
   return false;
 }
 
+function isTerminalFailure(transactionStatus?: string) {
+  return ["expire", "cancel", "deny"].includes(transactionStatus ?? "");
+}
+
 function toPaymentMethod(paymentType?: string) {
   return paymentType?.toLowerCase().includes("qris") ? "QRIS" : "TRANSFER";
 }
@@ -59,7 +67,7 @@ export async function POST(req: Request) {
     // Find the invoice to get the tenant's Server Key
     const invoice = await prisma.invoice.findUnique({
       where: { midtransOrderId: orderId },
-      include: { tenant: true }
+      include: { tenant: true, customer: { select: { name: true } } }
     });
 
     if (!invoice) {
@@ -169,6 +177,20 @@ export async function POST(req: Request) {
             paidAmount: previousPaid + paidAmount,
           }
         });
+        await consumeInvoiceReservations(tx, {
+          tenantId: invoice.tenantId,
+          invoiceId: invoice.id,
+          invoiceCode: invoice.code,
+          createdById: invoice.createdById,
+          now: paidAt,
+        });
+        await postCustomerPayment(
+          payment.id,
+          paidAmount,
+          invoice.code,
+          invoice.customer.name,
+          { tx, tenantId: invoice.tenantId, userId: invoice.createdById },
+        );
         await recordAudit(tx, {
           tenantId: invoice.tenantId,
           userId: invoice.createdById,
@@ -187,7 +209,80 @@ export async function POST(req: Request) {
           where: { id: webhookEventId! },
           data: { status: "PROCESSED", processedAt: getCurrentDate() },
         });
-      });
+      }, { isolationLevel: "Serializable" });
+    } else if (isTerminalFailure(transactionStatus)) {
+      await prisma.$transaction(async (tx) => {
+        const freshInvoice = await tx.invoice.findFirst({
+          where: { id: invoice.id, tenantId: invoice.tenantId },
+          select: { id: true, code: true, status: true, paidAmount: true },
+        });
+        if (!freshInvoice || freshInvoice.status === "VOID" || freshInvoice.status === "PAID") {
+          await tx.webhookEvent.update({
+            where: { id: webhookEventId! },
+            data: { status: "PROCESSED", processedAt: getCurrentDate() },
+          });
+          return;
+        }
+        if (Number(freshInvoice.paidAmount) > 0) {
+          throw new PermanentWebhookError("Partially paid invoice cannot be auto-cancelled.");
+        }
+
+        const saleEntries = await tx.inventoryLedger.findMany({
+          where: { tenantId: invoice.tenantId, refId: invoice.id, refType: "SALE_FG_OUT", entryType: "OUT" },
+        });
+        const activeReservations = await tx.stockReservation.count({
+          where: { tenantId: invoice.tenantId, invoiceId: invoice.id, status: "ACTIVE" },
+        });
+        for (const entry of saleEntries) {
+          await appendLedger(tx, {
+            data: {
+              tenantId: invoice.tenantId,
+              productId: entry.productId,
+              packagingId: entry.packagingId,
+              entryType: "IN",
+              refType: "VOID_REVERSAL",
+              refId: invoice.id,
+              quantityKg: entry.quantityKg,
+              quantityUnit: entry.quantityUnit,
+              lotId: entry.lotId,
+              lotNumber: entry.lotNumber,
+              expiryDate: entry.expiryDate,
+              notes: `Midtrans ${transactionStatus}: ${freshInvoice.code}`,
+              createdById: invoice.createdById,
+            },
+          });
+          if (entry.lotId) {
+            await tx.lot.update({ where: { id: entry.lotId }, data: { consumedAt: null } });
+          }
+        }
+        if (activeReservations > 0) {
+          await releaseInvoiceReservations(tx, invoice.id, "RELEASED", getCurrentDate());
+        }
+        const reason = `Pembayaran Midtrans ${transactionStatus}`;
+        await tx.invoice.update({
+          where: { id: invoice.id },
+          data: { status: "VOID", fulfillmentStatus: "CANCELLED", voidReason: reason, voidAt: getCurrentDate() },
+        });
+        await postVoidReversal("INVOICE", invoice.id, reason, {
+          tx,
+          tenantId: invoice.tenantId,
+          userId: invoice.createdById,
+        });
+        await recordAudit(tx, {
+          tenantId: invoice.tenantId,
+          userId: invoice.createdById,
+          action: "VOID_WEBHOOK",
+          entityType: "Invoice",
+          entityId: invoice.id,
+          before: { status: freshInvoice.status },
+          after: { status: "VOID", reason },
+          metadata: { provider: "MIDTRANS", transactionStatus },
+        });
+        await tx.webhookEvent.update({
+          where: { id: webhookEventId! },
+          data: { status: "PROCESSED", processedAt: getCurrentDate() },
+        });
+      }, { isolationLevel: "Serializable" });
     } else {
       await prisma.webhookEvent.update({
         where: { id: webhookEventId! },

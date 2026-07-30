@@ -1,6 +1,8 @@
 import type { PrismaClient, POStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
+import { randomBytes } from "node:crypto";
 import { appendLedger } from "./stock";
+import { postPurchase } from "./posting";
 
 // =============================================================================
 // TYPES
@@ -9,6 +11,7 @@ import { appendLedger } from "./stock";
 export type CreatePOInput = {
   supplierId: string;
   expectedDate?: string;
+  estimatedShippingCost?: number;
   notes?: string;
   items: Array<{
     productId?: string;
@@ -24,6 +27,7 @@ export type UpdatePOInput = {
   id: string;
   supplierId?: string;
   expectedDate?: string;
+  estimatedShippingCost?: number;
   notes?: string;
   items?: Array<{
     id?: string; // existing item ID untuk update
@@ -38,6 +42,9 @@ export type UpdatePOInput = {
 
 export type ReceivePOInput = {
   receivedAt: string;
+  shippingCost?: number;
+  paymentMethod?: "CASH" | "TRANSFER" | "CREDIT";
+  dueDate?: string;
   items: Array<{
     poItemId: string;
     receivedQuantity: number;
@@ -58,6 +65,7 @@ export type POListItem = {
   status: POStatus;
   supplierName: string;
   expectedDate: string | null;
+  estimatedShippingCost: number;
   totalEstimate: number;
   sentAt: string | null;
   receivedAt: string | null;
@@ -72,11 +80,15 @@ export type POListItem = {
 
 export type PODetail = POListItem & {
   notes: string | null;
+  receivedShippingCost: number;
+  remainingShippingEstimate: number;
   items: Array<{
     id: string;
     productName: string | null;
     packagingName: string | null;
     quantity: number;
+    receivedQuantity: number;
+    remainingQuantity: number;
     unitPrice: number;
     totalPrice: number;
     reorderPoint: number | null;
@@ -86,6 +98,7 @@ export type PODetail = POListItem & {
     id: string;
     code: string;
     receivedAt: string;
+    shippingCost: number;
     totalCost: number;
   }>;
 };
@@ -96,8 +109,32 @@ export type PODetail = POListItem & {
 
 function calculateTotalEstimate(
   items: Array<{ quantity: number; unitPrice: number }>,
+  estimatedShippingCost = 0,
 ): number {
-  return items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  return items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+    + estimatedShippingCost;
+}
+
+export function allocateShippingCost(
+  itemCosts: number[],
+  shippingCost: number,
+): number[] {
+  if (itemCosts.length === 0) return [];
+  const shippingCents = Math.round(shippingCost * 100);
+  if (shippingCents === 0) return itemCosts.map(() => 0);
+
+  const totalItemCost = itemCosts.reduce((sum, cost) => sum + cost, 0);
+  const weights = totalItemCost > 0 ? itemCosts : itemCosts.map(() => 1);
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  let allocatedCents = 0;
+
+  return weights.map((weight, index) => {
+    const cents = index === weights.length - 1
+      ? shippingCents - allocatedCents
+      : Math.floor((shippingCents * weight) / totalWeight);
+    allocatedCents += cents;
+    return cents / 100;
+  });
 }
 
 function getStatusLabel(status: POStatus): string {
@@ -119,6 +156,11 @@ function getSinceDate(days: number): Date {
   const since = new Date();
   since.setDate(since.getDate() - days);
   return since;
+}
+
+function generateSupplierPaymentCode(paidAt: Date): string {
+  const prefix = `SPAY-${paidAt.getFullYear()}${String(paidAt.getMonth() + 1).padStart(2, "0")}`;
+  return `${prefix}-${randomBytes(4).toString("hex").toUpperCase()}`;
 }
 
 /**
@@ -144,11 +186,12 @@ export async function createDraftPO(
   // Validate supplier
   const supplier = await prisma.supplier.findUnique({
     where: { id: input.supplierId },
-    select: { id: true, isActive: true },
+    select: { id: true, isActive: true, tenantId: true },
   });
   if (!supplier || !supplier.isActive) {
     throw new Error("Supplier tidak ditemukan atau tidak aktif.");
   }
+  const tenantId = supplier.tenantId;
 
   // Validate items
   if (!input.items || input.items.length === 0) {
@@ -166,22 +209,28 @@ export async function createDraftPO(
       throw new Error("Harga tidak boleh negatif.");
     }
   }
+  const estimatedShippingCost = Number(input.estimatedShippingCost ?? 0);
+  if (!Number.isFinite(estimatedShippingCost) || estimatedShippingCost < 0) {
+    throw new Error("Estimasi ongkir tidak boleh negatif.");
+  }
 
   // Generate code
   const code = await generatePOCode(prisma);
 
   // Calculate total estimate
-  const totalEstimate = calculateTotalEstimate(input.items);
+  const totalEstimate = calculateTotalEstimate(input.items, estimatedShippingCost);
 
   // Create PO + items in transaction
   const result = await prisma.$transaction(async (tx) => {
     const po = await tx.purchaseOrder.create({
       data: {
+        tenantId,
         code,
         status: "DRAFT",
         supplierId: input.supplierId,
         expectedDate: input.expectedDate ? new Date(input.expectedDate) : null,
         notes: input.notes?.trim() || null,
+        estimatedShippingCost,
         totalEstimate,
         createdById: userId,
       },
@@ -189,6 +238,7 @@ export async function createDraftPO(
 
     await tx.purchaseOrderItem.createMany({
       data: input.items.map((item) => ({
+        tenantId,
         purchaseOrderId: po.id,
         productId: item.productId || null,
         packagingId: item.packagingId || null,
@@ -216,15 +266,22 @@ export async function updateDraftPO(
   // Validate PO exists and is Draft
   const po = await prisma.purchaseOrder.findUnique({
     where: { id: input.id },
-    select: { id: true, status: true },
+    select: { id: true, status: true, tenantId: true, estimatedShippingCost: true },
   });
 
   if (!po) {
     throw new Error("PO tidak ditemukan.");
   }
+  const tenantId = po.tenantId;
 
   if (po.status !== "DRAFT") {
     throw new Error("Hanya PO berstatus Draft yang dapat diedit.");
+  }
+  const estimatedShippingCost = input.estimatedShippingCost === undefined
+    ? Number(po.estimatedShippingCost ?? 0)
+    : Number(input.estimatedShippingCost);
+  if (!Number.isFinite(estimatedShippingCost) || estimatedShippingCost < 0) {
+    throw new Error("Estimasi ongkir tidak boleh negatif.");
   }
 
   // Update PO + items in transaction
@@ -237,10 +294,13 @@ export async function updateDraftPO(
       updateData.expectedDate = input.expectedDate ? new Date(input.expectedDate) : null;
     }
     if (input.notes !== undefined) updateData.notes = input.notes?.trim() || null;
+    if (input.estimatedShippingCost !== undefined) {
+      updateData.estimatedShippingCost = estimatedShippingCost;
+    }
 
     if (input.items) {
       // Calculate new total
-      updateData.totalEstimate = calculateTotalEstimate(input.items);
+      updateData.totalEstimate = calculateTotalEstimate(input.items, estimatedShippingCost);
 
       // Delete existing items
       await tx.purchaseOrderItem.deleteMany({
@@ -250,6 +310,7 @@ export async function updateDraftPO(
       // Create new items
       await tx.purchaseOrderItem.createMany({
         data: input.items.map((item) => ({
+          tenantId,
           purchaseOrderId: input.id,
           productId: item.productId || null,
           packagingId: item.packagingId || null,
@@ -260,6 +321,15 @@ export async function updateDraftPO(
           currentStock: item.currentStock ?? null,
         })),
       });
+    } else if (input.estimatedShippingCost !== undefined) {
+      const currentItems = await tx.purchaseOrderItem.findMany({
+        where: { purchaseOrderId: input.id },
+        select: { quantity: true, unitPrice: true },
+      });
+      updateData.totalEstimate = calculateTotalEstimate(
+        currentItems.map((item) => ({ quantity: Number(item.quantity), unitPrice: Number(item.unitPrice) })),
+        estimatedShippingCost,
+      );
     }
 
     await tx.purchaseOrder.update({
@@ -313,8 +383,11 @@ export async function receivePO(
     where: { id: poId },
     select: {
       id: true,
+      code: true,
+      tenantId: true,
       status: true,
       supplierId: true,
+      supplier: { select: { name: true } },
       items: {
         select: {
           id: true,
@@ -330,13 +403,20 @@ export async function receivePO(
   if (!po) {
     throw new Error("PO tidak ditemukan.");
   }
+  const tenantId = po.tenantId;
 
   if (po.status !== "SENT" && po.status !== "PARTIAL") {
     throw new Error("Hanya PO berstatus Sent atau Partial yang dapat diterima.");
   }
 
+  const shippingCost = Number(input.shippingCost ?? 0);
+  if (!Number.isFinite(shippingCost) || shippingCost < 0) {
+    throw new Error("Ongkir aktual tidak boleh negatif.");
+  }
+
   // Validate received items
   const poItemMap = new Map(po.items.map((item) => [item.id, item]));
+  const seenItemIds = new Set<string>();
   for (const received of input.items) {
     const poItem = poItemMap.get(received.poItemId);
     if (!poItem) {
@@ -345,11 +425,44 @@ export async function receivePO(
     if (received.receivedQuantity < 0) {
       throw new Error("Quantity diterima tidak boleh negatif.");
     }
+    if (poItem.packagingId && received.receivedQuantity > 0 && !Number.isInteger(received.receivedQuantity)) {
+      throw new Error("Quantity kemasan yang diterima harus berupa unit bulat.");
+    }
+    if (seenItemIds.has(received.poItemId)) {
+      throw new Error("Item PO tidak boleh dikirim dua kali dalam satu penerimaan.");
+    }
+    seenItemIds.add(received.poItemId);
   }
+
+  const positiveReceipts = input.items.filter((item) => item.receivedQuantity > 0);
+  if (positiveReceipts.length === 0) {
+    throw new Error("Minimal 1 item harus diterima.");
+  }
+  const shippingAllocations = allocateShippingCost(
+    positiveReceipts.map((received) => {
+      const item = poItemMap.get(received.poItemId)!;
+      return received.receivedQuantity * Number(item.unitPrice);
+    }),
+    shippingCost,
+  );
 
   // Process each received item
   const purchaseCodes: string[] = [];
   const receivedAt = new Date(input.receivedAt);
+  if (Number.isNaN(receivedAt.getTime())) {
+    throw new Error("Tanggal penerimaan tidak valid.");
+  }
+  const paymentMethod = input.paymentMethod ?? "CREDIT";
+  const isPaid = paymentMethod === "CASH" || paymentMethod === "TRANSFER";
+  const dueDate = isPaid
+    ? null
+    : input.dueDate
+      ? new Date(`${input.dueDate}T23:59:59`)
+      : new Date(receivedAt);
+  if (dueDate && !input.dueDate) dueDate.setDate(dueDate.getDate() + 14);
+  if (dueDate && Number.isNaN(dueDate.getTime())) {
+    throw new Error("Tanggal jatuh tempo tidak valid.");
+  }
 
   await prisma.$transaction(async (tx) => {
     // Load all previously received quantities per item (matched by productId/packagingId)
@@ -358,9 +471,7 @@ export async function receivePO(
       select: { productId: true, packagingId: true, weightKg: true, quantityUnits: true },
     });
 
-    for (const received of input.items) {
-      if (received.receivedQuantity <= 0) continue;
-
+    for (const [receiptIndex, received] of positiveReceipts.entries()) {
       const poItem = poItemMap.get(received.poItemId)!;
       const isProduct = !!poItem.productId;
 
@@ -385,11 +496,14 @@ export async function receivePO(
       const purchaseCode = `${purchasePrefix}-${String(purchaseCount + 1).padStart(3, "0")}`;
 
       // Calculate total cost for this receipt
-      const totalCost = received.receivedQuantity * Number(poItem.unitPrice);
+      const itemCost = received.receivedQuantity * Number(poItem.unitPrice);
+      const allocatedShippingCost = shippingAllocations[receiptIndex] ?? 0;
+      const totalCost = itemCost + allocatedShippingCost;
 
       // Create Purchase
       const purchase = await tx.purchase.create({
         data: {
+          tenantId,
           code: purchaseCode,
           type: isProduct ? "GREEN_BEAN" : "PACKAGING",
           supplierId: po.supplierId,
@@ -398,13 +512,17 @@ export async function receivePO(
           weightKg: isProduct ? received.receivedQuantity : null,
           quantityUnits: isProduct ? null : Math.round(received.receivedQuantity),
           pricePerUnit: poItem.unitPrice,
-          shippingCost: 0,
+          shippingCost: allocatedShippingCost,
           totalCost,
           status: "COMPLETED",
-          paymentStatus: "UNPAID",
-          paidAmount: 0,
+          paymentStatus: isPaid ? "PAID" : "UNPAID",
+          paidAmount: isPaid ? totalCost : 0,
+          dueDate,
           receivedAt,
-          notes: `Dari PO ${poId}`,
+          notes: [
+            `Dari PO ${po.code}`,
+            received.notes?.trim(),
+          ].filter(Boolean).join(" · "),
           createdById: userId,
           purchaseOrderId: poId,
         },
@@ -412,16 +530,49 @@ export async function receivePO(
 
       purchaseCodes.push(purchaseCode);
 
+      if (isPaid) {
+        await tx.supplierPayment.create({
+          data: {
+            tenantId,
+            code: generateSupplierPaymentCode(receivedAt),
+            purchaseId: purchase.id,
+            amount: totalCost,
+            method: paymentMethod,
+            paidAt: receivedAt,
+            notes: `Pembayaran penerimaan ${po.code}`,
+            createdById: userId,
+          },
+        });
+      }
+
+      const lot = await tx.lot.create({
+        data: {
+          tenantId,
+          productId: poItem.productId,
+          packagingId: poItem.packagingId,
+          supplierId: po.supplierId,
+          purchaseId: purchase.id,
+          batchCode: purchaseCode,
+          quantityKg: isProduct ? received.receivedQuantity : 0,
+          quantityUnit: isProduct ? 0 : Math.round(received.receivedQuantity),
+          receivedAt,
+          notes: `Penerimaan ${purchaseCode} dari PO ${poId}`,
+        },
+      });
+
       // Create ledger entry + update cached stock + avgCostPerKg via appendLedger
       if (isProduct && poItem.productId) {
         await appendLedger(tx, {
           data: {
+            tenantId,
             productId: poItem.productId,
             entryType: "IN",
             refType: "PURCHASE_GB",
             refId: purchase.id,
             quantityKg: received.receivedQuantity,
             incomingPrice: totalCost / received.receivedQuantity,
+            lotId: lot.id,
+            lotNumber: lot.batchCode,
             notes: `PO ${poId} - ${purchaseCode}`,
             createdById: userId,
           },
@@ -429,17 +580,29 @@ export async function receivePO(
       } else if (poItem.packagingId) {
         await appendLedger(tx, {
           data: {
+            tenantId,
             packagingId: poItem.packagingId,
             entryType: "IN",
             refType: "PURCHASE_PKG",
             refId: purchase.id,
             quantityUnit: Math.round(received.receivedQuantity),
             incomingPrice: totalCost / Math.round(received.receivedQuantity),
+            lotId: lot.id,
+            lotNumber: lot.batchCode,
             notes: `PO ${poId} - ${purchaseCode}`,
             createdById: userId,
           },
         });
       }
+
+      await postPurchase(
+        purchase.id,
+        isProduct ? "GREEN_BEAN" : "PACKAGING",
+        totalCost,
+        isPaid ? totalCost : 0,
+        po.supplier.name,
+        { tx, tenantId, userId },
+      );
     }
 
     // H11: Determine new PO status per-item (all items fully received → RECEIVED)
@@ -551,6 +714,7 @@ export async function getPOList(
       status: po.status,
       supplierName: po.supplier.name,
       expectedDate: po.expectedDate?.toISOString() ?? null,
+      estimatedShippingCost: Number(po.estimatedShippingCost ?? 0),
       totalEstimate: Number(po.totalEstimate ?? 0),
       sentAt: po.sentAt?.toISOString() ?? null,
       receivedAt: po.receivedAt?.toISOString() ?? null,
@@ -588,6 +752,11 @@ export async function getPODetail(
           id: true,
           code: true,
           receivedAt: true,
+          productId: true,
+          packagingId: true,
+          weightKg: true,
+          quantityUnits: true,
+          shippingCost: true,
           totalCost: true,
         },
         orderBy: { receivedAt: "desc" },
@@ -597,32 +766,57 @@ export async function getPODetail(
 
   if (!po) return null;
 
+  const receivedShippingCost = po.purchases.reduce(
+    (sum, purchase) => sum + Number(purchase.shippingCost),
+    0,
+  );
+
   return {
     id: po.id,
     code: po.code,
     status: po.status,
     supplierName: po.supplier.name,
     expectedDate: po.expectedDate?.toISOString() ?? null,
+    estimatedShippingCost: Number(po.estimatedShippingCost ?? 0),
     totalEstimate: Number(po.totalEstimate ?? 0),
     sentAt: po.sentAt?.toISOString() ?? null,
     receivedAt: po.receivedAt?.toISOString() ?? null,
     createdAt: po.createdAt.toISOString(),
     itemCount: po.items.length,
     notes: po.notes,
-    items: po.items.map((item) => ({
-      id: item.id,
-      productName: item.product?.name ?? null,
-      packagingName: item.packaging?.name ?? null,
-      quantity: Number(item.quantity),
-      unitPrice: Number(item.unitPrice),
-      totalPrice: Number(item.totalPrice),
-      reorderPoint: item.reorderPoint ? Number(item.reorderPoint) : null,
-      currentStock: item.currentStock ? Number(item.currentStock) : null,
-    })),
+    receivedShippingCost,
+    remainingShippingEstimate: Math.max(
+      0,
+      Number(po.estimatedShippingCost ?? 0) - receivedShippingCost,
+    ),
+    items: po.items.map((item) => {
+      const receivedQuantity = po.purchases
+        .filter((purchase) => item.productId
+          ? purchase.productId === item.productId
+          : purchase.packagingId === item.packagingId)
+        .reduce(
+          (sum, purchase) => sum + Number(item.productId ? purchase.weightKg ?? 0 : purchase.quantityUnits ?? 0),
+          0,
+        );
+      const quantity = Number(item.quantity);
+      return {
+        id: item.id,
+        productName: item.product?.name ?? null,
+        packagingName: item.packaging?.name ?? null,
+        quantity,
+        receivedQuantity,
+        remainingQuantity: Math.max(0, quantity - receivedQuantity),
+        unitPrice: Number(item.unitPrice),
+        totalPrice: Number(item.totalPrice),
+        reorderPoint: item.reorderPoint ? Number(item.reorderPoint) : null,
+        currentStock: item.currentStock ? Number(item.currentStock) : null,
+      };
+    }),
     purchases: po.purchases.map((p) => ({
       id: p.id,
       code: p.code,
       receivedAt: p.receivedAt.toISOString(),
+      shippingCost: Number(p.shippingCost),
       totalCost: Number(p.totalCost),
     })),
   };

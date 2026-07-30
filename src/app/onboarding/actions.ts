@@ -7,7 +7,6 @@ export async function resetOnboarding(): Promise<{ success: boolean; error?: str
   try {
     const user = await requireRole("OWNER");
     const tenantPrisma = await requireTenantPrisma();
-
     await tenantPrisma.tenant.update({
       where: { id: user.tenantId },
       data: { setupCompletedAt: null },
@@ -26,6 +25,12 @@ export async function completeOnboarding(): Promise<{ success: boolean; error?: 
   try {
     const user = await requireRole("OWNER");
     const tenantPrisma = await requireTenantPrisma();
+    const activePaymentMethods = await tenantPrisma.tenantPaymentMethod.count({
+      where: { isActive: true, provider: "MANUAL" },
+    });
+    if (activePaymentMethods === 0) {
+      return { success: false, error: "Tambahkan minimal satu rekening atau QRIS aktif terlebih dahulu." };
+    }
 
     await tenantPrisma.tenant.update({
       where: { id: user.tenantId },

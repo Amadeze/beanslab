@@ -34,6 +34,7 @@ const itemSchema = z.object({
 const schema = z.object({
   supplierId: z.string().min(1, "Supplier wajib dipilih"),
   expectedDate: z.string().optional(),
+  estimatedShippingCost: z.number().min(0, "Estimasi ongkir tidak boleh negatif"),
   notes: z.string().optional(),
   items: z.array(itemSchema).min(1, "Minimal 1 item"),
 });
@@ -51,6 +52,7 @@ interface POFormProps {
     id: string;
     supplierId: string;
     expectedDate: string | null;
+    estimatedShippingCost: number;
     notes: string | null;
     items: Array<{
       id?: string;
@@ -94,6 +96,7 @@ export function POForm({
       ? {
           supplierId: initialData.supplierId,
           expectedDate: initialData.expectedDate?.split("T")[0] ?? "",
+          estimatedShippingCost: initialData.estimatedShippingCost ?? 0,
           notes: initialData.notes ?? "",
           items: initialData.items.map((item) => ({
             productId: item.productId ?? "",
@@ -107,6 +110,7 @@ export function POForm({
       : {
           supplierId: "",
           expectedDate: "",
+          estimatedShippingCost: 0,
           notes: "",
           items: [{ productId: "", packagingId: "", quantity: 0, unitPrice: 0 }],
         },
@@ -120,6 +124,7 @@ export function POForm({
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const items = watch("items") ?? [];
+  const estimatedShippingCost = Number(watch("estimatedShippingCost")) || 0;
 
   // Lookup maps to resolve IDs to readable names
   const supplierNameMap = new Map(suppliers.map((s) => [s.id, s.name] as const));
@@ -129,10 +134,11 @@ export function POForm({
   ]);
 
   // Calculate total
-  const totalEstimate = items.reduce(
+  const itemEstimate = items.reduce(
     (sum, item) => sum + (item.quantity || 0) * (item.unitPrice || 0),
     0,
   );
+  const totalEstimate = itemEstimate + estimatedShippingCost;
 
   const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
@@ -153,6 +159,7 @@ export function POForm({
           id: initialData!.id,
           supplierId: data.supplierId,
           expectedDate: data.expectedDate || undefined,
+          estimatedShippingCost: data.estimatedShippingCost,
           notes: data.notes,
           items: validItems,
         });
@@ -160,6 +167,7 @@ export function POForm({
         result = await createPO({
           supplierId: data.supplierId,
           expectedDate: data.expectedDate || undefined,
+          estimatedShippingCost: data.estimatedShippingCost,
           notes: data.notes,
           items: validItems,
         });
@@ -294,10 +302,21 @@ export function POForm({
                   name={`items.${index}.productId`}
                   control={control}
                   render={({ field: f }) => (
-                    <Select value={f.value ?? ""} onValueChange={f.onChange} disabled={isReadOnly}>
+                    <Select
+                      value={String(f.value || items[index]?.packagingId || "")}
+                      onValueChange={(value) => {
+                        const selectedValue = value ?? "";
+                        const isPackaging = packagings.some((packaging) => packaging.id === selectedValue);
+                        setValue(`items.${index}.productId`, isPackaging ? "" : selectedValue, { shouldDirty: true, shouldValidate: true });
+                        setValue(`items.${index}.packagingId`, isPackaging ? selectedValue : "", { shouldDirty: true, shouldValidate: true });
+                      }}
+                      disabled={isReadOnly}
+                    >
                       <SelectTrigger className={cn("h-9 text-xs", glassInput)}>
                         <SelectValue placeholder="Pilih Produk">
-                          {f.value ? productNameMap.get(f.value) || "Pilih Produk" : "Pilih Produk"}
+                          {(f.value || items[index]?.packagingId)
+                            ? productNameMap.get(String(f.value || items[index]?.packagingId || "")) || "Pilih Produk"
+                            : "Pilih Produk"}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
@@ -360,10 +379,33 @@ export function POForm({
           ))}
         </div>
 
+        <div className="ml-auto w-full max-w-xs space-y-1.5 border-t border-white/50 pt-3">
+          <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            Estimasi Ongkir <span className="font-medium normal-case tracking-normal text-slate-400">(opsional)</span>
+          </Label>
+          <Input
+            type="number"
+            min="0"
+            step="1"
+            placeholder="0"
+            className={cn("h-9 text-right tabular-nums", glassInput)}
+            {...register("estimatedShippingCost", { valueAsNumber: true })}
+            disabled={isReadOnly}
+          />
+          {errors.estimatedShippingCost && (
+            <p className="text-[10px] text-red-500">{errors.estimatedShippingCost.message}</p>
+          )}
+        </div>
+
         {/* Total */}
-        <div className="flex justify-end items-center gap-2 pt-2 border-t border-white/50">
-          <span className="text-xs font-bold text-slate-500">Total Estimasi:</span>
-          <span className="text-lg font-black text-slate-900">{formatRupiah(totalEstimate)}</span>
+        <div className="space-y-1 border-t border-white/50 pt-2 text-right">
+          <p className="text-[11px] text-slate-500">
+            Item {formatRupiah(itemEstimate)} + ongkir {formatRupiah(estimatedShippingCost)}
+          </p>
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-xs font-bold text-slate-500">Total Estimasi:</span>
+            <span className="text-lg font-black text-slate-900">{formatRupiah(totalEstimate)}</span>
+          </div>
         </div>
       </div>
 

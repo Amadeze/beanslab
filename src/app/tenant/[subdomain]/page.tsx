@@ -5,6 +5,7 @@ import { TenantPortalClient } from "./_components/TenantPortalClient";
 import { getTenantAccessState } from "@/lib/subscription";
 import { planHasFeature } from "@/lib/plans";
 import { resolveTenantPortalTheme } from "@/features/portal-theme/resolver";
+import { tenantStorefrontUrl } from "@/lib/tenant-host";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,8 @@ export async function generateMetadata({ params }: TenantPageProps): Promise<Met
 
   return {
     title: tenant.name,
+    alternates: { canonical: tenantStorefrontUrl(subdomain) },
+    openGraph: { title: tenant.name, url: tenantStorefrontUrl(subdomain) },
     icons: {
       icon: tenant.logoUrl || '/favicon.ico',
     }
@@ -77,6 +80,11 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
       subscriptionStatus: true,
       trialEndsAt: true,
       nextBillingDate: true,
+      storefrontPickupEnabled: true,
+      storefrontDeliveryEnabled: true,
+      storefrontFlatShippingRate: true,
+      storefrontFreeShippingMinimum: true,
+      storefrontTaxRate: true,
       products: {
         where: {
           type: "FINISHED_GOODS",
@@ -102,7 +110,23 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
           { stockKg: "desc" },
           { name: "asc" },
         ],
-      }
+      },
+      tenantPaymentMethods: {
+        where: { isActive: true },
+        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+        select: {
+          id: true,
+          provider: true,
+          method: true,
+          label: true,
+          bankName: true,
+          accountNumber: true,
+          accountHolder: true,
+          qrisImageUrl: true,
+          instructions: true,
+          requireProof: true,
+        },
+      },
     }
   });
 
@@ -169,6 +193,12 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
     iconStyle: tenant.iconStyle,
     themeConfig: tenant.themeConfig,
     portalThemeConfig: resolvedThemeConfig,
+    storefrontPickupEnabled: tenant.storefrontPickupEnabled,
+    storefrontDeliveryEnabled: tenant.storefrontDeliveryEnabled,
+    storefrontFlatShippingRate: Number(tenant.storefrontFlatShippingRate),
+    storefrontFreeShippingMinimum: tenant.storefrontFreeShippingMinimum === null ? null : Number(tenant.storefrontFreeShippingMinimum),
+    storefrontTaxRate: Number(tenant.storefrontTaxRate),
+    paymentMethods: tenant.tenantPaymentMethods,
     products: tenant.products.map(product => ({
       ...product,
       price: product.price ? Number(product.price) : null,

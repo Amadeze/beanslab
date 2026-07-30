@@ -8,6 +8,7 @@ import { Tenant } from "@prisma/client";
 import { Save, ExternalLink, Upload, Phone, Plus, Trash2, RotateCcw } from "lucide-react";
 import { resetOnboarding } from "@/app/onboarding/actions";
 import { WebhookLogModal } from "./WebhookLogsDialog";
+import { tenantStorefrontUrl } from "@/lib/tenant-host";
 
 // Helper type for tenant since Prisma Client might not have typed the new fields perfectly in this file's context if cached
 type ExtendedTenant = Omit<Tenant, "midtransServerKey" | "artisanWebhookToken"> & {
@@ -57,6 +58,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
       setCurrentOrigin(window.location.origin);
     }
   }, []);
+  const storefrontUrl = tenant.subdomain ? tenantStorefrontUrl(tenant.subdomain, currentOrigin) : portalPath;
   
   // Theme Engine
   const [fontFamily, setFontFamily] = useState(tenant.fontFamily || "sans");
@@ -371,6 +373,21 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
         </div>
       </div>
 
+      {/* Modal & Saldo Awal — sekarang dikelola di Keuangan > Modal */}
+      <div className="glass-card-static p-6">
+        <h2 className="text-lg font-bold text-slate-800 mb-4">Modal Perusahaan</h2>
+        <p className="text-sm text-slate-500 mb-3">
+          Kelola setoran modal, tambahan modal, dan prive pemilik di halaman Keuangan.
+        </p>
+        <a
+          href="/keuangan"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-amber-700 hover:text-amber-800 hover:underline"
+        >
+          <ExternalLink size={14} />
+          Buka Manajemen Modal →
+        </a>
+      </div>
+
       {/* Payment Gateway */}
       <div className="glass-card-static p-6">
         <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
@@ -547,7 +564,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
           <div className="flex items-center gap-3 shrink-0">
             {tenant.subdomain && (
               <a 
-                href={portalPath}
+                href={storefrontUrl}
                 target="_blank" 
                 rel="noreferrer"
                 className="flex items-center gap-1.5 bg-domain-sales/8 px-4 py-2.5 text-xs font-semibold text-domain-sales transition-colors hover:bg-domain-sales/15 rounded-xl"
@@ -616,7 +633,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
           </span>
           <span className="bg-white px-6 py-1 rounded-full shadow-sm flex items-center gap-2">
             <span className="text-slate-400">ðŸ”’</span>
-            {portalPath}
+            {storefrontUrl}
           </span>
         </div>
         

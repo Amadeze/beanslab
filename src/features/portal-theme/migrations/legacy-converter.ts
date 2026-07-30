@@ -192,13 +192,25 @@ export function convertLegacyTenantToThemeConfig(
       }));
 
     if (faqBlocks.length > 0) {
-      base.sections.push({
-        id: "sec_faq_legacy",
-        type: "faq",
-        enabled: true,
-        settings: { title: "Frequently Asked Questions", layout: "accordion", allowSearch: false },
-        blocks: faqBlocks,
-      });
+      const existingFaq = base.sections.find((section) => section.type === "faq");
+      if (existingFaq) {
+        existingFaq.enabled = true;
+        existingFaq.settings = {
+          ...existingFaq.settings,
+          title: "Frequently Asked Questions",
+          layout: "accordion",
+          allowSearch: false,
+        };
+        existingFaq.blocks = faqBlocks;
+      } else {
+        base.sections.push({
+          id: "sec_faq_legacy",
+          type: "faq",
+          enabled: true,
+          settings: { title: "Frequently Asked Questions", layout: "accordion", allowSearch: false },
+          blocks: faqBlocks,
+        });
+      }
     }
   }
 

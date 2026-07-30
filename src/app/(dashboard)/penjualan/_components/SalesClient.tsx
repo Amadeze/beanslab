@@ -29,7 +29,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import type { CustomerOption, FGStockOption, InvoiceRow } from "../actions";
+import type { ContractPriceOption, CustomerOption, FGStockOption, InvoiceRow } from "../actions";
 import type { SamplePageData } from "../sample-actions";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -75,26 +75,26 @@ function ExportMenu({ invoices }: { invoices: InvoiceRow[] }) {
     };
   }, [open]);
 
-  const exportPDF = () => {
-    import("jspdf").then(({ jsPDF }) => {
-      import("jspdf-autotable").then(({ default: autoTable }) => {
-        const doc = new jsPDF();
-        doc.text("Laporan Penjualan", 14, 15);
-        const tableData = invoices.map((i) => [
-          i.code,
-          i.customerName,
-          formatDate(i.issuedAt),
-          i.status,
-          formatRupiah(i.grandTotal),
-        ]);
-        autoTable(doc, {
-          head: [["Kode Invoice", "Pelanggan", "Tanggal", "Status", "Total"]],
-          body: tableData,
-          startY: 20,
-        });
-        doc.save("Laporan_Penjualan.pdf");
-      });
+  const exportPDF = async () => {
+    const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
+    const doc = new jsPDF();
+    doc.text("Laporan Penjualan", 14, 15);
+    const tableData = invoices.map((i) => [
+      i.code,
+      i.customerName,
+      formatDate(i.issuedAt),
+      i.status,
+      formatRupiah(i.grandTotal),
+    ]);
+    autoTable(doc, {
+      head: [["Kode Invoice", "Pelanggan", "Tanggal", "Status", "Total"]],
+      body: tableData,
+      startY: 20,
     });
+    doc.save("Laporan_Penjualan.pdf");
     setOpen(false);
   };
 
@@ -151,6 +151,7 @@ interface SalesClientProps {
   invoices: InvoiceRow[];
   customers: CustomerOption[];
   fgOptions: FGStockOption[];
+  contractPrices: ContractPriceOption[];
   sampleData: SamplePageData;
 }
 
@@ -158,6 +159,7 @@ export function SalesClient({
   invoices,
   customers,
   fgOptions,
+  contractPrices,
   sampleData,
 }: SalesClientProps) {
   const router = useRouter();
@@ -345,13 +347,13 @@ export function SalesClient({
         <div className="custom-scrollbar flex-1 overflow-auto">
           <WorkspaceNav kind="sales" />
 
-          <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">
+          <div className="relative z-10 mx-auto max-w-[1600px] px-4 pb-8 sm:px-5 md:px-6 lg:px-8">
             <Tabs
               value={workspace}
               onValueChange={(v) => setWorkspace(v as any)}
               className="w-full"
             >
-              <div className="custom-scrollbar overflow-x-auto border-b border-[var(--glass-border)] mb-8 pb-1">
+              <div className="custom-scrollbar mb-5 overflow-x-auto border-b border-border pb-1">
                 <TabsList className="flex w-max items-center h-auto p-0 bg-transparent gap-2">
                   {[
                     { id: "sales", label: "Penjualan" },
@@ -367,7 +369,7 @@ export function SalesClient({
                         key={tab.id}
                         value={tab.id}
                         className={cn(
-                          "relative flex items-center gap-2.5 px-4 py-3 text-sm font-semibold transition-all rounded-t-xl data-[state=active]:bg-transparent data-[state=active]:shadow-none",
+                          "relative flex items-center gap-2.5 rounded-t-[8px] px-4 py-3 text-sm font-semibold transition-all data-[state=active]:bg-transparent data-[state=active]:shadow-none",
                           isActive
                             ? "text-[var(--amber-deep)] dark:text-[var(--amber-warm)]"
                             : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)]",
@@ -590,6 +592,7 @@ export function SalesClient({
           id="invoice-form"
           customers={customerOptions}
           fgOptions={fgOptions}
+          contractPrices={contractPrices}
           onSuccess={(invoiceId) => {
             setLastInvoiceId(invoiceId);
             setDrawerOpen(false);

@@ -34,6 +34,17 @@ export const PairConnectorResponseSchema = z.object({
   }),
 });
 
+export const StartStudioDeviceAuthorizationSchema = z.object({
+  installationId: z.string().uuid(),
+  computerName: z.string().trim().min(1).max(100),
+  platform: z.string().trim().min(1).max(50),
+  appVersion: z.string().trim().min(1).max(20),
+});
+
+export const PollStudioDeviceAuthorizationSchema = z.object({
+  deviceCode: z.string().min(32).max(128),
+});
+
 // =============================================================================
 // Heartbeat
 // =============================================================================
@@ -73,6 +84,17 @@ export const UploadResponseSchema = z.object({
   duplicate: z.boolean(),
   importId: z.string(),
   roastId: z.string().nullable(),
+});
+
+export const SelectStudioRoastContextSchema = z.object({
+  batchId: z.string().min(1),
+});
+
+export const CreateStudioRoastingBatchSchema = z.object({
+  operationKey: z.string().uuid(),
+  inputProductId: z.string().min(1),
+  targetWeightKg: z.number().positive().max(10_000),
+  roastLevel: z.enum(["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"]),
 });
 
 // =============================================================================

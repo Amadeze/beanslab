@@ -1,14 +1,17 @@
 "use server";
 import { getCurrentTenantId, requireFeature, requireRole, requireTenantPrisma, getSystemUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { appendLedger } from "@/lib/stock";
+import { appendFefoLedgerOut, appendLedger } from "@/lib/stock";
 import { recordAudit } from "@/lib/audit";
 import { decryptCredential } from "@/lib/credentials";
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
-import { findDuplicateSaleProductIds, resolveSalePrice } from "@/lib/sale-intent";
+import { findDuplicateSaleProductIds, resolveCustomerUnitPrice } from "@/lib/sale-intent";
 import { calculateTax } from "@/lib/tax";
+import { postSalesInvoice, postCreditNote, postVoidReversal } from "@/lib/posting";
+import { getCurrentDate } from "@/lib/date-utils";
+import { createMidtransSnapTransaction } from "@/lib/midtrans";
 
 // =============================================================================
 // TYPES
@@ -31,6 +34,15 @@ export type FGStockOption = {
   priceGold: number;
   stockUnit: number;
   lastHppPerUnit: number | null;
+};
+
+export type ContractPriceOption = {
+  id: string;
+  customerId: string;
+  productId: string;
+  tierName: string;
+  minOrderQty: number;
+  pricePerUnit: number;
 };
 
 export type InvoiceItemInput = {
@@ -80,9 +92,10 @@ export type SalesPageData = {
   invoices: InvoiceRow[];
   customers: CustomerOption[];
   fgOptions: FGStockOption[];
+  contractPrices: ContractPriceOption[];
 };
 
-export type CashierPageData = Pick<SalesPageData, "customers" | "fgOptions">;
+export type CashierPageData = Pick<SalesPageData, "customers" | "fgOptions" | "contractPrices">;
 
 // ── Print ──
 
@@ -143,8 +156,10 @@ const CreateInvoiceSchema = z.object({
 
 export async function getSalesPageData(): Promise<SalesPageData> {
   await requireRole("OWNER", "MANAGER", "CASHIER");
+  const tenantId = await getCurrentTenantId();
   const tp = await requireTenantPrisma();
-  const [invoicesRaw, customers, fgProducts] = await Promise.all([
+  const pricingAt = getCurrentDate();
+  const [invoicesRaw, customers, fgProducts, contractPricesRaw] = await Promise.all([
     tp.invoice.findMany({
       include: {
         customer: { select: { name: true } },
@@ -170,6 +185,25 @@ export async function getSalesPageData(): Promise<SalesPageData> {
         priceGold: true,
         stockUnit: true,
         lastHpp: true
+      },
+    }),
+    tp.contractPrice.findMany({
+      where: {
+        tenantId,
+        pricePerUnit: { not: null },
+        contract: {
+          isActive: true,
+          startDate: { lte: pricingAt },
+          OR: [{ endDate: null }, { endDate: { gte: pricingAt } }],
+        },
+      },
+      select: {
+        id: true,
+        productId: true,
+        tierName: true,
+        minOrderQty: true,
+        pricePerUnit: true,
+        contract: { select: { customerId: true } },
       },
     }),
   ]);
@@ -207,13 +241,28 @@ export async function getSalesPageData(): Promise<SalesPageData> {
     };
   });
 
-  return { invoices, customers: customers as CustomerOption[], fgOptions };
+  const contractPrices: ContractPriceOption[] = contractPricesRaw.flatMap((price) =>
+    price.pricePerUnit === null
+      ? []
+      : [{
+          id: price.id,
+          customerId: price.contract.customerId,
+          productId: price.productId,
+          tierName: price.tierName,
+          minOrderQty: Number(price.minOrderQty),
+          pricePerUnit: Number(price.pricePerUnit),
+        }],
+  );
+
+  return { invoices, customers: customers as CustomerOption[], fgOptions, contractPrices };
 }
 
 export async function getCashierPageData(): Promise<CashierPageData> {
   await requireRole("OWNER", "MANAGER", "CASHIER");
+  const tenantId = await getCurrentTenantId();
   const tp = await requireTenantPrisma();
-  const [customers, fgProducts] = await Promise.all([
+  const pricingAt = getCurrentDate();
+  const [customers, fgProducts, contractPricesRaw] = await Promise.all([
     tp.customer.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -233,6 +282,25 @@ export async function getCashierPageData(): Promise<CashierPageData> {
         lastHpp: true,
       },
     }),
+    tp.contractPrice.findMany({
+      where: {
+        tenantId,
+        pricePerUnit: { not: null },
+        contract: {
+          isActive: true,
+          startDate: { lte: pricingAt },
+          OR: [{ endDate: null }, { endDate: { gte: pricingAt } }],
+        },
+      },
+      select: {
+        id: true,
+        productId: true,
+        tierName: true,
+        minOrderQty: true,
+        pricePerUnit: true,
+        contract: { select: { customerId: true } },
+      },
+    }),
   ]);
 
   return {
@@ -247,6 +315,18 @@ export async function getCashierPageData(): Promise<CashierPageData> {
       stockUnit: product.stockUnit || 0,
       lastHppPerUnit: product.lastHpp ? Number(product.lastHpp) : null,
     })),
+    contractPrices: contractPricesRaw.flatMap((price) =>
+      price.pricePerUnit === null
+        ? []
+        : [{
+            id: price.id,
+            customerId: price.contract.customerId,
+            productId: price.productId,
+            tierName: price.tierName,
+            minOrderQty: Number(price.minOrderQty),
+            pricePerUnit: Number(price.pricePerUnit),
+          }],
+    ),
   };
 }
 
@@ -283,7 +363,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
     const [customer, products] = await Promise.all([
       tenantPrisma.customer.findUnique({
         where: { id: parsed.customerId },
-        select: { id: true, tier: true },
+        select: { id: true, name: true, tier: true },
       }),
       tenantPrisma.product.findMany({
         where: {
@@ -294,6 +374,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
         select: {
           id: true,
           name: true,
+          type: true,
           price: true,
           priceSilver: true,
           priceGold: true,
@@ -313,6 +394,22 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
     }
     const productMap = new Map(products.map((product) => [product.id, product]));
 
+    const pricingAt = getCurrentDate();
+    const contractPrices = await tenantPrisma.contractPrice.findMany({
+      where: {
+        tenantId,
+        productId: { in: parsed.items.map((item) => item.productId) },
+        pricePerUnit: { not: null },
+        contract: {
+          customerId: customer.id,
+          isActive: true,
+          startDate: { lte: pricingAt },
+          OR: [{ endDate: null }, { endDate: { gte: pricingAt } }],
+        },
+      },
+      select: { id: true, productId: true, tierName: true, minOrderQty: true, pricePerUnit: true },
+    });
+
     for (const item of parsed.items) {
       const product = productMap.get(item.productId);
       if (!product) {
@@ -328,7 +425,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
 
     // ── HPP snapshot per product ──
     // ── Generate invoice code ──
-    const now = getCurrentDate();
+    const now = pricingAt;
     const prefix = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
     const randStr = randomBytes(4).toString("hex").toUpperCase();
     const invoiceCode = `${prefix}-${randStr}`;
@@ -336,18 +433,39 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
     // ── Compute totals ──
     const enrichedItems = parsed.items.map((item) => {
       const product = productMap.get(item.productId)!;
-      const unitPrice = resolveSalePrice({
-        price: Number(product.price),
-        priceSilver: Number(product.priceSilver),
-        priceGold: Number(product.priceGold),
-      }, customer.tier);
+      const resolvedPrice = resolveCustomerUnitPrice(
+        {
+          price: Number(product.price),
+          priceSilver: Number(product.priceSilver),
+          priceGold: Number(product.priceGold),
+        },
+        customer.tier,
+        item.quantity,
+        contractPrices
+          .filter((price) => price.productId === item.productId)
+          .map((price) => ({
+            id: price.id,
+            tierName: price.tierName,
+            minOrderQty: Number(price.minOrderQty),
+            pricePerUnit: price.pricePerUnit === null ? null : Number(price.pricePerUnit),
+          })),
+      );
+      const unitPrice = resolvedPrice.unitPrice;
       if (item.discount > unitPrice) {
         throw new Error(`Diskon per unit untuk "${product.name}" melebihi harga jual.`);
       }
       const hpp = Number(product.lastHpp ?? product.productionBatches[0]?.hppPerUnit ?? 0);
       const effectivePrice = unitPrice - item.discount;
       const subtotal = effectivePrice * item.quantity;
-      return { ...item, unitPrice, hpp, subtotal };
+      return {
+        ...item,
+        productType: product.type,
+        unitPrice,
+        hpp,
+        subtotal,
+        contractPriceId: resolvedPrice.contractPriceId,
+        priceSource: resolvedPrice.priceSource,
+      };
     });
     const subtotal = enrichedItems.reduce((s, i) => s + i.subtotal, 0);
     if (parsed.invoiceDiscount > subtotal) {
@@ -370,6 +488,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
     const invoice = await tenantPrisma.$transaction(async (tx) => {
       const inv = await tx.invoice.create({
         data: {
+          tenantId,
           code: invoiceCode,
           operationKey: parsed.operationKey,
           customerId: parsed.customerId,
@@ -402,22 +521,23 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
             discount: item.discount,
             subtotal: item.subtotal,
             hpp: item.hpp,
+            tenantId,
+            contractPriceId: item.contractPriceId,
+            priceSource: item.priceSource,
           },
         });
       }
 
       // InventoryLedger OUT per item
       for (const item of enrichedItems) {
-        await appendLedger(tx, {
-          data: {
+        await appendFefoLedgerOut(tx, {
+            tenantId,
             productId: item.productId,
-            entryType: "OUT",
             refType: "SALE_FG_OUT",
             refId: inv.id,
             quantityUnit: item.quantity,
             notes: `Penjualan ${invoiceCode}`,
             createdById: userId,
-          },
         });
       }
 
@@ -428,6 +548,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
 
         await tx.payment.create({
           data: {
+            tenantId,
             code: payCode,
             invoiceId: inv.id,
             amount: grandTotal,
@@ -452,6 +573,19 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
         },
         metadata: { itemCount: enrichedItems.length, operationKey: parsed.operationKey },
       });
+
+      await postSalesInvoice(
+        inv.id,
+        Number(inv.grandTotal),
+        Number(inv.paidAmount),
+        customer.name,
+        enrichedItems.map((item) => ({
+          productType: item.productType,
+          hpp: Number(item.hpp),
+          quantity: item.quantity,
+        })),
+        { tx, tenantId, userId },
+      );
 
       return inv;
     });
@@ -636,28 +770,44 @@ export async function voidInvoice(
 
     if (!inv)                  return { success: false, error: "Nota tidak ditemukan." };
     if (inv.status === "VOID") return { success: false, error: "Nota sudah di-void." };
-    if (inv.status === "PAID") return { success: false, error: "Nota yang sudah LUNAS tidak bisa di-void. Hubungi manajer." };
+    if (Number(inv.paidAmount) > 0 || inv.status === "PAID" || inv.status === "PARTIAL") {
+      return { success: false, error: "Void semua pembayaran nota terlebih dahulu sebelum membatalkan nota." };
+    }
 
     await (await requireTenantPrisma()).$transaction(async (tx) => {
-      // Kembalikan stok FG
-      for (const item of inv.items) {
+      const saleEntries = await tx.inventoryLedger.findMany({
+        where: { refId: invoiceId, refType: "SALE_FG_OUT", entryType: "OUT" },
+      });
+      if (saleEntries.length === 0) {
+        throw new Error("Ledger penjualan tidak ditemukan; void dibatalkan.");
+      }
+      // Kembalikan stok ke lot asal agar traceability tidak terputus.
+      for (const entry of saleEntries) {
         await appendLedger(tx, {
           data: {
-            productId:    item.productId,
+            tenantId,
+            productId:    entry.productId,
             entryType:    "IN",
             refType:      "VOID_REVERSAL",
             refId:        invoiceId,
-            quantityUnit: item.quantity,
+            quantityUnit: entry.quantityUnit,
+            lotId:        entry.lotId,
+            lotNumber:    entry.lotNumber,
+            expiryDate:   entry.expiryDate,
             notes:        `VOID reversal: ${inv.code}`,
             createdById: userId,
           },
         });
+        if (entry.lotId) {
+          await tx.lot.update({ where: { id: entry.lotId }, data: { consumedAt: null } });
+        }
       }
 
       await tx.invoice.update({
         where: { id: invoiceId },
         data: { status: "VOID", voidReason: reason, voidAt: getCurrentDate() },
       });
+      await postVoidReversal("INVOICE", invoiceId, reason, { tx, tenantId, userId });
 
       await recordAudit(tx, {
         tenantId,
@@ -682,9 +832,6 @@ export async function voidInvoice(
 // =============================================================================
 // APPROVE INVOICE & GENERATE MIDTRANS LINK
 // =============================================================================
-
-import { createMidtransSnapTransaction } from "@/lib/midtrans";
-import { getCurrentDate } from "@/lib/date-utils";
 
 export async function approveInvoiceForMidtrans(invoiceId: string) {
   try {
@@ -761,7 +908,7 @@ export async function approveInvoiceForMidtrans(invoiceId: string) {
 
 export async function updateInvoiceShipping(
   invoiceId: string, 
-  data: { courierName?: string; trackingNumber?: string; shippingCost?: number; shippingMethod?: string }
+  data: { courierName?: string; trackingNumber?: string; shippingCost?: number; shippingMethod?: string; fulfillmentStatus?: string }
 ) {
   try {
     await requireRole("OWNER", "MANAGER", "CASHIER");
@@ -773,16 +920,20 @@ export async function updateInvoiceShipping(
       trackingNumber: z.string().trim().max(150).optional(),
       shippingCost: z.number().nonnegative().max(1_000_000_000).optional(),
       shippingMethod: z.string().trim().max(100).optional(),
+      fulfillmentStatus: z.enum(["READY_TO_PACK", "PACKED", "SHIPPED", "DELIVERED"]).optional(),
     }).parse(data);
 
-    const invoice = await tenantPrisma.invoice.findUnique({ where: { id: invoiceId } });
+    const invoice = await tenantPrisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: { customer: { select: { name: true, email: true, phone: true } }, tenant: { select: { name: true, subdomain: true } } },
+    });
     if (!invoice) return { success: false, error: "Nota tidak ditemukan." };
     if (invoice.status === "VOID") return { success: false, error: "Nota yang sudah di-void tidak dapat diubah." };
     if (invoice.status === "PAID" && parsed.shippingCost !== undefined && parsed.shippingCost !== Number(invoice.shippingCost)) {
       return { success: false, error: "Ongkir nota lunas tidak dapat diubah." };
     }
 
-    const { courierName, trackingNumber, shippingCost, shippingMethod } = parsed;
+    const { courierName, trackingNumber, shippingCost, shippingMethod, fulfillmentStatus } = parsed;
     const updateData: any = {};
     if (courierName !== undefined) updateData.courierName = courierName;
     if (trackingNumber !== undefined) updateData.trackingNumber = trackingNumber;
@@ -794,6 +945,13 @@ export async function updateInvoiceShipping(
       }
     }
     if (shippingMethod !== undefined) updateData.shippingMethod = shippingMethod;
+    const nextFulfillment = fulfillmentStatus || (trackingNumber?.trim() ? "SHIPPED" : undefined);
+    if (nextFulfillment) {
+      updateData.fulfillmentStatus = nextFulfillment;
+      if (nextFulfillment === "PACKED") updateData.packedAt = getCurrentDate();
+      if (nextFulfillment === "SHIPPED") updateData.shippedAt = getCurrentDate();
+      if (nextFulfillment === "DELIVERED") updateData.deliveredAt = getCurrentDate();
+    }
 
     await tenantPrisma.$transaction(async (tx) => {
       await tx.invoice.update({
@@ -817,6 +975,17 @@ export async function updateInvoiceShipping(
     });
 
     revalidatePath("/penjualan");
+    if (nextFulfillment && invoice.publicOrderToken && invoice.tenant.subdomain) {
+      const labels: Record<string, string> = { READY_TO_PACK: "Siap dikemas", PACKED: "Sudah dikemas", SHIPPED: "Dalam pengiriman", DELIVERED: "Pesanan selesai" };
+      const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
+      const orderUrl = `${baseUrl}/tenant/${invoice.tenant.subdomain}/order/${invoice.publicOrderToken}`;
+      const input = { customerName: invoice.customer.name, tenantName: invoice.tenant.name, invoiceCode: invoice.code, statusLabel: labels[nextFulfillment] || "Status pesanan diperbarui", trackingNumber: trackingNumber ?? invoice.trackingNumber, courierName: courierName ?? invoice.courierName, orderUrl };
+      const { sendOrderStatusEmail, sendOrderStatusWhatsApp } = await import("@/lib/notifications");
+      await Promise.allSettled([
+        invoice.customer.email ? sendOrderStatusEmail({ ...input, to: invoice.customer.email }) : Promise.resolve(),
+        invoice.customer.phone ? sendOrderStatusWhatsApp({ ...input, phone: invoice.customer.phone }) : Promise.resolve(),
+      ]);
+    }
     return { success: true };
   } catch (error: any) {
     console.error("Update Shipping Error:", error);
@@ -879,14 +1048,13 @@ export async function createCreditNote(input: CreditNoteInput) {
     }
 
     let creditNoteCode = "";
+    let totalReturnedAmount = 0;
 
     await (await requireTenantPrisma()).$transaction(async (tx) => {
       // Get next credit note code
       const count = await tx.creditNote.count({ where: { tenantId } });
       const nextId = String(count + 1).padStart(5, "0");
       creditNoteCode = `CN-${nextId}`;
-
-      let totalReturnedAmount = 0;
 
       const cnItemsData = items.map((item) => {
         const invItem = inv.items.find((i) => i.productId === item.productId)!;
@@ -917,13 +1085,24 @@ export async function createCreditNote(input: CreditNoteInput) {
         },
       });
 
-      // Update Invoice returned amount
+      // Calculate if all items are fully returned
+      const fullyReturned = inv.items.every((invItem) => {
+        const totalReturnedQty = inv.creditNotes.reduce((sum, cn) => {
+          const cnItem = cn.items.find((i) => i.productId === invItem.productId);
+          return sum + (cnItem?.quantity || 0);
+        }, 0);
+        const newReturnedQty = items
+          .filter((i) => i.productId === invItem.productId)
+          .reduce((s, i) => s + i.quantity, 0);
+        return (totalReturnedQty + newReturnedQty) >= invItem.quantity;
+      });
+
+      // Update Invoice returned amount and status
       await tx.invoice.update({
         where: { id: invoiceId },
         data: {
-          returnedAmount: {
-            increment: totalReturnedAmount,
-          },
+          returnedAmount: { increment: totalReturnedAmount },
+          ...(fullyReturned ? { status: "RETURNED" as const } : {}),
         },
       });
 
@@ -942,9 +1121,25 @@ export async function createCreditNote(input: CreditNoteInput) {
           },
         });
       }
+
+      await postCreditNote(
+        creditNote.id,
+        totalReturnedAmount,
+        inv.code,
+        items.map((item) => {
+          const invoiceItem = inv.items.find((candidate) => candidate.productId === item.productId)!;
+          return {
+            productType: "FINISHED_GOODS" as const,
+            hpp: Number(invoiceItem.hpp),
+            quantity: item.quantity,
+          };
+        }),
+        { tx, tenantId, userId },
+      );
     });
 
     revalidatePath("/penjualan");
+
     return { success: true, creditNoteCode };
   } catch (error: any) {
     console.error("Create Credit Note Error:", error);

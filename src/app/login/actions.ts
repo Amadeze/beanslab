@@ -40,12 +40,18 @@ export async function loginAction(email: string, password: string): Promise<Logi
         password: true,
         isActive: true,
         tenantId: true,
+        failedLoginAttempts: true,
+        lockedUntil: true,
         tenant: { select: { isActive: true } },
       },
     });
 
     if (!user || !user.isActive || !user.tenant.isActive) {
       return { success: false, error: "Email atau password salah." };
+    }
+
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      return { success: false, error: "Akun dikunci sementara. Coba lagi nanti." };
     }
 
     // Compare password using bcrypt
@@ -55,8 +61,19 @@ export async function loginAction(email: string, password: string): Promise<Logi
     const valid = await bcrypt.compare(password, user.password);
 
     if (!valid) {
+      const attempts = user.failedLoginAttempts + 1;
+      const lockedUntil = attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: attempts, lockedUntil },
+      });
       return { success: false, error: "Email atau password salah." };
     }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
 
     const cookieStore = await cookies();
     const session = await getIronSession<{ user?: SessionUser }>(cookieStore, SESSION_OPTIONS);

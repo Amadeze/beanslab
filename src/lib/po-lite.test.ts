@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
+import { postPurchase } from "./posting";
 import {
+  allocateShippingCost,
   generatePOCode,
   createDraftPO,
   updateDraftPO,
@@ -10,6 +12,8 @@ import {
   getPODetail,
   getPOSummary,
 } from "./po-lite";
+
+vi.mock("./posting", () => ({ postPurchase: vi.fn().mockResolvedValue("JE-TEST") }));
 
 // =============================================================================
 // MOCK PRISMA
@@ -29,14 +33,21 @@ function createMockPrisma() {
     purchaseOrderItem: {
       createMany: vi.fn(),
       deleteMany: vi.fn(),
+      findMany: vi.fn(),
     },
     purchase: {
       count: vi.fn(),
       create: vi.fn(),
       findMany: vi.fn(),
     },
+    supplierPayment: {
+      create: vi.fn(),
+    },
     inventoryLedger: {
       create: vi.fn(),
+    },
+    lot: {
+      create: vi.fn().mockResolvedValue({ id: "lot-1", batchCode: "PUR-LOT" }),
     },
     product: {
       findUnique: vi.fn().mockResolvedValue({ stockKg: 0, stockUnit: 0, avgCostPerKg: 0 }),
@@ -56,6 +67,26 @@ function createMockPrisma() {
 
   return mock;
 }
+
+describe("allocateShippingCost", () => {
+  it("allocates shipping proportionally and preserves the exact total", () => {
+    const allocations = allocateShippingCost([300_000, 700_000], 100_001);
+
+    expect(allocations).toEqual([30_000.3, 70_000.7]);
+    expect(allocations.reduce((sum, value) => sum + value, 0)).toBe(100_001);
+  });
+
+  it("splits shipping evenly when all item prices are zero", () => {
+    expect(allocateShippingCost([0, 0], 10_000)).toEqual([5_000, 5_000]);
+  });
+
+  it("never creates a negative remainder for very small shipping values", () => {
+    const allocations = allocateShippingCost([1, 1, 1, 1], 0.02);
+
+    expect(allocations).toEqual([0, 0, 0, 0.02]);
+    expect(allocations.every((value) => value >= 0)).toBe(true);
+  });
+});
 
 // =============================================================================
 // PURE FUNCTION TESTS
@@ -107,6 +138,30 @@ describe("createDraftPO", () => {
     expect(result.code).toMatch(/^PO-\d{6}-001$/);
     expect(prisma.purchaseOrder.create).toHaveBeenCalled();
     expect(prisma.purchaseOrderItem.createMany).toHaveBeenCalled();
+  });
+
+  it("adds estimated shipping to the PO total", async () => {
+    const prisma = createMockPrisma();
+    prisma.supplier.findUnique.mockResolvedValue({ id: "sup-1", isActive: true, tenantId: "tenant-1" });
+    prisma.purchaseOrder.count.mockResolvedValue(0);
+    prisma.purchaseOrder.create.mockResolvedValue({ id: "po-1", code: "PO-202607-001" });
+
+    await createDraftPO(
+      prisma,
+      {
+        supplierId: "sup-1",
+        estimatedShippingCost: 50_000,
+        items: [{ productId: "gb-1", quantity: 10, unitPrice: 50_000 }],
+      },
+      "user-1",
+    );
+
+    expect(prisma.purchaseOrder.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        estimatedShippingCost: 50_000,
+        totalEstimate: 550_000,
+      }),
+    });
   });
 
   it("throws error for inactive supplier", async () => {
@@ -259,8 +314,11 @@ describe("receivePO", () => {
     const prisma = createMockPrisma();
     prisma.purchaseOrder.findUnique.mockResolvedValue({
       id: "po-1",
+      code: "PO-202607-001",
+      tenantId: "tenant-1",
       status: "SENT",
       supplierId: "sup-1",
+      supplier: { name: "PT Kopi" },
       items: [
         { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000 },
       ],
@@ -277,6 +335,7 @@ describe("receivePO", () => {
       "po-1",
       {
         receivedAt: "2026-07-18",
+        shippingCost: 50_000,
         items: [{ poItemId: "item-1", receivedQuantity: 10 }],
       },
       "user-1",
@@ -284,8 +343,83 @@ describe("receivePO", () => {
 
     expect(result.purchaseCodes).toHaveLength(1);
     expect(prisma.purchase.create).toHaveBeenCalled();
+    expect(prisma.lot.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        purchaseId: "pur-1",
+        batchCode: result.purchaseCodes[0],
+      }),
+    });
     expect(prisma.product.findUnique).toHaveBeenCalled();
     expect(prisma.product.updateMany).toHaveBeenCalled();
+    expect(prisma.purchase.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        shippingCost: 50_000,
+        totalCost: 550_000,
+        dueDate: new Date("2026-08-01"),
+      }),
+    });
+    expect(postPurchase).toHaveBeenCalledWith(
+      "pur-1",
+      "GREEN_BEAN",
+      550_000,
+      0,
+      "PT Kopi",
+      expect.objectContaining({ tenantId: "tenant-1", userId: "user-1" }),
+    );
+  });
+
+  it("records a transfer receipt as paid and creates a supplier payment", async () => {
+    const prisma = createMockPrisma();
+    prisma.purchaseOrder.findUnique.mockResolvedValue({
+      id: "po-1",
+      code: "PO-202607-001",
+      tenantId: "tenant-1",
+      status: "SENT",
+      supplierId: "sup-1",
+      supplier: { name: "PT Kopi" },
+      items: [
+        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50_000 },
+      ],
+    });
+    prisma.purchase.count.mockResolvedValue(0);
+    prisma.purchase.create.mockResolvedValue({ id: "pur-1", code: "PUR-202607-001" });
+    prisma.purchase.findMany.mockResolvedValue([]);
+    prisma.product.updateMany.mockResolvedValue({ count: 1 });
+    prisma.purchaseOrder.update.mockResolvedValue({});
+
+    await receivePO(
+      prisma,
+      "po-1",
+      {
+        receivedAt: "2026-07-18",
+        paymentMethod: "TRANSFER",
+        items: [{ poItemId: "item-1", receivedQuantity: 10 }],
+      },
+      "user-1",
+    );
+
+    expect(prisma.purchase.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        paymentStatus: "PAID",
+        paidAmount: 500_000,
+        dueDate: null,
+      }),
+    });
+    expect(prisma.supplierPayment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        purchaseId: "pur-1",
+        amount: 500_000,
+        method: "TRANSFER",
+      }),
+    });
+    expect(postPurchase).toHaveBeenLastCalledWith(
+      "pur-1",
+      "GREEN_BEAN",
+      500_000,
+      500_000,
+      "PT Kopi",
+      expect.objectContaining({ tenantId: "tenant-1", userId: "user-1" }),
+    );
   });
 
   it("throws error for non-Sent/Partial PO", async () => {

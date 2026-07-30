@@ -36,7 +36,6 @@ const purchaseSchema = z.object({
   paymentMethod: z.enum(["CASH", "TRANSFER", "QRIS"]),
   dueDate: z.string().optional(),
   notes:         z.string().optional(),
-  lotNumber:     z.string().optional(),
   bestBeforeDate: z.string().optional(),
 }).superRefine((data, ctx) => {
   const totalCost = data.totalCost;
@@ -97,7 +96,7 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
   const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isAddingPkg, setIsAddingPkg] = useState(false);
-  const [showCostDetails, setShowCostDetails] = useState(false);
+  const [showOptionalDetails, setShowOptionalDetails] = useState(false);
   const [packagingOptions, setPackagingOptions] = useState(packagings);
 
   useEffect(() => {
@@ -115,7 +114,6 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
       initialPaidAmount: 0,
       paymentMethod: "CASH",
       dueDate: "",
-      lotNumber: "",
       bestBeforeDate: "",
     },
   });
@@ -168,7 +166,6 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
         paymentMethod: data.paymentMethod,
         dueDate: data.dueDate,
         notes: data.notes,
-        lotNumber: data.lotNumber || undefined,
         bestBeforeDate: data.bestBeforeDate || undefined,
       });
       if (!result.success) { toastSafe.error(result.error); return; }
@@ -241,21 +238,9 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
         </div>
 
         {/* Tanggal */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Tanggal Terima <span className="text-red-500">*</span></Label>
-            <Input type="date" className={glassInput} {...register("receivedAt")} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Best Before</Label>
-            <Input type="date" className={glassInput} {...register("bestBeforeDate")} />
-          </div>
-        </div>
-
-        {/* Lot Number */}
         <div className="space-y-1.5">
-          <Label className="text-xs font-semibold text-slate-700">Lot Number / Batch</Label>
-          <Input type="text" placeholder="e.g. LOT-12345" className={glassInput} {...register("lotNumber")} />
+          <Label className="text-xs font-semibold text-slate-700">Tanggal Terima <span className="text-red-500">*</span></Label>
+          <Input type="date" className={glassInput} {...register("receivedAt")} />
         </div>
 
         {/* Kemasan + Tombol Quick Add */}
@@ -301,42 +286,50 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
           </div>
         </div>
 
-        {/* Ongkir */}
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-bold text-emerald-900">Serba otomatis setelah disimpan</p>
+            <p className="whitespace-nowrap text-xs font-bold tabular-nums text-emerald-800">
+              {hppPerUnit > 0 ? `${Math.round(hppPerUnit).toLocaleString("id-ID")}/pcs` : "HPP otomatis"}
+            </p>
+          </div>
+          <p className="mt-0.5 text-[11px] leading-4 text-emerald-700">
+            ID barang datang = kode lot · stok & ledger · HPP & jurnal · urutan FIFO/FEFO
+          </p>
+        </div>
+
+        {/* Semua isian non-wajib */}
         <button
           type="button"
-          onClick={() => setShowCostDetails((current) => !current)}
-          className="flex w-full items-center justify-between rounded-lg px-1 py-1 text-xs font-semibold text-slate-500 hover:text-slate-700"
+          onClick={() => setShowOptionalDetails((current) => !current)}
+          className="flex w-full items-center justify-between rounded-xl border border-white/60 bg-white/30 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-white/50"
+          aria-expanded={showOptionalDetails}
         >
-          Rincian biaya (opsional)
-          <ChevronDown size={14} className={cn("transition-transform", showCostDetails && "rotate-180")} />
+          Detail opsional
+          <ChevronDown size={14} className={cn("transition-transform", showOptionalDetails && "rotate-180")} />
         </button>
-        {showCostDetails && (
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Ongkos kirim yang termasuk dalam total (Rp)</Label>
-            <Input type="number" step="1" min="0" placeholder="0" className={cn(glassInput, "text-right tabular-nums")} {...register("shippingCost", { valueAsNumber: true })} />
-            {errors.shippingCost && <p className="text-xs font-medium text-red-500">{errors.shippingCost.message}</p>}
-          </div>
-        )}
-
-        {/* Total */}
-        {total > 0 && (
-          <div className={cn(glassCard, "flex items-center justify-between gap-4")}>
-            <div>
-              <p className="text-sm font-semibold text-slate-600">Total tercatat</p>
-              {hppPerUnit > 0 && <p className="text-[11px] text-slate-500">HPP otomatis {Math.round(hppPerUnit).toLocaleString("id-ID")}/pcs</p>}
+        {showOptionalDetails && (
+          <div className={cn(glassCard, "space-y-4")}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Best Before / Review Mutu</Label>
+                <Input type="date" className={glassInput} {...register("bestBeforeDate")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Ongkir dalam total (Rp)</Label>
+                <Input type="number" step="1" min="0" placeholder="0" className={cn(glassInput, "text-right tabular-nums")} {...register("shippingCost", { valueAsNumber: true })} />
+                {errors.shippingCost && <p className="text-xs font-medium text-red-500">{errors.shippingCost.message}</p>}
+              </div>
             </div>
-            <span className="font-mono font-bold text-slate-800 text-lg">
-              {total.toLocaleString("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 })}
-            </span>
+
+            <PurchasePaymentSection
+              register={register}
+              setValue={setValue}
+              errors={errors}
+              paymentStatus={paymentStatus}
+            />
           </div>
         )}
-
-        <PurchasePaymentSection
-          register={register}
-          setValue={setValue}
-          errors={errors}
-          paymentStatus={paymentStatus}
-        />
 
         <Button type="submit" disabled={submitting} className="hidden" />
       </form>

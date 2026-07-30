@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { appendLedger } from "@/lib/stock";
+import { appendFefoLedgerOut, appendLedger } from "@/lib/stock";
 import { getCurrentTenantId, getSystemUserId, requireRole, requireTenantPrisma } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { randomBytes } from "crypto";
@@ -10,6 +10,8 @@ import { getCurrentDate } from "@/lib/date-utils";
 import { Prisma } from "@prisma/client";
 import { analyzeRoastOutcome, type RoastOutcome } from "@/lib/roast-intent";
 import { greenBeanIdentity, roastedBeanName, type RoastLevelValue } from "@/lib/roast-product";
+import { postRoastingBatch, postVoidReversal } from "@/lib/posting";
+import { z } from "zod";
 
 // =============================================================================
 // TYPES
@@ -53,6 +55,9 @@ export type ParentRoastingBatchRow = {
   status: string;
   createdAt: string;
   notes: string | null;
+  machineId: string | null;
+  machineName: string | null;
+  referenceProfile: { id: string; title: string } | null;
   childBatches: ChildBatchRow[];
 };
 
@@ -87,6 +92,15 @@ export type RoastProfileRow = {
   events: Array<{ second: number; type: string; value?: string | number; label?: string }> | null;
   machine: { name: string };
   createdAt: string;
+};
+
+export type RoastReferenceOption = {
+  id: string;
+  title: string;
+  machineId: string;
+  machineName: string;
+  roastDate: string | null;
+  duration: number | null;
 };
 
 export type CreateParentRoastingBatchInput = {
@@ -206,6 +220,8 @@ async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
     include: {
       inputProduct:  { select: { name: true } },
       outputProduct: { select: { name: true } },
+      machine: { select: { id: true, name: true } },
+      referenceRoast: { select: { id: true, title: true } },
       childBatches: {
         select: {
           id: true,
@@ -242,6 +258,11 @@ async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
     totalShrinkagePercent: b.totalShrinkagePercent ? Number(b.totalShrinkagePercent) : null,
     status:            b.status,
     notes:             b.notes,
+    machineId:         b.machine?.id ?? null,
+    machineName:       b.machine?.name ?? null,
+    referenceProfile: b.referenceRoast
+      ? { id: b.referenceRoast.id, title: b.referenceRoast.title || "Profil tanpa nama" }
+      : null,
     createdAt:         b.createdAt.toISOString(),
     childBatches: b.childBatches.map((c) => ({
       id: c.id,
@@ -320,6 +341,135 @@ export async function getRoastProfiles(): Promise<RoastProfileRow[]> {
       roast.environmentalTemperatureSeries as RoastProfileRow["environmentalTemperatureSeries"],
     events: roast.events as RoastProfileRow["events"],
   }));
+}
+
+const roastReferenceSearchSchema = z.string().trim().max(80);
+const setBatchReferenceSchema = z.object({
+  batchId: z.string().min(1),
+  referenceRoastId: z.string().min(1).nullable(),
+});
+
+export async function searchRoastReferenceProfiles(
+  query: string,
+): Promise<{ success: true; data: RoastReferenceOption[] } | { success: false; error: string }> {
+  try {
+    await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const parsed = roastReferenceSearchSchema.safeParse(query);
+    if (!parsed.success) return { success: false, error: "Pencarian profil tidak valid." };
+
+    const roasts = await (await requireTenantPrisma()).roast.findMany({
+      where: parsed.data
+        ? { title: { contains: parsed.data, mode: "insensitive" } }
+        : undefined,
+      select: {
+        id: true,
+        title: true,
+        machineId: true,
+        machine: { select: { name: true } },
+        roastDate: true,
+        duration: true,
+      },
+      orderBy: [{ roastDate: "desc" }, { createdAt: "desc" }],
+      take: 30,
+    });
+
+    return {
+      success: true,
+      data: roasts.map((roast) => ({
+        id: roast.id,
+        title: roast.title || "Profil tanpa nama",
+        machineId: roast.machineId,
+        machineName: roast.machine.name,
+        roastDate: roast.roastDate?.toISOString() ?? null,
+        duration: roast.duration,
+      })),
+    };
+  } catch (error) {
+    console.error("[searchRoastReferenceProfiles]", error);
+    return { success: false, error: "Profil acuan gagal dimuat." };
+  }
+}
+
+export async function setBatchReferenceProfile(input: {
+  batchId: string;
+  referenceRoastId: string | null;
+}): Promise<{ success: true; data: { title: string | null } } | { success: false; error: string }> {
+  try {
+    const user = await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const parsed = setBatchReferenceSchema.safeParse(input);
+    if (!parsed.success) return { success: false, error: "Batch atau profil acuan tidak valid." };
+
+    const tenantId = user.tenantId;
+    const tenantPrisma = await requireTenantPrisma();
+    const result = await tenantPrisma.$transaction(async (tx) => {
+      const batch = await tx.parentRoastingBatch.findFirst({
+        where: { id: parsed.data.batchId, tenantId, status: "PENDING" },
+        select: { id: true, code: true, machineId: true, referenceRoastId: true },
+      });
+      if (!batch) throw new Error("Hanya batch yang masih proses yang dapat diubah acuannya.");
+
+      if (!parsed.data.referenceRoastId) {
+        await tx.parentRoastingBatch.update({
+          where: { id: batch.id },
+          data: { referenceRoastId: null },
+        });
+        await recordAudit(tx, {
+          tenantId,
+          userId: user.id,
+          action: "UPDATE",
+          entityType: "ParentRoastingBatch",
+          entityId: batch.id,
+          before: { referenceRoastId: batch.referenceRoastId },
+          after: { referenceRoastId: null },
+          metadata: { source: "WEB_PROFILE_REFERENCE" },
+        });
+        return { title: null };
+      }
+
+      const reference = await tx.roast.findFirst({
+        where: { id: parsed.data.referenceRoastId, tenantId },
+        select: {
+          id: true,
+          title: true,
+          machineId: true,
+          beanTemperatureSeries: true,
+        },
+      });
+      if (!reference) throw new Error("Profil acuan tidak ditemukan.");
+      if (!Array.isArray(reference.beanTemperatureSeries) || reference.beanTemperatureSeries.length < 2) {
+        throw new Error("Profil acuan belum memiliki kurva Bean Temperature yang dapat dibandingkan.");
+      }
+      if (batch.machineId && batch.machineId !== reference.machineId) {
+        throw new Error("Profil acuan berasal dari mesin yang berbeda dengan batch ini.");
+      }
+
+      await tx.parentRoastingBatch.update({
+        where: { id: batch.id },
+        data: {
+          referenceRoastId: reference.id,
+          machineId: batch.machineId ?? reference.machineId,
+        },
+      });
+      await recordAudit(tx, {
+        tenantId,
+        userId: user.id,
+        action: "UPDATE",
+        entityType: "ParentRoastingBatch",
+        entityId: batch.id,
+        before: { referenceRoastId: batch.referenceRoastId, machineId: batch.machineId },
+        after: { referenceRoastId: reference.id, machineId: batch.machineId ?? reference.machineId },
+        metadata: { source: "WEB_PROFILE_REFERENCE" },
+      });
+      return { title: reference.title || "Profil tanpa nama" };
+    });
+
+    revalidatePath("/roasting");
+    revalidatePath(`/roasting/batch/${parsed.data.batchId}`);
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("[setBatchReferenceProfile]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Profil acuan gagal disimpan." };
+  }
 }
 
 export async function createParentRoastingBatch(
@@ -461,6 +611,7 @@ export async function createParentRoastingBatch(
             },
             update: { isActive: true },
             create: {
+              tenantId,
               code: generateRBCode(automaticName),
               name: automaticName,
               type: "ROASTED_BEAN",
@@ -497,6 +648,7 @@ export async function createParentRoastingBatch(
 
       const batch = await tx.parentRoastingBatch.create({
         data: {
+          tenantId,
           code: batchCode,
           operationKey: input.operationKey,
           inputProductId:   input.inputProductId,
@@ -551,33 +703,53 @@ export async function createParentRoastingBatch(
       }
 
       // Always deduct GB immediately
-      await appendLedger(tx, {
-        data: {
+      await appendFefoLedgerOut(tx, {
+          tenantId,
           productId:   input.inputProductId,
-          entryType:   "OUT",
           refType:     "ROASTING_GB_OUT",
           refId:       batch.id,
           quantityKg:  input.targetWeightKg,
-          lotNumber:   input.lotNumber || null,
           notes:       `Roasting: ${batch.code}`,
           createdById: userId,
-        },
       });
 
       // If MANUAL, also add RB immediately
       if (input.mode === "MANUAL") {
+        const outputLot = await tx.lot.create({
+          data: {
+            tenantId,
+            productId: outputProduct.id,
+            batchCode: `${batch.code}-RB`,
+            quantityKg: Number(input.actualOutputKg),
+            receivedAt: batch.completedAt ?? getCurrentDate(),
+            notes: `Hasil roasting ${batch.code}`,
+          },
+        });
         await appendLedger(tx, {
           data: {
+            tenantId,
             productId:   outputProduct.id,
             entryType:   "IN",
             refType:     "ROASTING_RB_IN",
             refId:       batch.id,
             quantityKg:  Number(input.actualOutputKg),
             incomingPrice: (Number(inputProduct.avgCostPerKg ?? 0) * input.targetWeightKg) / Number(input.actualOutputKg),
+            lotId:        outputLot.id,
+            lotNumber:    outputLot.batchCode,
             notes:       `Roasting: ${batch.code}`,
             createdById: userId,
           },
         });
+
+        await postRoastingBatch(
+          batch.id,
+          Number(inputProduct.avgCostPerKg ?? 0) * input.targetWeightKg,
+          input.targetWeightKg,
+          Number(input.actualOutputKg),
+          inputProduct.name,
+          outputProduct.name,
+          { tx, tenantId, userId },
+        );
       }
 
       await recordAudit(tx, {
@@ -646,7 +818,10 @@ export async function completeParentRoastingBatch(
     const result = await tenantPrisma.$transaction(async (tx) => {
       const batch = await tx.parentRoastingBatch.findUnique({ 
         where: { id: batchId },
-        include: { inputProduct: { select: { avgCostPerKg: true } } }
+        include: {
+          inputProduct: { select: { avgCostPerKg: true, name: true } },
+          outputProduct: { select: { name: true } },
+        }
       });
       if (!batch) {
         throw new Error("Batch roasting tidak ditemukan.");
@@ -695,18 +870,42 @@ export async function completeParentRoastingBatch(
         throw new Error("Batch sudah diselesaikan oleh proses lain.");
       }
 
+      const outputLot = await tx.lot.create({
+        data: {
+          tenantId,
+          productId: batch.outputProductId,
+          batchCode: `${batch.code}-RB`,
+          quantityKg: actualOutputKg,
+          receivedAt: getCurrentDate(),
+          notes: `Hasil roasting ${batch.code}`,
+        },
+      });
+
       await appendLedger(tx, {
         data: {
+          tenantId,
           productId:   batch.outputProductId,
           entryType:   "IN",
           refType:     "ROASTING_RB_IN",
           refId:       batch.id,
           quantityKg:  actualOutputKg,
           incomingPrice: (Number(batch.inputProduct.avgCostPerKg ?? 0) * Number(batch.targetWeightKg)) / actualOutputKg,
+          lotId:        outputLot.id,
+          lotNumber:    outputLot.batchCode,
           notes:       `Roasting: ${batch.code}`,
           createdById: userId,
         },
       });
+
+      await postRoastingBatch(
+        batch.id,
+        Number(batch.inputProduct.avgCostPerKg ?? 0) * Number(batch.targetWeightKg),
+        Number(batch.targetWeightKg),
+        actualOutputKg,
+        batch.inputProduct.name ?? "Green Bean",
+        batch.outputProduct.name ?? "Roasted Bean",
+        { tx, tenantId, userId },
+      );
 
       await recordAudit(tx, {
         tenantId,
@@ -773,38 +972,55 @@ export async function voidParentRoastingBatch(
           voidAt: getCurrentDate(),
         },
       });
+      if (batch.status === "COMPLETED") {
+        await postVoidReversal("ROASTING", batch.id, reason, { tx, tenantId, userId });
+      }
 
-      // Return GB (Always) — restore WAC by passing current avg cost
-      const gbProduct = await tx.product.findUnique({
-        where: { id: batch.inputProductId },
-        select: { avgCostPerKg: true },
-      });
-      await appendLedger(tx, {
-        data: {
-          productId:      batch.inputProductId,
-          entryType:      "IN",
-          refType:        "VOID_REVERSAL",
-          refId:          batch.id,
-          quantityKg:     batch.targetWeightKg,
-          incomingPrice:  Number(gbProduct?.avgCostPerKg ?? 0),
-          notes:          `Reversal Roasting: ${batch.code}`,
-          createdById:    userId,
+      const sourceEntries = await tx.inventoryLedger.findMany({
+        where: {
+          refId: batch.id,
+          refType: { in: ["ROASTING_GB_OUT", "ROASTING_RB_IN"] },
         },
       });
+      if (sourceEntries.length === 0) {
+        throw new Error("Ledger roasting tidak ditemukan; void dibatalkan.");
+      }
+      const outputLotIds = sourceEntries
+        .filter((entry) => entry.refType === "ROASTING_RB_IN" && entry.lotId)
+        .map((entry) => entry.lotId!);
+      if (outputLotIds.length > 0) {
+        const downstreamCount = await tx.inventoryLedger.count({
+          where: { lotId: { in: outputLotIds }, entryType: "OUT", refType: { not: "VOID_REVERSAL" } },
+        });
+        if (downstreamCount > 0) {
+          throw new Error("Hasil roasting sudah dipakai di proses berikutnya. Batalkan proses turunannya terlebih dahulu.");
+        }
+      }
 
-      // Return RB only if it was COMPLETED (RB was added)
-      if (batch.status === "COMPLETED" && batch.actualOutputKg) {
+      for (const entry of sourceEntries) {
         await appendLedger(tx, {
           data: {
-            productId:   batch.outputProductId,
-            entryType:   "OUT",
-            refType:     "VOID_REVERSAL",
-            refId:       batch.id,
-            quantityKg:  batch.actualOutputKg,
-            notes:       `Reversal Roasting: ${batch.code}`,
+            tenantId,
+            productId: entry.productId,
+            packagingId: entry.packagingId,
+            entryType: entry.entryType === "IN" ? "OUT" : "IN",
+            refType: "VOID_REVERSAL",
+            refId: batch.id,
+            quantityKg: entry.quantityKg,
+            quantityUnit: entry.quantityUnit,
+            lotId: entry.lotId,
+            lotNumber: entry.lotNumber,
+            expiryDate: entry.expiryDate,
+            notes: `Reversal Roasting: ${batch.code}`,
             createdById: userId,
           },
         });
+        if (entry.lotId) {
+          await tx.lot.update({
+            where: { id: entry.lotId },
+            data: { consumedAt: entry.entryType === "OUT" ? null : getCurrentDate() },
+          });
+        }
       }
 
       await recordAudit(tx, {

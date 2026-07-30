@@ -95,11 +95,25 @@ export const metadata: Metadata = {
   description:
     "Sistem operasional untuk menghubungkan pembelian, inventory, roasting, produksi, penjualan, dan keuangan coffee roastery.",
   applicationName: "roastd.id",
+  appleWebApp: {
+    capable: true,
+    title: "roastd.id",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: "/icon",
+    apple: "/icon",
+  },
+  manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({

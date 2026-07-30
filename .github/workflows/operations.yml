@@ -2,7 +2,7 @@ name: ROS Daily Operations
 
 on:
   schedule:
-    - cron: "0 22 * * *"
+    - cron: "15 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -34,6 +34,14 @@ jobs:
             --request POST \
             --header "Authorization: Bearer $PRODUCTION_CRON_SECRET" \
             "$PRODUCTION_APP_URL/api/cron/subscriptions"
+
+      - name: Expire unpaid storefront orders
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $PRODUCTION_CRON_SECRET" \
+            "$PRODUCTION_APP_URL/api/cron/payment-submissions"
 
       - name: Send overdue reminders
         if: steps.config.outputs.configured == 'true'

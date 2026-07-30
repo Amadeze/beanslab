@@ -5,17 +5,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Boxes,
+  BookOpen,
   ChartNoAxesCombined,
   ChevronLeft,
   ChevronRight,
   Coffee,
+  Factory,
   Flame,
+  FileSignature,
   LayoutDashboard,
   LogOut,
   PackageSearch,
   Settings2,
   ShoppingBag,
   ShoppingCart,
+  Sparkles,
   WalletCards,
 } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
@@ -105,11 +109,18 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "inventory",
       },
       {
-        label: "Roastery",
-        shortLabel: "Roastery",
+        label: "Roasting",
+        shortLabel: "Roast",
         href: "/roasting",
         icon: Flame,
         tone: "roasting",
+      },
+      {
+        label: "Produksi",
+        shortLabel: "Produksi",
+        href: "/produksi",
+        icon: Factory,
+        tone: "production",
       },
     ],
   },
@@ -131,6 +142,13 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         icon: ShoppingBag,
         tone: "sales",
       },
+      {
+        label: "Kontrak OEM",
+        shortLabel: "Kontrak",
+        href: "/penjualan/kontrak",
+        icon: FileSignature,
+        tone: "sales",
+      },
     ],
   },
   {
@@ -149,6 +167,20 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         shortLabel: "Laporan",
         href: "/laporan",
         icon: ChartNoAxesCombined,
+        tone: "neutral",
+      },
+      {
+        label: "Akuntansi",
+        shortLabel: "Akun",
+        href: "/laporan/akuntansi",
+        icon: BookOpen,
+        tone: "neutral",
+      },
+      {
+        label: "Insight Assistant",
+        shortLabel: "Insight",
+        href: "/ai-insights",
+        icon: Sparkles,
         tone: "neutral",
       },
     ],
@@ -188,6 +220,7 @@ export function canAccessNavigation(
       "/dashboard",
       "/inventory",
       "/roasting",
+      "/produksi",
       "/katalog",
     ].includes(href);
   }
@@ -198,9 +231,7 @@ export function canAccessNavigation(
 }
 
 export function getActiveNavigation(pathname: string, items: AppNavLink[]) {
-  const workspacePath = pathname.startsWith("/produksi")
-    ? "/roasting"
-    : pathname.startsWith("/audit")
+  const workspacePath = pathname.startsWith("/audit")
       ? "/settings"
       : pathname;
   return items
@@ -212,10 +243,12 @@ export function Sidebar({
   userRole,
   subscriptionTier,
   forceExpanded,
+  pendingPaymentReviews,
 }: {
   userRole: string;
   subscriptionTier: PlanTier;
   forceExpanded?: boolean;
+  pendingPaymentReviews: number;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -368,13 +401,14 @@ export function Sidebar({
                         <span className="min-w-0 flex-1 truncate text-[12px] font-medium">
                           {item.label}
                         </span>
+                        {item.href === "/penjualan" && pendingPaymentReviews > 0 ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 font-mono text-[9px] font-black text-white">{Math.min(pendingPaymentReviews, 99)}</span> : null}
                         {item.step ? (
                           <span className={cn("font-mono text-[8px] tracking-[0.12em]", active ? "text-current opacity-50" : "text-white/20")}>
                             {item.step}
                           </span>
                         ) : null}
                       </>
-                    ) : null}
+                    ) : item.href === "/penjualan" && pendingPaymentReviews > 0 ? <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#05090D] bg-red-500" /> : null}
                   </Link>
                 );
               })}

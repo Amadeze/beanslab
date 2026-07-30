@@ -9,6 +9,7 @@ import {
   ReportTable,
   ReportExport,
   ReportSkeleton,
+  ReportHeader,
   type ReportColumn,
 } from "../../_shared";
 import { getSalesReport, getExpenseReport, getRoastingReport } from "../../actions";
@@ -22,7 +23,12 @@ interface DailyActivity {
 }
 
 export default function DailyReportClient() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  // Use local timezone for initial date (browser timezone, matches user expectation)
+  const getLocalDateString = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [data, setData] = useState<{
     revenue: number;
     expenses: number;
@@ -101,6 +107,15 @@ export default function DailyReportClient() {
     );
   }
 
+  const dateLabel = new Date(selectedDate).toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const netCashFlow = data.revenue - data.expenses;
+
   return (
     <ReportLayout
       activeTab="daily"
@@ -114,6 +129,13 @@ export default function DailyReportClient() {
       }
     >
       <div className="space-y-6">
+        <ReportHeader
+          title="Laporan Harian"
+          subtitle="Ringkasan aktivitas bisnis hari ini"
+          period={dateLabel}
+          generatedAt={new Date()}
+        />
+
         {/* Date selector */}
         <div className="flex items-center gap-3">
           <Calendar size={16} className="text-stone-400" />
@@ -138,6 +160,7 @@ export default function DailyReportClient() {
             value={formatRupiah(data.expenses)}
             icon={WalletCards}
             color="rose"
+            inverse
           />
           <ReportKpiCard
             label="Transaksi"
@@ -148,10 +171,21 @@ export default function DailyReportClient() {
           />
           <ReportKpiCard
             label="Net Cash Flow"
-            value={formatRupiah(data.revenue - data.expenses)}
-            icon={data.revenue > data.expenses ? TrendingUp : TrendingDown}
-            color={data.revenue > data.expenses ? "emerald" : "rose"}
+            value={formatRupiah(netCashFlow)}
+            icon={netCashFlow >= 0 ? TrendingUp : TrendingDown}
+            color={netCashFlow >= 0 ? "emerald" : "rose"}
           />
+        </div>
+
+        {/* Executive Summary */}
+        <div className="rounded-xl border border-stone-200 bg-white p-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Ringkasan Eksekutif</p>
+          <div className="space-y-1 text-xs text-stone-600">
+            <p>• Revenue hari ini: <span className="font-semibold">{formatRupiah(data.revenue)}</span> dari {data.transactions} transaksi</p>
+            <p>• Pengeluaran: <span className="font-semibold">{formatRupiah(data.expenses)}</span></p>
+            <p>• Net cash flow: <span className={`font-semibold ${netCashFlow >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{formatRupiah(netCashFlow)}</span></p>
+            {data.batches > 0 && <p>• Batch roasting selesai: <span className="font-semibold">{data.batches} batch</span></p>}
+          </div>
         </div>
 
         {/* Chart */}

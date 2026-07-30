@@ -74,6 +74,7 @@ try {
   const [productA, productB] = await Promise.all([
     tenantA.product.create({
       data: {
+        tenantId: tenantAId,
         code: `GB-A-${suffix}`,
         name: "Audit Green Bean A",
         type: "GREEN_BEAN",
@@ -81,6 +82,7 @@ try {
     }),
     tenantB.product.create({
       data: {
+        tenantId: tenantBId,
         code: `GB-B-${suffix}`,
         name: "Audit Green Bean B",
         type: "GREEN_BEAN",
@@ -128,6 +130,7 @@ try {
   try {
     const purchase = await tenantA.purchase.create({
       data: {
+        tenantId: tenantAId,
         code: `PUR-A-${suffix}`,
         type: "GREEN_BEAN",
         supplierId: supplierB.id,

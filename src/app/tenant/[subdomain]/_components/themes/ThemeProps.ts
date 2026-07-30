@@ -5,6 +5,13 @@ import type { CartItem } from "../../_store/cartStore";
 export type ExtendedTenant = Tenant & {
   portalThemeConfig?: any;
   themeConfig?: any;
+  paymentMethods?: Array<{
+    id: string;
+    method: "CASH" | "TRANSFER" | "QRIS" | "CREDIT";
+    label: string;
+    bankName: string | null;
+    accountNumber: string | null;
+  }>;
 };
 
 export interface CartStore {
@@ -31,6 +38,8 @@ export interface ThemeProps {
   setCustomerAddress: (val: string) => void;
   shippingMethod: string;
   setShippingMethod: (val: string) => void;
+  paymentMethodId?: string;
+  setPaymentMethodId?: (val: string) => void;
   handleAddToCart: (product: Product) => void;
   handleCheckout: () => void;
   isCheckingOut?: boolean;

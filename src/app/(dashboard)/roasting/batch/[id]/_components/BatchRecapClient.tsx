@@ -35,6 +35,13 @@ type ChildBatch = {
   roastDuration: number | null;
   dropTemp: number | null;
   recordedAt: string;
+  matchScore: number | null;
+  matchStatus: "ON_TRACK" | "WATCH" | "DIVERGED" | "INVALID" | null;
+  matchDetails: {
+    btRmse?: number | null;
+    rorRmse?: number | null;
+    durationDeltaSeconds?: number | null;
+  } | null;
   roast: RoastData | null;
 };
 
@@ -55,6 +62,14 @@ type RecapData = {
   childCount: number;
   completedCount: number;
   pendingCount: number;
+  referenceProfile: {
+    id: string;
+    title: string;
+    duration: number | null;
+    beanTemperatureSeries: Array<{ second: number; value: number }> | null;
+    environmentalTemperatureSeries: Array<{ second: number; value: number }> | null;
+    events: Array<{ second: number; type: string }> | null;
+  } | null;
   children: ChildBatch[];
   summary: {
     totalGreenGrams: number;
@@ -129,6 +144,7 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
           <InfoField label="Tanggal" value={formatDate(data.createdAt)} />
           <InfoField label="Selesai" value={formatDate(data.completedAt)} />
           <InfoField label="Total Batch" value={`${data.completedCount}/${data.childCount} selesai`} />
+          <InfoField label="Profil Acuan" value={data.referenceProfile?.title ?? "Belum dipilih"} />
         </div>
         {data.notes && (
           <div className="mt-3 text-xs text-[var(--text-secondary)]">
@@ -168,6 +184,9 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
                           {r.duration ? formatDuration(r.duration) : ""}
                         </span>
                       )}
+                      {child.matchScore != null && (
+                        <MatchBadge score={child.matchScore} status={child.matchStatus} />
+                      )}
                     </div>
                     <div className="text-[10px] text-[var(--text-tertiary)]">
                       {r ? (
@@ -194,12 +213,21 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
                 {isExpanded && r && (
                   <div className="border-t border-[var(--glass-border)] p-4 space-y-4">
                     {/* Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                       <MiniStat label="Charge" value={r.chargeTemperature ? `${r.chargeTemperature}°C` : "-"} />
                       <MiniStat label="Drop" value={r.dropTemperature ? `${r.dropTemperature}°C` : "-"} />
                       <MiniStat label="FCs" value={r.firstCrackStartTime ? formatDuration(r.firstCrackStartTime) : "-"} />
                       <MiniStat label="Duration" value={r.duration ? formatDuration(r.duration) : "-"} />
+                      <MiniStat label="Profile Match" value={child.matchScore != null ? `${Math.round(child.matchScore)}/100` : "-"} />
                     </div>
+
+                    {child.matchDetails && (
+                      <div className="flex flex-wrap gap-3 rounded-lg border border-[var(--glass-border)] px-3 py-2 text-[10px] text-[var(--text-secondary)]">
+                        <span>BT RMSE <b>{child.matchDetails.btRmse ?? "-"}Â°C</b></span>
+                        <span>RoR RMSE <b>{child.matchDetails.rorRmse ?? "-"}</b></span>
+                        <span>Durasi Î” <b>{child.matchDetails.durationDeltaSeconds ?? "-"} detik</b></span>
+                      </div>
+                    )}
 
                     {/* Temperature Chart */}
                     {r.beanTemperatureSeries && r.beanTemperatureSeries.length > 0 && (
@@ -207,6 +235,8 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
                         btData={r.beanTemperatureSeries}
                         etData={r.environmentalTemperatureSeries}
                         events={r.events}
+                        targetBtData={data.referenceProfile?.beanTemperatureSeries ?? null}
+                        targetEvents={data.referenceProfile?.events ?? null}
                       />
                     )}
                   </div>
@@ -259,21 +289,41 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   );
 }
 
+function MatchBadge({
+  score,
+  status,
+}: {
+  score: number;
+  status: ChildBatch["matchStatus"];
+}) {
+  const tone = status === "ON_TRACK"
+    ? "bg-emerald-500/10 text-emerald-600"
+    : status === "WATCH"
+      ? "bg-amber-500/10 text-amber-600"
+      : "bg-red-500/10 text-red-600";
+  return <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${tone}`}>MATCH {Math.round(score)}</span>;
+}
+
 function TemperatureChart({
-  btData, etData, events,
+  btData, etData, events, targetBtData, targetEvents,
 }: {
   btData: Array<{ second: number; value: number }>;
   etData: Array<{ second: number; value: number }> | null;
   events: Array<{ second: number; type: string }> | null;
+  targetBtData: Array<{ second: number; value: number }> | null;
+  targetEvents: Array<{ second: number; type: string }> | null;
 }) {
-  const chartData = btData.map((bt) => {
-    const et = etData?.find((e) => e.second === bt.second);
-    return {
-      time: bt.second,
-      BT: bt.value,
-      ET: et?.value ?? null,
-    };
-  });
+  const points = new Map<number, { time: number; BT: number | null; ET: number | null; Target: number | null }>();
+  const pointAt = (second: number) => points.get(second) ?? { time: second, BT: null, ET: null, Target: null };
+  for (const bt of btData) points.set(bt.second, { ...pointAt(bt.second), BT: bt.value });
+  for (const et of etData ?? []) points.set(et.second, { ...pointAt(et.second), ET: et.value });
+  const actualCharge = events?.find((event) => event.type === "CHARGE")?.second ?? 0;
+  const targetCharge = targetEvents?.find((event) => event.type === "CHARGE")?.second ?? 0;
+  for (const target of targetBtData ?? []) {
+    const alignedSecond = target.second - targetCharge + actualCharge;
+    points.set(alignedSecond, { ...pointAt(alignedSecond), Target: target.value });
+  }
+  const chartData = [...points.values()].sort((a, b) => a.time - b.time);
 
   const eventMarkers = events?.filter((e) =>
     ["CHARGE", "FCs", "FCe", "SCs", "DROP"].includes(e.type),
@@ -292,6 +342,7 @@ function TemperatureChart({
       <ResponsiveContainer width="100%" height={180}>
         <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--glass-border)" />
+          <Legend wrapperStyle={{ fontSize: "10px" }} />
           <XAxis
             dataKey="time"
             tickFormatter={(v) => `${Math.floor(v / 60)}:${String(v % 60).padStart(2, "0")}`}
@@ -323,9 +374,12 @@ function TemperatureChart({
               strokeWidth={1.5}
             />
           ))}
-          <Line type="monotone" dataKey="BT" stroke="#00668E" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="BT" stroke="#00668E" strokeWidth={2} dot={false} connectNulls />
+          {targetBtData && targetBtData.length > 0 && (
+            <Line type="monotone" dataKey="Target" stroke="#d6b98c" strokeWidth={1.5} dot={false} strokeDasharray="8 6" connectNulls />
+          )}
           {etData && etData.length > 0 && (
-            <Line type="monotone" dataKey="ET" stroke="#60a5fa" strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
+            <Line type="monotone" dataKey="ET" stroke="#60a5fa" strokeWidth={1.5} dot={false} strokeDasharray="5 5" connectNulls />
           )}
         </LineChart>
       </ResponsiveContainer>

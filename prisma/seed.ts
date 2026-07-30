@@ -49,7 +49,12 @@ async function main() {
 
   let tenant = await prisma.tenant.findUnique({where: {code: 'NALWENG'}});
   if (!tenant) {
-    tenant = await prisma.tenant.create({data: {name: 'Nalweng Roastery', code: 'NALWENG'}});
+    tenant = await prisma.tenant.create({data: {name: 'Nalweng Roastery', code: 'NALWENG', ownerCapital: 80_000_000, initialCash: 20_000_000}});
+  } else {
+    tenant = await prisma.tenant.update({
+      where: {code: 'NALWENG'},
+      data: {ownerCapital: 80_000_000, initialCash: 20_000_000},
+    });
   }
 
 
@@ -268,7 +273,7 @@ async function main() {
   await prisma.recipeItem.upsert({
     where:  { recipeId_productId: { recipeId: recipeFullArabica.id, productId: rbGayo.id } },
     update: {},
-    create: { recipeId:     recipeFullArabica.id,
+    create: { tenantId: tenant.id, recipeId:     recipeFullArabica.id,
       productId:    rbGayo.id,
       ratioPercent: 100,
       gramsPerUnit: 1000,
@@ -293,7 +298,7 @@ async function main() {
     prisma.recipeItem.upsert({
       where:  { recipeId_productId: { recipeId: recipeBlendA.id, productId: rbGayo.id } },
       update: {},
-      create: { recipeId:     recipeBlendA.id,
+      create: { tenantId: tenant.id, recipeId:     recipeBlendA.id,
         productId:    rbGayo.id,
         ratioPercent: 50,
         gramsPerUnit: 500,
@@ -302,7 +307,7 @@ async function main() {
     prisma.recipeItem.upsert({
       where:  { recipeId_productId: { recipeId: recipeBlendA.id, productId: rbRobusta.id } },
       update: {},
-      create: { recipeId:     recipeBlendA.id,
+      create: { tenantId: tenant.id, recipeId:     recipeBlendA.id,
         productId:    rbRobusta.id,
         ratioPercent: 50,
         gramsPerUnit: 500,
@@ -327,6 +332,8 @@ async function main() {
       shippingCost: 0,
       totalCost:    1_000_000,
       status:       "COMPLETED",
+      paymentStatus: "PAID",
+      paidAmount:    1_000_000,
       receivedAt:   daysAgo(5),
       notes:        "Lot Juli 2026 — Grade 1 Specialty",
       createdById:  systemUser.id,
@@ -363,6 +370,8 @@ async function main() {
       shippingCost: 0,
       totalCost:    800_000,
       status:       "COMPLETED",
+      paymentStatus: "PAID",
+      paidAmount:    800_000,
       receivedAt:   daysAgo(5),
       notes:        "Lot Juli 2026 — Grade A",
       createdById:  systemUser.id,
@@ -398,6 +407,8 @@ async function main() {
       shippingCost:  0,
       totalCost:     250_000,
       status:        "COMPLETED",
+      paymentStatus: "PAID",
+      paidAmount:    250_000,
       receivedAt:    daysAgo(5),
       notes:         "Stok kemasan Pouch 1KG",
       createdById:   systemUser.id,
@@ -689,7 +700,7 @@ async function main() {
   // Line items
   await Promise.all([
     prisma.invoiceItem.create({
-      data: { invoiceId: inv1.id,
+      data: { tenantId: tenant.id, invoiceId: inv1.id,
         productId: fgFullArabica.id,
         quantity:  2,
         unitPrice: 200_000,
@@ -699,7 +710,7 @@ async function main() {
       },
     }),
     prisma.invoiceItem.create({
-      data: { invoiceId: inv1.id,
+      data: { tenantId: tenant.id, invoiceId: inv1.id,
         productId: fgBlendA.id,
         quantity:  2,
         unitPrice: 180_000,
@@ -775,7 +786,7 @@ async function main() {
     },
   });
   await prisma.invoiceItem.create({
-    data: { invoiceId: inv2.id,
+    data: { tenantId: tenant.id, invoiceId: inv2.id,
       productId: fgFullArabica.id,
       quantity:  1,
       unitPrice: 200_000,
@@ -822,7 +833,7 @@ async function main() {
     },
   });
   await prisma.invoiceItem.create({
-    data: { invoiceId: inv3.id,
+    data: { tenantId: tenant.id, invoiceId: inv3.id,
       productId: fgBlendA.id,
       quantity:  2,
       unitPrice: 180_000,

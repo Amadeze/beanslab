@@ -10,6 +10,52 @@ import { getCurrentDate } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
+type CredentialHealth = {
+  credentialDecryptFailures: number;
+  plaintextCredentials: number;
+};
+
+const CREDENTIAL_HEALTH_TTL_MS = 5 * 60 * 1_000;
+let credentialHealthCache: (CredentialHealth & { expiresAt: number }) | null = null;
+let credentialHealthInFlight: Promise<CredentialHealth> | null = null;
+
+async function inspectCredentialHealth(): Promise<CredentialHealth> {
+  if (credentialHealthCache && credentialHealthCache.expiresAt > Date.now()) {
+    return credentialHealthCache;
+  }
+  if (credentialHealthInFlight) return credentialHealthInFlight;
+
+  credentialHealthInFlight = prisma.tenant.findMany({
+    where: { midtransServerKey: { not: null } },
+    select: { midtransServerKey: true },
+  }).then((encryptedCredentials) => {
+    let credentialDecryptFailures = 0;
+    let plaintextCredentials = 0;
+    for (const tenant of encryptedCredentials) {
+      if (!tenant.midtransServerKey) continue;
+      if (!isEncryptedCredential(tenant.midtransServerKey)) {
+        plaintextCredentials += 1;
+        continue;
+      }
+      try {
+        decryptCredential(tenant.midtransServerKey);
+      } catch {
+        credentialDecryptFailures += 1;
+      }
+    }
+    const result = { credentialDecryptFailures, plaintextCredentials };
+    credentialHealthCache = {
+      ...result,
+      expiresAt: Date.now() + CREDENTIAL_HEALTH_TTL_MS,
+    };
+    return result;
+  }).finally(() => {
+    credentialHealthInFlight = null;
+  });
+
+  return credentialHealthInFlight;
+}
+
 export async function GET(req: Request) {
   const requestId = getRequestId(req.headers);
   const startedAt = performance.now();
@@ -23,38 +69,32 @@ export async function GET(req: Request) {
           "SUPABASE_URL",
           "SUPABASE_SERVICE_ROLE_KEY",
           "SUPABASE_STORAGE_BUCKET",
+          "SUPABASE_PRIVATE_STORAGE_BUCKET",
         ].filter((name) => !process.env[name])
       : [];
 
   try {
-    await prisma.$queryRaw`SELECT 1`;
-    const [encryptedCredentials, recentJobRuns] = await Promise.all([
-      prisma.tenant.findMany({
-        where: { midtransServerKey: { startsWith: "enc:v1:" } },
-        select: { midtransServerKey: true },
-      }),
+    // Both operations prove DB reachability; a separate SELECT 1 only adds a
+    // round trip. Credential inspection is cached because decrypting every
+    // tenant on every health probe grows linearly with tenant count.
+    const [credentialHealth, recentJobRuns] = await Promise.all([
+      inspectCredentialHealth(),
       prisma.jobRun.findMany({
-        where: { jobName: { in: ["subscriptions", "overdue-reminders", "daily-brief"] } },
+        where: { jobName: { in: ["subscriptions", "overdue-reminders", "daily-brief", "payment-submissions"] } },
         orderBy: { startedAt: "desc" },
         take: 30,
         select: { jobName: true, status: true, startedAt: true, finishedAt: true },
       }),
     ]);
-    let credentialDecryptFailures = 0;
-    for (const tenant of encryptedCredentials) {
-      if (!tenant.midtransServerKey || !isEncryptedCredential(tenant.midtransServerKey)) continue;
-      try {
-        decryptCredential(tenant.midtransServerKey);
-      } catch {
-        credentialDecryptFailures += 1;
-      }
-    }
+    const { credentialDecryptFailures, plaintextCredentials } = credentialHealth;
     const hasMissingConfig = missingConfiguration.length > 0;
-    const hasDecryptFailures = credentialDecryptFailures > 0;
-    const ready = !hasMissingConfig && !hasDecryptFailures;
+    const hasCredentialFailures = process.env.NODE_ENV === "production" && (
+      credentialDecryptFailures > 0 || plaintextCredentials > 0
+    );
+    const ready = !hasMissingConfig && !hasCredentialFailures;
     const now = getCurrentDate();
     const freshnessThreshold = new Date(now.getTime() - 36 * 60 * 60 * 1_000);
-    const operationalJobs = ["subscriptions", "overdue-reminders", "daily-brief"].map((jobName) => {
+    const operationalJobs = ["subscriptions", "overdue-reminders", "daily-brief", "payment-submissions"].map((jobName) => {
       const latest = recentJobRuns.find((run) => run.jobName === jobName);
       return {
         jobName,

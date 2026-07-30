@@ -5,5 +5,11 @@ export const dynamic = "force-dynamic";
 
 export default async function CashierPage() {
   const data = await getCashierPageData();
-  return <CashierClient customers={data.customers} products={data.fgOptions} />;
+  return (
+    <CashierClient
+      customers={data.customers}
+      products={data.fgOptions}
+      contractPrices={data.contractPrices}
+    />
+  );
 }
