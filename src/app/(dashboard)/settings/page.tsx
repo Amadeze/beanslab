@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, Building2, Cable, ChevronRight, CircleDollarSign, Cpu, CreditCard, Paintbrush, ScrollText, Users } from "lucide-react";
+import { Bell, Building2, ChevronRight, CircleDollarSign, Cpu, CreditCard, Monitor, Paintbrush, ScrollText, Users } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SettingsNav } from "./_components/SettingsNav";
@@ -41,10 +41,10 @@ const settingsGroups = [
     roles: ["OWNER", "MANAGER"],
   },
   {
-    title: "Koneksi Artisan",
-    description: "Pairing desktop sync, status koneksi, dan riwayat sinkronisasi.",
-    href: "/settings/integrations/artisan",
-    icon: Cable,
+    title: "Roastd Studio",
+    description: "Unduh aplikasi dan pantau perangkat Studio yang sudah login.",
+    href: "/settings/studio",
+    icon: Monitor,
     roles: ["OWNER"],
   },
   {

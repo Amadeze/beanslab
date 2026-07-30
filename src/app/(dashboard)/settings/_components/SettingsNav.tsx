@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Building2, Cable, CircleDollarSign, Cpu, CreditCard, LayoutGrid, ScrollText, Truck, Users } from "lucide-react";
+import { Bell, Building2, CircleDollarSign, Cpu, CreditCard, LayoutGrid, Monitor, ScrollText, Truck, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -12,7 +12,7 @@ const items = [
   { label: "Toko & Pengiriman", href: "/settings/commerce", icon: Truck, roles: ["OWNER"] },
   { label: "Anggota Tim", href: "/settings/team", icon: Users, roles: ["OWNER"] },
   { label: "Mesin", href: "/settings/machines", icon: Cpu, roles: ["OWNER", "MANAGER"] },
-  { label: "Koneksi Artisan", href: "/settings/integrations/artisan", icon: Cable, roles: ["OWNER"] },
+  { label: "Roastd Studio", href: "/settings/studio", icon: Monitor, roles: ["OWNER"] },
   { label: "Notifikasi", href: "/settings/notifications", icon: Bell, roles: ["OWNER", "MANAGER"] },
   { label: "Aktivitas & Audit", href: "/audit", icon: ScrollText, roles: ["OWNER", "MANAGER"] },
   { label: "Paket & Tagihan", href: "/billing", icon: CreditCard, roles: ["OWNER"] },

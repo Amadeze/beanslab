@@ -7,13 +7,10 @@ import { toastSafe } from "@/lib/toast";
 import { Tenant } from "@prisma/client";
 import { Save, ExternalLink, Upload, Phone, Plus, Trash2, RotateCcw } from "lucide-react";
 import { resetOnboarding } from "@/app/onboarding/actions";
-import { WebhookLogModal } from "./WebhookLogsDialog";
 import { tenantStorefrontUrl } from "@/lib/tenant-host";
 
 // Helper type for tenant since Prisma Client might not have typed the new fields perfectly in this file's context if cached
 type ExtendedTenant = Omit<Tenant, "midtransServerKey" | "artisanWebhookToken"> & {
-  isArtisanEnabled?: boolean;
-  artisanWebhookToken?: string | null;
   whatsappNumber?: string | null;
   aboutText?: string | null;
   catalogTitle?: string | null;
@@ -50,7 +47,6 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
   const [heroImageUrl, setHeroImageUrl] = useState(tenant.heroImageUrl || "");
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(tenant.backgroundImageUrl || "");
   const [layoutStyle, setLayoutStyle] = useState(tenant.layoutStyle || "modern");
-  const [isArtisanEnabled, setIsArtisanEnabled] = useState(tenant.isArtisanEnabled || false);
   const [currentOrigin, setCurrentOrigin] = useState("http://localhost:3000");
 
   useEffect(() => {
@@ -96,7 +92,6 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
   const [midtransServerKey, setMidtransServerKey] = useState("");
   const [midtransIsProduction, setMidtransIsProduction] = useState(tenant.midtransIsProduction || false);
   const [isTestingMidtrans, setIsTestingMidtrans] = useState(false);
-  const [isTestingWebhook, setIsTestingWebhook] = useState(false);
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [previewEnabled, setPreviewEnabled] = useState(false);
@@ -197,36 +192,6 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
     }
   };
 
-  const testWebhook = async () => {
-    if (!tenant.artisanWebhookToken) return;
-    setIsTestingWebhook(true);
-    try {
-      const res = await fetch("/api/webhooks/artisan", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${tenant.artisanWebhookToken}`
-        },
-        body: JSON.stringify({
-          machine_id: "test-machine",
-          event: "TEST_PING",
-          timestamp: new Date().toISOString()
-        })
-      });
-      
-      if (res.ok) {
-        toastSafe.success("Koneksi berhasil! Token valid dan webhook merespon dengan baik.");
-      } else {
-        const data = await res.json().catch(()=>({}));
-        toastSafe.error("Koneksi gagal: " + (data.error || res.statusText));
-      }
-    } catch(e) {
-      toastSafe.error("Gagal menghubungi server.");
-    } finally {
-      setIsTestingWebhook(false);
-    }
-  };
-
   async function handleSave() {
     setIsSaving(true);
     try {
@@ -246,7 +211,6 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
         midtransClientKey,
         ...(midtransServerKey ? { midtransServerKey } : {}),
         midtransIsProduction,
-        isArtisanEnabled,
         backgroundImageUrl,
         contactEmail,
         instagramHandle,
@@ -444,108 +408,6 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
           </div>
         </div>
       </div>
-
-      {/* Integrasi Sistem - Webhook lama disembunyikan, gunakan Artisan Sync */}
-      {false && (
-      <div className="glass-card-static p-6 mt-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-slate-800">Integrasi Sistem (Webhook)</h2>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <span className="text-sm font-semibold text-slate-700">Aktifkan Integrasi</span>
-            <input 
-              type="checkbox" 
-              checked={isArtisanEnabled} 
-              onChange={(e) => setIsArtisanEnabled(e.target.checked)}
-              className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-            />
-          </label>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Artisan Webhook Token</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                readOnly
-                value={tenant.artisanWebhookToken || ""}
-                onClick={(e) => e.currentTarget.select()}
-                className="w-full rounded-xl border-slate-200 bg-slate-50/50 px-4 py-2 text-sm text-slate-500 cursor-text"
-                title="Klik untuk memilih teks"
-              />
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!tenant.artisanWebhookToken) return;
-                  try {
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                      await navigator.clipboard.writeText(tenant.artisanWebhookToken);
-                      toast.success("Token berhasil disalin!");
-                    } else {
-                      // Fallback for non-HTTPS environments
-                      toastSafe.error("Gagal menyalin otomatis. Silakan blok teks (klik) dan tekan Ctrl+C");
-                    }
-                  } catch (err) {
-                    toastSafe.error("Browser Anda memblokir fitur copy otomatis.");
-                  }
-                }}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors shrink-0"
-              >
-                Copy
-              </button>
-              <button
-                type="button"
-                onClick={testWebhook}
-                disabled={isTestingWebhook}
-                className="shrink-0 border border-domain-inventory/30 bg-domain-inventory/8 px-4 py-2 text-xs font-bold text-domain-inventory transition-colors hover:bg-domain-inventory/15 disabled:opacity-50"
-              >
-                {isTestingWebhook ? "Testing..." : "Test Koneksi"}
-              </button>
-              <WebhookLogModal />
-            </div>
-            <p className="text-[10px] text-slate-500 mt-1">Gunakan token ini untuk menyambungkan aplikasi pihak ketiga seperti Artisan (melalui fitur Alarms/Webhook) ke sistem ini.</p>
-          </div>
-
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-            <h3 className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-2">
-              Panduan Menghubungkan Artisan
-            </h3>
-            <ol className="list-decimal list-inside text-[11px] text-slate-600 space-y-1 mb-3">
-              <li>Di aplikasi Artisan, buka menu <strong>Config &gt; Alarms</strong>.</li>
-              <li>Ubah kolom <strong>From</strong> menjadi <code>DROP</code>.</li>
-              <li>Ubah kolom <strong>Action</strong> menjadi <code>Call Program</code> (atau <code>Command</code>/<code>App</code>).</li>
-              <li>Salin kode (command) di bawah ini dan tempel di kolom <strong>Description</strong>.</li>
-            </ol>
-            <div className="relative">
-              <textarea
-                readOnly
-                value={`curl.exe -X POST "${currentOrigin}/api/webhooks/artisan" -H "Authorization: Bearer ${tenant.artisanWebhookToken || "<TOKEN>"}" -H "Content-Type: application/json" -d "{\\"event\\":\\"DROP\\", \\"machine_id\\":\\"ROASTER-1\\", \\"timestamp\\":\\"%YYYY-%MM-%DD %hh:%mm:%ss\\", \\"metrics\\": {\\"duration_seconds\\": %s, \\"drop_temperature\\": %BT}}"`}
-                onClick={(e) => e.currentTarget.select()}
-                className="w-full text-[10px] font-mono text-slate-700 bg-slate-100 p-3 rounded-lg border border-slate-200 resize-none outline-none cursor-text"
-                rows={4}
-              />
-              <button
-                type="button"
-                onClick={async () => {
-                  const cmd = `curl.exe -X POST "${currentOrigin}/api/webhooks/artisan" -H "Authorization: Bearer ${tenant.artisanWebhookToken || "<TOKEN>"}" -H "Content-Type: application/json" -d "{\\"event\\":\\"DROP\\", \\"machine_id\\":\\"ROASTER-1\\", \\"timestamp\\":\\"%YYYY-%MM-%DD %hh:%mm:%ss\\", \\"metrics\\": {\\"duration_seconds\\": %s, \\"drop_temperature\\": %BT}}"`;
-                  if (navigator.clipboard && navigator.clipboard.writeText) {
-                    await navigator.clipboard.writeText(cmd);
-                    toast.success("Command berhasil disalin!");
-                  } else {
-                    toastSafe.error("Silakan blok teks command dan tekan Ctrl+C");
-                  }
-                }}
-                className="absolute top-2 right-2 bg-white border border-slate-200 text-slate-600 text-[10px] px-2 py-1 rounded shadow-sm hover:bg-slate-50 font-bold"
-              >
-                Copy Code
-              </button>
-            </div>
-            <p className="text-[9px] text-slate-400 mt-2">
-              * Pastikan komputer yang menjalankan Artisan bisa mengakses <code>{currentOrigin}</code>
-            </p>
-          </div>
-        </div>
-      </div>
-      )}
 
       {/* B2B Portal Customization (roastd.id Studio) */}
       <div className="glass-card-static p-6 mt-6">

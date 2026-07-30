@@ -21,8 +21,6 @@ import {
   WifiOff,
 } from "lucide-react";
 
-type Machine = { id: string; name: string };
-
 type Connector = {
   id: string;
   computerName: string;
@@ -37,7 +35,6 @@ type Connector = {
 };
 
 type Props = {
-  machines: Machine[];
   connectors: Connector[];
   downloadUrl: string | null;
 };
@@ -162,7 +159,7 @@ export function ArtisanIntegrationClient({
         </h3>
         <p className="mb-4 text-sm text-[var(--text-secondary)]">
           Instal logger desktop read-only untuk melihat telemetry dan menyinkronkan
-          hasil Artisan ke roastd.id secara otomatis.
+          hasil roasting ke roastd.id secara otomatis. Artisan tetap opsional.
         </p>
         {downloadUrl ? (
           <a
@@ -185,12 +182,12 @@ export function ArtisanIntegrationClient({
       <section className="glass-card rounded-2xl p-6">
         <h3 className="mb-4 flex items-center gap-2 font-bold text-[var(--text-primary)]">
           <Monitor size={18} className="text-[var(--amber-warm)]" />
-          Connector Terhubung
+          Perangkat Studio
         </h3>
 
         {connectors.length === 0 ? (
           <p className="text-sm text-[var(--text-tertiary)]">
-            Belum ada connector yang terhubung.
+            Belum ada perangkat. Buka Studio dan pilih Masuk dengan Roastd.
           </p>
         ) : (
           <div className="space-y-3">
@@ -374,7 +371,7 @@ function LiveTelemetrySection() {
 
       {sessions.length === 0 ? (
         <p className="text-sm text-[var(--text-tertiary)]">
-          Belum ada data live. Data akan muncul saat Artisan sedang roasting.
+          Belum ada data live. Data akan muncul saat Studio menerima telemetry mesin.
         </p>
       ) : (
         <div className="space-y-3">

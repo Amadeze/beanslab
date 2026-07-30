@@ -83,7 +83,7 @@ test("product IA groups roasting, settings, and offline cashier correctly", asyn
     await page.goto("/settings", { waitUntil: "networkidle" });
     await expect(page.getByRole("heading", { name: "Pengaturan", exact: true })).toBeVisible();
     await expect(page.locator('a[href="/settings/machines"]').last()).toBeVisible();
-    await expect(page.locator('a[href="/settings/integrations/artisan"]').last()).toBeVisible();
+    await expect(page.locator('a[href="/settings/studio"]').last()).toBeVisible();
     await expect(page.locator('a[href="/settings/team"]').last()).toBeVisible();
     await expect(page.locator('a[href="/audit"]').last()).toBeVisible();
     await expect(page.locator('a[href="/billing"]').last()).toBeVisible();

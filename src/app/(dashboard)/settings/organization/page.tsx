@@ -1,4 +1,3 @@
-import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -7,15 +6,8 @@ import { SettingsNav } from "../_components/SettingsNav";
 
 export default async function OrganizationSettingsPage() {
   const user = await requireRole("OWNER");
-  let tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
+  const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
   if (!tenant) throw new Error("Tenant not found.");
-
-  if (!tenant.artisanWebhookToken) {
-    tenant = await prisma.tenant.update({
-      where: { id: tenant.id },
-      data: { artisanWebhookToken: `art_${randomBytes(16).toString("hex")}` },
-    });
-  }
 
   const {
     midtransServerKey,
