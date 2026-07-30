@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="shell" x1="92" y1="72" x2="420" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#151D1F"/>
+      <stop offset="1" stop-color="#05090D"/>
+    </linearGradient>
+    <linearGradient id="heat" x1="108" y1="420" x2="406" y2="92" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A94728"/>
+      <stop offset="1" stop-color="#F08045"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#shell)"/>
+  <rect x="44" y="44" width="424" height="424" rx="94" fill="none" stroke="#263638" stroke-width="8"/>
+  <path d="M142 362V150c0-22 18-40 40-40h99c67 0 110 38 110 96 0 43-25 75-67 89l77 67h-76l-67-61h-52v61h-64Zm64-116h70c31 0 50-15 50-39 0-25-19-39-50-39h-70v78Z" fill="url(#heat)"/>
+  <path d="M112 383c74-12 103-42 137-82 40-47 69-92 151-112" fill="none" stroke="#3EE0EA" stroke-width="12" stroke-linecap="round" filter="url(#glow)"/>
+  <circle cx="112" cy="383" r="10" fill="#3EE0EA"/>
+  <circle cx="400" cy="189" r="10" fill="#3EE0EA"/>
+</svg>

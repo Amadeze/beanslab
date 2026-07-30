@@ -6,6 +6,13 @@ import type {
   HeartbeatRequest,
   HeartbeatResponse,
   UploadResponse,
+  StartDeviceAuthorizationRequest,
+  StartDeviceAuthorizationResponse,
+  PollDeviceAuthorizationResponse,
+  StudioRoastingContext,
+  StudioRoastSelection,
+  CreateStudioRoastingBatchRequest,
+  CreatedStudioRoastingBatch,
 } from "../shared/types";
 import { logger } from "./logger";
 
@@ -16,7 +23,7 @@ export class ApiClient {
     this.baseUrl = baseUrl.replace(/\/$/, "");
   }
 
-  private async request<T>(
+  async request<T>(
     method: string,
     path: string,
     body?: unknown,
@@ -50,10 +57,19 @@ export class ApiClient {
             try {
               const json = JSON.parse(data);
               if (res.statusCode && res.statusCode >= 400) {
+                const payloadError = json.error;
+                const code = typeof payloadError === "object" && payloadError
+                  ? payloadError.code
+                  : res.statusCode >= 500 ? "SERVER_ERROR" : "UNKNOWN";
+                const message = typeof payloadError === "string"
+                  ? payloadError
+                  : typeof payloadError === "object" && payloadError?.message
+                    ? payloadError.message
+                    : `HTTP ${res.statusCode}`;
                 reject(
                   new ApiError(
-                    json.error?.code || "UNKNOWN",
-                    json.error?.message || `HTTP ${res.statusCode}`,
+                    code || "UNKNOWN",
+                    message,
                     res.statusCode,
                   ),
                 );
@@ -99,6 +115,26 @@ export class ApiClient {
     return this.request("POST", "/api/integrations/artisan/connectors/pair", data);
   }
 
+  async startDeviceAuthorization(
+    data: StartDeviceAuthorizationRequest,
+  ): Promise<StartDeviceAuthorizationResponse> {
+    return this.request(
+      "POST",
+      "/api/integrations/studio/device/start",
+      data,
+    );
+  }
+
+  async pollDeviceAuthorization(
+    deviceCode: string,
+  ): Promise<PollDeviceAuthorizationResponse> {
+    return this.request(
+      "POST",
+      "/api/integrations/studio/device/token",
+      { deviceCode },
+    );
+  }
+
   async heartbeat(
     data: HeartbeatRequest,
     token: string,
@@ -106,6 +142,39 @@ export class ApiClient {
     return this.request(
       "POST",
       "/api/integrations/artisan/connectors/heartbeat",
+      data,
+      token,
+    );
+  }
+
+  async getStudioRoastingContext(token: string): Promise<StudioRoastingContext> {
+    return this.request(
+      "GET",
+      "/api/integrations/studio/roasting/context",
+      undefined,
+      token,
+    );
+  }
+
+  async selectStudioRoastingContext(
+    batchId: string,
+    token: string,
+  ): Promise<{ selection: StudioRoastSelection }> {
+    return this.request(
+      "POST",
+      "/api/integrations/studio/roasting/context",
+      { batchId },
+      token,
+    );
+  }
+
+  async createStudioRoastingBatch(
+    data: CreateStudioRoastingBatchRequest,
+    token: string,
+  ): Promise<{ success: true; batch: CreatedStudioRoastingBatch }> {
+    return this.request(
+      "POST",
+      "/api/integrations/studio/roasting/batches",
       data,
       token,
     );

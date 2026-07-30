@@ -1,0 +1,19 @@
+Roastd Studio 0.8.0 - Third Party Notices
+==========================================
+
+RoastdDeviceBridge.exe is a separate read-only device-driver process based in
+part on the Artisan coffee roasting project's TC4 communication behavior.
+It is distributed under the GNU Affero General Public License v3.0 or later.
+
+The complete corresponding source for the bundled build is maintained in this
+distribution's Roastd Studio Artisan fork, including:
+
+  src/artisanlib/roastd_device_bridge.py
+
+Artisan project: https://github.com/artisan-roaster-scope/artisan
+License text: resources/device-bridge/LICENSE-AGPL-3.0.txt
+
+The Electron desktop application and AGPL device bridge are separate programs
+communicating through a documented newline-delimited JSON protocol over local
+standard input/output. The bridge only reads telemetry and never controls the
+burner, fan, drum, or other machine actuators.

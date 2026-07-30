@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import type { ConnectorCredentials, AppSettings } from "../shared/types";
+import { deviceConfigFromSettings } from "../shared/device-config";
 import { logger } from "./logger";
 
 const CREDENTIALS_FILE = "credentials.json";
@@ -76,22 +77,29 @@ export function saveSettings(settings: AppSettings): void {
 }
 
 export function loadSettings(): AppSettings {
+  const defaults: AppSettings = {
+    watchFolder: null,
+    autoLaunch: false,
+    apiBaseUrl: process.env.ARTISAN_SYNC_API_BASE_URL || "https://roastd.id",
+    mqttBrokerUrl: process.env.ARTISAN_SYNC_MQTT_BROKER || "mqtt://localhost:1883",
+    deviceConfig: null,
+    autoReconnectDevice: true,
+    selectedSerialPort: null,
+    serialAdapter: "AUTO",
+    serialBaudRate: 115200,
+  };
   try {
     const filePath = path.join(getAppDataPath(), SETTINGS_FILE);
     if (!fs.existsSync(filePath)) {
-      return {
-        watchFolder: null,
-        autoLaunch: false,
-        apiBaseUrl: process.env.ARTISAN_SYNC_API_BASE_URL || "http://localhost:3000",
-      };
+      return defaults;
     }
-    return JSON.parse(fs.readFileSync(filePath, "utf8")) as AppSettings;
+    const parsed = JSON.parse(fs.readFileSync(filePath, "utf8")) as Partial<AppSettings> & Record<string, unknown>;
+    const merged = { ...defaults, ...parsed } as AppSettings;
+    merged.deviceConfig = deviceConfigFromSettings(parsed);
+    merged.autoReconnectDevice = parsed.autoReconnectDevice !== false;
+    return merged;
   } catch {
-    return {
-      watchFolder: null,
-      autoLaunch: false,
-      apiBaseUrl: process.env.ARTISAN_SYNC_API_BASE_URL || "http://localhost:3000",
-    };
+    return defaults;
   }
 }
 

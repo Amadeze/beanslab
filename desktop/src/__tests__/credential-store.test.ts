@@ -25,6 +25,12 @@ describe("Credential Store Logic", () => {
       watchFolder: "C:\\Users\\test\\Documents\\Artisan\\autosave",
       autoLaunch: true,
       apiBaseUrl: "http://localhost:3000",
+      mqttBrokerUrl: "mqtt://localhost:1883",
+      deviceConfig: null,
+      autoReconnectDevice: true,
+      selectedSerialPort: null,
+      serialAdapter: "AUTO",
+      serialBaudRate: 115200,
     };
 
     expect(validSettings.watchFolder).toBeTruthy();
@@ -37,6 +43,12 @@ describe("Credential Store Logic", () => {
       watchFolder: null,
       autoLaunch: false,
       apiBaseUrl: "http://localhost:3000",
+      mqttBrokerUrl: "mqtt://localhost:1883",
+      deviceConfig: null,
+      autoReconnectDevice: true,
+      selectedSerialPort: null,
+      serialAdapter: "AUTO",
+      serialBaudRate: 115200,
     };
 
     expect(settings.watchFolder).toBeNull();

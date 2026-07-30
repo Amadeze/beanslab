@@ -19,6 +19,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PARSE_ERROR: "Respons server tidak valid. Coba lagi nanti.",
   FOLDER_NOT_FOUND: "Folder Artisan tidak ditemukan. Pilih folder yang benar.",
   FOLDER_UNAVAILABLE: "Folder Artisan tidak tersedia. Pastikan folder masih ada.",
+  STUDIO_REAUTH_REQUIRED: "Masuk ulang lewat browser agar Studio boleh membuat batch.",
+  INVALID_BATCH: "Data batch roasting tidak valid.",
+  BATCH_UNAVAILABLE: "Batch belum dapat dibuat. Periksa stok dan profil acuan.",
 };
 
 export function getErrorMessage(code: string): string {

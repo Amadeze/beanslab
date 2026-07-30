@@ -19,7 +19,7 @@ function getStartupPath(): string {
     "Start Menu",
     "Programs",
     "Startup",
-    "Artisan Sync.lnk",
+    "Roastd Studio.lnk",
   );
 }
 

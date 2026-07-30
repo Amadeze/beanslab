@@ -1,49 +1,58 @@
 {
-  "name": "artisan-sync",
-  "version": "1.0.0",
-  "description": "Artisan Coffee Roaster desktop sync for Roastery OS",
+  "name": "roastd-studio",
+  "version": "0.10.2",
+  "description": "Roasting logger with Artisan-compatible .alog profiles and Roastd sync",
   "main": "dist/main/index.js",
-  "author": "Roastery OS",
+  "author": "Roastd",
   "license": "MIT",
   "scripts": {
-    "dev": "tsc && xcopy src\\renderer\\index.html dist\\renderer\\ /Y && electron dist/main/index.js",
-    "build": "tsc && xcopy src\\renderer\\index.html dist\\renderer\\ /Y",
+    "dev": "npm run build && electron dist/main/index.js",
+    "build:renderer": "esbuild src/renderer/bootstrap.ts --bundle --platform=browser --format=iife --target=es2022 --outfile=dist/renderer/app.js",
+    "build": "tsc && xcopy src\\renderer\\index.html dist\\renderer\\ /Y && npm run build:renderer && npm run verify:renderer",
     "start": "electron dist/main/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "package": "npm run build && electron-builder --win",
+    "test:soak": "vitest run src/__tests__/device-stream-soak.test.ts",
+    "build:device-bridge": "powershell.exe -ExecutionPolicy Bypass -File ..\\roastd-studio-gpl\\build-device-bridge.ps1",
+    "package": "npm run build:device-bridge && npm run build && electron-builder --win",
+    "package:signed": "powershell.exe -ExecutionPolicy Bypass -File scripts\\package-signed.ps1",
+    "verify:signature": "powershell.exe -ExecutionPolicy Bypass -File scripts\\verify-signature.ps1",
+    "verify:renderer": "node scripts\\verify-renderer-build.mjs",
     "package:dir": "npm run build && electron-builder --win --dir",
-    "package:portable": "npm run build && electron-builder --win portable"
+    "package:portable": "npm run build && electron-builder --win portable",
+    "tauri": "tauri",
+    "tauri:dev": "npm run build && tauri dev --no-watch",
+    "tauri:build": "npm run build:device-bridge && npm run build && tauri build"
   },
   "dependencies": {
-    "chokidar": "^4.0.0"
+    "@tauri-apps/api": "^2.11.1",
+    "chokidar": "^4.0.0",
+    "mqtt": "^5.15.2"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^20.0.0",
     "electron": "^33.4.11",
     "electron-builder": "^25.0.0",
+    "esbuild": "^0.25.12",
     "typescript": "^5.5.0",
     "vitest": "^4.1.10"
   },
   "build": {
-    "appId": "com.roasteryos.artisan-sync",
-    "productName": "Artisan Sync",
-    "copyright": "Copyright © 2026 Roastery OS",
+    "appId": "id.roastd.studio",
+    "productName": "Roastd Studio",
+    "copyright": "Copyright © 2026 Roastd",
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
-        },
-        {
-          "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
-      "icon": "assets/icon.ico",
-      "artifactName": "ArtisanSync-${version}-Setup.${ext}",
-      "signAndEditExecutable": false,
-      "sign": false
+      "icon": "assets/icon.png",
+      "artifactName": "RoastdStudio-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -51,13 +60,19 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Artisan Sync",
+      "shortcutName": "Roastd Studio",
       "deleteAppDataOnUninstall": false,
       "runAfterFinish": true
     },
     "files": [
       "dist/**/*",
       "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../roastd-studio-gpl/src/dist/device-bridge",
+        "to": "device-bridge"
+      }
     ],
     "directories": {
       "output": "release"

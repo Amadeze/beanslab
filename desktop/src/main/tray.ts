@@ -16,7 +16,7 @@ export class SystemTray {
     // Create a simple 16x16 tray icon
     const icon = nativeImage.createEmpty();
     this.tray = new Tray(icon);
-    this.tray.setToolTip("Artisan Sync");
+    this.tray.setToolTip("Roastd Studio");
 
     this.tray.on("click", () => {
       this.mainWindow?.show();
@@ -55,7 +55,7 @@ export class SystemTray {
       },
       { type: "separator" },
       {
-        label: "Buka Artisan Sync",
+        label: "Buka Roastd Studio",
         click: () => {
           this.mainWindow?.show();
           this.mainWindow?.focus();
@@ -104,12 +104,12 @@ export class SystemTray {
     this.tray.setContextMenu(contextMenu);
 
     const tooltipStatus: Record<AppStatus, string> = {
-      pairing: "Artisan Sync - Menunggu pairing",
-      connected: "Artisan Sync - Terhubung",
-      offline: "Artisan Sync - Offline",
-      syncing: "Artisan Sync - Menyinkronkan",
-      auth_expired: "Artisan Sync - Autentikasi kedaluwarsa",
-      folder_unavailable: "Artisan Sync - Folder tidak tersedia",
+      pairing: "Roastd Studio - Menunggu pairing",
+      connected: "Roastd Studio - Terhubung",
+      offline: "Roastd Studio - Offline",
+      syncing: "Roastd Studio - Menyinkronkan",
+      auth_expired: "Roastd Studio - Autentikasi kedaluwarsa",
+      folder_unavailable: "Roastd Studio - Folder tidak tersedia",
     };
     this.tray.setToolTip(tooltipStatus[this.status]);
   }

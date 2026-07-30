@@ -62,12 +62,15 @@ export class HeartbeatSender {
       await this.apiClient.heartbeat(data, this.token);
       logger.debug("Heartbeat sent");
     } catch (err) {
-      if (err instanceof ApiError && (err.code === "UNAUTHORIZED" || err.code === "AUTH_REQUIRED" || err.code === "CONNECTOR_NOT_FOUND")) {
-        logger.warn("Heartbeat auth expired or connector not found");
+      // Only clear credentials on explicit revocation (401 UNAUTHORIZED)
+      // Network errors, timeouts, and server errors should NOT clear credentials
+      if (err instanceof ApiError && err.code === "UNAUTHORIZED") {
+        logger.warn("Heartbeat: credential revoked by server");
         this.onAuthExpired?.();
         this.stop();
       } else {
-        logger.warn("Heartbeat failed", {
+        // Transient errors - just log and retry next interval
+        logger.warn("Heartbeat failed (will retry)", {
           error: err instanceof Error ? err.message : String(err),
         });
       }
