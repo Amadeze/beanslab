@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SettingsNav } from "@/app/(dashboard)/settings/_components/SettingsNav";
+import { isTenantOwnerRole } from "@/lib/roles";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StandardDrawer } from "@/components/StandardDrawer";
@@ -39,7 +40,7 @@ const ALL_TABS: { id: Tab; label: string; icon: React.ElementType; count: (d: Ma
 ];
 
 function getTabsForRole(role: string) {
-  if (role === "OWNER") return ALL_TABS;
+  if (isTenantOwnerRole(role)) return ALL_TABS;
   if (role === "MANAGER" || role === "OPERATOR") return ALL_TABS.filter(t => t.id !== "pengguna");
   if (role === "CASHIER") return ALL_TABS.filter(t => t.id === "pelanggan");
   return ALL_TABS.filter(t => t.id === "produk");

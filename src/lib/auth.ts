@@ -5,6 +5,7 @@ import type { SessionUser } from "./session";
 import { getTenantAccessState } from "./subscription";
 import { planHasFeature, type PlanFeature } from "./plans";
 import { cache } from "react";
+import { canAccessTenantRole } from "./roles";
 
 export const getTenantAccessRecord = cache(async (tenantId: string) =>
   prisma.tenant.findUnique({
@@ -86,7 +87,7 @@ export async function getCurrentTenantId(): Promise<string> {
 
 export async function requireRole(...allowedRoles: SessionUser["role"][]) {
   const user = await requireCurrentUser();
-  if (!allowedRoles.includes(user.role)) {
+  if (!canAccessTenantRole(user.role, allowedRoles)) {
     throw new Error("FORBIDDEN");
   }
   return user;

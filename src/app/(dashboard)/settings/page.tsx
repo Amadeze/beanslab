@@ -3,6 +3,7 @@ import { Bell, Building2, ChevronRight, CircleDollarSign, Cpu, CreditCard, Monit
 import { requireRole } from "@/lib/auth";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SettingsNav } from "./_components/SettingsNav";
+import { canAccessTenantRole } from "@/lib/roles";
 
 const settingsGroups = [
   {
@@ -72,7 +73,9 @@ const settingsGroups = [
 
 export default async function SettingsPage() {
   const user = await requireRole("OWNER", "MANAGER");
-  const visibleGroups = settingsGroups.filter((group) => (group.roles as readonly string[]).includes(user.role));
+  const visibleGroups = settingsGroups.filter((group) =>
+    canAccessTenantRole(user.role, group.roles),
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

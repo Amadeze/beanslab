@@ -5,6 +5,7 @@ import { OAuth2RequestError } from "arctic";
 import { prisma } from "@/lib/prisma";
 import { getIronSession } from "iron-session";
 import { SESSION_OPTIONS, type SessionUser } from "@/lib/session";
+import { googleLoginDestination, parseVerifiedGoogleUser } from "@/lib/google-oauth";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -31,21 +32,32 @@ export async function GET(request: Request) {
         Authorization: `Bearer ${accessToken}`
       }
     });
-    
-    const googleUser: {
-      sub: string;
-      name: string;
-      email: string;
-    } = await response.json();
 
-    let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { googleId: googleUser.sub },
-          { email: googleUser.email }
-        ]
-      }
-    });
+    if (!response.ok) {
+      return NextResponse.redirect(new URL("/login?error=OAuthError", request.url));
+    }
+
+    const googleUser = parseVerifiedGoogleUser(await response.json());
+    if (!googleUser) {
+      return NextResponse.redirect(new URL("/login?error=GoogleEmailNotVerified", request.url));
+    }
+
+    const [userByGoogleId, userByEmail] = await Promise.all([
+      prisma.user.findUnique({
+        where: { googleId: googleUser.sub },
+        include: { tenant: { select: { isActive: true } } },
+      }),
+      prisma.user.findUnique({
+        where: { email: googleUser.email },
+        include: { tenant: { select: { isActive: true } } },
+      }),
+    ]);
+
+    if (userByGoogleId && userByEmail && userByGoogleId.id !== userByEmail.id) {
+      return NextResponse.redirect(new URL("/login?error=GoogleAccountConflict", request.url));
+    }
+
+    let user = userByGoogleId ?? userByEmail;
 
     if (!user) {
       // Store signup info in session cookie
@@ -64,11 +76,20 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL("/register?mode=google", request.url));
     }
 
+    if (!user.isActive || (user.role !== "SUPERADMIN" && !user.tenant.isActive)) {
+      return NextResponse.redirect(new URL("/login?error=AccountDisabled", request.url));
+    }
+
+    if (user.googleId && user.googleId !== googleUser.sub) {
+      return NextResponse.redirect(new URL("/login?error=GoogleAccountConflict", request.url));
+    }
+
     // If user exists but googleId is not linked yet, link it
     if (!user.googleId) {
       user = await prisma.user.update({
         where: { id: user.id },
-        data: { googleId: googleUser.sub }
+        data: { googleId: googleUser.sub },
+        include: { tenant: { select: { isActive: true } } },
       });
     }
 
@@ -83,8 +104,12 @@ export async function GET(request: Request) {
     };
     await session.save();
 
+    cookieStore.delete("google_oauth_state");
+    cookieStore.delete("google_code_verifier");
     cookieStore.delete("google_oauth_from");
-    return NextResponse.redirect(new URL(returnPath, request.url));
+    return NextResponse.redirect(
+      new URL(googleLoginDestination(returnPath), request.url),
+    );
 
   } catch (e) {
     console.error("Google Callback Error:", e);

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Building2, CircleDollarSign, Cpu, CreditCard, LayoutGrid, Monitor, ScrollText, Truck, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { canAccessTenantRole } from "@/lib/roles";
 
 const items = [
   { label: "Ringkasan", href: "/settings", icon: LayoutGrid, roles: ["OWNER", "MANAGER"] },
@@ -20,7 +21,9 @@ const items = [
 
 export function SettingsNav({ userRole }: { userRole: string }) {
   const pathname = usePathname();
-  const visibleItems = items.filter((item) => (item.roles as readonly string[]).includes(userRole));
+  const visibleItems = items.filter((item) =>
+    canAccessTenantRole(userRole, item.roles),
+  );
 
   return (
     <nav className="overflow-x-auto border-b border-stone-200 bg-white" aria-label="Navigasi pengaturan">

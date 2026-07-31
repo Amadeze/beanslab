@@ -25,6 +25,7 @@ import {
 import { logoutAction } from "@/app/login/actions";
 import { cn } from "@/lib/utils";
 import { PLAN_CATALOG, planHasFeature, type PlanTier } from "@/lib/plans";
+import { isTenantOwnerRole } from "@/lib/roles";
 
 export type AppNavLink = {
   label: string;
@@ -213,7 +214,7 @@ export function canAccessNavigation(
   subscriptionTier: PlanTier,
 ) {
   if (href === "/laporan" && !planHasFeature(subscriptionTier, "ADVANCED_REPORTS")) return false;
-  if (userRole === "OWNER") return true;
+  if (isTenantOwnerRole(userRole)) return true;
   if (userRole === "MANAGER") return href !== "/billing";
   if (userRole === "OPERATOR") {
     return [

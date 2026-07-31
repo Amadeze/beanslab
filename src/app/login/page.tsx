@@ -21,6 +21,12 @@ function LoginForm() {
     ? "Akun belum terdaftar. Silakan register terlebih dahulu." 
     : urlError === "OAuthError" 
     ? "Gagal login dengan Google." 
+    : urlError === "GoogleEmailNotVerified"
+    ? "Email Google belum terverifikasi."
+    : urlError === "GoogleAccountConflict"
+    ? "Akun Google sudah tertaut ke pengguna lain. Hubungi administrator."
+    : urlError === "AccountDisabled"
+    ? "Akun dinonaktifkan. Hubungi administrator."
     : urlError === "InvalidState" 
     ? "Sesi login tidak valid, coba lagi."
     : "";
