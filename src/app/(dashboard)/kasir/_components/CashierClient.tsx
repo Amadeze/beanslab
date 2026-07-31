@@ -15,16 +15,22 @@ import {
   Search,
   ShoppingCart,
   Trash2,
+  ChevronsUpDown,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { createInvoice } from "../../penjualan/actions";
 import type { ContractPriceOption, CustomerOption, FGStockOption } from "../../penjualan/actions";
+import { CustomerForm } from "../../master-data/_components/CustomerForm";
+import { createCustomer } from "../../master-data/actions";
 import { resolveCustomerUnitPrice } from "@/lib/sale-intent";
 import { formatRupiah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { StandardDrawer } from "@/components/StandardDrawer";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 type PaymentMethod = "CASH" | "QRIS" | "TRANSFER";
 
@@ -39,8 +45,9 @@ export function CashierClient({
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [customerOptions, setCustomerOptions] = useState(customers);
   const [customerId, setCustomerId] = useState(
-    () => customers.find((customer) => customer.tier === "RETAIL")?.id ?? customers[0]?.id ?? "",
+    () => customerOptions.find((customer) => customer.tier === "RETAIL")?.id ?? customerOptions[0]?.id ?? "",
   );
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -48,8 +55,11 @@ export function CashierClient({
   const [submitting, setSubmitting] = useState(false);
   const [completedSale, setCompletedSale] = useState<{ id: string; code: string } | null>(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [customerDrawerOpen, setCustomerDrawerOpen] = useState(false);
+  const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
+  const [isCustomerSubmitting, setIsCustomerSubmitting] = useState(false);
 
-  const selectedCustomer = customers.find((customer) => customer.id === customerId);
+  const selectedCustomer = customerOptions.find((customer) => customer.id === customerId);
   const visibleProducts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return products;
@@ -199,19 +209,99 @@ export function CashierClient({
                   className="h-11 w-full rounded-lg border border-stone-200 bg-white pl-10 pr-3 text-sm outline-none transition focus:border-stone-400 focus:ring-2 focus:ring-stone-900/10"
                 />
               </label>
-              <label className="min-w-[240px]">
-                <span className="sr-only">Pelanggan</span>
-                <select
-                  value={customerId}
-                  onChange={(event) => setCustomerId(event.target.value)}
-                  className="h-11 w-full rounded-lg border border-stone-200 bg-white px-3 text-sm outline-none focus:border-stone-400 focus:ring-2 focus:ring-stone-900/10"
+              <div className="flex flex-1 gap-2 min-w-[240px]">
+                <label className="flex-1 relative">
+                  <span className="sr-only">Pelanggan</span>
+                  <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
+                    <PopoverTrigger
+                      role="combobox"
+                      aria-expanded={customerPopoverOpen}
+                      className={cn(
+                        "flex h-11 w-full items-center justify-between rounded-lg border border-stone-200 bg-white px-3 text-sm outline-none transition focus:border-stone-400 focus:ring-2 focus:ring-stone-900/10",
+                        !customerId && "text-slate-500"
+                      )}
+                    >
+                      {customerId ? (
+                        <span className="truncate">
+                          {customerOptions.find((c) => c.id === customerId)?.name}
+                        </span>
+                      ) : (
+                        "Cari dan pilih pelanggan..."
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white shadow-xl rounded-xl border border-stone-200">
+                      <Command>
+                        <CommandInput placeholder="Ketik nama atau telepon..." />
+                        <CommandList>
+                          <CommandEmpty>Pelanggan tidak ditemukan.</CommandEmpty>
+                          <CommandGroup>
+                            {customerOptions.map((c) => (
+                              <CommandItem
+                                key={c.id}
+                                value={`${c.name} ${c.phone || ""}`}
+                                onSelect={() => {
+                                  setCustomerId(c.id);
+                                  setCustomerPopoverOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    customerId === c.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {c.name}
+                                {c.phone && <span className="text-stone-400 ml-1">· {c.phone}</span>}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const existing = customerOptions.find(c => c.name.toLowerCase().includes("walk-in"));
+                    if (existing) {
+                      setCustomerId(existing.id);
+                      return;
+                    }
+                    const toastId = toast.loading("Membuat pelanggan Walk-in...");
+                    try {
+                      const result = await createCustomer({
+                        name: "Walk-in (Umum)",
+                        tier: "RETAIL",
+                        phone: "",
+                        email: "",
+                        address: ""
+                      });
+                      if (!result.success) {
+                        toast.error(result.error || "Gagal membuat pelanggan", { id: toastId });
+                      } else if (result.data) {
+                        setCustomerOptions((prev) => [result.data as CustomerOption, ...prev]);
+                        setCustomerId(result.data.id);
+                        toast.success("Pelanggan Walk-in berhasil dibuat", { id: toastId });
+                      }
+                    } catch (error) {
+                      toast.error("Terjadi kesalahan sistem", { id: toastId });
+                    }
+                  }}
+                  className="inline-flex h-11 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-xs font-bold text-stone-700 hover:bg-stone-50"
                 >
-                  <option value="">Pilih pelanggan</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>{customer.name}</option>
-                  ))}
-                </select>
-              </label>
+                  Walk-in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomerDrawerOpen(true)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-stone-900 text-white hover:bg-stone-800"
+                  title="Tambah Pelanggan Baru"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
             </div>
 
             {customers.length === 0 ? (
@@ -446,6 +536,39 @@ export function CashierClient({
             <span className="text-xl font-bold tabular-nums text-stone-950">{formatRupiah(total)}</span>
           </div>
         </div>
+      </StandardDrawer>
+
+      <StandardDrawer
+        open={customerDrawerOpen}
+        onOpenChange={setCustomerDrawerOpen}
+        title="Pelanggan Baru"
+        description="Tambahkan data pelanggan baru untuk kasir."
+        submitButton={
+          <button
+            type="submit"
+            form="new-customer-form"
+            disabled={isCustomerSubmitting}
+            className="inline-flex min-h-10 items-center justify-center gap-2 bg-stone-900 px-4 text-xs font-bold text-white disabled:bg-stone-200 disabled:text-stone-500"
+          >
+            {isCustomerSubmitting ? <Loader2 size={15} className="animate-spin" /> : null}
+            {isCustomerSubmitting ? "Menyimpan..." : "Simpan Pelanggan"}
+          </button>
+        }
+      >
+        <CustomerForm
+          id="new-customer-form"
+          onPendingChange={setIsCustomerSubmitting}
+          onSuccess={(customer) => {
+            if (customer) {
+              setCustomerOptions((current) => [
+                customer as CustomerOption,
+                ...current.filter((item) => item.id !== customer.id),
+              ]);
+              setCustomerId(customer.id);
+            }
+            setCustomerDrawerOpen(false);
+          }}
+        />
       </StandardDrawer>
     </div>
   );

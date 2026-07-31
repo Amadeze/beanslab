@@ -55,6 +55,7 @@ const schema = z
     outputRoastLevel: z.string().optional(),
     actualOutputKg: z.number().optional(),
     notes: z.string().optional(),
+    machineId: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (!data.outputRoastLevel) {
@@ -167,6 +168,7 @@ export function RoastingForm({
   id,
   gbOptions,
   rbOptions,
+  machineOptions,
   batches,
   onSuccess,
   onPendingChange,
@@ -196,6 +198,7 @@ export function RoastingForm({
       outputRoastLevel: "",
       actualOutputKg: 0,
       notes: "",
+      machineId: "",
     },
   });
 
@@ -268,6 +271,7 @@ export function RoastingForm({
         outputRoastLevel: values.outputRoastLevel || undefined,
         actualOutputKg: values.actualOutputKg,
         notes: values.notes,
+        machineId: values.machineId && values.machineId !== "none" ? values.machineId : undefined,
       });
 
       if (!result.success) {
@@ -344,6 +348,38 @@ export function RoastingForm({
           </p>
         )}
         <FieldError message={errors.inputProductId?.message} />
+      </FieldGroup>
+
+      {/* ── Mesin Roasting ── */}
+      <FieldGroup>
+        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+          Mesin Roasting (Opsional)
+        </Label>
+        <Controller
+          control={control}
+          name="machineId"
+          render={({ field }) => (
+            <Select
+              value={field.value}
+              onValueChange={(val: string | null) => field.onChange(val ?? "")}
+            >
+              <SelectTrigger className={cn("w-full h-9", glassInput)}>
+                <SelectValue placeholder="Pilih mesin...">
+                  {field.value && field.value !== "none" ? machineOptions.find((m) => m.id === field.value)?.name : null}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Tanpa mesin</SelectItem>
+                {machineOptions.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name} <span className="text-slate-400 font-normal">({m.capacityKg}kg)</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        <FieldError message={errors.machineId?.message} />
       </FieldGroup>
 
       {/* ── Berat Masuk ── */}

@@ -61,6 +61,7 @@ export type CreateInvoiceInput = {
   customTaxRate?: number;
   pphType?: string;
   status: "PAID" | "ISSUED";
+  salesChannel?: "WALK_IN" | "WHATSAPP" | "MARKETPLACE" | "B2B_DIRECT" | "OTHER";
   paymentMethod?: "CASH" | "TRANSFER" | "QRIS" | "CREDIT";
   dueDate?: string; // YYYY-MM-DD
   notes?: string;
@@ -145,6 +146,7 @@ const CreateInvoiceSchema = z.object({
   customTaxRate: z.number().optional(),
   pphType: z.string().optional(),
   status: z.enum(["PAID", "ISSUED"]),
+  salesChannel: z.enum(["WALK_IN", "WHATSAPP", "MARKETPLACE", "B2B_DIRECT", "OTHER"]).optional(),
   paymentMethod: z.enum(["CASH", "TRANSFER", "QRIS", "CREDIT"]).optional(),
   dueDate: z.string().optional(),
   notes: z.string().max(2_000).optional(),
@@ -503,6 +505,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
           grandTotal,
           paidAmount: parsed.status === "PAID" ? grandTotal : 0,
           status: parsed.status === "PAID" ? "PAID" : "ISSUED",
+          salesChannel: parsed.salesChannel,
           issuedAt: now,
           dueDate: parsed.dueDate ? new Date(`${parsed.dueDate}T00:00:00`) : null,
           notes: parsed.notes,

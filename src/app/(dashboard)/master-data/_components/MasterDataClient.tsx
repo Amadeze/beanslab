@@ -322,7 +322,18 @@ export function MasterDataClient({
   const [editProduct, setEditProduct] = useState<ProductRow | null>(null);
   const [editPackaging, setEditPackaging] = useState<PackagingRow | null>(null);
   const [editUser, setEditUser] = useState<UserRow | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
   const rawMaterials = useMemo(() => data.products.filter((p) => p.type === "ROASTED_BEAN" || p.type === "GREEN_BEAN"), [data.products]);
+
+  const filteredData = useMemo(() => {
+    return {
+      suppliers: data.suppliers.filter(r => showInactive || r.isActive),
+      customers: data.customers.filter(r => showInactive || r.isActive),
+      products: data.products.filter(r => showInactive || r.isActive),
+      packagings: data.packagings.filter(r => showInactive || r.isActive),
+      users: data.users.filter(r => showInactive || r.isActive),
+    };
+  }, [data, showInactive]);
 
   const handleTabChange = (tab: Tab) => {
     setDrawerOpen(false); setMode("create");
@@ -430,15 +441,27 @@ export function MasterDataClient({
                   </button>
                 );
               })}
+
+              <div className="ml-auto pr-2 flex items-center">
+                <label className="flex items-center gap-2 text-xs font-semibold text-zinc-500 hover:text-zinc-700 cursor-pointer transition-colors bg-white/50 px-3 py-1.5 rounded-lg border border-white/60 shadow-sm">
+                  <input
+                    type="checkbox"
+                    checked={showInactive}
+                    onChange={(e) => setShowInactive(e.target.checked)}
+                    className="rounded text-amber-600 focus:ring-amber-500 border-zinc-300 w-3.5 h-3.5"
+                  />
+                  Tampilkan Non-aktif
+                </label>
+              </div>
             </div> : null}
 
             {/* Table content */}
             <div key={activeTab} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              {activeTab === "supplier"  && <SupplierTable rows={data.suppliers} onEdit={openEditSupplier} />}
-              {activeTab === "pelanggan" && <CustomerTable rows={data.customers} onEdit={openEditCustomer} />}
-              {activeTab === "produk"    && <ProductTable  rows={data.products}  onEdit={openEditProduct}  />}
-              {activeTab === "kemasan"   && <PackagingTable rows={data.packagings} onEdit={openEditPackaging} />}
-              {activeTab === "pengguna"  && <UserTable     rows={data.users}     onEdit={openEditUser}     />}
+              {activeTab === "supplier"  && <SupplierTable rows={filteredData.suppliers} onEdit={openEditSupplier} />}
+              {activeTab === "pelanggan" && <CustomerTable rows={filteredData.customers} onEdit={openEditCustomer} />}
+              {activeTab === "produk"    && <ProductTable  rows={filteredData.products}  onEdit={openEditProduct}  />}
+              {activeTab === "kemasan"   && <PackagingTable rows={filteredData.packagings} onEdit={openEditPackaging} />}
+              {activeTab === "pengguna"  && <UserTable     rows={filteredData.users}     onEdit={openEditUser}     />}
             </div>
 
           </div>

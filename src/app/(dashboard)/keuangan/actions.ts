@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from 'zod';
 import { revalidatePath } from "next/cache";
 import { getCurrentTenantId, getSystemUserId, requireRole, requireTenantPrisma } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
@@ -64,6 +65,17 @@ export type RecordPaymentInput = {
   notes?: string;
 };
 
+const RecordPaymentSchema = z.object({
+  operationKey: z.string().uuid().optional(),
+  invoiceId: z.string().min(1),
+  amount: z.number().positive("Nominal harus lebih dari 0"),
+  method: z.enum(["CASH", "TRANSFER", "QRIS", "CREDIT"]),
+  paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal tidak valid"),
+  bankName: z.string().optional(),
+  reference: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 export type PaymentActionResult =
   | { success: true; paymentCode: string; newStatus: string }
   | { success: false; error: string };
@@ -75,6 +87,14 @@ export type CreateExpenseInput = {
   amount: number;
   description?: string;
 };
+
+const CreateExpenseSchema = z.object({
+  operationKey: z.string().uuid().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal tidak valid"),
+  category: z.enum(["UTILITAS", "OPERASIONAL", "LAINNYA"]),
+  amount: z.number().positive("Nominal harus lebih dari 0"),
+  description: z.string().optional(),
+});
 
 export type CreateExpenseResult =
   | { success: true; id: string }
@@ -179,7 +199,7 @@ export async function getKeuanganPageData(): Promise<KeuanganPageData> {
   const previousPeriod = getZonedMonthRange(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1, tenant?.timezone);
 
   const [piutangInvoices, revenueMTDRaw, revenueLastMonthRaw] = await Promise.all([
-    (await requireTenantPrisma()).invoice.findMany({
+    tp.invoice.findMany({
       where: { status: { in: ["ISSUED", "PARTIAL"] } },
       include: {
         customer: { select: { name: true, phone: true } },
@@ -190,11 +210,11 @@ export async function getKeuanganPageData(): Promise<KeuanganPageData> {
         },
       },
     }),
-    (await requireTenantPrisma()).invoice.aggregate({
+    tp.invoice.aggregate({
       where: { status: { in: ["ISSUED", "PARTIAL", "PAID"] }, issuedAt: { gte: currentPeriod.start, lt: currentPeriod.end } },
       _sum: { subtotal: true, discount: true },
     }),
-    (await requireTenantPrisma()).invoice.aggregate({
+    tp.invoice.aggregate({
       where: { status: { in: ["ISSUED", "PARTIAL", "PAID"] }, issuedAt: { gte: previousPeriod.start, lt: previousPeriod.end } },
       _sum: { subtotal: true, discount: true },
     }),
@@ -280,17 +300,15 @@ export async function getKeuanganPageData(): Promise<KeuanganPageData> {
 export async function recordPayment(input: RecordPaymentInput): Promise<PaymentActionResult> {
   try {
     await requireRole("OWNER", "MANAGER", "CASHIER");
+    const parsed = RecordPaymentSchema.parse(input);
     const userId = await getSystemUserId();
     const tenantId = await getCurrentTenantId();
-    if (input.amount <= 0) return { success: false, error: "Nominal harus lebih dari 0." };
-    const opKey = input.operationKey && /^[0-9a-f-]{36}$/i.test(input.operationKey) ? input.operationKey : randomBytes(16).toString("hex");
-    const paidAt = new Date(input.paidAt + "T00:00:00");
-    if (Number.isNaN(paidAt.getTime())) {
-      return { success: false, error: "Tanggal pembayaran tidak valid." };
-    }
+    
+    const opKey = parsed.operationKey || randomBytes(16).toString("hex");
+    const paidAt = new Date(parsed.paidAt + "T00:00:00");
     const prefix = `PAY-${paidAt.getFullYear()}${String(paidAt.getMonth() + 1).padStart(2, "0")}`;
     const payCode = `${prefix}-${randomBytes(4).toString("hex").toUpperCase()}`;
-    const refParts = [input.bankName, input.reference].filter(Boolean);
+    const refParts = [parsed.bankName, parsed.reference].filter(Boolean);
     const refString = refParts.length > 0 ? refParts.join(" / ") : undefined;
     const tenantPrisma = await requireTenantPrisma();
     const previousAttempt = await tenantPrisma.payment.findFirst({
@@ -306,7 +324,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
     }
     const result = await tenantPrisma.$transaction(async (tx) => {
       const inv = await tx.invoice.findUnique({
-        where: { id: input.invoiceId },
+        where: { id: parsed.invoiceId },
         select: { id: true, code: true, grandTotal: true, paidAmount: true, status: true, customer: { select: { name: true } } },
       });
       if (!inv) throw new Error("Nota tidak ditemukan.");
@@ -316,7 +334,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
 
       const grandTotal = Number(inv.grandTotal);
       const prevPaid = Number(inv.paidAmount);
-      const newPaidTotal = prevPaid + input.amount;
+      const newPaidTotal = prevPaid + parsed.amount;
       if (newPaidTotal > grandTotal + 0.01) {
         throw new Error(`Nominal melebihi sisa tagihan. Sisa: Rp ${(grandTotal - prevPaid).toLocaleString("id-ID")}`);
       }
@@ -324,7 +342,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
         newPaidTotal >= grandTotal - 0.01 ? "PAID" : "PARTIAL";
 
       const payment = await tx.payment.create({
-        data: { tenantId, code: payCode, operationKey: opKey, invoiceId: inv.id, amount: input.amount, method: input.method, reference: refString, paidAt, notes: input.notes, createdById: userId },
+        data: { tenantId, code: payCode, operationKey: opKey, invoiceId: inv.id, amount: parsed.amount, method: parsed.method, reference: refString, paidAt, notes: parsed.notes, createdById: userId },
       });
       await tx.invoice.update({ where: { id: inv.id }, data: { paidAmount: newPaidTotal, status: newStatus } });
       await recordAudit(tx, {
@@ -342,7 +360,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
       });
       await postCustomerPayment(
         payment.id,
-        input.amount,
+        parsed.amount,
         inv.code,
         inv.customer?.name ?? "Customer",
         { tx, tenantId, userId },
@@ -379,12 +397,13 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
 export async function createExpense(input: CreateExpenseInput): Promise<CreateExpenseResult> {
   try {
     await requireRole("OWNER", "MANAGER");
+    const parsed = CreateExpenseSchema.parse(input);
     const userId = await getSystemUserId();
     const tenantId = await getCurrentTenantId();
-    if (input.amount <= 0) return { success: false, error: "Nominal harus lebih dari 0." };
+    
     const expense = await (await requireTenantPrisma()).$transaction(async (tx) => {
       const created = await tx.expense.create({
-        data: { tenantId, date: new Date(input.date + "T00:00:00"), category: input.category, amount: input.amount, description: input.description || null, createdById: userId },
+        data: { tenantId, date: new Date(parsed.date + "T00:00:00"), category: parsed.category, amount: parsed.amount, description: parsed.description || null, createdById: userId },
       });
       await recordAudit(tx, {
         tenantId,
@@ -401,9 +420,9 @@ export async function createExpense(input: CreateExpenseInput): Promise<CreateEx
       });
       await postExpense(
         created.id,
-        input.amount,
-        input.category,
-        input.description ?? "Pengeluaran",
+        parsed.amount,
+        parsed.category,
+        parsed.description ?? "Pengeluaran",
         { tx, tenantId, userId },
       );
       return created;

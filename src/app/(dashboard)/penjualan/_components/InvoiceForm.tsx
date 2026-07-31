@@ -53,6 +53,7 @@ const schema = z.object({
   customTaxRate: z.number().optional(),
   pphType: z.string().optional(),
   status: z.enum(["PAID", "ISSUED"]),
+  salesChannel: z.enum(["WALK_IN", "WHATSAPP", "MARKETPLACE", "B2B_DIRECT", "OTHER"]).optional(),
   paymentMethod: z.string().optional(),
   dueDate: z.string().optional(),
   notes: z.string().optional(),
@@ -186,6 +187,7 @@ export function InvoiceForm({
       invoiceDiscount: 0,
       tax: 0,
       status: "PAID",
+      salesChannel: "WALK_IN",
       paymentMethod: "CASH",
       dueDate: "",
       notes: "",
@@ -262,6 +264,7 @@ export function InvoiceForm({
         customTaxRate: values.customTaxRate,
         pphType: values.pphType,
         status: values.status,
+        salesChannel: values.salesChannel as any,
         paymentMethod: values.paymentMethod as any,
         dueDate: values.dueDate || undefined,
         notes: values.notes,
@@ -534,6 +537,31 @@ export function InvoiceForm({
         
         {/* Left Column: Settings & Notes */}
         <div className="space-y-5">
+          {/* Sales Channel */}
+          <div>
+            <Label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block tracking-wider">
+              Sales Channel <span className="text-red-500">*</span>
+            </Label>
+            <Controller
+              control={control}
+              name="salesChannel"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger className={cn("w-full h-11", glassInput)}>
+                    <SelectValue placeholder="Pilih channel..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="WALK_IN">Walk-in (Offline)</SelectItem>
+                    <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
+                    <SelectItem value="MARKETPLACE">Marketplace</SelectItem>
+                    <SelectItem value="B2B_DIRECT">B2B Direct</SelectItem>
+                    <SelectItem value="OTHER">Lainnya</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
+
           {/* Status */}
           <div>
             <Label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block tracking-wider">

@@ -105,3 +105,27 @@ export const DEFAULT_REP_CONFIG: RepConfig = {
     ]
   }
 };
+
+// =============================================================================
+// BENTO PRESET CONFIGURATION
+// =============================================================================
+export const BENTO_PRESET_CONFIG: RepConfig = {
+  ...DEFAULT_REP_CONFIG,
+  themeName: "Modern Bento",
+  tokens: {
+    ...DEFAULT_REP_CONFIG.tokens,
+    radius: "16", // Rounded corners for bento aesthetic
+    shadow: "sm",
+  },
+  layout: {
+    gridType: "bento",
+    sections: [
+      { id: "bento-hero", type: "HeroSplit", isHidden: false, isLocked: false, props: { bentoSpan: "md:col-span-2 md:row-span-2 col-span-1 row-span-2" } },
+      { id: "bento-catalog", type: "CoffeeCards", isHidden: false, isLocked: false, props: { bentoSpan: "md:col-span-2 md:row-span-1 col-span-1 row-span-1" } },
+      { id: "bento-visuals", type: "FlavorWheel", isHidden: false, isLocked: false, props: { bentoSpan: "md:col-span-1 md:row-span-1 col-span-1 row-span-1" } },
+      { id: "bento-newsletter", type: "NewsletterBar", isHidden: false, isLocked: false, props: { bentoSpan: "md:col-span-1 md:row-span-1 col-span-1 row-span-1" } },
+      { id: "bento-social", type: "TestimonialSlider", isHidden: false, isLocked: false, props: { bentoSpan: "md:col-span-4 md:row-span-1 col-span-1 row-span-1" } },
+    ]
+  }
+};
+

@@ -9,10 +9,14 @@ import { RepConfig, DEFAULT_REP_CONFIG } from "../core/RepConfig";
 
 interface RepEditorContextType {
   liveConfig: RepConfig;
+  activeSectionId: string | null;
+  setActiveSectionId: (id: string | null) => void;
   updateColor: (key: keyof RepConfig["tokens"]["colors"], value: string) => void;
   updateTypography: (key: keyof RepConfig["tokens"]["typography"], value: any) => void;
   updateRadius: (value: string) => void;
+  updateSectionProps: (id: string, props: any) => void;
   moveSection: (index: number, direction: "up" | "down") => void;
+  loadPreset: (presetConfig: RepConfig) => void;
   resetToDefault: () => void;
 }
 
@@ -20,6 +24,24 @@ const RepEditorContext = createContext<RepEditorContextType | undefined>(undefin
 
 export function RepEditorProvider({ children }: { children: ReactNode }) {
   const [liveConfig, setLiveConfig] = useState<RepConfig>(DEFAULT_REP_CONFIG);
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+
+  const loadPreset = (presetConfig: RepConfig) => {
+    setLiveConfig(presetConfig);
+    setActiveSectionId(null);
+  };
+
+  const updateSectionProps = (id: string, props: any) => {
+    setLiveConfig(prev => ({
+      ...prev,
+      layout: {
+        ...prev.layout,
+        sections: prev.layout.sections.map(sec => 
+          sec.id === id ? { ...sec, props: { ...sec.props, ...props } } : sec
+        )
+      }
+    }));
+  };
 
   const updateColor = (key: keyof RepConfig["tokens"]["colors"], value: string) => {
     setLiveConfig(prev => ({
@@ -71,7 +93,18 @@ export function RepEditorProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <RepEditorContext.Provider value={{ liveConfig, updateColor, updateTypography, updateRadius, moveSection, resetToDefault }}>
+    <RepEditorContext.Provider value={{ 
+      liveConfig, 
+      activeSectionId,
+      setActiveSectionId,
+      updateColor, 
+      updateTypography, 
+      updateRadius, 
+      updateSectionProps,
+      moveSection, 
+      loadPreset,
+      resetToDefault 
+    }}>
       {children}
     </RepEditorContext.Provider>
   );

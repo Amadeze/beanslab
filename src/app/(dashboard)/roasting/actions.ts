@@ -110,6 +110,8 @@ export type CreateParentRoastingBatchInput = {
   targetWeightKg: number;
   outputMode: "auto" | "existing" | "new";
   outputProductId?: string;
+
+
   outputProductName?: string;
   outputProductOrigin?: string;
   outputRoastLevel?: string;
@@ -118,6 +120,22 @@ export type CreateParentRoastingBatchInput = {
   lotNumber?: string;
   machineId?: string;
 };
+
+const CreateParentRoastingBatchSchema = z.object({
+  operationKey: z.string().uuid(),
+  mode: z.enum(["ARTISAN", "MANUAL"]),
+  inputProductId: z.string().min(1),
+  targetWeightKg: z.number().positive(),
+  outputMode: z.enum(["auto", "existing", "new"]),
+  outputProductId: z.string().optional(),
+  outputProductName: z.string().optional(),
+  outputProductOrigin: z.string().optional(),
+  outputRoastLevel: z.string().optional(),
+  actualOutputKg: z.number().nonnegative().optional(),
+  notes: z.string().optional(),
+  lotNumber: z.string().optional(),
+  machineId: z.string().optional(),
+});
 
 export type RoastingActionResult =
   | { success: true; batchCode: string; outcome?: RoastOutcome; splits?: number }
@@ -477,20 +495,15 @@ export async function createParentRoastingBatch(
 ): Promise<RoastingActionResult> {
   try {
     await requireRole("OWNER", "MANAGER", "OPERATOR");
-    if (!input.operationKey || !/^[0-9a-f-]{36}$/i.test(input.operationKey)) {
-      return { success: false, error: "Identitas transaksi tidak valid. Buka ulang form lalu coba lagi." };
-    }
-    if (!(["ARTISAN", "MANUAL"] as const).includes(input.mode)) {
-      return { success: false, error: "Metode pencatatan roasting tidak valid." };
-    }
+    const parsed = CreateParentRoastingBatchSchema.parse(input);
     const userId = await getSystemUserId();
     const tenantId = await getCurrentTenantId();
-    const weightError = validateRoastingWeights(input);
+    const weightError = validateRoastingWeights(parsed);
     if (weightError) return { success: false, error: weightError };
 
     const tenantPrisma = await requireTenantPrisma();
     const previousAttempt = await tenantPrisma.parentRoastingBatch.findFirst({
-      where: { operationKey: input.operationKey },
+      where: { operationKey: parsed.operationKey },
       select: { code: true, targetWeightKg: true, actualOutputKg: true },
     });
     if (previousAttempt) {
@@ -508,9 +521,9 @@ export async function createParentRoastingBatch(
 
     const roastLevels = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"] as const;
     const requestedRoastLevel = roastLevels.includes(
-      input.outputRoastLevel as (typeof roastLevels)[number],
+      parsed.outputRoastLevel as (typeof roastLevels)[number],
     )
-      ? (input.outputRoastLevel as (typeof roastLevels)[number])
+      ? (parsed.outputRoastLevel as (typeof roastLevels)[number])
       : null;
     if (!requestedRoastLevel) {
       return { success: false, error: "Pilih level roasting: Light, Medium, Medium Dark, atau Dark." };
@@ -518,7 +531,7 @@ export async function createParentRoastingBatch(
     const batchCode = await generateBatchCode();
     const result = await tenantPrisma.$transaction(async (tx) => {
       const inputProduct = await tx.product.findUnique({
-        where: { id: input.inputProductId },
+        where: { id: parsed.inputProductId },
         select: {
           id: true,
           name: true,
@@ -536,49 +549,38 @@ export async function createParentRoastingBatch(
         throw new Error("Produk input harus Green Bean aktif.");
       }
       const currentStock = Number(inputProduct.stockKg);
-      if (currentStock < input.targetWeightKg) {
+      if (currentStock < parsed.targetWeightKg) {
         throw new Error(
-          `Stok Green Bean tidak cukup. Tersedia: ${currentStock.toFixed(3)} kg, dibutuhkan: ${input.targetWeightKg.toFixed(3)} kg.`,
+          `Stok Green Bean tidak cukup. Tersedia: ${currentStock.toFixed(3)} kg, dibutuhkan: ${parsed.targetWeightKg.toFixed(3)} kg.`,
         );
       }
 
-      const automaticName = roastedBeanName(
-        inputProduct.name,
-        requestedRoastLevel as RoastLevelValue,
-      );
-      let outputProduct = input.outputMode === "existing" && input.outputProductId
-        ? await tx.product.findUnique({ where: { id: input.outputProductId } })
-        : null;
-      if (outputProduct && (outputProduct.type !== "ROASTED_BEAN" || !outputProduct.isActive)) {
-        throw new Error("Produk output harus Roasted Bean aktif.");
-      }
-
-      if (outputProduct) {
-        if (outputProduct.roastLevel !== requestedRoastLevel) {
-          throw new Error("Level roasting tidak cocok dengan produk Roasted Bean yang dipilih.");
-        }
-        if (outputProduct.sourceGreenBeanId && outputProduct.sourceGreenBeanId !== inputProduct.id) {
-          throw new Error("Roasted Bean tersebut berasal dari Green Bean yang berbeda.");
-        }
-        if (!outputProduct.sourceGreenBeanId) {
-          const sameIdentity = outputProduct.name
-            .toLocaleLowerCase("id-ID")
-            .includes(greenBeanIdentity(inputProduct.name).toLocaleLowerCase("id-ID"));
-          const sameOrigin = !inputProduct.origin
-            || outputProduct.origin?.toLocaleLowerCase("id-ID") === inputProduct.origin.toLocaleLowerCase("id-ID");
-          if (!sameIdentity || !sameOrigin) {
-            throw new Error("Produk output tidak cocok dengan identitas Green Bean yang dipilih.");
-          }
-          outputProduct = await tx.product.update({
-            where: { id: outputProduct.id },
-            data: { sourceGreenBeanId: inputProduct.id },
-          });
-        }
-      }
-
-      if (!outputProduct) {
+      let outputProduct: any;
+      if (parsed.outputMode === "existing" && parsed.outputProductId) {
+        outputProduct = await tx.product.findUnique({ where: { id: parsed.outputProductId } });
+        if (!outputProduct) throw new Error("Roasted Bean tujuan tidak valid.");
+      } else if (parsed.outputMode === "new") {
+        if (!parsed.outputProductName) throw new Error("Nama produk baru harus diisi.");
+        const newCode = generateRBCode(parsed.outputProductName);
+        outputProduct = await tx.product.create({
+          data: {
+            tenantId,
+            code: newCode,
+            name: parsed.outputProductName,
+            type: "ROASTED_BEAN",
+            category: inputProduct.category,
+            origin: parsed.outputProductOrigin || inputProduct.origin,
+            roastLevel: requestedRoastLevel,
+            sourceGreenBeanId: inputProduct.id,
+            description: inputProduct.description,
+            imageUrl: inputProduct.imageUrl,
+          },
+        });
+      } else {
+        const automaticName = "RB " + (inputProduct.origin || "Unknown") + " " + requestedRoastLevel;
         outputProduct = await tx.product.findFirst({
           where: {
+            tenantId,
             type: "ROASTED_BEAN",
             roastLevel: requestedRoastLevel,
             sourceGreenBeanId: inputProduct.id,
@@ -587,6 +589,7 @@ export async function createParentRoastingBatch(
         if (!outputProduct) {
           outputProduct = await tx.product.findFirst({
             where: {
+              tenantId,
               type: "ROASTED_BEAN",
               roastLevel: requestedRoastLevel,
               sourceGreenBeanId: null,
@@ -595,42 +598,13 @@ export async function createParentRoastingBatch(
             },
           });
         }
-        if (outputProduct) {
-          outputProduct = await tx.product.update({
-            where: { id: outputProduct.id },
-            data: { sourceGreenBeanId: inputProduct.id, isActive: true },
-          });
-        } else {
-          outputProduct = await tx.product.upsert({
-            where: {
-              tenantId_sourceGreenBeanId_roastLevel: {
-                tenantId,
-                sourceGreenBeanId: inputProduct.id,
-                roastLevel: requestedRoastLevel,
-              },
-            },
-            update: { isActive: true },
-            create: {
-              tenantId,
-              code: generateRBCode(automaticName),
-              name: automaticName,
-              type: "ROASTED_BEAN",
-              category: inputProduct.category,
-              origin: inputProduct.origin,
-              roastLevel: requestedRoastLevel,
-              sourceGreenBeanId: inputProduct.id,
-              description: inputProduct.description,
-              imageUrl: inputProduct.imageUrl,
-            },
-          });
-        }
       }
 
       let outcome: RoastOutcome | undefined;
-      if (input.mode === "MANUAL") {
+      if (parsed.mode === "MANUAL") {
         const comparableBatches = await tx.parentRoastingBatch.findMany({
           where: {
-            inputProductId: input.inputProductId,
+            inputProductId: parsed.inputProductId,
             outputProductId: outputProduct.id,
             status: "COMPLETED",
             totalShrinkagePercent: { not: null },
@@ -640,8 +614,8 @@ export async function createParentRoastingBatch(
           select: { totalShrinkagePercent: true },
         });
         outcome = analyzeRoastOutcome(
-          input.targetWeightKg,
-          Number(input.actualOutputKg),
+          parsed.targetWeightKg,
+          Number(parsed.actualOutputKg),
           comparableBatches.map((batch) => Number(batch.totalShrinkagePercent)),
         );
       }
@@ -650,33 +624,33 @@ export async function createParentRoastingBatch(
         data: {
           tenantId,
           code: batchCode,
-          operationKey: input.operationKey,
-          inputProductId:   input.inputProductId,
-          targetWeightKg:   input.targetWeightKg,
+          operationKey: parsed.operationKey,
+          inputProductId:   parsed.inputProductId,
+          targetWeightKg:   parsed.targetWeightKg,
           outputProductId:  outputProduct.id,
-          actualOutputKg:   input.mode === "MANUAL" ? Number(input.actualOutputKg) : null,
+          actualOutputKg:   parsed.mode === "MANUAL" ? Number(parsed.actualOutputKg) : null,
           totalShrinkagePercent: outcome?.lossPercent ?? null,
-          status:           input.mode === "MANUAL" ? "COMPLETED" : "PENDING",
-          notes:            input.notes?.trim() || null,
-          completedAt:      input.mode === "MANUAL" ? getCurrentDate() : null,
+          status:           parsed.mode === "MANUAL" ? "COMPLETED" : "PENDING",
+          notes:            parsed.notes?.trim() || null,
+          completedAt:      parsed.mode === "MANUAL" ? getCurrentDate() : null,
           createdById:      userId,
-          machineId:        input.machineId || null,
+          machineId:        parsed.machineId || null,
         },
       });
 
       // Auto-split: check if targetWeightKg exceeds machine capacity
       let splits = 0;
-      if (input.machineId && input.mode === "ARTISAN") {
+      if (parsed.machineId && parsed.mode === "ARTISAN") {
         const machine = await tx.machine.findUnique({
-          where: { id: input.machineId },
+          where: { id: parsed.machineId },
           select: { capacityKg: true, name: true },
         });
         if (machine?.capacityKg && Number(machine.capacityKg) > 0) {
           const capacity = Number(machine.capacityKg);
-          if (input.targetWeightKg > capacity) {
+          if (parsed.targetWeightKg > capacity) {
             // Calculate splits
-            splits = Math.ceil(input.targetWeightKg / capacity);
-            const weightPerSplit = input.targetWeightKg / splits;
+            splits = Math.ceil(parsed.targetWeightKg / capacity);
+            const weightPerSplit = parsed.targetWeightKg / splits;
 
             // Create ChildRoastingBatches for each split
             for (let i = 0; i < splits; i++) {
@@ -695,7 +669,7 @@ export async function createParentRoastingBatch(
             await tx.parentRoastingBatch.update({
               where: { id: batch.id },
               data: {
-                notes: `${input.notes?.trim() || ""}\n[Auto-split: ${splits} batch @ ${weightPerSplit.toFixed(2)} kg dari ${machine.name}]`.trim(),
+                notes: `${parsed.notes?.trim() || ""}\n[Auto-split: ${splits} batch @ ${weightPerSplit.toFixed(2)} kg dari ${machine.name}]`.trim(),
               },
             });
           }
@@ -705,22 +679,44 @@ export async function createParentRoastingBatch(
       // Always deduct GB immediately
       await appendFefoLedgerOut(tx, {
           tenantId,
-          productId:   input.inputProductId,
+          productId:   parsed.inputProductId,
           refType:     "ROASTING_GB_OUT",
           refId:       batch.id,
-          quantityKg:  input.targetWeightKg,
+          quantityKg:  parsed.targetWeightKg,
           notes:       `Roasting: ${batch.code}`,
           createdById: userId,
       });
 
       // If MANUAL, also add RB immediately
-      if (input.mode === "MANUAL") {
+      if (parsed.mode === "MANUAL") {
+        await tx.inventoryLedger.createMany({
+          data: [
+            {
+              tenantId,
+              entryType: "OUT",
+              refType: "ROASTING_GB_OUT",
+              refId: batch.id,
+              productId: parsed.inputProductId,
+              quantityKg: parsed.targetWeightKg,
+              createdById: userId,
+            },
+            {
+              tenantId,
+              entryType: "IN",
+              refType: "ROASTING_RB_IN",
+              refId: batch.id,
+              productId: outputProduct.id,
+              quantityKg: Number(parsed.actualOutputKg),
+              createdById: userId,
+            },
+          ],
+        });
         const outputLot = await tx.lot.create({
           data: {
             tenantId,
             productId: outputProduct.id,
             batchCode: `${batch.code}-RB`,
-            quantityKg: Number(input.actualOutputKg),
+            quantityKg: Number(parsed.actualOutputKg),
             receivedAt: batch.completedAt ?? getCurrentDate(),
             notes: `Hasil roasting ${batch.code}`,
           },
