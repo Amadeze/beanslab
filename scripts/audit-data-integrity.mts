@@ -273,11 +273,193 @@ try {
       )
   `;
 
+  const lotViolations = await prisma.$queryRaw<Violation[]>`
+    SELECT 'lot_over_consumed' AS check, COUNT(*)::int AS count
+    FROM (
+      SELECT il."lotId",
+        SUM(CASE WHEN il."entryType" = 'OUT' THEN COALESCE(il."quantityKg", 0) ELSE 0 END) AS outKg,
+        SUM(CASE WHEN il."refType" = 'VOID_REVERSAL' AND il."entryType" = 'IN' THEN COALESCE(il."quantityKg", 0) ELSE 0 END) AS reversalKg,
+        SUM(CASE WHEN il."entryType" = 'OUT' THEN COALESCE(il."quantityUnit", 0) ELSE 0 END) AS outUnit,
+        SUM(CASE WHEN il."refType" = 'VOID_REVERSAL' AND il."entryType" = 'IN' THEN COALESCE(il."quantityUnit", 0) ELSE 0 END) AS reversalUnit
+      FROM inventory_ledger il
+      WHERE il."lotId" IS NOT NULL
+      GROUP BY il."lotId"
+    ) s
+    JOIN lots l ON l.id = s."lotId"
+    WHERE (s.outKg - s.reversalKg) - l."quantityKg" > 0.001
+       OR (s.outUnit - s.reversalUnit) - l."quantityUnit" > 0.001
+    UNION ALL
+    SELECT 'lot_initial_in_mismatch', COUNT(*)::int
+    FROM lots l
+    LEFT JOIN (
+      SELECT il."lotId",
+        SUM(CASE WHEN il."refType" IN ('PURCHASE_GB', 'PURCHASE_PKG') AND il."entryType" = 'IN' THEN COALESCE(il."quantityKg", 0) ELSE 0 END) AS inKg,
+        SUM(CASE WHEN il."refType" IN ('PURCHASE_GB', 'PURCHASE_PKG') AND il."entryType" = 'IN' THEN COALESCE(il."quantityUnit", 0) ELSE 0 END) AS inUnit
+      FROM inventory_ledger il
+      WHERE il."lotId" IS NOT NULL
+      GROUP BY il."lotId"
+    ) s ON s."lotId" = l.id
+    WHERE l."purchaseId" IS NOT NULL
+      AND (
+        ABS(COALESCE(s.inKg, 0) - l."quantityKg") > 0.001
+        OR ABS(COALESCE(s.inUnit, 0) - l."quantityUnit") > 0.001
+      )
+    UNION ALL
+    SELECT il."refType"::text AS check, COUNT(*)::int
+    FROM inventory_ledger il
+    WHERE il."productId" IS NOT NULL
+      AND il."lotId" IS NULL
+      AND il."refType" IN (
+        'PURCHASE_GB', 'PURCHASE_PKG',
+        'ROASTING_GB_OUT', 'ROASTING_RB_IN',
+        'PRODUCTION_RB_OUT', 'PRODUCTION_FG_IN',
+        'SALE_FG_OUT', 'SAMPLE_RB_OUT', 'SAMPLE_FG_OUT'
+      )
+      AND EXISTS (
+        SELECT 1 FROM lots lo
+        WHERE lo."tenantId" = il."tenantId"
+          AND lo."productId" = il."productId"
+          AND lo."receivedAt" <= il."createdAt"
+          AND lo."consumedAt" IS NULL
+      )
+    GROUP BY il."refType"
+  `;
+
+  const journalViolations = await prisma.$queryRaw<Violation[]>`
+    SELECT 'journal_unbalanced' AS check, COUNT(*)::int AS count
+    FROM (
+      SELECT je.id
+      FROM journal_entries je
+      JOIN journal_lines jl ON jl."journalEntryId" = je.id
+      GROUP BY je.id
+      HAVING ABS(SUM(jl.debit) - SUM(jl.credit)) > 0.01
+    ) unbalanced
+    UNION ALL
+    SELECT 'journal_line_account_tenant_isolation', COUNT(*)::int
+    FROM journal_lines jl
+    JOIN journal_entries je ON je.id = jl."journalEntryId"
+    JOIN accounts a ON a.id = jl."accountId"
+    WHERE je."tenantId" <> a."tenantId"
+    UNION ALL
+    SELECT 'journal_void_missing_reversal', COUNT(*)::int
+    FROM journal_entries je
+    WHERE je."voidAt" IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM journal_entries rev
+        WHERE rev."tenantId" = je."tenantId"
+          AND rev."refType" = 'VOID_REVERSAL'
+          AND rev.reference = je.reference
+      )
+    UNION ALL
+    SELECT 'invoice_missing_journal', COUNT(*)::int
+    FROM invoices i
+    WHERE i.status <> 'VOID'
+      AND NOT EXISTS (
+        SELECT 1 FROM journal_entries je
+        WHERE je."tenantId" = i."tenantId"
+          AND je.reference = i.id
+          AND je."refType" = 'INVOICE'
+          AND je."voidAt" IS NULL
+      )
+    UNION ALL
+    SELECT 'invoice_tax_payable_mismatch', COUNT(*)::int
+    FROM invoices i
+    JOIN journal_entries je
+      ON je."tenantId" = i."tenantId" AND je.reference = i.id
+     AND je."refType" = 'INVOICE' AND je."voidAt" IS NULL
+    JOIN journal_lines jl ON jl."journalEntryId" = je.id
+    JOIN accounts a ON a.id = jl."accountId" AND a.code = '2-1100'
+    WHERE i.tax > 0 AND i.status <> 'VOID'
+    GROUP BY i.id
+    HAVING ABS(SUM(jl.credit) - i.tax) > 0.01
+    UNION ALL
+    SELECT 'invoice_void_journal_live', COUNT(*)::int
+    FROM invoices i
+    JOIN journal_entries je
+      ON je."tenantId" = i."tenantId" AND je.reference = i.id AND je."refType" = 'INVOICE'
+    WHERE i.status = 'VOID' AND je."voidAt" IS NULL
+    UNION ALL
+    SELECT 'payment_missing_journal', COUNT(*)::int
+    FROM payments p
+    WHERE p."voidAt" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM journal_entries je
+        WHERE je."tenantId" = p."tenantId" AND je.reference = p.id AND je."refType" = 'PAYMENT'
+      )
+    UNION ALL
+    SELECT 'credit_note_missing_journal', COUNT(*)::int
+    FROM credit_notes cn
+    WHERE NOT EXISTS (
+      SELECT 1 FROM journal_entries je
+      WHERE je."tenantId" = cn."tenantId" AND je.reference = cn.id AND je."refType" = 'CREDIT_NOTE'
+    )
+    UNION ALL
+    SELECT 'credit_note_refund_mismatch', COUNT(*)::int
+    FROM (
+      SELECT cn.id
+      FROM credit_notes cn
+      JOIN journal_entries je
+        ON je."tenantId" = cn."tenantId" AND je.reference = cn.id AND je."refType" = 'CREDIT_NOTE'
+      JOIN journal_lines jl ON jl."journalEntryId" = je.id
+      JOIN accounts a ON a.id = jl."accountId" AND a.code IN ('1-1000', '1-1100')
+      GROUP BY cn.id, cn.total
+      HAVING ABS(SUM(jl.credit) - cn.total) > 0.01
+    ) refund_mismatch
+    UNION ALL
+    SELECT 'expense_missing_journal', COUNT(*)::int
+    FROM expenses e
+    WHERE e."voidAt" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM journal_entries je
+        WHERE je."tenantId" = e."tenantId" AND je.reference = e.id AND je."refType" = 'EXPENSE'
+      )
+    UNION ALL
+    SELECT 'supplier_payment_missing_journal', COUNT(*)::int
+    FROM supplier_payments sp
+    WHERE sp."voidAt" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM journal_entries je
+        WHERE je."tenantId" = sp."tenantId" AND je.reference = sp.id AND je."refType" = 'SUPPLIER_PAYMENT'
+      )
+    UNION ALL
+    SELECT 'purchase_missing_journal', COUNT(*)::int
+    FROM purchases p
+    WHERE p.status = 'COMPLETED' AND p."voidAt" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM journal_entries je
+        WHERE je."tenantId" = p."tenantId" AND je.reference = p.id AND je."refType" = 'PURCHASE'
+      )
+    UNION ALL
+    SELECT 'purchase_void_journal_live', COUNT(*)::int
+    FROM purchases p
+    JOIN journal_entries je
+      ON je."tenantId" = p."tenantId" AND je.reference = p.id AND je."refType" = 'PURCHASE'
+    WHERE p.status = 'VOID' AND je."voidAt" IS NULL
+    UNION ALL
+    SELECT 'production_missing_journal', COUNT(*)::int
+    FROM production_batches pb
+    WHERE pb.status = 'COMPLETED' AND pb."voidAt" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM journal_entries je
+        WHERE je."tenantId" = pb."tenantId" AND je.reference = pb.id AND je."refType" = 'PRODUCTION'
+      )
+    UNION ALL
+    SELECT 'roasting_missing_journal', COUNT(*)::int
+    FROM parent_roasting_batches rb
+    WHERE rb.status = 'COMPLETED' AND rb."voidAt" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM journal_entries je
+        WHERE je."tenantId" = rb."tenantId" AND je.reference = rb.id AND je."refType" = 'ROASTING'
+      )
+  `;
+
   const violations = [
     ...tenantRelationViolations,
     ...financialViolations,
     ...inventoryViolations,
     ...operationalViolations,
+    ...lotViolations,
+    ...journalViolations,
   ].filter((item) => item.count > 0);
 
   console.log(JSON.stringify({ violations }, null, 2));
