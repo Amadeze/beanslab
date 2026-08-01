@@ -3,7 +3,7 @@
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -174,6 +174,7 @@ export function RoastingForm({
   onPendingChange,
 }: RoastingFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
   const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -255,7 +256,8 @@ export function RoastingForm({
     .map((batch) => Number(batch.totalShrinkagePercent)), [batches, inputProductId, resolvedOutputProductId]);
 
   const onSubmit = async (values: FormValues) => {
-    if (isSubmitting) return;
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
     setIsSubmitting(true);
     onPendingChange(true);
     try {
@@ -275,7 +277,7 @@ export function RoastingForm({
       });
 
       if (!result.success) {
-        toastSafe.error(result.error);
+        toastSafe.error(result.error, { id: "roasting-batch-submit-error" });
         return;
       }
 
@@ -297,6 +299,7 @@ export function RoastingForm({
       console.error("[RoastingForm]", err);
       toast.error("Terjadi kesalahan sistem. Coba lagi.");
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
       onPendingChange(false);
     }

@@ -577,27 +577,32 @@ export async function createParentRoastingBatch(
           },
         });
       } else {
-        const automaticName = "RB " + (inputProduct.origin || "Unknown") + " " + requestedRoastLevel;
-        outputProduct = await tx.product.findFirst({
+        const automaticName = roastedBeanName(
+          inputProduct.name,
+          requestedRoastLevel as RoastLevelValue,
+        );
+        outputProduct = await tx.product.upsert({
           where: {
+            tenantId_sourceGreenBeanId_roastLevel: {
+              tenantId,
+              sourceGreenBeanId: inputProduct.id,
+              roastLevel: requestedRoastLevel,
+            },
+          },
+          update: { isActive: true },
+          create: {
             tenantId,
+            code: generateRBCode(automaticName),
+            name: automaticName,
             type: "ROASTED_BEAN",
+            category: inputProduct.category,
+            origin: inputProduct.origin,
             roastLevel: requestedRoastLevel,
             sourceGreenBeanId: inputProduct.id,
+            description: inputProduct.description,
+            imageUrl: inputProduct.imageUrl,
           },
         });
-        if (!outputProduct) {
-          outputProduct = await tx.product.findFirst({
-            where: {
-              tenantId,
-              type: "ROASTED_BEAN",
-              roastLevel: requestedRoastLevel,
-              sourceGreenBeanId: null,
-              name: { equals: automaticName, mode: "insensitive" },
-              origin: inputProduct.origin,
-            },
-          });
-        }
       }
 
       let outcome: RoastOutcome | undefined;
