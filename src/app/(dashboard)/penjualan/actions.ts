@@ -986,8 +986,10 @@ export async function updateInvoiceShipping(
             {
               date: getCurrentDate(),
               description: `Penyesuaian ongkir ${invoice.code}`,
-              reference: invoiceId,
-              refType: "INVOICE",
+              // Pasangan nilai lama/baru membuat retry idempotent tanpa
+              // bertabrakan dengan jurnal invoice awal.
+              reference: `${invoiceId}:shipping:${Number(invoice.shippingCost)}:${shippingCost}`,
+              refType: "ADJUSTMENT",
               lines:
                 diff > 0
                   ? [
@@ -1097,7 +1099,7 @@ export async function createCreditNote(input: CreditNoteInput) {
     }
 
     let creditNoteCode = "";
-    let totalReturnedAmount = 0;
+    let returnedLineSubtotal = 0;
 
     await (await requireTenantPrisma()).$transaction(async (tx) => {
       creditNoteCode = `CN-${randomBytes(4).toString("hex").toUpperCase()}`;
@@ -1105,18 +1107,28 @@ export async function createCreditNote(input: CreditNoteInput) {
       const cnItemsData = items.map((item) => {
         const invItem = inv.items.find((i) => i.productId === item.productId)!;
         const unitPrice = invItem.unitPrice;
-        const subtotal = (Number(unitPrice) - item.unitDiscount) * item.quantity;
-        totalReturnedAmount += subtotal;
+        // Nilai retur harus mengikuti harga/diskon immutable dari invoice,
+        // bukan nilai diskon yang dikirim ulang oleh client.
+        const subtotal = (Number(unitPrice) - Number(invItem.discount)) * item.quantity;
+        returnedLineSubtotal += subtotal;
 
         return {
           productId: item.productId,
           quantity: item.quantity,
           unitPrice,
-          unitDiscount: item.unitDiscount,
+          unitDiscount: Number(invItem.discount),
           subtotal,
           tenantId,
         };
       });
+
+      const invoiceSubtotal = Number(inv.subtotal);
+      const returnRatio = invoiceSubtotal > 0 ? returnedLineSubtotal / invoiceSubtotal : 0;
+      const netReturnedAmount = Math.round(
+        (invoiceSubtotal - Number(inv.discount)) * returnRatio * 100,
+      ) / 100;
+      const returnedTaxAmount = Math.round(Number(inv.tax) * returnRatio * 100) / 100;
+      const totalReturnedAmount = netReturnedAmount + returnedTaxAmount;
 
       const creditNote = await tx.creditNote.create({
         data: {
@@ -1168,11 +1180,7 @@ export async function createCreditNote(input: CreditNoteInput) {
         });
       }
 
-      // Pajak proporsional atas jumlah yang diretur + arah refund (kas vs piutang).
-      const taxRatio =
-        Number(inv.tax) > 0 && Number(inv.grandTotal) > 0
-          ? Number(inv.tax) / Number(inv.grandTotal)
-          : 0;
+      // Pajak dialokasikan proporsional terhadap item invoice yang diretur.
       const refundToCash =
         inv.status === "PAID" &&
         Number(inv.paidAmount) >= Number(inv.grandTotal) - Number(inv.returnedAmount);
@@ -1190,7 +1198,7 @@ export async function createCreditNote(input: CreditNoteInput) {
           };
         }),
         { tx, tenantId, userId },
-        { refundToCash, taxAmount: totalReturnedAmount * taxRatio },
+        { refundToCash, taxAmount: returnedTaxAmount },
       );
     });
 

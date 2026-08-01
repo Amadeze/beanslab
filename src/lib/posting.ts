@@ -147,10 +147,12 @@ export async function postVoidReversal(
 
   let firstCode = "";
   for (const source of sources) {
-    firstCode = await postJournalEntry({
+    const reversalCode = await postJournalEntry({
       date: getCurrentDate(),
       description: `Pembatalan: ${source.description}`,
-      reference: sourceReference,
+      // Satu transaksi bisnis dapat menghasilkan beberapa jurnal sumber.
+      // Gunakan id jurnal sumber agar setiap reversal punya idempotency key unik.
+      reference: `${sourceReference}:${source.id}`,
       refType: "VOID_REVERSAL",
       lines: source.lines.map((line) => ({
         accountCode: line.account.code,
@@ -158,6 +160,7 @@ export async function postVoidReversal(
         credit: Number(line.debit),
       })),
     }, { tx, tenantId, userId });
+    if (!firstCode) firstCode = reversalCode;
 
     await tx.journalEntry.update({
       where: { id: source.id },

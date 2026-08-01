@@ -169,6 +169,40 @@ describe("postVoidReversal", () => {
       data: { voidAt: new Date("2026-07-27"), voidReason: "Salah input" },
     });
   });
+
+  it("creates one uniquely keyed reversal for every source journal", async () => {
+    mockTx.journalEntry.findMany.mockResolvedValueOnce([
+      {
+        id: "source-je-1",
+        description: "Invoice utama",
+        lines: [
+          { sideId: 0, debit: 100_000, credit: 0, account: { code: "1-1100" } },
+          { sideId: 1, debit: 0, credit: 100_000, account: { code: "4-1000" } },
+        ],
+      },
+      {
+        id: "source-je-2",
+        description: "Penyesuaian invoice",
+        lines: [
+          { sideId: 0, debit: 10_000, credit: 0, account: { code: "1-1100" } },
+          { sideId: 1, debit: 0, credit: 10_000, account: { code: "4-1000" } },
+        ],
+      },
+    ]);
+
+    await postVoidReversal("INVOICE", "invoice-1", "Salah input", {
+      tx: mockTx,
+      tenantId: "tenant-1",
+      userId: "user-1",
+    });
+
+    expect(mockTx.journalEntry.create).toHaveBeenCalledTimes(2);
+    expect(mockTx.journalEntry.create.mock.calls.map(([args]: any[]) => args.data.reference)).toEqual([
+      "invoice-1:source-je-1",
+      "invoice-1:source-je-2",
+    ]);
+    expect(mockTx.journalEntry.update).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("postCreditNote", () => {
@@ -188,6 +222,22 @@ describe("postCreditNote", () => {
     const result = getCreatedLines();
     expectLine(result, "1-1220", 240_000, 0);
     expectLine(result, "5-1000", 0, 240_000);
+  });
+
+  it("reverses tax on top of the net returned amount", async () => {
+    await postCreditNote(
+      "cn-tax",
+      111_000,
+      "INV-TAX",
+      [],
+      {},
+      { refundToCash: false, taxAmount: 11_000 },
+    );
+
+    const result = getCreatedLines();
+    expectLine(result, "4-1000", 100_000, 0);
+    expectLine(result, "2-1100", 11_000, 0);
+    expectLine(result, "1-1100", 0, 111_000);
   });
 });
 

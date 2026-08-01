@@ -18,8 +18,7 @@ export function assertSafeTestDatabase(
   const isSafe =
     SAFE_HOSTS.has(host) ||
     host.endsWith(".local") ||
-    env.ALLOW_TEST_AGAINST_REMOTE_DB === "true" ||
-    env.CI === "true";
+    env.ALLOW_TEST_AGAINST_REMOTE_DB === "true";
   if (!isSafe) {
     throw new Error(
       `[test-db-guard] Refusing integration/E2E tests: DATABASE_URL host "${host}" is not a local/test host. Use a local database, or set ALLOW_TEST_AGAINST_REMOTE_DB=true only for an explicit NON-production test database.`,
