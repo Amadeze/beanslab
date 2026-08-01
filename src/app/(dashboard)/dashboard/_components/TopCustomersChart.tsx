@@ -51,7 +51,7 @@ export function TopCustomersChart({ data }: { data: TopCustomer[] }) {
                 if (active && payload && payload.length) {
                   return (
                     <div className="rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg-hover)] p-3 shadow-[var(--glass-shadow-lg)]">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">
+                      <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">
                         {payload[0].payload.name}
                       </p>
                       <p className="text-sm font-black text-amber-600">

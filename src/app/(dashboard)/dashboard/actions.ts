@@ -2,6 +2,7 @@
 import { requireTenantPrisma, requireRole } from "@/lib/auth";
 import { getCurrentDate, getZonedDayRange } from "@/lib/date-utils";
 import type { DailyBriefPayload } from "@/lib/daily-brief";
+import { tenantQuery } from "@/lib/tenant-guard";
 
 
 // =============================================================================
@@ -136,14 +137,14 @@ export async function getDashboardData(): Promise<DashboardData> {
     }),
 
     // 3. Total piutang outstanding
-    tp.$queryRaw<Array<{ totalOutstanding: number; invoiceCount: number }>>`
+    tenantQuery<Array<{ totalOutstanding: number; invoiceCount: number }>>(tenantId, async (t) => tp.$queryRaw`
       SELECT
         COALESCE(SUM("grandTotal" - "paidAmount"), 0)::float AS "totalOutstanding",
         COUNT(*)::int AS "invoiceCount"
       FROM "invoices"
-      WHERE "tenantId" = ${tenantId}
+      WHERE "tenantId" = ${t}
         AND "status" IN ('ISSUED', 'PARTIAL')
-    `,
+    `),
 
     // 4a. Stok kg: GB + RB — fetch dari Product cache
     tp.product.findMany({
@@ -226,49 +227,49 @@ export async function getDashboardData(): Promise<DashboardData> {
     }),
 
     // 10. Revenue Trend (Last 7 Days)
-    tp.$queryRaw<{ date: string; revenue: number }[]>`
+    tenantQuery<{ date: string; revenue: number }[]>(tenantId, async (t) => tp.$queryRaw`
       SELECT TO_CHAR(("issuedAt" AT TIME ZONE ${today.timezone})::date, 'YYYY-MM-DD') as "date",
              SUM("subtotal" - "discount")::float as "revenue"
       FROM "invoices"
-      WHERE "tenantId" = ${tenantId}
+      WHERE "tenantId" = ${t}
         AND "status" IN ('PAID', 'PARTIAL', 'ISSUED')
         AND "issuedAt" >= ${sevenDayPeriod.start}
         AND "issuedAt" < ${today.end}
       GROUP BY 1
       ORDER BY "date" ASC
-    `,
+    `),
 
     // 11. Top 5 Products
-    tp.$queryRaw<{ id: string; name: string; sold: number }[]>`
+    tenantQuery<{ id: string; name: string; sold: number }[]>(tenantId, async (t) => tp.$queryRaw`
       SELECT p.id, p."name", SUM(ii."quantity")::int as "sold"
       FROM "invoice_items" ii
       JOIN "products" p ON ii."productId" = p.id
       JOIN "invoices" i ON ii."invoiceId" = i.id
-      WHERE i."tenantId" = ${tenantId} AND i."status" IN ('PAID', 'PARTIAL', 'ISSUED')
+      WHERE i."tenantId" = ${t} AND i."status" IN ('PAID', 'PARTIAL', 'ISSUED')
       GROUP BY p.id, p."name"
       ORDER BY "sold" DESC
       LIMIT 5
-    `,
+    `),
 
     // 12. Top 5 Customers
-    tp.$queryRaw<{ id: string; name: string; totalSpent: number }[]>`
+    tenantQuery<{ id: string; name: string; totalSpent: number }[]>(tenantId, async (t) => tp.$queryRaw`
       SELECT c.id, c."name", SUM(i."grandTotal")::float as "totalSpent"
       FROM "invoices" i
       JOIN "customers" c ON i."customerId" = c.id
-      WHERE i."tenantId" = ${tenantId} AND i."status" IN ('PAID', 'PARTIAL')
+      WHERE i."tenantId" = ${t} AND i."status" IN ('PAID', 'PARTIAL')
       GROUP BY c.id, c."name"
       ORDER BY "totalSpent" DESC
       LIMIT 5
-    `,
+    `),
 
     // 13. Total Kopi Terjual
-    tp.$queryRaw<{ totalSoldKg: number }[]>`
+    tenantQuery<{ totalSoldKg: number }[]>(tenantId, async (t) => tp.$queryRaw`
       SELECT COALESCE(SUM(il."quantityUnit" * r."outputGrams" / 1000.0), 0)::float as "totalSoldKg"
       FROM "inventory_ledger" il
       JOIN "products" p ON il."productId" = p.id
       LEFT JOIN "recipes" r ON r."productId" = p.id
-      WHERE il."tenantId" = ${tenantId} AND il."entryType" = 'OUT' AND il."refType" = 'SALE_FG_OUT' AND p."type" = 'FINISHED_GOODS'
-    `,
+      WHERE il."tenantId" = ${t} AND il."entryType" = 'OUT' AND il."refType" = 'SALE_FG_OUT' AND p."type" = 'FINISHED_GOODS'
+    `),
 
     // 14. Average Roast Yield
     tp.parentRoastingBatch.aggregate({
@@ -277,14 +278,14 @@ export async function getDashboardData(): Promise<DashboardData> {
     }),
 
     // 15. Gross Margin (All time)
-    tp.$queryRaw<{ totalRevenue: number, totalCogs: number }[]>`
+    tenantQuery<{ totalRevenue: number, totalCogs: number }[]>(tenantId, async (t) => tp.$queryRaw`
       SELECT 
         COALESCE(SUM(ii."subtotal"), 0)::float as "totalRevenue",
         COALESCE(SUM(ii."hpp" * ii."quantity"), 0)::float as "totalCogs"
       FROM "invoice_items" ii
       JOIN "invoices" i ON ii."invoiceId" = i.id
-      WHERE i."tenantId" = ${tenantId} AND i."status" IN ('PAID', 'PARTIAL', 'ISSUED')
-    `,
+      WHERE i."tenantId" = ${t} AND i."status" IN ('PAID', 'PARTIAL', 'ISSUED')
+    `),
 
     tp.dailyBriefSnapshot.findFirst({
       orderBy: { reportDate: "desc" },

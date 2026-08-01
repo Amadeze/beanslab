@@ -94,7 +94,7 @@ export default async function AuditPage({
           {activeView === "audit" ? (
             <div className="overflow-x-auto glass-card p-0">
               <table className="w-full min-w-[760px] text-sm">
-                <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] text-left text-xs font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
                   <tr>
                     <th className="px-4 py-3">Waktu</th>
                     <th className="px-4 py-3">Pengguna</th>
@@ -127,7 +127,7 @@ export default async function AuditPage({
           ) : activeView === "webhooks" ? (
             <div className="overflow-x-auto glass-card p-0">
               <table className="w-full min-w-[840px] text-sm">
-                <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] text-left text-xs font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
                   <tr>
                     <th className="px-4 py-3">Diterima</th>
                     <th className="px-4 py-3">Provider</th>
@@ -144,7 +144,7 @@ export default async function AuditPage({
                       <td className="px-4 py-3 text-sm font-semibold">{event.provider}</td>
                       <td className="px-4 py-3 text-sm">{event.eventType}</td>
                       <td className="max-w-64 truncate px-4 py-3 font-mono text-xs">{event.eventId}</td>
-                      <td className="px-4 py-3"><span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-bold ${statusClass(event.status)}`}>{event.status}</span></td>
+                      <td className="px-4 py-3"><span className={`inline-flex rounded-md px-2 py-1 text-xs font-bold ${statusClass(event.status)}`}>{event.status}</span></td>
                       <td className="max-w-72 truncate px-4 py-3 text-xs text-[var(--text-tertiary)]">{event.error || "-"}</td>
                     </tr>
                   ))}
@@ -159,7 +159,7 @@ export default async function AuditPage({
           ) : (
             <div data-testid="reminder-deliveries" className="overflow-x-auto glass-card p-0">
               <table className="w-full min-w-[760px] text-sm">
-                <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] text-left text-xs font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
                   <tr>
                     <th className="px-4 py-3">Tanggal</th>
                     <th className="px-4 py-3">Invoice</th>
@@ -176,7 +176,7 @@ export default async function AuditPage({
                       <td className="px-4 py-3 text-sm font-semibold">{delivery.invoice.code}</td>
                       <td className="px-4 py-3 text-sm">{delivery.invoice.customer.name}</td>
                       <td className="px-4 py-3 text-sm">{delivery.channel}</td>
-                      <td className="px-4 py-3"><span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-bold ${statusClass(delivery.status)}`}>{delivery.status}</span></td>
+                      <td className="px-4 py-3"><span className={`inline-flex rounded-md px-2 py-1 text-xs font-bold ${statusClass(delivery.status)}`}>{delivery.status}</span></td>
                       <td className="max-w-72 truncate px-4 py-3 text-xs text-[var(--text-tertiary)]">{delivery.error || "-"}</td>
                     </tr>
                   ))}

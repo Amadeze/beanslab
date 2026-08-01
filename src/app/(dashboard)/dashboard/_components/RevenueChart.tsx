@@ -60,7 +60,7 @@ export function RevenueChart({ data }: { data: RevenueTrend[] }) {
                 if (active && payload && payload.length) {
                   return (
                     <div className="rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg-hover)] p-3 shadow-[var(--glass-shadow-lg)]">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">{label}</p>
+                      <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">{label}</p>
                       <p className="text-sm font-black text-emerald-600">{formatRupiah(Number(payload[0].value))}</p>
                     </div>
                   );

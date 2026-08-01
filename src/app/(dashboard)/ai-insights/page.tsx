@@ -111,7 +111,7 @@ export default function AiInsightsPage() {
             <h2 className="text-sm font-semibold text-foreground">Tanya laporan</h2>
             <p className="text-xs text-muted-foreground">Query lokal · tidak mengubah data</p>
           </div>
-          <span className="ml-auto rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="ml-auto rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Read only
           </span>
         </header>

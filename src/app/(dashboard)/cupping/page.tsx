@@ -249,7 +249,7 @@ function ScoreDial({ average }: { average: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="font-heading text-3xl font-bold tracking-[-0.06em] tabular-nums">{average.toFixed(2)}</span>
-        <span className={`text-[10px] font-bold uppercase tracking-[0.13em] ${band.tone}`}>{band.label}</span>
+        <span className={`text-xs font-bold uppercase tracking-[0.13em] ${band.tone}`}>{band.label}</span>
       </div>
     </div>
   );
@@ -280,7 +280,7 @@ function HistoryCard({ session }: { session: CuppingSessionRow }) {
         <div className={`h-full rounded-full ${band.surface}`} style={{ width: `${Math.min(100, average * 10)}%` }} />
       </div>
       {session.notes && <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{session.notes}</p>}
-      <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-[10px] text-muted-foreground">
+      <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-xs text-muted-foreground">
         <span>{session.location || "Lokasi tidak dicatat"}</span>
         <span className="inline-flex items-center gap-1 font-semibold text-foreground/70">
           Total {session.totalScore.toFixed(1)} <ChevronRight className="h-3 w-3" />
@@ -532,7 +532,7 @@ export default function CuppingPage() {
                     <Droplets className="h-4 w-4" />
                     {submitting ? "Menyimpan evaluasi..." : "Simpan hasil cupping"}
                   </Button>
-                  <p className="text-center text-[10px] leading-relaxed text-muted-foreground">Cupping bersifat opsional. Simpan hanya ketika hasil ini berguna untuk QC atau pengembangan profil.</p>
+                  <p className="text-center text-xs leading-relaxed text-muted-foreground">Cupping bersifat opsional. Simpan hanya ketika hasil ini berguna untuk QC atau pengembangan profil.</p>
                 </div>
               </aside>
             </div>

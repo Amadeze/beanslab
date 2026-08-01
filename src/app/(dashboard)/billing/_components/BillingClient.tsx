@@ -156,7 +156,7 @@ export default function BillingClient({ tenant }: { tenant: BillingTenant }) {
                 )}
                 
                 <div className="bg-[var(--amber-lighter)] rounded-2xl border border-amber-200 p-6 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
-                  <div className="absolute top-0 right-0 bg-[var(--amber-deep)] text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">Premium Access</div>
+                  <div className="absolute top-0 right-0 bg-[var(--amber-deep)] text-white text-xs font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">Premium Access</div>
                   <h4 className="text-lg font-bold text-[var(--amber-warm)] mb-2">roastd.id Pro</h4>
                   <div className="mb-4">
                     <span className="text-3xl font-extrabold text-[var(--text-primary)]">{formatRupiah(PLAN_CATALOG.PRO.monthlyPrice)}</span>

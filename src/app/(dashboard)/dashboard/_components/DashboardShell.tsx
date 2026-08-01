@@ -235,7 +235,7 @@ function CompactDashboardHeader({
                   <Icon size={11} strokeWidth={2.1} />
                 </span>
                 <div className="min-w-0 max-w-full">
-                  <p className="truncate text-[8px] font-bold text-white/55 sm:text-[10px]">
+                  <p className="truncate text-[8px] font-bold text-white/55 sm:text-xs">
                     {label}
                   </p>
                   <p
@@ -257,6 +257,35 @@ function CompactDashboardHeader({
 }
 
 function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const [snoozed, setSnoozed] = useState<Record<string, number>>({});
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    try {
+      const stored = localStorage.getItem("ros_snoozed_tasks");
+      if (stored) setSnoozed(JSON.parse(stored));
+    } catch (e) {}
+  }, []);
+
+  const handleSnooze = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newSnoozed = { ...snoozed, [id]: Date.now() + 86400000 }; // 24 hours
+    setSnoozed(newSnoozed);
+    try { localStorage.setItem("ros_snoozed_tasks", JSON.stringify(newSnoozed)); } catch (err) {}
+  };
+
+  const activeItems = items.filter((item) => {
+    if (!mounted) return true;
+    const snoozeUntil = snoozed[item.id];
+    return !(snoozeUntil && Date.now() < snoozeUntil);
+  });
+
+  const visibleItems = showAll ? activeItems : activeItems.slice(0, 5);
+  const hiddenCount = activeItems.length - visibleItems.length;
+
   return (
     <section className="overflow-hidden rounded-[14px] border border-border bg-card" aria-labelledby="work-queue-title">
       <div className="flex min-h-16 items-center justify-between border-b border-stone-200 px-4 md:px-5">
@@ -265,11 +294,11 @@ function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
           <h2 id="work-queue-title" className="mt-1 text-base font-black tracking-[-0.025em] text-stone-950">Yang perlu diputuskan</h2>
         </div>
         <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-[8px] bg-[#05090D] px-2 text-xs font-bold tabular-nums text-[#8EF3FC]">
-          {String(items.length).padStart(2, "0")}
+          {String(activeItems.length).padStart(2, "0")}
         </span>
       </div>
 
-      {items.length === 0 ? (
+      {activeItems.length === 0 ? (
         <div className="flex min-h-[260px] flex-col items-center justify-center px-6 text-center">
           <CircleCheck size={30} className="text-emerald-600" />
           <p className="mt-3 text-sm font-semibold text-stone-900">Tidak ada pengecualian aktif</p>
@@ -278,39 +307,73 @@ function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-stone-100">
-          {items.map((item, index) => (
-            <li key={item.id}>
-              <Link
-                href={item.href}
-                className={cn(
-                  "group grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-3 px-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-900 md:px-5",
-                  index === 0 ? "min-h-[88px] bg-[#f3f9fa] hover:bg-[#e9f5f7]" : "min-h-[66px] hover:bg-stone-50",
-                )}
-              >
-                <span
+        <div className="flex flex-col">
+          <ul className="divide-y divide-stone-100">
+            {visibleItems.map((item, index) => (
+              <li key={item.id} className="group relative flex">
+                <Link
+                  href={item.href}
                   className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-full",
-                    item.severity === "critical"
-                      ? "bg-red-50 text-red-700"
-                      : "bg-amber-50 text-amber-700",
+                    "flex-1 grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-3 px-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-900 md:px-5",
+                    index === 0 && !showAll ? "min-h-[88px] bg-[#f3f9fa] hover:bg-[#e9f5f7]" : "min-h-[66px] hover:bg-stone-50",
                   )}
                 >
-                  {item.severity === "critical" ? <TriangleAlert size={15} /> : <AlertTriangle size={15} />}
-                </span>
-                <span className="min-w-0">
-                  <span className="mb-0.5 block font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-stone-400">{item.domain}</span>
-                  <span className={cn("block font-semibold text-stone-900", index === 0 ? "text-sm leading-5" : "truncate text-xs")}>{item.title}</span>
-                  <span className="mt-0.5 block truncate text-[11px] text-stone-500">{item.context}</span>
-                </span>
-                <span className="hidden items-center gap-1 text-[10px] font-bold text-stone-500 group-hover:text-stone-900 sm:inline-flex">
-                  {item.actionLabel}
-                  <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                  <span
+                    className={cn(
+                      "flex h-7 w-7 items-center justify-center rounded-full",
+                      item.severity === "critical"
+                        ? "bg-red-50 text-red-700"
+                        : "bg-amber-50 text-amber-700",
+                    )}
+                  >
+                    {item.severity === "critical" ? <TriangleAlert size={15} /> : <AlertTriangle size={15} />}
+                  </span>
+                  <span className="min-w-0 pr-10 md:pr-12">
+                    <span className="mb-0.5 block font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-stone-400">{item.domain}</span>
+                    <span className={cn("block font-semibold text-stone-900", index === 0 && !showAll ? "text-sm leading-5" : "truncate text-xs")}>{item.title}</span>
+                    <span className="mt-0.5 block truncate text-[11px] text-stone-500">{item.context}</span>
+                  </span>
+                  <span className="hidden items-center gap-1 text-xs font-bold text-stone-500 group-hover:text-stone-900 sm:inline-flex">
+                    {item.actionLabel}
+                    <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={(e) => handleSnooze(item.id, e)}
+                  title="Tunda peringatan ini 24 jam"
+                  className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-lg p-2 text-stone-400 opacity-0 transition hover:bg-stone-200 hover:text-stone-700 group-hover:opacity-100 sm:right-1/4 md:right-[20%] xl:right-32"
+                >
+                  <span className="sr-only">Tunda 24 jam</span>
+                  <span className="text-[10px] font-bold hidden sm:inline-block mr-1">Tunda</span>
+                  <RefreshCw size={13} />
+                </button>
+              </li>
+            ))}
+          </ul>
+          {hiddenCount > 0 && !showAll && (
+            <div className="border-t border-stone-100 bg-stone-50/50 px-4 py-3 text-center">
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                className="text-xs font-semibold text-stone-600 hover:text-stone-900 transition-colors"
+              >
+                Lihat semua ({activeItems.length}) peringatan
+              </button>
+            </div>
+          )}
+          {showAll && activeItems.length > 5 && (
+             <div className="border-t border-stone-100 bg-stone-50/50 px-4 py-3 text-center">
+              <button
+                type="button"
+                onClick={() => setShowAll(false)}
+                className="text-xs font-semibold text-stone-600 hover:text-stone-900 transition-colors"
+              >
+                Sembunyikan peringatan
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </section>
   );
@@ -335,7 +398,7 @@ function ShiftSummary({ data }: { data: DashboardData }) {
           </div>
           <Link href="/penjualan" className="mb-0.5 text-xs font-bold text-[#69E8F3] hover:text-white">Buka</Link>
         </div>
-        <div className="mt-5 flex items-center justify-between text-[10px] text-white/42">
+        <div className="mt-5 flex items-center justify-between text-xs text-white/42">
           <span>Kas yang sudah diterima</span>
           <span className="font-bold tabular-nums">{cashRealization.toFixed(0)}%</span>
         </div>
@@ -352,22 +415,22 @@ function ShiftSummary({ data }: { data: DashboardData }) {
         <Link href="/keuangan" className="p-5 hover:bg-white/[0.04]">
           <dt className="font-mono text-[8px] uppercase tracking-[0.16em] text-white/35">Piutang aktif</dt>
           <dd className="mt-2 text-sm font-black tabular-nums text-[#FF8C88]">{formatRupiah(data.kpi.totalPiutang)}</dd>
-          <dd className="mt-1 text-[10px] text-white/35">{data.kpi.piutangCount} nota</dd>
+          <dd className="mt-1 text-xs text-white/35">{data.kpi.piutangCount} nota</dd>
         </Link>
       </dl>
 
       <div className="grid grid-cols-2">
         <Link href="/roasting" className="group border-r border-white/10 p-5 hover:bg-white/[0.04]">
-          <p className="text-[10px] text-white/35">Roasting terakhir</p>
+          <p className="text-xs text-white/35">Roasting terakhir</p>
           <p className="mt-1 text-sm font-bold text-white">{brief?.roasting.batchCount ?? 0} batch</p>
-          <p className="mt-1 text-[10px] text-white/30">
+          <p className="mt-1 text-xs text-white/30">
             {brief && brief.roasting.inputKg > 0 ? `${brief.roasting.yieldPercent.toFixed(1)}% yield` : "belum ada output"}
           </p>
         </Link>
         <Link href="/produksi" className="group p-5 hover:bg-white/[0.04]">
-          <p className="text-[10px] text-white/35">Produksi terakhir</p>
+          <p className="text-xs text-white/35">Produksi terakhir</p>
           <p className="mt-1 text-sm font-bold text-white">{brief?.production.unitsProduced ?? 0} unit</p>
-          <p className="mt-1 text-[10px] text-white/30">{brief?.production.batchCount ?? 0} batch selesai</p>
+          <p className="mt-1 text-xs text-white/30">{brief?.production.batchCount ?? 0} batch selesai</p>
         </Link>
       </div>
     </section>
@@ -402,7 +465,7 @@ function RevenuePanel({ data }: { data: DashboardData }) {
             <RechartsTooltip
               content={({ active, payload, label }) => active && payload?.length ? (
                 <div className="rounded-md border border-stone-200 bg-white px-3 py-2 shadow-lg">
-                  <p className="text-[10px] text-stone-500">{label}</p>
+                  <p className="text-xs text-stone-500">{label}</p>
                   <p className="mt-0.5 text-xs font-bold text-stone-900">{formatRupiah(Number(payload[0].value))}</p>
                 </div>
               ) : null}
@@ -433,11 +496,11 @@ function ActivityTable({ items, mounted }: { items: ActivityItem[]; mounted: boo
           <table className="w-full min-w-[720px] border-collapse text-left">
             <thead>
               <tr className="border-b border-stone-100 bg-stone-50/70">
-                <th className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-stone-500">Waktu</th>
-                <th className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-stone-500">Area</th>
-                <th className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-stone-500">Transaksi</th>
-                <th className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-stone-500">Status</th>
-                <th className="px-5 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-stone-500">Nilai</th>
+                <th className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-stone-500">Waktu</th>
+                <th className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-stone-500">Area</th>
+                <th className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-stone-500">Transaksi</th>
+                <th className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-stone-500">Status</th>
+                <th className="px-5 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-stone-500">Nilai</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
@@ -451,10 +514,10 @@ function ActivityTable({ items, mounted }: { items: ActivityItem[]; mounted: boo
                   </td>
                   <td className="px-5 py-3">
                     <span className="block text-xs font-medium text-stone-900">{item.description}</span>
-                    <span className="mt-0.5 block font-mono text-[10px] text-stone-400">{item.code}</span>
+                    <span className="mt-0.5 block font-mono text-xs text-stone-400">{item.code}</span>
                   </td>
                   <td className="px-5 py-3">
-                    <span className="inline-flex rounded-full bg-stone-100 px-2 py-1 text-[10px] font-semibold text-stone-700">{item.status}</span>
+                    <span className="inline-flex rounded-full bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-700">{item.status}</span>
                   </td>
                   <td className="whitespace-nowrap px-5 py-3 text-right text-xs font-semibold tabular-nums text-stone-900">
                     {item.amount === null ? "—" : formatRupiah(item.amount)}
@@ -491,7 +554,7 @@ function StockWatchlist({ items }: { items: LowStockItem[] }) {
             <li key={item.id} className="grid min-h-[52px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 md:px-5">
               <div className="min-w-0">
                 <p className="truncate text-xs font-semibold text-stone-900">{item.name}</p>
-                <p className="text-[10px] text-stone-500">Batas {item.threshold.toLocaleString("id-ID")} {item.unit}</p>
+                <p className="text-xs text-stone-500">Batas {item.threshold.toLocaleString("id-ID")} {item.unit}</p>
               </div>
               <span className={cn("text-xs font-bold tabular-nums", item.stock <= 0 ? "text-red-700" : "text-amber-700")}>
                 {item.stock.toLocaleString("id-ID")} {item.unit}
