@@ -231,7 +231,7 @@ function RoastScope() {
           <span className="signal-dot" />
           <div>
             <p className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-[#92F3FA]">Roastd Studio · Live</p>
-            <p className="mt-1 text-[10px] text-white/35">Parent batch RST-0728-01</p>
+            <p className="mt-1 text-xs text-white/35">Parent batch RST-0728-01</p>
           </div>
         </div>
         <span className="rounded-[7px] border border-[#2D7A69]/60 bg-[#2D7A69]/15 px-2.5 py-1.5 font-mono text-[7px] uppercase tracking-[0.14em] text-[#A1D8CA]">
@@ -413,7 +413,7 @@ export function LandingClient() {
             <div className="flex flex-col justify-between border-b border-white/10 px-5 py-12 sm:px-8 sm:py-16 lg:border-b-0 lg:border-r lg:px-10 lg:py-14 xl:px-14">
               <div>
                 <motion.div initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={reduceMotion ? undefined : { opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.06, ease: EASE }} className="flex flex-wrap items-center gap-3">
-                  <Kicker>Roastery OS + desktop logger</Kicker>
+                  <Kicker>roastd.id · Roastery Operating System</Kicker>
                   <span className="h-px w-9 bg-[#25D9E8]" />
                   <span className="inline-flex items-center gap-2 font-mono text-[8px] uppercase tracking-[0.14em] text-white/35"><span className="signal-dot" /> Sistem aktif</span>
                 </motion.div>
@@ -452,7 +452,7 @@ export function LandingClient() {
                 <span className="rounded-[7px] border border-[#2D7A69]/30 bg-[#2D7A69]/10 px-2.5 py-1.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[#2D7A69]">Selesai</span>
               </div>
               <div className="divide-y divide-black/10 px-5">
-                {AUTOMATIONS.map((item, index) => <motion.div key={item.label} initial={reduceMotion ? false : { opacity: 0, x: 18 }} whileInView={reduceMotion ? undefined : { opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 + index * 0.07, ease: EASE }} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-4"><span className="text-sm font-bold">{item.label}</span><span className="font-mono text-[10px] text-black/35 line-through">{item.before}</span><span className="min-w-24 text-right font-heading text-sm font-bold" style={{ color: item.color }}>{item.after}</span></motion.div>)}
+                {AUTOMATIONS.map((item, index) => <motion.div key={item.label} initial={reduceMotion ? false : { opacity: 0, x: 18 }} whileInView={reduceMotion ? undefined : { opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 + index * 0.07, ease: EASE }} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-4"><span className="text-sm font-bold">{item.label}</span><span className="font-mono text-xs text-black/35 line-through">{item.before}</span><span className="min-w-24 text-right font-heading text-sm font-bold" style={{ color: item.color }}>{item.after}</span></motion.div>)}
               </div>
               <div className="flex items-center gap-3 border-t border-black/10 bg-[#F1F3EF] px-5 py-4 text-xs text-black/55"><Check className="size-4 text-[#2D7A69]" /> Empat pembaruan dicatat dalam satu transaksi audit.</div>
             </Reveal>

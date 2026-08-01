@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { SectionHeader } from "@/components/ui/section-header";
+import { CompactHeader } from "@/components/layout/CompactHeader";
 import { formatRupiah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -493,6 +493,7 @@ function ContractDetailDialog({ contract, prices, products, onClose, onRefresh }
                           type="button"
                           size="icon"
                           variant="ghost"
+                          aria-label="Hapus harga tier"
                           className="text-stone-400 hover:text-red-600"
                           onClick={async () => {
                             const res = await deleteContractPrice(p.id);
@@ -558,35 +559,35 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <CompactHeader
+        title="OEM / Private Label"
+        stage="sales"
+        description="Kelola kontrak dan harga khusus pelanggan OEM."
+        actions={
+          <>
+            <Button
+              size="default"
+              variant="outline"
+              className="gap-2 rounded-lg px-4 font-semibold"
+              onClick={refresh}
+              disabled={isLoading}
+            >
+              {isLoading ? "Memuat..." : "Refresh"}
+            </Button>
+            <Button
+              size="default"
+              variant="default"
+              className="gap-2 px-5"
+              onClick={() => { setDetailContract(null); setContractOpen(true); }}
+            >
+              <Plus size={16} />
+              Kontrak Baru
+            </Button>
+          </>
+        }
+      />
       <div className="custom-scrollbar flex-1 overflow-auto">
         <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <SectionHeader
-              title="OEM / Private Label"
-              description="Kelola kontrak dan harga khusus pelanggan OEM."
-            />
-            <div className="flex items-center gap-2">
-              <Button
-                size="default"
-                variant="outline"
-                className="gap-2 rounded-lg px-4 font-semibold"
-                onClick={refresh}
-                disabled={isLoading}
-              >
-                {isLoading ? "Memuat..." : "Refresh"}
-              </Button>
-              <Button
-                size="default"
-                variant="default"
-                className="gap-2 px-5"
-                onClick={() => { setDetailContract(null); setContractOpen(true); }}
-              >
-                <Plus size={16} />
-                Kontrak Baru
-              </Button>
-            </div>
-          </div>
-
           <GlassPanel padding="md" className="mt-4">
             <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
               <Table>
@@ -656,6 +657,7 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
                             size="icon"
                             variant="ghost"
                             title="Detail"
+                            aria-label={`Detail ${c.contractNumber}`}
                             onClick={() => openDetail(c)}
                             className="text-stone-400 hover:text-[var(--amber-deep)]"
                           >
@@ -666,6 +668,7 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
                             size="icon"
                             variant="ghost"
                             title="Edit"
+                            aria-label={`Edit ${c.contractNumber}`}
                             onClick={() => {
                               setDetailContract(null);
                               setContractOpen(true);

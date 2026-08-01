@@ -4,7 +4,7 @@ import { ExternalLink, Search, Banknote } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatRupiah } from "@/lib/format";
@@ -30,23 +30,6 @@ const triggerSilentPrint = (url: string) => {
   }
   iframe.src = url;
 };
-
-const STATUS_MAP: Record<string, { label: string; className: string }> = {
-  DRAFT:   { label: "Draft",    className: "bg-zinc-100 text-zinc-500 border-zinc-200" },
-  ISSUED:  { label: "Tempo",    className: "bg-amber-50 text-amber-700 border-amber-200" },
-  PARTIAL: { label: "Sebagian", className: "bg-blue-50 text-amber-800 border-blue-200" },
-  PAID:    { label: "Lunas",    className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  VOID:    { label: "Void",     className: "bg-zinc-100 text-zinc-400 border-zinc-200" },
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_MAP[status] ?? STATUS_MAP.DRAFT;
-  return (
-    <Badge variant="outline" className={`text-[11px] font-medium ${s.className}`}>
-      {s.label}
-    </Badge>
-  );
-}
 
 function EmptyState({ isFiltered }: { isFiltered: boolean }) {
   return (
@@ -182,7 +165,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                 <TableCell className="text-sm font-semibold text-slate-500">
                   <p>{formatDate(inv.issuedAt)}</p>
                   {inv.dueDate && (
-                    <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider mt-0.5">
+                    <p className="text-xs text-amber-600 font-bold uppercase tracking-wider mt-0.5">
                       Tempo: {formatDate(inv.dueDate)}
                     </p>
                   )}
@@ -281,7 +264,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
               <div className="text-right">
                 <p className="font-mono text-sm font-black text-slate-900">{formatRupiah(inv.grandTotal)}</p>
                 {inv.balance > 0 && (
-                  <p className="font-mono text-[10px] font-bold text-amber-600 mt-0.5">Sisa: {formatRupiah(inv.balance)}</p>
+                  <p className="font-mono text-xs font-bold text-amber-600 mt-0.5">Sisa: {formatRupiah(inv.balance)}</p>
                 )}
               </div>
             </div>
@@ -289,7 +272,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
             <div className="mt-2 flex items-end justify-between border-t border-stone-200 pt-2">
               <div className="flex flex-col gap-1">
                 <StatusBadge status={inv.status} />
-                <span className="text-[10px] font-semibold text-slate-500">{formatDate(inv.issuedAt)}</span>
+                <span className="text-xs font-semibold text-slate-500">{formatDate(inv.issuedAt)}</span>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-1.5">
                 {inv.status === "DRAFT" && (

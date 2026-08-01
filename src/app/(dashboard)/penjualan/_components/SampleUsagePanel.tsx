@@ -55,7 +55,7 @@ export function SampleUsagePanel({ data }: { data: SamplePageData }) {
                 <TableCell className="text-right"><p className="font-mono text-sm font-semibold">{sample.packCount} pack</p><p className="text-[11px] text-stone-500">{sample.totalGrams.toLocaleString("id-ID")} g</p></TableCell>
                 <TableCell className="text-right font-mono text-xs font-semibold">{formatRupiah(sample.totalCost)}</TableCell>
                 <TableCell className="text-xs text-stone-600">{sample.givenBy}</TableCell>
-                <TableCell>{data.canVoid && sample.status === "COMPLETED" && <Button type="button" size="icon" variant="ghost" title="Void sample" onClick={() => setVoidTarget(sample)} className="text-stone-400 hover:text-red-600"><RotateCcw size={15} /></Button>}</TableCell>
+                <TableCell>{data.canVoid && sample.status === "COMPLETED" &&                 <Button type="button" size="icon" variant="ghost" title="Void sample" aria-label="Void sample" onClick={() => setVoidTarget(sample)} className="text-stone-400 hover:text-red-600"><RotateCcw size={15} /></Button>}</TableCell>
               </TableRow>
             ))}
           </TableBody>

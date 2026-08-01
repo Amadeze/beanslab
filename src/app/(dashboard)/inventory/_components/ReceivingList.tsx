@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { formatRupiah, formatDate as formatDateUtil } from "@/lib/format";
 import { getPOList } from "../po-actions";
 import { InventoryEmptyState } from "./InventoryEmptyState";
@@ -38,21 +38,7 @@ interface ReceivingListProps {
   refreshKey?: number;
 }
 
-function POStatusBadge({ status }: { status: POStatus }) {
-  const map: Record<POStatus, { label: string; className: string }> = {
-    DRAFT: { label: "Draft", className: "bg-slate-100 text-slate-600 border-slate-200" },
-    SENT: { label: "Dikirim", className: "bg-blue-50 text-amber-800 border-blue-200" },
-    PARTIAL: { label: "Sebagian", className: "bg-amber-50 text-amber-700 border-amber-200" },
-    RECEIVED: { label: "Diterima", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-    CANCELLED: { label: "Dibatalkan", className: "bg-red-50 text-red-600 border-red-200" },
-  };
-  const { label, className } = map[status];
-  return (
-    <Badge variant="outline" className={`text-[11px] font-medium ${className}`}>
-      {label}
-    </Badge>
-  );
-}
+
 
 export function ReceivingList({ onSelectPO, refreshKey }: ReceivingListProps) {
   const [items, setItems] = useState<POListItem[]>([]);
@@ -137,7 +123,7 @@ export function ReceivingList({ onSelectPO, refreshKey }: ReceivingListProps) {
                       <span className="text-slate-400">-</span>
                     )}
                   </TableCell>
-                  <TableCell><POStatusBadge status={po.status} /></TableCell>
+                  <TableCell><StatusBadge status={po.status} /></TableCell>
                   <TableCell className="text-sm font-semibold text-slate-900 tabular-nums text-right">{formatRupiah(po.totalEstimate)}</TableCell>
                   <TableCell>
                     <span className={`text-xs ${isOverdue(po.expectedDate) ? "text-red-600 font-semibold" : "text-slate-500"}`}>
@@ -178,7 +164,7 @@ export function ReceivingList({ onSelectPO, refreshKey }: ReceivingListProps) {
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-medium text-slate-900">{po.code}</span>
-                <POStatusBadge status={po.status} />
+                <StatusBadge status={po.status} />
               </div>
               <div className="mt-1 text-xs text-slate-500">
                 <span>{po.supplierName}</span>
@@ -196,7 +182,7 @@ export function ReceivingList({ onSelectPO, refreshKey }: ReceivingListProps) {
                 </span>
                 <span className="font-semibold text-slate-900 tabular-nums">{formatRupiah(po.totalEstimate)}</span>
               </div>
-              <p className="mt-1 text-[10px] font-bold text-primary">Ketuk untuk catat penerimaan →</p>
+              <p className="mt-1 text-xs font-bold text-primary">Ketuk untuk catat penerimaan →</p>
             </div>
           ))
         )}

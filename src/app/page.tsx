@@ -2,7 +2,7 @@ import { LandingClient } from "./LandingClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Roastery OS + desktop roasting logger",
+  title: "roastd.id — Roastery Operating System + Studio",
   description:
     "Hubungkan lot, roasting, profile matching, produksi, penjualan, stok, HPP, dan laporan coffee roastery tanpa input data berulang.",
   openGraph: {

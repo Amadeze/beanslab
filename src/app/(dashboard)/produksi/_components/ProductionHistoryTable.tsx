@@ -3,27 +3,13 @@ import { Search } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatKg, formatRupiah } from "@/lib/format";
 import { VoidConfirmDialog } from "@/components/VoidConfirmDialog";
 import { voidProductionBatch } from "../actions";
 import type { ProductionBatchRow } from "../actions";
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; className: string }> = {
-    COMPLETED: { label: "Selesai", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-    PENDING:   { label: "Proses",  className: "bg-blue-50 text-amber-800 border-blue-200"          },
-    VOID:      { label: "Void",    className: "bg-zinc-100 text-zinc-400 border-zinc-200"          },
-  };
-  const s = map[status] ?? { label: status, className: "bg-zinc-100 text-zinc-500 border-zinc-200" };
-  return (
-    <Badge variant="outline" className={`text-[11px] font-medium ${s.className}`}>
-      {s.label}
-    </Badge>
-  );
-}
 
 function EmptyState({ isFiltered }: { isFiltered: boolean }) {
   return (
@@ -164,12 +150,12 @@ export function ProductionHistoryTable({ batches }: ProductionHistoryTableProps)
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="font-mono text-xs font-semibold text-slate-600">{b.code}</span>
                   <span className="text-xs text-slate-400">•</span>
-                  <span className="text-[10px] uppercase font-bold text-slate-500">{b.recipeUsed ?? "Bebas"}</span>
+                  <span className="text-xs uppercase font-bold text-slate-500">{b.recipeUsed ?? "Bebas"}</span>
                 </div>
               </div>
               <div className="text-right">
                 <p className="font-mono text-sm font-black text-emerald-600">{b.unitsProduced} Unit</p>
-                <p className="font-mono text-[10px] font-bold text-slate-500 mt-0.5">Bahan: {formatKg(b.totalRbUsedKg)}</p>
+                <p className="font-mono text-xs font-bold text-slate-500 mt-0.5">Bahan: {formatKg(b.totalRbUsedKg)}</p>
                 <p className="font-mono text-[11px] font-bold text-slate-700 mt-0.5">HPP: {formatRupiah(b.hppPerUnit)}/pcs</p>
               </div>
             </div>
@@ -177,7 +163,7 @@ export function ProductionHistoryTable({ batches }: ProductionHistoryTableProps)
             <div className="flex justify-between items-end mt-2 pt-2 border-t border-white/40">
               <div className="flex flex-col gap-1">
                 <StatusBadge status={b.status} />
-                <span className="text-[10px] font-semibold text-slate-500">{formatDate(b.producedAt)}</span>
+                <span className="text-xs font-semibold text-slate-500">{formatDate(b.producedAt)}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 {b.status === "COMPLETED" && (

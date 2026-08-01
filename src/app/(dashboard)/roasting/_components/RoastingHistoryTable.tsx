@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatKg, formatDate } from "@/lib/format";
@@ -46,24 +47,6 @@ function ShrinkageBadge({ percent }: { percent: number | null }) {
   return (
     <Badge variant="outline" className={`font-mono text-[11px] ${className}`}>
       -{label}
-    </Badge>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Status badge
-// ─────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; className: string }> = {
-    COMPLETED: { label: "Selesai", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-    PENDING:   { label: "Proses",  className: "bg-blue-50 text-amber-800 border-blue-200"          },
-    VOID:      { label: "Void",    className: "bg-zinc-100 text-zinc-400 border-zinc-200"          },
-  };
-  const s = map[status] ?? { label: status, className: "bg-zinc-100 text-zinc-500 border-zinc-200" };
-  return (
-    <Badge variant="outline" className={`text-[11px] font-medium ${s.className}`}>
-      {s.label}
     </Badge>
   );
 }
@@ -380,12 +363,12 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
                     {b.code}
                   </Link>
                   <span className="text-xs text-slate-400">•</span>
-                  <span className="text-[10px] uppercase font-bold text-slate-500">{b.inputProductName}</span>
+                  <span className="text-xs uppercase font-bold text-slate-500">{b.inputProductName}</span>
                 </div>
               </div>
               <div className="text-right">
                 <p className="font-mono text-sm font-black text-slate-900">{b.actualOutputKg ? formatKg(b.actualOutputKg) : "-"}</p>
-                <p className="font-mono text-[10px] font-bold text-slate-500 mt-0.5">Masuk: {formatKg(b.targetWeightKg)}</p>
+                <p className="font-mono text-xs font-bold text-slate-500 mt-0.5">Masuk: {formatKg(b.targetWeightKg)}</p>
               </div>
             </div>
 
@@ -395,7 +378,7 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
                   <StatusBadge status={b.status} />
                   <ShrinkageBadge percent={b.totalShrinkagePercent} />
                 </div>
-                <span className="text-[10px] font-semibold text-slate-500">{formatDate(b.createdAt)}</span>
+                <span className="text-xs font-semibold text-slate-500">{formatDate(b.createdAt)}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 {b.status === "COMPLETED" && (
@@ -443,7 +426,7 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
         <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
           <div className="flex items-start justify-between border-b border-stone-100 p-5">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-500">Acuan dari web</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-500">Acuan dari web</p>
               <h3 className="mt-1 text-lg font-bold text-slate-900">{referenceTarget.code}</h3>
               <p className="mt-1 text-xs text-slate-500">
                 Studio hanya membaca pilihan ini dan tidak dapat menggantinya.
@@ -490,7 +473,7 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
                       <strong className="block truncate text-sm text-slate-900">{profile.title}</strong>
                       <small className="text-xs text-slate-500">{profile.machineName}{profile.duration ? ` · ${Math.round(profile.duration / 60)} menit` : ""}</small>
                     </span>
-                    <span className="ml-3 shrink-0 text-[10px] font-semibold uppercase text-slate-400">
+                    <span className="ml-3 shrink-0 text-xs font-semibold uppercase text-slate-400">
                       {incompatible ? "Mesin berbeda" : profile.id === referenceTarget.referenceProfile?.id ? "Terpilih" : "Pilih"}
                     </span>
                   </button>
@@ -536,14 +519,17 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
           <div className="p-5">
             <h3 className="font-bold text-lg mb-1">Validasi Akhir Sesi</h3>
             <p className="text-xs text-slate-500 mb-4">Selesaikan {completeTarget.code} ({completeTarget.outputProductName}) dengan menginput berat akhir.</p>
+            <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Setelah diselesaikan, stok roasted bean langsung diperbarui dan sesi tidak dapat dibatalkan.
+            </p>
 
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Berat Masuk (Kg)</label>
+                <label className="text-xs uppercase font-bold tracking-wider text-slate-500">Berat Masuk (Kg)</label>
                 <Input value={completeTarget.targetWeightKg} disabled className="bg-slate-50 font-mono text-sm" />
               </div>
               <div>
-                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Berat Keluar / Matang (Kg)</label>
+                <label className="text-xs uppercase font-bold tracking-wider text-slate-500">Berat Keluar / Matang (Kg)</label>
                 <Input
                   type="number"
                   autoFocus
@@ -558,7 +544,7 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
                     .reduce((sum, c) => sum + (c.roastedWeightGrams || 0), 0);
                   if (totalRoasted > 0) {
                     return (
-                      <p className="text-[10px] text-indigo-500 mt-1">
+                      <p className="text-xs text-indigo-500 mt-1">
                         Dari Artisan: {(totalRoasted / 1000).toFixed(2)} kg
                         ({completeTarget.childBatches.filter((c) => c.roastId).length} roast profile)
                       </p>
@@ -590,11 +576,11 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
 
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Berat Masuk (Kg)</label>
+                <label className="text-xs uppercase font-bold tracking-wider text-slate-500">Berat Masuk (Kg)</label>
                 <Input value={splitTarget.targetWeightKg} disabled className="bg-slate-50 font-mono text-sm" />
               </div>
               <div>
-                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Pilih Mesin</label>
+                <label className="text-xs uppercase font-bold tracking-wider text-slate-500">Pilih Mesin</label>
                 <select
                   value={selectedMachineId}
                   onChange={(e) => setSelectedMachineId(e.target.value)}

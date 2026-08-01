@@ -17,7 +17,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 const CATEGORY_COLOR: Record<string, string> = {
-  GAJI:        "bg-blue-50 text-amber-800 border-blue-200",
+  GAJI:        "bg-blue-50 text-blue-800 border-blue-200",
   UTILITAS:    "bg-amber-50 text-amber-700 border-amber-200",
   OPERASIONAL: "bg-violet-50 text-violet-700 border-violet-200",
   LAINNYA:     "bg-zinc-100 text-zinc-600 border-zinc-200",
@@ -107,7 +107,7 @@ export function ExpenseTable({ rows, onVoid }: ExpenseTableProps) {
             <div className="flex justify-between items-start mb-2">
               <Badge
                 variant="outline"
-                className={`text-[10px] font-bold ${CATEGORY_COLOR[row.category] ?? "bg-zinc-100 text-zinc-500"}`}
+                className={`text-xs font-bold ${CATEGORY_COLOR[row.category] ?? "bg-zinc-100 text-zinc-500"}`}
               >
                 {CATEGORY_LABEL[row.category] ?? row.category}
               </Badge>

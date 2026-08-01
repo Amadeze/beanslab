@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
@@ -57,26 +57,6 @@ type PODetailData = {
     totalCost: number;
   }>;
 };
-
-// =============================================================================
-// Status Badge
-// =============================================================================
-
-function POStatusBadge({ status }: { status: POStatus }) {
-  const map: Record<POStatus, { label: string; className: string }> = {
-    DRAFT: { label: "Draft", className: "bg-slate-100 text-slate-600 border-slate-200" },
-    SENT: { label: "Terkirim", className: "bg-blue-50 text-amber-800 border-blue-200" },
-    PARTIAL: { label: "Sebagian", className: "bg-amber-50 text-amber-700 border-amber-200" },
-    RECEIVED: { label: "Diterima", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-    CANCELLED: { label: "Dibatalkan", className: "bg-red-50 text-red-600 border-red-200" },
-  };
-  const { label, className } = map[status];
-  return (
-    <Badge variant="outline" className={`text-[11px] font-medium ${className}`}>
-      {label}
-    </Badge>
-  );
-}
 
 // =============================================================================
 // Component
@@ -172,7 +152,7 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
           <h3 className="text-lg font-bold text-slate-900">{detail.code}</h3>
           <p className="text-xs text-slate-500">Supplier: {detail.supplierName}</p>
         </div>
-        <POStatusBadge status={detail.status} />
+        <StatusBadge status={detail.status} />
       </div>
 
       {/* Info */}
@@ -211,10 +191,10 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
         <Table>
           <TableHeader>
             <TableRow className="bg-white/40">
-              <TableHead className="text-[10px] font-bold uppercase">Item</TableHead>
-              <TableHead className="text-[10px] font-bold uppercase text-right">Qty</TableHead>
-              <TableHead className="text-[10px] font-bold uppercase text-right">Harga</TableHead>
-              <TableHead className="text-[10px] font-bold uppercase text-right">Subtotal</TableHead>
+              <TableHead className="text-xs font-bold uppercase">Item</TableHead>
+              <TableHead className="text-xs font-bold uppercase text-right">Qty</TableHead>
+              <TableHead className="text-xs font-bold uppercase text-right">Harga</TableHead>
+              <TableHead className="text-xs font-bold uppercase text-right">Subtotal</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -251,10 +231,10 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
             <Table>
               <TableHeader>
                 <TableRow className="bg-white/40">
-                  <TableHead className="text-[10px] font-bold uppercase">Kode</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase">Tanggal</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase text-right">Ongkir</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase text-right">Total</TableHead>
+                  <TableHead className="text-xs font-bold uppercase">Kode</TableHead>
+                  <TableHead className="text-xs font-bold uppercase">Tanggal</TableHead>
+                  <TableHead className="text-xs font-bold uppercase text-right">Ongkir</TableHead>
+                  <TableHead className="text-xs font-bold uppercase text-right">Total</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

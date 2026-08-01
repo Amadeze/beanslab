@@ -2,7 +2,7 @@ import { AlertTriangle, Clock } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDate, formatRupiah } from "@/lib/format";
@@ -10,23 +10,10 @@ import type { PiutangRow } from "../actions";
 
 function OverdueBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">
+    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-600">
       <AlertTriangle size={9} />
       Lewat jatuh tempo
     </span>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  return status === "PARTIAL" ? (
-    <Badge variant="outline" className="bg-blue-50 text-amber-800 border-blue-200 text-[11px]">
-      Sebagian
-    </Badge>
-  ) : (
-    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[11px]">
-      <Clock size={9} className="mr-1" />
-      Tempo
-    </Badge>
   );
 }
 
@@ -83,7 +70,7 @@ export function PiutangTable({ rows, onTerimaPayment }: PiutangTableProps) {
               >
                 <TableCell>
                   <p className="font-mono text-xs font-semibold text-zinc-800">{row.code}</p>
-                  <p className="text-[10px] text-zinc-400">{formatDate(row.issuedAt)}</p>
+                  <p className="text-xs text-zinc-400">{formatDate(row.issuedAt)}</p>
                 </TableCell>
                 <TableCell>
                   <p className="text-sm font-medium text-zinc-900">{row.customerName}</p>
@@ -112,7 +99,7 @@ export function PiutangTable({ rows, onTerimaPayment }: PiutangTableProps) {
                         {formatDate(row.dueDate)}
                       </p>
                       {(row.agingBucket !== "CURRENT") && (
-                        <p className="text-[10px] font-semibold text-red-500">
+                        <p className="text-xs font-semibold text-red-500">
                           {Math.floor((Date.now() - new Date(row.dueDate).getTime()) / 86_400_000)} hari terlambat
                         </p>
                       )}
@@ -122,7 +109,7 @@ export function PiutangTable({ rows, onTerimaPayment }: PiutangTableProps) {
                   )}
                 </TableCell>
                 <TableCell className="text-center">
-                  <StatusBadge status={row.status} />
+                  <StatusBadge status={row.status} icon={row.status === "PARTIAL" ? undefined : <Clock size={9} />} />
                 </TableCell>
                 <TableCell className="text-center">
                   <Button
@@ -165,22 +152,22 @@ export function PiutangTable({ rows, onTerimaPayment }: PiutangTableProps) {
               </div>
               <div className="text-right">
                 <p className="font-mono text-sm font-black text-slate-900">{formatRupiah(row.balance)}</p>
-                <p className="font-mono text-[10px] font-bold text-emerald-600 mt-0.5">Terbayar: {formatRupiah(row.paidAmount)}</p>
+                <p className="font-mono text-xs font-bold text-emerald-600 mt-0.5">Terbayar: {formatRupiah(row.paidAmount)}</p>
               </div>
             </div>
             
             <div className="flex justify-between items-end mt-2 pt-2 border-t border-white/40">
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5">
-                  <StatusBadge status={row.status} />
+                  <StatusBadge status={row.status} icon={row.status === "PARTIAL" ? undefined : <Clock size={9} />} />
                   {(row.agingBucket !== "CURRENT") && <OverdueBadge />}
                 </div>
                 {row.dueDate ? (
-                  <span className={`text-[10px] font-semibold ${(row.agingBucket !== "CURRENT") ? 'text-red-600' : 'text-slate-500'}`}>
+                  <span className={`text-xs font-semibold ${(row.agingBucket !== "CURRENT") ? 'text-red-600' : 'text-slate-500'}`}>
                     Tempo: {formatDate(row.dueDate)}
                   </span>
                 ) : (
-                  <span className="text-[10px] text-slate-400">Tanpa tempo</span>
+                  <span className="text-xs text-slate-400">Tanpa tempo</span>
                 )}
               </div>
               <Button size="sm" onClick={() => onTerimaPayment(row)} className="h-7 px-2.5 text-[11px] font-bold uppercase bg-white/50 border border-slate-300 text-slate-700 hover:bg-slate-100 shadow-sm">

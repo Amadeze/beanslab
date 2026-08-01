@@ -10,37 +10,7 @@
   --font-heading: var(--font-space-grotesk);
   --font-mono: var(--font-jetbrains-mono);
 
-  --font-body-lg: "DM Sans";
-  --font-headline-lg: "Space Grotesk";
-  --font-label-caps: "JetBrains Mono";
-  --font-display-lg: "Space Grotesk";
-  --font-metric-xl: "Space Grotesk";
-  --font-headline-lg-mobile: "Space Grotesk";
-  --font-headline-md: "Space Grotesk";
-  --font-body-md: "DM Sans";
-
-  --text-body-lg: 18px;
-  --text-body-lg--line-height: 28px;
-  --text-headline-lg: 48px;
-  --text-headline-lg--line-height: 56px;
-  --text-label-caps: 13px;
-  --text-label-caps--line-height: 16px;
-  --text-display-lg: 72px;
-  --text-display-lg--line-height: 80px;
-  --text-metric-xl: 56px;
-  --text-metric-xl--line-height: 64px;
-  --text-headline-md: 28px;
-  --text-headline-md--line-height: 36px;
-  --text-body-md: 16px;
-  --text-body-md--line-height: 24px;
-
-  --spacing-container-margin: 32px;
-  --spacing-stack-lg: 80px;
-  --spacing-gutter: 32px;
-  --spacing-base: 8px;
-  --spacing-stack-sm: 16px;
-  --spacing-stack-md: 40px;
-
+  /* Radius scale — single source of truth is --radius in :root */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -48,6 +18,7 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-card: 14px;
 
   /* Design system colors */
   --color-obsidian: var(--obsidian);
@@ -488,7 +459,7 @@
   .page-surface {
     background: var(--surface-raised);
     border: 1px solid var(--technical-line);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     box-shadow: 0 1px 0 rgba(5, 9, 13, 0.04);
   }
 
@@ -515,7 +486,7 @@
   .instrument-surface {
     background: var(--surface-raised);
     border: 1px solid var(--technical-line);
-    border-radius: 14px;
+    border-radius: var(--radius-card);
     box-shadow: 0 1px 0 rgba(5, 9, 13, 0.04);
   }
 
@@ -585,7 +556,7 @@
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    border-radius: 14px;
+    border-radius: var(--radius-card);
   }
   .glass-card:hover {
     background: var(--glass-bg-hover);
@@ -597,7 +568,7 @@
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
-    border-radius: 14px;
+    border-radius: var(--radius-card);
   }
 
   /* ── Animations ── */
@@ -654,6 +625,24 @@
   background-color: var(--surface);
 }
 
+.ros-workspace :where(.bg-slate-100, .bg-stone-100, .bg-zinc-100, .bg-gray-100) {
+  background-color: var(--surface);
+}
+
+.ros-workspace :where(.bg-slate-200, .bg-stone-200, .bg-zinc-200, .bg-gray-200) {
+  background-color: var(--muted);
+}
+
+.ros-workspace :where(.bg-slate-300, .bg-stone-300, .bg-zinc-300, .bg-gray-300) {
+  background-color: var(--technical-line);
+}
+
+.ros-workspace :where(.bg-slate-800, .bg-stone-800, .bg-zinc-800, .bg-gray-800,
+  .bg-slate-900, .bg-stone-900, .bg-zinc-900, .bg-gray-900,
+  .bg-slate-950, .bg-stone-950, .bg-zinc-950, .bg-gray-950) {
+  background-color: var(--obsidian);
+}
+
 .ros-workspace :where(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700,
   .text-stone-950, .text-stone-900, .text-stone-800, .text-stone-700,
   .text-zinc-950, .text-zinc-900, .text-zinc-800, .text-zinc-700,
@@ -666,6 +655,13 @@
   .text-zinc-600, .text-zinc-500, .text-zinc-400,
   .text-gray-600, .text-gray-500, .text-gray-400) {
   color: var(--muted-foreground);
+}
+
+.ros-workspace :where(.text-slate-200, .text-slate-300,
+  .text-stone-200, .text-stone-300,
+  .text-zinc-200, .text-zinc-300,
+  .text-gray-200, .text-gray-300) {
+  color: var(--text-tertiary);
 }
 
 .ros-workspace :where(.border-slate-100, .border-slate-200, .border-slate-300,
