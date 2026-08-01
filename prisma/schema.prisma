@@ -312,6 +312,12 @@ model Tenant {
   storefrontTaxRate             Decimal  @default(0) @db.Decimal(5, 2)
   storefrontReservationMinutes  Int      @default(1440)
 
+  // Tax (PPN/PPh) configuration — toggle ON/OFF per tenant (pola Odoo/QuickBooks).
+  // Saat OFF: form invoice/kasir menyembunyikan seksi pajak dan memaksa tax = 0.
+  // Perubahan setting TIDAK mengubah invoice historis.
+  taxEnabled     Boolean @default(false)
+  defaultTaxRate Decimal @default(11) @db.Decimal(5, 2)
+
   // Subscription & Billing Fields
   subscriptionTier   SubscriptionTier   @default(TRIAL)
   subscriptionStatus SubscriptionStatus @default(ACTIVE)
@@ -770,10 +776,6 @@ model Purchase {
   pricePerUnit Decimal @db.Decimal(12, 2) // per kg (GB) atau per unit (PKG)
   shippingCost Decimal @default(0) @db.Decimal(12, 2) // ongkos kirim total
   totalCost    Decimal @db.Decimal(14, 2) // = qty * pricePerUnit + shippingCost (dihitung server)
-
-  // Lot & FEFO
-  lotNumber      String? // nomor lot dari supplier
-  bestBeforeDate DateTime? // tanggal terbaik dikonsumsi
 
   status        TransactionStatus     @default(PENDING)
   paymentStatus PurchasePaymentStatus @default(PAID)

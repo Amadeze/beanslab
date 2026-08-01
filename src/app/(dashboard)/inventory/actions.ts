@@ -12,6 +12,7 @@ import {
 } from "@/lib/purchase-payments";
 import { getBatchReorderSummaries } from "@/lib/reorder";
 import { postPurchase, postStockAdjustment } from "@/lib/posting";
+import { summarizeLotInventory, type LotOperationalStatus } from "@/lib/lot";
 
 // =============================================================================
 // TYPES — semua Decimal dikonversi ke number agar bisa di-serialize ke client
@@ -46,6 +47,17 @@ export type FGStockRow = {
   latestHppPerUnit: number | null;
 };
 
+export type ProductLotRow = {
+  id: string;
+  batchCode: string;
+  expiryDate: string | null;
+  receivedAt: string;
+  supplierName: string | null;
+  remainingKg: number;
+  remainingUnit: number;
+  status: LotOperationalStatus;
+};
+
 export type SupplierOption = {
   id: string;
   code: string;
@@ -67,6 +79,7 @@ export type InventoryPageData = {
   suppliers: SupplierOption[];
   gbProducts: GBProductOption[];
   sampleConsumption: SampleConsumptionSummary;
+  lotsByProduct: Record<string, ProductLotRow[]>;
 };
 
 export type SampleConsumptionSummary = {
@@ -341,7 +354,7 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [gbStocks, rbStocks, pkgStocks, fgStocks, ledgerEntries, suppliers, gbProducts, sampleConsumption] =
+  const [gbStocks, rbStocks, pkgStocks, fgStocks, ledgerEntries, suppliers, gbProducts, sampleConsumption, lots] =
     await Promise.all([
       fetchProductStocks("GREEN_BEAN"),
       fetchProductStocks("ROASTED_BEAN"),
@@ -359,9 +372,62 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
         orderBy: { name: "asc" },
       }),
       fetchSampleConsumption(monthStart, now),
+      tp.lot.findMany({
+        where: {
+          OR: [{ productId: { not: null } }, { packagingId: { not: null } }],
+        },
+        select: {
+          id: true,
+          productId: true,
+          packagingId: true,
+          batchCode: true,
+          expiryDate: true,
+          receivedAt: true,
+          quantityKg: true,
+          quantityUnit: true,
+          consumedAt: true,
+          supplier: { select: { name: true } },
+          inventoryLedgers: {
+            select: { entryType: true, quantityKg: true, quantityUnit: true },
+          },
+        },
+      }),
     ]);
 
-  return { gbStocks, rbStocks, pkgStocks, fgStocks, ledgerEntries, suppliers, gbProducts, sampleConsumption };
+  const lotsByProduct: Record<string, ProductLotRow[]> = {};
+  for (const lot of lots) {
+    const key = lot.productId ?? lot.packagingId;
+    if (!key) continue;
+    const inv = summarizeLotInventory({
+      originalKg: lot.quantityKg,
+      originalUnit: lot.quantityUnit,
+      ledgers: lot.inventoryLedgers,
+      expiryDate: lot.expiryDate,
+      consumedAt: lot.consumedAt,
+      now,
+    });
+    if (inv.status === "consumed") continue;
+    (lotsByProduct[key] ??= []).push({
+      id: lot.id,
+      batchCode: lot.batchCode,
+      expiryDate: lot.expiryDate?.toISOString() ?? null,
+      receivedAt: lot.receivedAt.toISOString(),
+      supplierName: lot.supplier?.name ?? null,
+      remainingKg: inv.remainingKg,
+      remainingUnit: inv.remainingUnit,
+      status: inv.status,
+    });
+  }
+  for (const key of Object.keys(lotsByProduct)) {
+    lotsByProduct[key].sort((a, b) => {
+      if (a.expiryDate === null && b.expiryDate === null) return a.batchCode.localeCompare(b.batchCode);
+      if (a.expiryDate === null) return 1;
+      if (b.expiryDate === null) return -1;
+      return a.expiryDate.localeCompare(b.expiryDate);
+    });
+  }
+
+  return { gbStocks, rbStocks, pkgStocks, fgStocks, ledgerEntries, suppliers, gbProducts, sampleConsumption, lotsByProduct };
 }
 
 // Tambah packaging options ke page data helper
@@ -473,8 +539,6 @@ export async function createGreenBeanPurchase(
           paidAmount: payment.paidAmount,
           dueDate,
           receivedAt,
-          lotNumber: input.lotNumber ?? null,
-          bestBeforeDate: input.bestBeforeDate ? new Date(`${input.bestBeforeDate}T00:00:00`) : null,
           notes: input.notes ?? null,
           createdById: userId,
         },
@@ -645,8 +709,6 @@ export async function createPackagingPurchase(
           paidAmount:   payment.paidAmount,
           dueDate,
           receivedAt,
-          lotNumber: input.lotNumber ?? null,
-          bestBeforeDate: input.bestBeforeDate ? new Date(`${input.bestBeforeDate}T00:00:00`) : null,
           notes:        input.notes ?? null,
           createdById:  userId,
         },
@@ -827,7 +889,7 @@ export async function adjustStock(input: {
       throw new Error("Kuantitas penyesuaian harus lebih dari 0");
     }
 
-    const refId = input.operationKey || "OPNAME-" + Date.now();
+    const refId = input.operationKey || "OPNAME-" + randomBytes(6).toString("hex").toUpperCase();
 
     if (input.operationKey) {
       const existing = await (await requireTenantPrisma()).inventoryLedger.findFirst({
