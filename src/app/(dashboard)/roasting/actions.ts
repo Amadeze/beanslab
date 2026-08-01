@@ -689,28 +689,6 @@ export async function createParentRoastingBatch(
 
       // If MANUAL, also add RB immediately
       if (parsed.mode === "MANUAL") {
-        await tx.inventoryLedger.createMany({
-          data: [
-            {
-              tenantId,
-              entryType: "OUT",
-              refType: "ROASTING_GB_OUT",
-              refId: batch.id,
-              productId: parsed.inputProductId,
-              quantityKg: parsed.targetWeightKg,
-              createdById: userId,
-            },
-            {
-              tenantId,
-              entryType: "IN",
-              refType: "ROASTING_RB_IN",
-              refId: batch.id,
-              productId: outputProduct.id,
-              quantityKg: Number(parsed.actualOutputKg),
-              createdById: userId,
-            },
-          ],
-        });
         const outputLot = await tx.lot.create({
           data: {
             tenantId,

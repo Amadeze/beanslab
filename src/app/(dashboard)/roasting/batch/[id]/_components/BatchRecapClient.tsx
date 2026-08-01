@@ -180,7 +180,7 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
                         {r?.title || `Batch ${child.index}`}
                       </span>
                       {r && (
-                        <span className="text-[10px] text-[var(--text-tertiary)]">
+                        <span className="text-xs text-[var(--text-tertiary)]">
                           {r.duration ? formatDuration(r.duration) : ""}
                         </span>
                       )}
@@ -188,7 +188,7 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
                         <MatchBadge score={child.matchScore} status={child.matchStatus} />
                       )}
                     </div>
-                    <div className="text-[10px] text-[var(--text-tertiary)]">
+                    <div className="text-xs text-[var(--text-tertiary)]">
                       {r ? (
                         <>
                           {r.greenWeightGrams}g → {r.roastedWeightGrams}g
@@ -222,7 +222,7 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
                     </div>
 
                     {child.matchDetails && (
-                      <div className="flex flex-wrap gap-3 rounded-lg border border-[var(--glass-border)] px-3 py-2 text-[10px] text-[var(--text-secondary)]">
+                      <div className="flex flex-wrap gap-3 rounded-lg border border-[var(--glass-border)] px-3 py-2 text-xs text-[var(--text-secondary)]">
                         <span>BT RMSE <b>{child.matchDetails.btRmse ?? "-"}Â°C</b></span>
                         <span>RoR RMSE <b>{child.matchDetails.rorRmse ?? "-"}</b></span>
                         <span>Durasi Î” <b>{child.matchDetails.durationDeltaSeconds ?? "-"} detik</b></span>
@@ -263,10 +263,10 @@ function SummaryCard({
     <div className="glass-card rounded-xl p-4">
       <div className="flex items-center gap-1.5 text-[var(--text-tertiary)] mb-2">
         {icon}
-        <span className="text-[10px] font-medium uppercase tracking-wider">{label}</span>
+        <span className="text-xs font-medium uppercase tracking-wider">{label}</span>
       </div>
       <p className={`text-lg font-bold ${valueClass || "text-[var(--text-primary)]"}`}>{value}</p>
-      {sub && <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -274,7 +274,7 @@ function SummaryCard({
 function InfoField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-tertiary)] mb-0.5">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-tertiary)] mb-0.5">{label}</p>
       <p className="text-sm text-[var(--text-primary)]">{value}</p>
     </div>
   );
@@ -283,7 +283,7 @@ function InfoField({ label, value }: { label: string; value: string }) {
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-[var(--glass-border)] p-2">
-      <p className="text-[10px] text-[var(--text-tertiary)]">{label}</p>
+      <p className="text-xs text-[var(--text-tertiary)]">{label}</p>
       <p className="text-sm font-bold text-[var(--text-primary)]">{value}</p>
     </div>
   );

@@ -279,7 +279,7 @@ export function RoastsClient({ roasts }: { roasts: RoastProfileRow[] }) {
                       <MiniChart data={tempData} color="currentColor" />
                     </div>
                   ) : (
-                    <span className="hidden text-[10px] text-[var(--text-tertiary)] lg:block">
+                    <span className="hidden text-xs text-[var(--text-tertiary)] lg:block">
                       Tanpa kurva
                     </span>
                   )}
@@ -413,7 +413,7 @@ export function RoastsClient({ roasts }: { roasts: RoastProfileRow[] }) {
                                 <h4 className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
                                   Kurva temperatur
                                 </h4>
-                                <span className="text-[10px] text-[var(--text-tertiary)]">
+                                <span className="text-xs text-[var(--text-tertiary)]">
                                   {roast.beanTemperatureSeries.length} titik
                                   data
                                 </span>
@@ -451,7 +451,7 @@ function StatCard({
     <div className="bg-[var(--glass-bg)] p-3">
       <div className="flex items-center gap-1.5 text-[var(--text-tertiary)] mb-1">
         {icon}
-        <span className="text-[10px] font-medium uppercase tracking-wider">
+        <span className="text-xs font-medium uppercase tracking-wider">
           {label}
         </span>
       </div>
@@ -714,7 +714,7 @@ function LinkToBatchButton({
                         {batch.code}
                       </p>
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                           batch.status === "COMPLETED"
                             ? "bg-emerald-500/10 text-emerald-600"
                             : batch.status === "PENDING"
@@ -729,7 +729,7 @@ function LinkToBatchButton({
                       {batch.inputProduct.name} → {batch.outputProduct.name}
                     </p>
                     {batch.roastId && (
-                      <p className="text-[10px] text-amber-600 mt-1">
+                      <p className="text-xs text-amber-600 mt-1">
                         Sudah terhubung ke roast lain
                       </p>
                     )}
