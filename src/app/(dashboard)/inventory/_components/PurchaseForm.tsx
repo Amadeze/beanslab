@@ -133,6 +133,7 @@ export function PurchaseForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
   const [showOptionalDetails, setShowOptionalDetails] = useState(false);
+  const [step, setStep] = useState(1);
 
   const {
     register,
@@ -234,216 +235,285 @@ export function PurchaseForm({
 
   return (
     <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-5 relative">
-      {/* ── Supplier ── */}
-      <FieldGroup>
-        <div className="flex items-center justify-between gap-3">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-            Supplier <span className="text-red-500">*</span>
-          </Label>
-          {onAddSupplier && (
-            <button type="button" onClick={onAddSupplier} className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 hover:text-amber-800">
-              <Plus size={12} /> Supplier baru
-            </button>
-          )}
-        </div>
-        <select
-          className={cn(
-            "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
-            glassInput,
-            errors.supplierId ? "border-red-500 ring-2 ring-red-500/20" : ""
-          )}
-          {...register("supplierId")}
-        >
-          <option value="" disabled>Pilih supplier...</option>
-          {suppliers.length === 0 ? (
-            <option value="_empty" disabled>Belum ada supplier</option>
-          ) : (
-            suppliers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))
-          )}
-        </select>
-        <FieldError message={errors.supplierId?.message} />
-      </FieldGroup>
-
-      {/* ── Tanggal ── */}
-      <FieldGroup>
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-          Tanggal Terima <span className="text-red-500">*</span>
-        </Label>
-        <Input
-          type="date"
-          className={cn("h-9", glassInput)}
-          {...register("receivedAt")}
-        />
-        <FieldError message={errors.receivedAt?.message} />
-      </FieldGroup>
-
-      {/* ── Produk ── */}
-      <div className="flex items-center justify-between gap-3">
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-          Green Bean <span className="text-red-500">*</span>
-        </Label>
-        <button
-          type="button"
-          onClick={() => setValue("productMode", productMode === "existing" ? "new" : "existing", { shouldDirty: true })}
-          className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 hover:text-amber-900"
-        >
-          <Plus size={12} /> {productMode === "existing" ? "Produk baru" : "Pilih produk lama"}
-        </button>
+      
+      {/* ── Wizard Progress ── */}
+      <div className="flex items-center gap-2 mb-6">
+        {[1, 2, 3].map((s) => (
+          <div key={s} className="flex-1">
+            <div className={cn(
+              "h-1.5 rounded-full transition-colors",
+              step >= s ? "bg-amber-600" : "bg-white/40"
+            )} />
+            <p className={cn(
+              "text-[10px] uppercase font-bold mt-1.5 tracking-wider transition-colors",
+              step >= s ? "text-amber-800" : "text-slate-400"
+            )}>
+              {s === 1 ? "Supplier" : s === 2 ? "Produk" : "Pembayaran"}
+            </p>
+          </div>
+        ))}
       </div>
 
-      {/* ── Pilih existing ── */}
-      {productMode === "existing" && (
-        <FieldGroup>
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Pilih Green Bean</Label>
-          <select
-            className={cn(
-              "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
-              glassInput,
-              errors.productId ? "border-red-500 ring-2 ring-red-500/20" : ""
-            )}
-            {...register("productId")}
-          >
-            <option value="" disabled>Pilih produk...</option>
-            {gbProducts.length === 0 ? (
-              <option value="_empty" disabled>Belum ada produk GB</option>
-            ) : (
-              gbProducts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} {p.origin ? ` — ${p.origin}` : ""}
-                </option>
-              ))
-            )}
-          </select>
-          <FieldError message={errors.productId?.message} />
-        </FieldGroup>
-      )}
-
-      {/* ── Produk baru ── */}
-      {productMode === "new" && (
-        <div className={cn(glassCard, "space-y-4")}>
+      {step === 1 && (
+        <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+          {/* ── Supplier ── */}
           <FieldGroup>
-            <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-              Nama Green Bean <span className="text-red-500">*</span>
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                Supplier <span className="text-red-500">*</span>
+              </Label>
+              {onAddSupplier && (
+                <button type="button" onClick={onAddSupplier} className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-800">
+                  <Plus size={12} /> Supplier baru
+                </button>
+              )}
+            </div>
+            <select
+              className={cn(
+                "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
+                glassInput,
+                errors.supplierId ? "border-red-500 ring-2 ring-red-500/20" : ""
+              )}
+              {...register("supplierId")}
+            >
+              <option value="" disabled>Pilih supplier...</option>
+              {suppliers.length === 0 ? (
+                <option value="_empty" disabled>Belum ada supplier</option>
+              ) : (
+                suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))
+              )}
+            </select>
+            <FieldError message={errors.supplierId?.message} />
+          </FieldGroup>
+
+          {/* ── Tanggal ── */}
+          <FieldGroup>
+            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+              Tanggal Terima <span className="text-red-500">*</span>
             </Label>
             <Input
-              placeholder="e.g. Gayo Natural, Ethiopia Yirgacheffe"
-              className={cn("h-9 font-medium", glassInput)}
-              {...register("productName")}
-            />
-            <FieldError message={errors.productName?.message} />
-          </FieldGroup>
-          <FieldGroup>
-            <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Asal / Origin</Label>
-            <Input
-              placeholder="e.g. Aceh, Ethiopia, Flores"
+              type="date"
               className={cn("h-9", glassInput)}
-              {...register("productOrigin")}
+              {...register("receivedAt")}
             />
+            <FieldError message={errors.receivedAt?.message} />
           </FieldGroup>
         </div>
       )}
 
-      {/* ── Berat & Harga ── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <FieldGroup>
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-            Berat (kg) <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            type="number"
-            step="0.001"
-            min="0"
-            placeholder="0.000"
-            className={cn("h-9 tabular-nums font-semibold", glassInput)}
-            {...register("weightKg", { valueAsNumber: true })}
-          />
-          <FieldError message={errors.weightKg?.message} />
-        </FieldGroup>
+      {step === 2 && (
+        <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+          {/* ── Produk ── */}
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+              Green Bean <span className="text-red-500">*</span>
+            </Label>
+            <button
+              type="button"
+              onClick={() => setValue("productMode", productMode === "existing" ? "new" : "existing", { shouldDirty: true })}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-900"
+            >
+              <Plus size={12} /> {productMode === "existing" ? "Produk baru" : "Pilih produk lama"}
+            </button>
+          </div>
 
-        <FieldGroup>
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-            Total Pembelian <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            type="number"
-            step="1"
-            min="0"
-            placeholder="0"
-            className={cn("h-9 tabular-nums font-semibold", glassInput)}
-            {...register("totalCost", { valueAsNumber: true })}
-          />
-          <FieldError message={errors.totalCost?.message} />
-        </FieldGroup>
-
-        <FieldGroup>
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-            Ongkir <span className="font-medium normal-case tracking-normal text-slate-400">(opsional)</span>
-          </Label>
-          <Input
-            type="number"
-            step="1"
-            min="0"
-            placeholder="0"
-            className={cn("h-9 tabular-nums font-semibold", glassInput)}
-            {...register("shippingCost", { valueAsNumber: true })}
-          />
-          <p className="text-[10px] leading-4 text-slate-500">Bagian dari total pembelian</p>
-          <FieldError message={errors.shippingCost?.message} />
-        </FieldGroup>
-      </div>
-
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-bold text-emerald-900">Serba otomatis setelah disimpan</p>
-          <p className="whitespace-nowrap text-xs font-bold tabular-nums text-emerald-800">
-            {hppPerKg > 0 ? `${formatRupiah(hppPerKg)}/kg` : "HPP otomatis"}
-          </p>
-        </div>
-        <p className="mt-0.5 text-[11px] leading-4 text-emerald-700">
-          ID barang datang = kode lot · stok & ledger · HPP & jurnal · urutan FIFO/FEFO
-        </p>
-      </div>
-
-      {/* ── Semua isian non-wajib ── */}
-      <button
-        type="button"
-        onClick={() => setShowOptionalDetails((current) => !current)}
-        className="flex w-full items-center justify-between rounded-xl border border-white/60 bg-white/30 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-white/50"
-        aria-expanded={showOptionalDetails}
-      >
-        Detail opsional
-        <ChevronDown size={14} className={cn("transition-transform", showOptionalDetails && "rotate-180")} />
-      </button>
-      {showOptionalDetails && (
-        <div className={cn(glassCard, "space-y-4")}>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* ── Pilih existing ── */}
+          {productMode === "existing" && (
             <FieldGroup>
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-                Tanggal Review Mutu
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Pilih Green Bean</Label>
+              <select
+                className={cn(
+                  "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
+                  glassInput,
+                  errors.productId ? "border-red-500 ring-2 ring-red-500/20" : ""
+                )}
+                {...register("productId")}
+              >
+                <option value="" disabled>Pilih produk...</option>
+                {gbProducts.length === 0 ? (
+                  <option value="_empty" disabled>Belum ada produk GB</option>
+                ) : (
+                  gbProducts.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.origin ? ` — ${p.origin}` : ""}
+                    </option>
+                  ))
+                )}
+              </select>
+              <FieldError message={errors.productId?.message} />
+            </FieldGroup>
+          )}
+
+          {/* ── Produk baru ── */}
+          {productMode === "new" && (
+            <div className={cn(glassCard, "space-y-4")}>
+              <FieldGroup>
+                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                  Nama Green Bean <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  placeholder="e.g. Gayo Natural, Ethiopia Yirgacheffe"
+                  className={cn("h-9 font-medium", glassInput)}
+                  {...register("productName")}
+                />
+                <FieldError message={errors.productName?.message} />
+              </FieldGroup>
+              <FieldGroup>
+                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Asal / Origin</Label>
+                <Input
+                  placeholder="e.g. Aceh, Ethiopia, Flores"
+                  className={cn("h-9", glassInput)}
+                  {...register("productOrigin")}
+                />
+              </FieldGroup>
+            </div>
+          )}
+
+          {/* ── Berat & Harga ── */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FieldGroup>
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                Berat (kg) <span className="text-red-500">*</span>
               </Label>
               <Input
-                type="date"
-                className={cn("h-9", glassInput)}
-                {...register("bestBeforeDate")}
+                type="number"
+                step="0.001"
+                min="0"
+                placeholder="0.000"
+                className={cn("h-9 tabular-nums font-semibold", glassInput)}
+                {...register("weightKg", { valueAsNumber: true })}
               />
-              <FieldError message={errors.bestBeforeDate?.message} />
+              <FieldError message={errors.weightKg?.message} />
+            </FieldGroup>
+
+            <FieldGroup>
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                Total Pembelian <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="number"
+                step="1"
+                min="0"
+                placeholder="0"
+                className={cn("h-9 tabular-nums font-semibold", glassInput)}
+                {...register("totalCost", { valueAsNumber: true })}
+              />
+              <FieldError message={errors.totalCost?.message} />
+            </FieldGroup>
+
+            <FieldGroup>
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                Ongkir <span className="font-medium normal-case tracking-normal text-slate-400">(opsional)</span>
+              </Label>
+              <Input
+                type="number"
+                step="1"
+                min="0"
+                placeholder="0"
+                className={cn("h-9 tabular-nums font-semibold", glassInput)}
+                {...register("shippingCost", { valueAsNumber: true })}
+              />
+              <p className="text-xs leading-4 text-slate-500">Bagian dari total pembelian</p>
+              <FieldError message={errors.shippingCost?.message} />
             </FieldGroup>
           </div>
 
-          <PurchasePaymentSection
-            register={register}
-            setValue={setValue}
-            errors={errors}
-            paymentStatus={paymentStatus}
-          />
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-bold text-emerald-900">Serba otomatis setelah disimpan</p>
+              <p className="whitespace-nowrap text-xs font-bold tabular-nums text-emerald-800">
+                {hppPerKg > 0 ? `${formatRupiah(hppPerKg)}/kg` : "HPP otomatis"}
+              </p>
+            </div>
+            <p className="mt-0.5 text-[11px] leading-4 text-emerald-700">
+              ID barang datang = kode lot · stok & ledger · HPP & jurnal · urutan FIFO/FEFO
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Hidden submit — dipanggil via tombol di drawer footer */}
+      {step === 3 && (
+        <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+          <div className={cn(glassCard, "space-y-4")}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldGroup>
+                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                  Best Before / Review Mutu
+                </Label>
+                <Input
+                  type="date"
+                  className={cn("h-9", glassInput)}
+                  {...register("bestBeforeDate")}
+                />
+                <FieldError message={errors.bestBeforeDate?.message} />
+              </FieldGroup>
+            </div>
+
+            <PurchasePaymentSection
+              register={register}
+              setValue={setValue}
+              errors={errors}
+              paymentStatus={paymentStatus}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Wizard Navigation ── */}
+      <div className="flex items-center justify-between pt-4 border-t border-white/60">
+        {step > 1 ? (
+          <button
+            type="button"
+            onClick={() => setStep(step - 1)}
+            className="rounded-xl border border-white/60 bg-white/30 px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-white/50 transition-all"
+          >
+            Kembali
+          </button>
+        ) : <div />}
+        
+        {step < 3 ? (
+          <button
+            type="button"
+            onClick={async () => {
+              // Basic validation before next
+              if (step === 1) {
+                const s = watch("supplierId");
+                const r = watch("receivedAt");
+                if (!s || !r) {
+                  toastSafe.error("Lengkapi supplier dan tanggal");
+                  return;
+                }
+              }
+              if (step === 2) {
+                const w = watch("weightKg");
+                const tc = watch("totalCost");
+                if (!w || !tc || w <= 0 || tc <= 0) {
+                  toastSafe.error("Lengkapi berat dan total pembelian");
+                  return;
+                }
+              }
+              setStep(step + 1);
+            }}
+            className="rounded-xl bg-amber-600 px-6 py-2 text-sm font-bold text-white shadow-sm hover:bg-amber-700 transition-all"
+          >
+            Lanjut
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+            className="rounded-xl bg-amber-600 px-6 py-2 text-sm font-bold text-white shadow-sm hover:bg-amber-700 transition-all disabled:opacity-50"
+          >
+            {isSubmitting ? "Menyimpan..." : "Simpan Pembelian"}
+          </button>
+        )}
+      </div>
+
       <button type="submit" className="hidden" aria-hidden disabled={isSubmitting} />
     </form>
   );

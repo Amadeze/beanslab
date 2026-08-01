@@ -25,7 +25,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 import { formatRupiah } from "@/lib/format";
-import { calculateTax } from "@/lib/tax";
+import { calculateTax, type TaxConfig } from "@/lib/tax";
+import { getTenantTaxConfig } from "@/lib/tax-server";
 import {
   createInvoice,
   type ContractPriceOption,
@@ -54,7 +55,7 @@ const schema = z.object({
   pphType: z.string().optional(),
   status: z.enum(["PAID", "ISSUED"]),
   salesChannel: z.enum(["WALK_IN", "WHATSAPP", "MARKETPLACE", "B2B_DIRECT", "OTHER"]).optional(),
-  paymentMethod: z.string().optional(),
+  paymentMethod: z.enum(["CASH", "TRANSFER", "QRIS", "CREDIT"]).optional(),
   dueDate: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -166,10 +167,23 @@ export function InvoiceForm({
   onAddCustomer,
   preferredCustomerId,
 }: InvoiceFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
   const today = getTodayString();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [step, setStep] = useState(1);
+  const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
+  const [taxConfig, setTaxConfig] = useState<TaxConfig | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getTenantTaxConfig().then((config) => {
+      if (!cancelled) {
+        setTaxConfig(config);
+        setValue("taxType", undefined, { shouldDirty: false });
+      }
+    }).catch(() => { /* fallback ke default terhitung */ });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const {
     register,
@@ -202,7 +216,7 @@ export function InvoiceForm({
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
 
-  const [watchedItems, invoiceDiscount, tax, taxType, customTaxRate, status, paymentMethod, selectedCustomerId] = watch([
+  const [watchedItems, invoiceDiscount, tax, taxType, customTaxRate, status, paymentMethod, selectedCustomerId, pphTypeFromWatch] = watch([
     "items",
     "invoiceDiscount",
     "tax",
@@ -211,6 +225,7 @@ export function InvoiceForm({
     "status",
     "paymentMethod",
     "customerId",
+    "pphType",
   ]);
 
   const resolvePreviewPrice = (product: FGStockOption, quantity: number) => {
@@ -234,13 +249,12 @@ export function InvoiceForm({
   }, 0);
 
   const effectiveTax = taxType
-    ? calculateTax(subtotal, Number(invoiceDiscount) || 0, taxType, customTaxRate, null).taxAmount
+    ? calculateTax(subtotal, Number(invoiceDiscount) || 0, taxType, customTaxRate, pphTypeFromWatch, taxConfig ?? undefined).taxAmount
     : (Number(tax) || 0);
   const grandTotal = subtotal - (Number(invoiceDiscount) || 0) + effectiveTax;
 
   const onSubmit = async (values: FormValues) => {
     if (isSubmitting) return;
-    // Cross-field validation
     if (values.status === "PAID" && !values.paymentMethod) {
       toast.error("Pilih metode pembayaran untuk nota Lunas.");
       return;
@@ -264,8 +278,8 @@ export function InvoiceForm({
         customTaxRate: values.customTaxRate,
         pphType: values.pphType,
         status: values.status,
-        salesChannel: values.salesChannel as any,
-        paymentMethod: values.paymentMethod as any,
+        salesChannel: values.salesChannel,
+        paymentMethod: values.paymentMethod,
         dueDate: values.dueDate || undefined,
         notes: values.notes,
       });
@@ -277,7 +291,7 @@ export function InvoiceForm({
 
       toast.success(`Nota ${result.invoiceCode || ""} berhasil diterbitkan!`);
       reset();
-      setShowAdvanced(false);
+      setStep(1);
       setOperationKey(crypto.randomUUID());
       onSuccess(result.invoiceId);
     } catch (err) {
@@ -290,438 +304,525 @@ export function InvoiceForm({
   };
 
   return (
-    <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Customer */}
-      <div className="space-y-1.5">
-        <div className="flex justify-between items-center mb-1">
-          <Label className="text-xs font-semibold text-slate-700">
-            Customer <span className="text-red-500">*</span>
-          </Label>
-          {onAddCustomer && (
-            <button
-              type="button"
-              onClick={onAddCustomer}
-              className="flex items-center gap-1 text-[10px] text-cyan-600 hover:text-cyan-700 font-medium bg-cyan-50/80 px-2 py-0.5 rounded-md transition-colors border border-cyan-100"
-            >
-              <Plus size={12} /> Pelanggan Baru
-            </button>
-          )}
-        </div>
-        <Controller
-          control={control}
-          name="customerId"
-          render={({ field }) => {
-            const selectedCustomer = customers.find((c) => c.id === field.value);
-            return (
-              <Popover>
-                <PopoverTrigger
-                  role="combobox"
-                  className={cn(
-                    "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-                    glassInput,
-                    !field.value && "text-slate-500"
-                  )}
-                >
-                  {selectedCustomer ? (
-                    <span>
-                      {selectedCustomer.name}
-                      {selectedCustomer.phone && <span className="text-slate-400 ml-1">· {selectedCustomer.phone}</span>}
-                    </span>
-                  ) : (
-                    "Cari dan pilih customer..."
-                  )}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white/95 backdrop-blur-xl border-white/60">
-                  <Command>
-                    <CommandInput placeholder="Ketik nama atau nomor telepon..." />
-                    <CommandList>
-                      <CommandEmpty>Pelanggan tidak ditemukan.</CommandEmpty>
-                      <CommandGroup>
-                        {customers.map((c) => (
-                          <CommandItem
-                            value={`${c.name} ${c.phone || ""}`}
-                            key={c.id}
-                            onSelect={() => {
-                              field.onChange(c.id);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                c.id === field.value ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {c.name}
-                            {c.phone && <span className="text-slate-400 ml-1">· {c.phone}</span>}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            );
-          }}
-        />
-        <FieldError message={errors.customerId?.message} />
+    <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-6 relative">
+      
+      {/* ── Wizard Progress ── */}
+      <div className="flex items-center gap-2 mb-6">
+        {[1, 2, 3].map((s) => (
+          <div key={s} className="flex-1">
+            <div className={cn(
+              "h-1.5 rounded-full transition-colors",
+              step >= s ? "bg-cyan-500" : "bg-white/40"
+            )} />
+            <p className={cn(
+              "text-[10px] uppercase font-bold mt-1.5 tracking-wider transition-colors",
+              step >= s ? "text-cyan-800" : "text-slate-400"
+            )}>
+              {s === 1 ? "Keranjang" : s === 2 ? "Pembayaran" : "Opsi Lanjut & Ringkasan"}
+            </p>
+          </div>
+        ))}
       </div>
 
-      <Separator className="bg-white/50" />
+      {step === 1 && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+          {/* Customer Selection */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-center">
+              <Label className="text-xs uppercase font-bold text-slate-500 tracking-wider">
+                Pelanggan <span className="text-red-500">*</span>
+              </Label>
+              {onAddCustomer && (
+                <button
+                  type="button"
+                  onClick={onAddCustomer}
+                  className="flex items-center gap-1 text-xs text-cyan-600 hover:text-cyan-700 font-medium bg-cyan-50/80 px-2 py-0.5 rounded-md transition-colors border border-cyan-100"
+                >
+                  <Plus size={12} /> Pelanggan Baru
+                </button>
+              )}
+            </div>
+            <Controller
+              control={control}
+              name="customerId"
+              render={({ field }) => {
+                const selectedCustomer = customers.find((c) => c.id === field.value);
+                return (
+                  <Popover>
+                    <PopoverTrigger
+                      role="combobox"
+                      className={cn(
+                        "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                        glassInput,
+                        !field.value && "text-slate-500"
+                      )}
+                    >
+                      {selectedCustomer ? (
+                        <span>
+                          {selectedCustomer.name}
+                          {selectedCustomer.phone && <span className="text-slate-400 ml-1">· {selectedCustomer.phone}</span>}
+                        </span>
+                      ) : (
+                        "Cari dan pilih customer..."
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white/95 backdrop-blur-xl border-white/60">
+                      <Command>
+                        <CommandInput placeholder="Ketik nama atau nomor telepon..." />
+                        <CommandList>
+                          <CommandEmpty>Pelanggan tidak ditemukan.</CommandEmpty>
+                          <CommandGroup>
+                            {customers.map((c) => (
+                              <CommandItem
+                                value={`${c.name} ${c.phone || ""}`}
+                                key={c.id}
+                                onSelect={() => {
+                                  field.onChange(c.id);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    c.id === field.value ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {c.name}
+                                {c.phone && <span className="text-slate-400 ml-1">· {c.phone}</span>}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                );
+              }}
+            />
+            <FieldError message={errors.customerId?.message} />
+          </div>
 
-      {/* Items */}
-      <div className="space-y-3">
-        <div className="flex justify-between items-center mb-1">
-          <Label className="text-xs font-semibold text-slate-700">
-            Item Penjualan <span className="text-red-500">*</span>
-          </Label>
-          <button
-            type="button"
-            onClick={() => append({ productId: "", quantity: 1, discount: 0 })}
-            className="flex items-center gap-1 rounded-lg border border-white/60 bg-white/30 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-white/50 transition-colors shadow-sm"
-          >
-            <Plus size={14} /> Tambah Item
-          </button>
+          <Separator className="bg-white/50" />
+
+          {/* Items */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs font-semibold text-slate-700">
+                Item Penjualan <span className="text-red-500">*</span>
+              </Label>
+              <button
+                type="button"
+                onClick={() => append({ productId: "", quantity: 1, discount: 0 })}
+                className="flex items-center gap-1 rounded-lg border border-white/60 bg-white/30 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-white/50 transition-colors shadow-sm"
+              >
+                <Plus size={14} /> Tambah Item
+              </button>
+            </div>
+
+            {typeof errors.items?.message === "string" && (
+              <FieldError message={errors.items.message} />
+            )}
+
+            <div className="space-y-4">
+              {fields.map((field, index) => {
+                const item = watchedItems?.[index];
+                const product = fgOptions.find((option) => option.id === item?.productId);
+                const disc = Number(item?.discount) || 0;
+                const qty = Number(item?.quantity) || 0;
+                const priceResolution = product ? resolvePreviewPrice(product, qty) : null;
+                const price = priceResolution?.unitPrice ?? 0;
+                const rowSubtotal = (price - disc) * qty;
+
+                const selectedProduct = fgOptions.find((p) => p.id === item?.productId);
+                const isOverStock = selectedProduct ? qty > selectedProduct.stockUnit : false;
+
+                return (
+                  <div key={field.id} className="relative rounded-xl border border-white/60 bg-white/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group">
+                    
+                    {/* Delete button (absolute top right) */}
+                    {fields.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => remove(index)}
+                        className="absolute -top-3 -right-2 bg-white text-red-500 border border-white/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 shadow-sm"
+                        title="Hapus Item"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+
+                    {/* Row 1: Product Selection */}
+                    <div className="mb-4">
+                      <Label className="text-xs uppercase font-bold text-slate-500 mb-1 block tracking-wider">Produk</Label>
+                      <Controller
+                        control={control}
+                        name={`items.${index}.productId`}
+                        render={({ field: f }) => (
+                          <Popover>
+                            <PopoverTrigger
+                              role="combobox"
+                              className={cn(
+                                "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-white/50 px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 transition-colors hover:bg-white/80",
+                                !f.value && "text-slate-500"
+                              )}
+                            >
+                              {f.value ? (
+                                <span className="truncate text-left font-medium text-slate-800">
+                                  {fgOptions.find((p) => p.id === f.value)?.name}
+                                </span>
+                              ) : (
+                                "Pilih produk..."
+                              )}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white/95 backdrop-blur-xl border-white/60">
+                              <Command>
+                                <CommandInput placeholder="Cari produk..." />
+                                <CommandList>
+                                  <CommandEmpty>Produk tidak ditemukan.</CommandEmpty>
+                                  <CommandGroup>
+                                    {fgOptions.map((fg) => (
+                                      <CommandItem
+                                        key={fg.id}
+                                        value={`${fg.name} ${fg.stockUnit}`}
+                                        disabled={
+                                          fg.stockUnit <= 0
+                                          || watchedItems.some((other, otherIndex) => otherIndex !== index && other.productId === fg.id)
+                                        }
+                                        onSelect={() => {
+                                          f.onChange(fg.id);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4 shrink-0",
+                                            fg.id === f.value ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        <span className="truncate">{fg.name}</span>
+                                        <span className="ml-1 text-slate-400 shrink-0">({fg.stockUnit})</span>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      />
+                    </div>
+
+                    {/* Row 2: Details */}
+                    <div className="flex flex-wrap items-end gap-3">
+                      <div className="w-20">
+                        <Label className="text-xs uppercase font-bold text-slate-500 mb-1 block tracking-wider">Qty</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={selectedProduct?.stockUnit}
+                          className={cn(glassInput, "text-center h-9 font-medium")}
+                          {...register(`items.${index}.quantity`, { valueAsNumber: true })}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-[100px]">
+                        <Label className="text-xs uppercase font-bold text-slate-500 mb-1 block tracking-wider">
+                          {priceResolution?.priceSource === "CONTRACT" ? "Harga kontrak" : "Harga otomatis"}
+                        </Label>
+                        <div className="flex h-9 items-center justify-end rounded-md border border-white/40 bg-white/50 px-3 font-mono text-sm font-semibold text-slate-700">
+                          {formatRupiah(price)}
+                        </div>
+                      </div>
+                      <div className="flex-[1.2] min-w-[120px]">
+                        <Label className="text-xs uppercase font-bold text-slate-500 mb-1 block tracking-wider text-right">Subtotal</Label>
+                        <div className="h-9 flex items-center justify-end font-mono text-sm font-bold text-slate-800 bg-white/50 rounded-md px-3 border border-white/40 shadow-inner">
+                          {formatRupiah(rowSubtotal)}
+                        </div>
+                      </div>
+                    </div>
+                    {isOverStock && (
+                      <p className="mt-2 text-xs font-semibold text-red-600" role="alert">
+                        Stok tidak cukup. Tersedia {selectedProduct?.stockUnit ?? 0} unit.
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
+      )}
 
-        {typeof errors.items?.message === "string" && (
-          <FieldError message={errors.items.message} />
-        )}
-
-        <div className="space-y-4">
-          {fields.map((field, index) => {
-            const item = watchedItems?.[index];
-            const product = fgOptions.find((option) => option.id === item?.productId);
-            const disc = Number(item?.discount) || 0;
-            const qty = Number(item?.quantity) || 0;
-            const priceResolution = product ? resolvePreviewPrice(product, qty) : null;
-            const price = priceResolution?.unitPrice ?? 0;
-            const rowSubtotal = (price - disc) * qty;
-
-            const selectedProduct = fgOptions.find((p) => p.id === item?.productId);
-            const isOverStock = selectedProduct ? qty > selectedProduct.stockUnit : false;
-
-            return (
-              <div key={field.id} className="relative rounded-xl border border-white/60 bg-white/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group">
-                
-                {/* Delete button (absolute top right) */}
-                {fields.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="absolute -top-3 -right-2 bg-white text-red-500 border border-white/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 shadow-sm"
-                    title="Hapus Item"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-
-                {/* Row 1: Product Selection */}
-                <div className="mb-4">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">Produk</Label>
-                  <Controller
-                    control={control}
-                    name={`items.${index}.productId`}
-                    render={({ field: f }) => (
-                      <Popover>
-                        <PopoverTrigger
-                          role="combobox"
+      {step === 2 && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+          {/* Status, Payment, Due Date */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="space-y-5">
+              {/* Status */}
+              <div>
+                <Label className="text-xs uppercase font-bold text-slate-500 mb-2 block tracking-wider">
+                  Status Pembayaran <span className="text-red-500">*</span>
+                </Label>
+                <Controller
+                  control={control}
+                  name="status"
+                  render={({ field }) => (
+                    <div className="flex gap-3">
+                      {(["PAID", "ISSUED"] as const).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => {
+                            field.onChange(s);
+                            if (s === "PAID") {
+                              setValue("dueDate", "");
+                              setValue("paymentMethod", "CASH", { shouldValidate: true });
+                            }
+                            if (s === "ISSUED") {
+                              setValue("paymentMethod", undefined);
+                              setValue("dueDate", defaultDueDate(getCurrentDate(), 14), { shouldValidate: true });
+                            }
+                          }}
                           className={cn(
-                            "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-white/50 px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 transition-colors hover:bg-white/80",
-                            !f.value && "text-slate-500"
+                            "flex-1 py-3 rounded-xl border font-bold transition-all shadow-sm",
+                            field.value === s
+                              ? s === "PAID"
+                                ? "border-emerald-400 bg-emerald-50/90 text-emerald-700 ring-2 ring-emerald-500/20 ring-offset-1"
+                                : "border-amber-400 bg-amber-50/90 text-amber-700 ring-2 ring-amber-500/20 ring-offset-1"
+                              : "border-white/60 bg-white/40 hover:bg-white/60 text-slate-500"
                           )}
                         >
-                          {f.value ? (
-                            <span className="truncate text-left font-medium text-slate-800">
-                              {fgOptions.find((p) => p.id === f.value)?.name}
-                            </span>
-                          ) : (
-                            "Pilih produk..."
-                          )}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white/95 backdrop-blur-xl border-white/60">
-                          <Command>
-                            <CommandInput placeholder="Cari produk..." />
-                            <CommandList>
-                              <CommandEmpty>Produk tidak ditemukan.</CommandEmpty>
-                              <CommandGroup>
-                                {fgOptions.map((fg) => (
-                                  <CommandItem
-                                    key={fg.id}
-                                    value={`${fg.name} ${fg.stockUnit}`}
-                                    disabled={
-                                      fg.stockUnit <= 0
-                                      || watchedItems.some((other, otherIndex) => otherIndex !== index && other.productId === fg.id)
-                                    }
-                                    onSelect={() => {
-                                      f.onChange(fg.id);
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4 shrink-0",
-                                        fg.id === f.value ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    <span className="truncate">{fg.name}</span>
-                                    <span className="ml-1 text-slate-400 shrink-0">({fg.stockUnit})</span>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                          {s === "PAID" ? "✓ LUNAS" : "⏱ TEMPO"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                />
+              </div>
+            </div>
+            <div className="space-y-5">
+              {/* Payment Method */}
+              {status === "PAID" && (
+                <div>
+                  <Label className="text-xs uppercase font-bold text-slate-500 mb-2 block tracking-wider">
+                    Metode Pembayaran <span className="text-red-500">*</span>
+                  </Label>
+                  <Controller
+                    control={control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <PaymentMethodGroup
+                        value={field.value ?? "CASH"}
+                        onChange={field.onChange}
+                      />
                     )}
                   />
                 </div>
-
-                {/* Row 2: Details */}
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="w-20">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">Qty</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={selectedProduct?.stockUnit}
-                      className={cn(glassInput, "text-center h-9 font-medium")}
-                      {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-[100px]">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">
-                      {priceResolution?.priceSource === "CONTRACT" ? "Harga kontrak" : "Harga otomatis"}
-                    </Label>
-                    <div className="flex h-9 items-center justify-end rounded-md border border-white/40 bg-white/50 px-3 font-mono text-sm font-semibold text-slate-700">
-                      {formatRupiah(price)}
-                    </div>
-                  </div>
-                  {showAdvanced && <div className="flex-1 min-w-[100px]">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">Disc (Rp)</Label>
-                    <Input
-                      type="number"
-                      className={cn(glassInput, "text-right h-9 font-medium text-red-600")}
-                      {...register(`items.${index}.discount`, { valueAsNumber: true })}
-                    />
-                  </div>}
-                  <div className="flex-[1.2] min-w-[120px]">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider text-right">Subtotal</Label>
-                    <div className="h-9 flex items-center justify-end font-mono text-sm font-bold text-slate-800 bg-white/50 rounded-md px-3 border border-white/40 shadow-inner">
-                      {formatRupiah(rowSubtotal)}
-                    </div>
-                  </div>
-                </div>
-                {isOverStock && (
-                  <p className="mt-2 text-xs font-semibold text-red-600" role="alert">
-                    Stok tidak cukup. Tersedia {selectedProduct?.stockUnit ?? 0} unit.
-                  </p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setShowAdvanced((value) => !value)}
-        className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white/50 px-3 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-white"
-        aria-expanded={showAdvanced}
-      >
-        <span className="inline-flex items-center gap-2"><SlidersHorizontal size={14} /> Diskon, pajak, dan catatan</span>
-        <span className="font-normal text-slate-400">{showAdvanced ? "Sembunyikan" : "Opsional"}</span>
-      </button>
-
-      <div className="mt-8 pt-6 border-t border-white/40 grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* Left Column: Settings & Notes */}
-        <div className="space-y-5">
-          {/* Sales Channel */}
-          <div>
-            <Label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block tracking-wider">
-              Sales Channel <span className="text-red-500">*</span>
-            </Label>
-            <Controller
-              control={control}
-              name="salesChannel"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className={cn("w-full h-11", glassInput)}>
-                    <SelectValue placeholder="Pilih channel..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="WALK_IN">Walk-in (Offline)</SelectItem>
-                    <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
-                    <SelectItem value="MARKETPLACE">Marketplace</SelectItem>
-                    <SelectItem value="B2B_DIRECT">B2B Direct</SelectItem>
-                    <SelectItem value="OTHER">Lainnya</SelectItem>
-                  </SelectContent>
-                </Select>
               )}
-            />
-          </div>
 
-          {/* Status */}
-          <div>
-            <Label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block tracking-wider">
-              Status Pembayaran <span className="text-red-500">*</span>
-            </Label>
-            <Controller
-              control={control}
-              name="status"
-              render={({ field }) => (
-                <div className="flex gap-3">
-                  {(["PAID", "ISSUED"] as const).map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => {
-                        field.onChange(s);
-                        if (s === "PAID") {
-                          setValue("dueDate", "");
-                          setValue("paymentMethod", "CASH", { shouldValidate: true });
-                        }
-                        if (s === "ISSUED") {
-                          setValue("paymentMethod", undefined);
-                          setValue("dueDate", defaultDueDate(getCurrentDate(), 14), { shouldValidate: true });
-                        }
-                      }}
-                      className={cn(
-                        "flex-1 py-3 rounded-xl border font-bold transition-all shadow-sm",
-                        field.value === s
-                          ? s === "PAID"
-                            ? "border-emerald-400 bg-emerald-50/90 text-emerald-700 ring-2 ring-emerald-500/20 ring-offset-1"
-                            : "border-amber-400 bg-amber-50/90 text-amber-700 ring-2 ring-amber-500/20 ring-offset-1"
-                          : "border-white/60 bg-white/40 hover:bg-white/60 text-slate-500"
-                      )}
-                    >
-                      {s === "PAID" ? "✓ LUNAS" : "⏱ TEMPO"}
-                    </button>
-                  ))}
-                </div>
-              )}
-            />
-          </div>
-
-          {/* Payment Method */}
-          {status === "PAID" && (
-            <div>
-              <Label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block tracking-wider">
-                Metode Pembayaran <span className="text-red-500">*</span>
-              </Label>
-              <Controller
-                control={control}
-                name="paymentMethod"
-                render={({ field }) => (
-                  <PaymentMethodGroup
-                    value={field.value ?? "CASH"}
-                    onChange={field.onChange}
+              {/* Due Date */}
+              {status === "ISSUED" && (
+                <div>
+                  <Label className="text-xs uppercase font-bold text-slate-500 mb-2 block tracking-wider">
+                    Jatuh Tempo <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    min={today}
+                    className={glassInput}
+                    {...register("dueDate")}
                   />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left Column: Settings & Notes */}
+            <div className="space-y-5">
+              {/* Sales Channel */}
+              <div>
+                <Label className="text-xs uppercase font-bold text-slate-500 mb-2 block tracking-wider">
+                  Sales Channel <span className="text-red-500">*</span>
+                </Label>
+                <Controller
+                  control={control}
+                  name="salesChannel"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className={cn("w-full h-11", glassInput)}>
+                        <SelectValue placeholder="Pilih channel..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="WALK_IN">Walk-in (Offline)</SelectItem>
+                        <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
+                        <SelectItem value="MARKETPLACE">Marketplace</SelectItem>
+                        <SelectItem value="B2B_DIRECT">B2B Direct</SelectItem>
+                        <SelectItem value="OTHER">Lainnya</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <Label className="text-xs uppercase font-bold text-slate-500 mb-2 block tracking-wider">Catatan</Label>
+                <Textarea
+                  placeholder="Catatan pengiriman, kesepakatan khusus, dll..."
+                  className={cn(glassInput, "resize-none")}
+                  rows={2}
+                  {...register("notes")}
+                />
+              </div>
+            </div>
+
+            {/* Right Column: Tax & Discount */}
+            <div className="space-y-4">
+              <div className={cn(glassCard, "p-4 space-y-4")}>
+                <div className="flex items-center justify-between gap-4">
+                  <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Diskon Nota (Rp)</Label>
+                  <Input
+                    type="number"
+                    className={cn(glassInput, "w-32 text-right font-medium text-red-600")}
+                    {...register("invoiceDiscount", { valueAsNumber: true })}
+                  />
+                </div>
+                
+                {/* Diskon per item moved here to simplify step 1 */}
+                {fields.map((field, index) => {
+                  const item = watchedItems?.[index];
+                  const product = fgOptions.find((option) => option.id === item?.productId);
+                  if (!product) return null;
+                  return (
+                    <div key={`disc-${field.id}`} className="flex items-center justify-between gap-4 border-t border-slate-200/50 pt-2 mt-2">
+                      <Label className="text-xs font-semibold text-slate-600 truncate max-w-[150px]">
+                        Disc. {product.name} (Rp)
+                      </Label>
+                      <Input
+                        type="number"
+                        className={cn(glassInput, "w-32 text-right font-medium text-red-600 h-8")}
+                        {...register(`items.${index}.discount`, { valueAsNumber: true })}
+                      />
+                    </div>
+                  );
+                })}
+
+                {taxConfig && !taxConfig.enabled ? (
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
+                    <Label className="text-xs font-semibold text-amber-800">Pajak Penjualan</Label>
+                    <p className="text-[11px] text-amber-700">
+                      Nonaktif — aktifkan di Pengaturan &gt; Profil &amp; Portal
+                    </p>
+                  </div>
+                ) : (
+                <>
+                <div className="flex items-center justify-between gap-2 border-t border-slate-200/50 pt-4 mt-2">
+                  <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Jenis Pajak</Label>
+                  <Select
+                    value={taxType}
+                    onValueChange={(v) => setValue("taxType", v as "PPN" | "PPH_21" | "PPH_23" | "PPH_4_2" | "NONE" | undefined)}
+                  >
+                    <SelectTrigger className={cn(glassInput, "w-44 text-xs")}>
+                      <SelectValue placeholder="Tidak Ada" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PPN" className="text-xs">PPN {taxConfig?.rate ?? 11}%</SelectItem>
+                      <SelectItem value="PPH_21" className="text-xs">PPh 21</SelectItem>
+                      <SelectItem value="PPH_23" className="text-xs">PPh 23</SelectItem>
+                      <SelectItem value="PPH_4_2" className="text-xs">PPh 4(2)</SelectItem>
+                      <SelectItem value="NONE" className="text-xs">Tidak Ada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {taxType && taxType !== "NONE" && (
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs font-semibold text-slate-700">Rate (%)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className={cn(glassInput, "w-32 text-right font-medium")}
+                      {...register("customTaxRate", { valueAsNumber: true })}
+                    />
+                  </div>
                 )}
-              />
+                <div className="flex items-center justify-between gap-4">
+                  <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Pajak Manual (Rp)</Label>
+                  <Input
+                    type="number"
+                    className={cn(glassInput, "w-32 text-right font-medium")}
+                    {...register("tax", { valueAsNumber: true })}
+                  />
+                </div>
+                </>
+                )}
+              </div>
             </div>
-          )}
+          </div>
 
-          {/* Due Date */}
-          {status === "ISSUED" && (
-            <div>
-              <Label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block tracking-wider">
-                Jatuh Tempo <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                type="date"
-                min={today}
-                className={glassInput}
-                {...register("dueDate")}
-              />
-            </div>
-          )}
-
-          {/* Notes */}
-          {showAdvanced && <div>
-            <Label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block tracking-wider">Catatan</Label>
-            <Textarea
-              placeholder="Catatan pengiriman, kesepakatan khusus, dll..."
-              className={cn(glassInput, "resize-none")}
-              rows={2}
-              {...register("notes")}
+          {/* Totals Summary */}
+          <div className="mt-8 pt-4">
+            <TotalsSummary
+              subtotal={subtotal}
+              invoiceDiscount={invoiceDiscount || 0}
+              tax={effectiveTax}
+              taxType={taxType}
+              grandTotal={grandTotal}
             />
-          </div>}
+          </div>
         </div>
+      )}
 
-        {/* Right Column: Totals Summary */}
-        <div className="space-y-4">
-          {showAdvanced && <div className={cn(glassCard, "p-4 space-y-4")}>
-            <div className="flex items-center justify-between gap-4">
-              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Diskon Nota (Rp)</Label>
-              <Input
-                type="number"
-                className={cn(glassInput, "w-32 text-right font-medium text-red-600")}
-                {...register("invoiceDiscount", { valueAsNumber: true })}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Jenis Pajak</Label>
-              <Select
-                value={taxType}
-                onValueChange={(v) => setValue("taxType", v as "PPN" | "PPH_21" | "PPH_23" | "PPH_4_2" | "NONE" | undefined)}
-              >
-                <SelectTrigger className={cn(glassInput, "w-44 text-xs")}>
-                  <SelectValue placeholder="Manual (Rp)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PPN" className="text-xs">PPN 11%</SelectItem>
-                  <SelectItem value="PPH_21" className="text-xs">PPh 21</SelectItem>
-                  <SelectItem value="PPH_23" className="text-xs">PPh 23</SelectItem>
-                  <SelectItem value="PPH_4_2" className="text-xs">PPh 4(2)</SelectItem>
-                  <SelectItem value="NONE" className="text-xs">Tidak Ada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {taxType === "PPH_21" && (
-              <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs font-semibold text-slate-700">Jenis PPh</Label>
-                <Input
-                  type="text"
-                  placeholder="PPh 21, 23, 4(2)..."
-                  className={cn(glassInput, "w-44 text-right text-xs font-medium")}
-                  {...register("pphType")}
-                />
-              </div>
-            )}
-            {taxType && taxType !== "NONE" && (
-              <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs font-semibold text-slate-700">Rate (%)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  className={cn(glassInput, "w-32 text-right font-medium")}
-                  {...register("customTaxRate", { valueAsNumber: true })}
-                />
-              </div>
-            )}
-            <div className="flex items-center justify-between gap-4">
-              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Pajak Manual (Rp)</Label>
-              <Input
-                type="number"
-                className={cn(glassInput, "w-32 text-right font-medium")}
-                {...register("tax", { valueAsNumber: true })}
-              />
-            </div>
-          </div>}
-          
-          <TotalsSummary
-            subtotal={subtotal}
-            invoiceDiscount={invoiceDiscount || 0}
-            tax={effectiveTax}
-            taxType={taxType}
-            grandTotal={grandTotal}
-          />
-        </div>
+      {/* ── Wizard Navigation ── */}
+      <div className="flex items-center justify-between pt-6 border-t border-white/60">
+        {step > 1 ? (
+          <button
+            type="button"
+            onClick={() => setStep(step - 1)}
+            className="rounded-xl border border-slate-200 bg-white/50 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-white/80 transition-all shadow-sm"
+          >
+            Kembali
+          </button>
+        ) : <div />}
+        
+        {step < 3 ? (
+          <button
+            type="button"
+            onClick={async () => {
+              if (step === 1) {
+                const cId = watch("customerId");
+                const currentItems = watch("items");
+                if (!cId) {
+                  toastSafe.error("Pilih pelanggan terlebih dahulu");
+                  return;
+                }
+                if (!currentItems || currentItems.length === 0 || !currentItems[0].productId) {
+                  toastSafe.error("Pilih minimal 1 produk");
+                  return;
+                }
+              }
+              setStep(step + 1);
+            }}
+            className="rounded-xl bg-cyan-600 px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-cyan-700 transition-all"
+          >
+            Lanjut
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+            className="rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-emerald-700 transition-all disabled:opacity-50"
+          >
+            {isSubmitting ? "Menyimpan..." : "Buat Pesanan"}
+          </button>
+        )}
       </div>
 
-      <button type="submit" className="hidden" disabled={isSubmitting} />
+      <button type="submit" className="hidden" aria-hidden disabled={isSubmitting} />
     </form>
   );
 }

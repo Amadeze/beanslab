@@ -4,12 +4,14 @@ import type { Prisma } from "@prisma/client";
 import { getPnLReport } from "../keuangan/actions";
 import { getSystemUserId, getCurrentTenantId, requireFeature, requireTenantPrisma, getTenantTimezone } from "@/lib/auth";
 import { getPayableAgingBucket } from "@/lib/purchase-payments";
-import { revalidatePath } from "next/cache";
-import { getCurrentDate, dateToLocalRange, formatChartDate, getZonedDayRange } from "@/lib/date-utils";
+import { revalidatePath, unstable_cache } from "next/cache";
+import { getCurrentDate, dateToLocalRange, formatChartDate, getZonedDayRange, getTodayStringForTimezone } from "@/lib/date-utils";
 import { weightedAverageCost } from "@/lib/financial-reporting";
 import { formatRupiah } from "@/lib/format";
 import { getRbCostPrioritizingCache, getFgHppPrioritizingCache } from "@/lib/costing";
+import { computeValuationMetrics } from "@/lib/inventory-helpers";
 import { prisma } from "@/lib/prisma";
+import { tenantQuery } from "@/lib/tenant-guard";
 
 type DailyFinancialTotalRow = {
   dateKey: string;
@@ -30,35 +32,44 @@ async function getDailyFinancialTotals(input: {
   start: Date;
   end: Date;
 }) {
-  const rows = await prisma.$queryRaw<DailyFinancialTotalRow[]>`
-    SELECT
-      daily."dateKey",
-      COALESCE(SUM(daily.revenue), 0)::text AS revenue,
-      COALESCE(SUM(daily.expenses), 0)::text AS expenses
-    FROM (
-      SELECT
-        to_char(i."issuedAt" AT TIME ZONE ${input.timezone}, 'YYYY-MM-DD') AS "dateKey",
-        i."grandTotal" AS revenue,
-        0::numeric AS expenses
-      FROM invoices i
-      WHERE i."tenantId" = ${input.tenantId}
-        AND i.status = 'PAID'
-        AND i."issuedAt" >= ${input.start}
-        AND i."issuedAt" < ${input.end}
+  const fetchDailyRows = unstable_cache(
+    async (tId: string, tz: string, s: string, e: string) => {
+      return await tenantQuery<DailyFinancialTotalRow[]>(tId, async (t) => prisma.$queryRaw`
+        SELECT
+          daily."dateKey",
+          COALESCE(SUM(daily.revenue), 0)::text AS revenue,
+          COALESCE(SUM(daily.expenses), 0)::text AS expenses
+        FROM (
+          SELECT
+            to_char(i."issuedAt" AT TIME ZONE ${tz}, 'YYYY-MM-DD') AS "dateKey",
+            i."grandTotal" - i."returnedAmount" AS revenue,
+            0::numeric AS expenses
+          FROM invoices i
+          WHERE i."tenantId" = ${t}
+            AND i.status = 'PAID'
+            AND i."issuedAt" >= ${new Date(s)}
+            AND i."issuedAt" < ${new Date(e)}
 
-      UNION ALL
+          UNION ALL
 
-      SELECT
-        to_char(e.date AT TIME ZONE ${input.timezone}, 'YYYY-MM-DD') AS "dateKey",
-        0::numeric AS revenue,
-        e.amount AS expenses
-      FROM expenses e
-      WHERE e."tenantId" = ${input.tenantId}
-        AND e.date >= ${input.start}
-        AND e.date < ${input.end}
-    ) daily
-    GROUP BY daily."dateKey"
-  `;
+          SELECT
+            to_char(ex.date AT TIME ZONE ${tz}, 'YYYY-MM-DD') AS "dateKey",
+            0::numeric AS revenue,
+            ex.amount AS expenses
+          FROM expenses ex
+          WHERE ex."tenantId" = ${t}
+            AND ex."voidAt" IS NULL
+            AND ex.date >= ${new Date(s)}
+            AND ex.date < ${new Date(e)}
+        ) daily
+        GROUP BY daily."dateKey"
+      `);
+    },
+    ["daily-financial-totals"],
+    { revalidate: 3600 }
+  );
+
+  const rows = await fetchDailyRows(input.tenantId, input.timezone, input.start.toISOString(), input.end.toISOString());
 
   return new Map(
     rows.map((row) => [
@@ -348,49 +359,18 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
         unit: "pcs",
         unitCost,
         totalValue: stockUnit * unitCost,
-        sampleWriteOff: sampleWriteOffMap.get(pkg.id) ?? 0,
+        sampleWriteOff: sampleWriteOffMap.get(pkg.id) ?? 0,
       });
     }
   }
 
-  const totalGreenBeanValue = items.filter((i) => i.category === "GREEN_BEAN").reduce((s, i) => s + i.totalValue, 0);
-  const totalRoastedBeanValue = items.filter((i) => i.category === "ROASTED_BEAN").reduce((s, i) => s + i.totalValue, 0);
-  const totalFinishedGoodsValue = items.filter((i) => i.category === "FINISHED_GOODS").reduce((s, i) => s + i.totalValue, 0);
-  const totalPackagingValue = items.filter((i) => i.category === "PACKAGING").reduce((s, i) => s + i.totalValue, 0);
-  const grandTotalValue = totalGreenBeanValue + totalRoastedBeanValue + totalFinishedGoodsValue + totalPackagingValue;
-
-  const retailFgItems = items.filter((i) => i.category === "FINISHED_GOODS" && i.potentialRevenue && i.potentialRevenue > 0);
-  const totalFinishedGoodsPotentialRevenue = retailFgItems.reduce((s, i) => s + (i.potentialRevenue || 0), 0);
-  const retailFgValueOnly = retailFgItems.reduce((s, i) => s + i.totalValue, 0);
-  
-  const fgGrossMargin = totalFinishedGoodsPotentialRevenue - retailFgValueOnly;
-  const totalFinishedGoodsMarginHealth = totalFinishedGoodsPotentialRevenue > 0 ? (fgGrossMargin / totalFinishedGoodsPotentialRevenue) * 100 : 0;
-
-  const retailItems = items.filter((i) => i.potentialRevenue && i.potentialRevenue > 0);
-  const totalPotentialRevenue = retailItems.reduce((s, i) => s + (i.potentialRevenue || 0), 0);
-  
-  const retailFgValue = retailItems.filter((i) => i.category === "FINISHED_GOODS").reduce((s, i) => s + i.totalValue, 0);
-  const retailRbValue = retailItems.filter((i) => i.category === "ROASTED_BEAN").reduce((s, i) => s + i.totalValue, 0);
-  
-  const totalGrossMargin = totalPotentialRevenue - (retailFgValue + retailRbValue);
-  const totalMarginHealth = totalPotentialRevenue > 0 ? (totalGrossMargin / totalPotentialRevenue) * 100 : 0;
-  const totalSampleWriteOff = items.reduce((s, i) => s + i.sampleWriteOff, 0);
+  const metrics = computeValuationMetrics(items);
 
   return {
     items,
-    totalGreenBeanValue,
-    totalRoastedBeanValue,
-    totalFinishedGoodsValue,
-    totalPackagingValue,
-    grandTotalValue,
-    totalFinishedGoodsPotentialRevenue,
-    totalFinishedGoodsMarginHealth,
-    totalPotentialRevenue,
-    totalMarginHealth,
+    ...metrics,
     asOf: asOf.toISOString(),
     costMethod: "WEIGHTED_AVERAGE",
-    zeroCostItemCount: items.filter((item) => item.unitCost <= 0).length,
-    totalSampleWriteOff,
   };
 }
 
@@ -434,6 +414,7 @@ export async function getBalanceSheetReport(
 ): Promise<BalanceSheetReport> {
   await requireFeature("ADVANCED_REPORTS");
   const tp = await requireTenantPrisma();
+  const tenantId = await getCurrentTenantId();
 
   const accounts = await tp.account.findMany({
     where: { isActive: true },
@@ -444,7 +425,7 @@ export async function getBalanceSheetReport(
   const lineGroups = accountIds.length > 0
     ? await prisma.journalLine.groupBy({
         by: ["accountId"],
-        where: { accountId: { in: accountIds }, journalEntry: { voidAt: null } },
+        where: { accountId: { in: accountIds }, journalEntry: { tenantId, voidAt: null } },
         _sum: { debit: true, credit: true },
       })
     : [];
@@ -488,14 +469,14 @@ export async function getBalanceSheetReport(
 
   const otherAssets = assetAccounts
     .filter((a) => ![...cashCodes, ...receivCodes, ...invCodes].includes(a.code))
-    .reduce((s, a) => s + Math.max(0, saldo(a.id, a.type)), 0);
+    .reduce((s, a) => s + saldo(a.id, a.type), 0);
   const totalAssets = cashAndBank + accountsReceivable + inventory + otherAssets;
 
   const payableCodes = ["2-1000"];
   const accountsPayable = sumBal(payableCodes);
   const otherLiabilities = liabilityAccounts
     .filter((a) => !payableCodes.includes(a.code))
-    .reduce((s, a) => s + Math.max(0, saldo(a.id, a.type)), 0);
+    .reduce((s, a) => s + saldo(a.id, a.type), 0);
   const totalLiabilities = accountsPayable + otherLiabilities;
 
   const payablePurchases = await tp.purchase.findMany({
@@ -530,7 +511,7 @@ export async function getBalanceSheetReport(
   const totalExpense = expenseAccounts.reduce((s, a) => s + saldo(a.id, a.type), 0);
   const netIncome = totalRevenue - totalExpense;
 
-  const totalEquity = Math.max(0, contributedCapital - withdrawals + retainedEarnings + currentYearProfit + netIncome);
+  const totalEquity = contributedCapital - withdrawals + retainedEarnings + currentYearProfit + netIncome;
 
   const warnings: string[] = [];
   if (accountsReceivable > 0) warnings.push(`Piutang: ${formatRupiah(accountsReceivable)} (dari GL)`);
@@ -624,7 +605,10 @@ export async function getCoffeeFlowReport(
           } 
         } 
       },
-      recipes: true,
+      recipes: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
       purchases: { 
         where: { 
           status: "COMPLETED", 
@@ -1007,19 +991,19 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
       _sum: { grandTotal: true },
     }),
     tp.invoice.count({ where: reportWhere }),
-    prisma.$queryRaw<TopCustomerRow[]>`
+    tenantQuery<TopCustomerRow[]>(tenantId, async (t) => prisma.$queryRaw`
       SELECT c.name
       FROM invoices i
       JOIN customers c ON c.id = i."customerId"
-      WHERE i."tenantId" = ${tenantId}
-        AND c."tenantId" = ${tenantId}
+      WHERE i."tenantId" = ${t}
+        AND c."tenantId" = ${t}
         AND i."issuedAt" >= ${rangeStartUTC}
         AND i."issuedAt" <= ${endUTC}
         AND i.status IN ('PAID', 'ISSUED', 'PARTIAL')
       GROUP BY c.id, c.name
       ORDER BY SUM(i."grandTotal") DESC
-      LIMIT 1
-    `,
+      LIMIT 10
+    `),
     tp.invoice.findMany({
       where: reportWhere,
       select: {
@@ -1039,21 +1023,21 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
       start: chartDays[0].start,
       end: chartDays.at(-1)!.end,
     }),
-    prisma.$queryRaw<ProductSalesRow[]>`
+    tenantQuery<ProductSalesRow[]>(tenantId, async (t) => prisma.$queryRaw`
       SELECT
         COALESCE(p.category::text, 'OTHER') AS name,
         COALESCE(SUM(ii.subtotal), 0)::text AS value
       FROM invoice_items ii
       JOIN invoices i ON i.id = ii."invoiceId"
       JOIN products p ON p.id = ii."productId"
-      WHERE i."tenantId" = ${tenantId}
-        AND ii."tenantId" = ${tenantId}
+      WHERE i."tenantId" = ${t}
+        AND ii."tenantId" = ${t}
         AND i."issuedAt" >= ${rangeStartUTC}
         AND i."issuedAt" <= ${endUTC}
         AND i.status IN ('PAID', 'ISSUED', 'PARTIAL')
       GROUP BY p.category
       ORDER BY SUM(ii.subtotal) DESC
-    `,
+    `),
   ]);
 
   const totalRevenue = Number(paidTotal._sum.grandTotal ?? 0);
@@ -1123,7 +1107,10 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
 
   const [expenses, purchases, payments] = await Promise.all([
     tp.expense.findMany({
-      where: { date: { gte: rangeStartOnly, lte: rangeEndUTC } },
+      where: {
+        date: { gte: rangeStartOnly, lte: rangeEndUTC },
+        OR: [{ voidAt: null }, { voidAt: { gt: rangeEndUTC } }],
+      },
       orderBy: { date: "desc" },
     }),
     tp.purchase.findMany({
@@ -1141,7 +1128,7 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
   const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const totalPurchases = purchases.reduce((sum, p) => sum + Number(p.totalCost), 0);
   const totalPayments = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const outstandingPayable = totalPurchases - totalPayments;
+  const outstandingPayable = Math.max(0, totalPurchases - totalPayments);
 
   // Get revenue for profit calculation
   const invoices = await tp.invoice.findMany({
@@ -1150,7 +1137,7 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
       status: "PAID",
     },
   });
-  const totalRevenue = invoices.reduce((sum, i) => sum + Number(i.grandTotal), 0);
+  const totalRevenue = invoices.reduce((sum, i) => sum + Number(i.grandTotal) - Number(i.returnedAmount), 0);
   const profit = totalRevenue - totalExpenses - totalPurchases;
 
   // Expense trend (based on date range) using tenant timezone
@@ -1193,7 +1180,7 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
       category: e.category,
       description: e.description || "-",
       amount: Number(e.amount),
-      status: "Lunas",
+      status: e.voidAt ? "Dibatal" : "Tercatat",
     })),
   };
 }
@@ -1402,7 +1389,6 @@ export type SummaryReportData = {
   revenueTrend: number;
   expensesTrend: number;
   profitTrend: number;
-  stockTrend: number;
   revenueChart: { date: string; value: number }[];
   pipeline: { label: string; value: string; status: string }[];
 };
@@ -1458,7 +1444,6 @@ export async function getSummaryReport(startDate?: string, endDate?: string): Pr
     revenueTrend,
     expensesTrend,
     profitTrend,
-    stockTrend: 0,
     revenueChart,
     pipeline: [
       { label: "Stok", value: `${inventory.items.length} item`, status: "ok" },
@@ -1494,7 +1479,7 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
 
   // Use tenant timezone for date ranges
   const startStr = startDate || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-  const endStr = endDate || formatChartDate(now, timezone).split(" ").reverse().join("-");
+  const endStr = endDate || getTodayStringForTimezone(timezone);
 
   const { start: rangeStart } = dateToLocalRange(startStr, timezone);
   const { end: rangeEnd } = dateToLocalRange(endStr, timezone);
@@ -1517,12 +1502,13 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
         issuedAt: { gte: rangeStart, lte: rangeEnd },
         status: "PAID",
       },
-      _sum: { grandTotal: true },
+      _sum: { grandTotal: true, returnedAmount: true },
     }),
     tp.expense.groupBy({
       by: ["category"],
       where: {
         date: { gte: rangeStart, lte: rangeEnd },
+        voidAt: null,
       },
       _sum: { amount: true },
     }),
@@ -1531,10 +1517,10 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
         issuedAt: { gte: prevStart, lte: prevEnd },
         status: "PAID",
       },
-      _sum: { grandTotal: true },
+      _sum: { grandTotal: true, returnedAmount: true },
     }),
     tp.expense.aggregate({
-      where: { date: { gte: prevStart, lte: prevEnd } },
+      where: { date: { gte: prevStart, lte: prevEnd }, voidAt: null },
       _sum: { amount: true },
     }),
     getDailyFinancialTotals({
@@ -1545,7 +1531,7 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
     }),
   ]);
 
-  const totalRevenue = Number(invoiceTotal._sum.grandTotal ?? 0);
+  const totalRevenue = Number(invoiceTotal._sum.grandTotal ?? 0) - Number(invoiceTotal._sum.returnedAmount ?? 0);
   const totalExpenses = expenseGroups.reduce(
     (sum, group) => sum + Number(group._sum.amount ?? 0),
     0,
@@ -1553,7 +1539,7 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
   const netProfit = totalRevenue - totalExpenses;
   const cashFlow = totalRevenue - totalExpenses;
 
-  const lastRevenue = Number(prevInvoiceTotal._sum.grandTotal ?? 0);
+  const lastRevenue = Number(prevInvoiceTotal._sum.grandTotal ?? 0) - Number(prevInvoiceTotal._sum.returnedAmount ?? 0);
   const lastExpenses = Number(prevExpenseTotal._sum.amount ?? 0);
   const lastProfit = lastRevenue - lastExpenses;
   const lastCashFlow = lastRevenue - lastExpenses;
