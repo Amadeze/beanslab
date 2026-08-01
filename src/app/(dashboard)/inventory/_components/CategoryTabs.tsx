@@ -33,7 +33,7 @@ export function CategoryTabs({ tabs, active, onChange }: CategoryTabsProps) {
         >
           <span>{tab.label}</span>
           <span className={cn(
-            "rounded-full px-1.5 py-px text-[10px] font-bold tabular-nums",
+            "rounded-full px-1.5 py-px text-xs font-bold tabular-nums",
             active === tab.id ? "bg-blue-100 text-amber-800" : "bg-slate-100 text-slate-500"
           )}>
             {tab.count}

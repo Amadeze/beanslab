@@ -37,7 +37,7 @@ export function PurchasePaymentSection({
 
       <div className="space-y-3">
         <div className="space-y-2">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
             Pembayaran
           </Label>
           <input type="hidden" {...register("paymentStatus")} />
@@ -62,7 +62,7 @@ export function PurchasePaymentSection({
 
         {paymentStatus !== "UNPAID" && (
           <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
             Metode Pembayaran
           </Label>
           <select
@@ -82,7 +82,7 @@ export function PurchasePaymentSection({
 
       {paymentStatus === "PARTIAL" && (
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
             Jumlah yang dibayar sekarang
           </Label>
           <Input
@@ -104,7 +104,7 @@ export function PurchasePaymentSection({
 
       {paymentStatus !== "PAID" && (
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
             Jatuh tempo <span className="normal-case font-medium tracking-normal text-slate-400">(otomatis 14 hari)</span>
           </Label>
           <Input

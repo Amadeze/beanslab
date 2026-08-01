@@ -60,7 +60,7 @@ export function QuickReceivePO({ initialPoId, refreshKey, onSuccess, onCancel }:
   return (
     <div className="space-y-5">
       <div className="space-y-1.5">
-        <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+        <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
           Ambil dari Purchase Order
         </Label>
         <Select value={selectedPoId} onValueChange={(value) => setSelectedPoId(value ?? "")}>
@@ -81,7 +81,7 @@ export function QuickReceivePO({ initialPoId, refreshKey, onSuccess, onCancel }:
             ))}
           </SelectContent>
         </Select>
-        <p className="text-[10px] text-slate-500">
+        <p className="text-xs text-slate-500">
           Supplier, item, sisa quantity, harga, dan estimasi ongkir ditarik otomatis dari PO.
         </p>
       </div>
@@ -109,7 +109,7 @@ export function QuickReceivePO({ initialPoId, refreshKey, onSuccess, onCancel }:
                 <p className="text-[11px] text-slate-600">{detail.supplierName}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] text-slate-500">Estimasi PO</p>
+                <p className="text-xs text-slate-500">Estimasi PO</p>
                 <p className="text-sm font-black text-slate-900">{formatRupiah(detail.totalEstimate)}</p>
               </div>
             </div>

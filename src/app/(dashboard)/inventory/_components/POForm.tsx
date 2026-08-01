@@ -209,9 +209,9 @@ export function POForm({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-3">
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Supplier *</Label>
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Supplier *</Label>
               {!isReadOnly && onAddSupplier && (
-                <button type="button" onClick={onAddSupplier} className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 hover:text-amber-800">
+                <button type="button" onClick={onAddSupplier} className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-800">
                   <Plus size={12} /> Supplier baru
                 </button>
               )}
@@ -235,12 +235,12 @@ export function POForm({
               )}
             />
             {errors.supplierId && (
-              <p className="text-[10px] text-red-500">{errors.supplierId.message}</p>
+              <p className="text-xs text-red-500">{errors.supplierId.message}</p>
             )}
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
               Tanggal Perkiraan Datang
             </Label>
             <Input
@@ -253,7 +253,7 @@ export function POForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
             Catatan
           </Label>
           <Input
@@ -295,7 +295,7 @@ export function POForm({
 
               {/* Produk/Kemasan */}
               <div className="flex-1 min-w-[150px] space-y-1">
-                <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
                   Produk/Kemasan
                 </Label>
                 <Controller
@@ -338,7 +338,7 @@ export function POForm({
 
               {/* Quantity */}
               <div className="w-24 space-y-1">
-                <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
                   Qty
                 </Label>
                 <Input
@@ -353,7 +353,7 @@ export function POForm({
 
               {/* Harga */}
               <div className="w-28 space-y-1">
-                <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
                   Harga/Unit
                 </Label>
                 <Input
@@ -368,7 +368,7 @@ export function POForm({
 
               {/* Subtotal */}
               <div className="w-28 space-y-1">
-                <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
                   Subtotal
                 </Label>
                 <div className="h-9 flex items-center text-xs font-bold text-slate-700">
@@ -380,7 +380,7 @@ export function POForm({
         </div>
 
         <div className="ml-auto w-full max-w-xs space-y-1.5 border-t border-white/50 pt-3">
-          <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Estimasi Ongkir <span className="font-medium normal-case tracking-normal text-slate-400">(opsional)</span>
           </Label>
           <Input
@@ -393,7 +393,7 @@ export function POForm({
             disabled={isReadOnly}
           />
           {errors.estimatedShippingCost && (
-            <p className="text-[10px] text-red-500">{errors.estimatedShippingCost.message}</p>
+            <p className="text-xs text-red-500">{errors.estimatedShippingCost.message}</p>
           )}
         </div>
 

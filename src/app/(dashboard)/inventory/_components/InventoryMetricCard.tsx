@@ -74,7 +74,7 @@ export function InventoryMetricCard({
         {typeof value === "number" ? value.toLocaleString("id-ID") : value}
         {unit && <span className="ml-0.5 text-sm font-semibold">{unit}</span>}
       </p>
-      {helperText && <p className="mt-2 text-[10px] leading-4 text-[var(--text-tertiary)]">{helperText}</p>}
+      {helperText && <p className="mt-2 text-xs leading-4 text-[var(--text-tertiary)]">{helperText}</p>}
     </button>
   );
 }

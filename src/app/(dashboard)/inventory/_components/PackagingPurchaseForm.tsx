@@ -216,7 +216,7 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
           <div className="flex items-center justify-between gap-3">
             <Label className="text-xs font-semibold text-slate-700">Supplier <span className="text-red-500">*</span></Label>
             {onAddSupplier && (
-              <button type="button" onClick={onAddSupplier} className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 hover:text-amber-800">
+              <button type="button" onClick={onAddSupplier} className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-800">
                 <Plus size={12} /> Supplier baru
               </button>
             )}
@@ -350,7 +350,7 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-slate-700">Nama Kemasan *</Label>
               <Input placeholder="Misal: Kraft Box 1KG" className={glassInput} {...regQuickAdd("name")} />
-              {qaErrors.name && <p className="text-[10px] text-red-500">{qaErrors.name.message}</p>}
+              {qaErrors.name && <p className="text-xs text-red-500">{qaErrors.name.message}</p>}
             </div>
 
             <p className="text-[11px] text-slate-500">Kode dibuat otomatis. Berat dan harga bisa diperbarui nanti.</p>

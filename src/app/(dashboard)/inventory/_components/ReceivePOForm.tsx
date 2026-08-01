@@ -153,7 +153,7 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
             Tanggal Penerimaan *
           </Label>
           <Input
@@ -162,11 +162,11 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
             {...register("receivedAt")}
           />
           {errors.receivedAt && (
-            <p className="text-[10px] text-red-500">{errors.receivedAt.message}</p>
+            <p className="text-xs text-red-500">{errors.receivedAt.message}</p>
           )}
         </div>
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
             Ongkir Aktual <span className="font-medium normal-case tracking-normal text-slate-400">(opsional)</span>
           </Label>
           <Input
@@ -177,23 +177,23 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
             className={cn("h-9 tabular-nums", glassInput)}
             {...register("shippingCost", { valueAsNumber: true })}
           />
-          <p className="text-[10px] text-slate-400">Terisi dari estimasi PO, boleh dikoreksi.</p>
+          <p className="text-xs text-slate-400">Terisi dari estimasi PO, boleh dikoreksi.</p>
           {errors.shippingCost && (
-            <p className="text-[10px] text-red-500">{errors.shippingCost.message}</p>
+            <p className="text-xs text-red-500">{errors.shippingCost.message}</p>
           )}
         </div>
       </div>
 
       {/* Items */}
       <div className="space-y-2">
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
           Quantity Diterima
         </Label>
         {items.map((item, index) => (
           excludedItemIds.has(item.id) ? null : <div key={item.id} className="flex items-center gap-2 rounded-lg border border-white/60 bg-white/40 p-2">
             <div className="flex-1">
               <p className="text-xs font-medium">{item.productName || item.packagingName}</p>
-              <p className="text-[10px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Dipesan {item.quantity} · sudah {item.receivedQuantity} · sisa {item.remainingQuantity}
               </p>
             </div>
@@ -224,7 +224,7 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
 
       {excludedItemIds.size > 0 && (
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-3 py-2.5">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
             Tidak diterima sekarang
           </p>
           <div className="flex flex-wrap gap-2">
@@ -243,7 +243,7 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
       )}
 
       <div className="space-y-2">
-        <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+        <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
           Pembayaran
         </Label>
         <input type="hidden" {...register("paymentMethod")} />
@@ -273,14 +273,14 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
         </div>
         {paymentMethod === "CREDIT" && (
           <div className="space-y-1.5 pt-1">
-            <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Jatuh Tempo
             </Label>
             <Input type="date" className={cn("h-9", glassInput)} {...register("dueDate")} />
-            {errors.dueDate && <p className="text-[10px] text-red-500">{errors.dueDate.message}</p>}
+            {errors.dueDate && <p className="text-xs text-red-500">{errors.dueDate.message}</p>}
           </div>
         )}
-        <p className="text-[10px] text-slate-500">
+        <p className="text-xs text-slate-500">
           {paymentMethod === "CREDIT"
             ? "Dicatat sebagai utang supplier sampai dibayar."
             : `Dicatat lunas melalui ${paymentMethod === "CASH" ? "kas" : "transfer bank"}.`}
@@ -288,12 +288,12 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
       </div>
 
       {/* Info */}
-      <p className="text-[10px] text-slate-500 italic">
+      <p className="text-xs text-slate-500 italic">
         Quantity diterima bisa kurang dari yang dipesan. Sisa akan menjadi status Partial.
       </p>
 
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5 text-right">
-        <p className="text-[10px] text-emerald-700">
+        <p className="text-xs text-emerald-700">
           Barang {formatRupiah(itemTotal)} + ongkir {formatRupiah(shippingCost)}
         </p>
         <p className="text-sm font-black text-emerald-900">

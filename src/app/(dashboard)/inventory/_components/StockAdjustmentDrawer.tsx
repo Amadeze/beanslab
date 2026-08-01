@@ -100,7 +100,7 @@ export function StockAdjustmentDrawer({
       <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Type */}
         <div className="space-y-2">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Jenis Penyesuaian</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Jenis Penyesuaian</Label>
           <select
             className={`w-full h-11 rounded-lg border px-3 text-sm transition-all appearance-none outline-none ${glassInput} ${errors.type ? "border-red-400 ring-red-400" : ""}`}
             {...register("type")}
@@ -113,7 +113,7 @@ export function StockAdjustmentDrawer({
 
         {/* Target Item */}
         <div className="space-y-2">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Barang</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Barang</Label>
           <select
             className={`w-full h-11 rounded-lg border px-3 text-sm transition-all appearance-none outline-none ${glassInput} ${errors.targetId ? "border-red-400 ring-red-400" : ""}`}
             {...register("targetId")}
@@ -130,7 +130,7 @@ export function StockAdjustmentDrawer({
 
         {/* Quantity */}
         <div className="space-y-2">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Kuantitas ({isUnit ? "Unit" : "Kg"})</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Kuantitas ({isUnit ? "Unit" : "Kg"})</Label>
           <Input 
             type="number" 
             step="any" 
@@ -144,7 +144,7 @@ export function StockAdjustmentDrawer({
 
         {/* Notes */}
         <div className="space-y-2">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Alasan (Catatan)</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Alasan (Catatan)</Label>
           <Textarea 
             placeholder="Misal: Tumpah saat ditimbang, rusak, atau salah input sebelumnya..." 
             className={`resize-none ${glassInput}`}

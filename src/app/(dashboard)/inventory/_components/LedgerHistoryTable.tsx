@@ -126,7 +126,7 @@ export function LedgerHistoryTable({
             className="h-8 text-xs bg-white/60 border-slate-200 w-[130px]"
             aria-label="Dari tanggal"
           />
-          <span className="text-[10px] text-slate-400">—</span>
+          <span className="text-xs text-slate-400">—</span>
           <Input
             type="date"
             value={dateTo}
@@ -195,13 +195,13 @@ export function LedgerHistoryTable({
                   </TableCell>
                   <TableCell>
                     <div className="text-sm font-medium text-slate-800">{entry.itemName}</div>
-                    <div className="text-[10px] text-slate-400">{entry.itemCode}</div>
+                    <div className="text-xs text-slate-400">{entry.itemCode}</div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
                       <Badge
                         variant="outline"
-                        className={`text-[10px] font-medium ${
+                        className={`text-xs font-medium ${
                           SAMPLE_REF_TYPES.has(entry.refType)
                             ? "border-violet-200 bg-violet-50 text-violet-700"
                             : entry.entryType === "IN"
@@ -213,7 +213,7 @@ export function LedgerHistoryTable({
                       </Badge>
                     </div>
                     {entry.notes && (
-                      <div className="max-w-48 truncate text-[10px] text-slate-400 mt-0.5" title={entry.notes}>
+                      <div className="max-w-48 truncate text-xs text-slate-400 mt-0.5" title={entry.notes}>
                         {entry.notes}
                       </div>
                     )}
@@ -255,7 +255,7 @@ export function LedgerHistoryTable({
                     {entry.entryType === "IN" ? "+" : "-"}{entry.quantity.toLocaleString("id-ID")} {entry.unit}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500">
+                <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
                   <span>{REF_TYPE_LABELS[entry.refType] ?? entry.refType}</span>
                   <span>·</span>
                   <span>{entry.createdByName}</span>
