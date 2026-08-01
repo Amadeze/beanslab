@@ -7,7 +7,7 @@ import { getCurrentDate, getZonedDayRange } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request) {
+async function runCron(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
   const authorization = request.headers.get("authorization");
   if (!cronSecret || !authorization || !timingSafeEqualText(`Bearer ${cronSecret}`, authorization)) {
@@ -27,4 +27,12 @@ export async function POST(request: Request) {
     console.error("[cron/daily-brief]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
+}
+
+export async function GET(request: Request) {
+  return runCron(request);
+}
+
+export async function POST(request: Request) {
+  return runCron(request);
 }

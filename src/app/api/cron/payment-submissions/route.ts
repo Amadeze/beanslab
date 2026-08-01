@@ -7,7 +7,7 @@ import { timingSafeEqualText } from "@/lib/webhook-inbox";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request) {
+async function runCron(request: Request) {
   const secret = process.env.CRON_SECRET;
   const authorization = request.headers.get("authorization");
   if (!secret || !authorization || !timingSafeEqualText(`Bearer ${secret}`, authorization)) {
@@ -26,4 +26,12 @@ export async function POST(request: Request) {
     console.error("[cron/payment-submissions]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
+}
+
+export async function GET(request: Request) {
+  return runCron(request);
+}
+
+export async function POST(request: Request) {
+  return runCron(request);
 }

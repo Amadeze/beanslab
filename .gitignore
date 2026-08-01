@@ -66,3 +66,6 @@ next-env.d.ts
 /public/downloads/ArtisanSync-*.exe
 
 .vercel
+
+.vercel
+.env*
