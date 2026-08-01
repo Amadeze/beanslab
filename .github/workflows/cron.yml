@@ -1,0 +1,38 @@
+# External scheduler for the POST-only /api/cron/* endpoints.
+#
+# Why not Vercel Cron: Vercel Cron Jobs issue GET, while these routes are
+# POST-only (Authorization: Bearer $CRON_SECRET) and cron jobs are NOT
+# available on the Hobby tier — so hourly `payment-submissions` cannot be
+# scheduled there. An external scheduler that POSTs works on any Vercel tier.
+#
+# These jobs are IDEMPOTENT (runTrackedJob dedupes by runKey+dateKey), so a
+# single hourly schedule is safe: same-day daily jobs are skipped on repeat.
+#
+# INERT in this branch: GitHub only honors `schedule` on the default branch and
+# `workflow_dispatch` requires a maintainer to click "Run workflow". Only enable
+# / merge to default AFTER the prod 503 cause is resolved + the salesChannel
+# migration is applied, because these jobs mutate production state.
+
+name: Cron (/api/cron/* POST endpoints)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"   # hourly (UTC)
+
+env:
+  APP_URL: https://app.roastd.id   # override via GitHub secret APP_URL if non-prod
+
+jobs:
+  fire-cron-jobs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: subscriptions (daily, deduped)
+        run: curl -fsS -X POST "$APP_URL/api/cron/subscriptions" -H "Authorization: Bearer $CRON_SECRET"
+      - name: overdue-reminders (daily, deduped)
+        run: curl -fsS -X POST "$APP_URL/api/cron/overdue-reminders" -H "Authorization: Bearer $CRON_SECRET"
+      - name: daily-brief (daily, deduped)
+        run: curl -fsS -X POST "$APP_URL/api/cron/daily-brief" -H "Authorization: Bearer $CRON_SECRET"
+      - name: payment-submissions (hourly)
+        run: curl -fsS -X POST "$APP_URL/api/cron/payment-submissions" -H "Authorization: Bearer $CRON_SECRET"

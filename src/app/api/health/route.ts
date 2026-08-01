@@ -5,7 +5,7 @@ import {
   decryptCredential,
   isEncryptedCredential,
 } from "@/lib/credentials";
-import { getRequestId, logServerError } from "@/lib/api-observability";
+import { getRequestId, logServerError, logWarn } from "@/lib/api-observability";
 import { getCurrentDate } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
@@ -92,6 +92,14 @@ export async function GET(req: Request) {
       credentialDecryptFailures > 0 || plaintextCredentials > 0
     );
     const ready = !hasMissingConfig && !hasCredentialFailures;
+
+    // Safe diagnostics: log counts only (never env var names or secret values)
+    // so ops can distinguish the three readiness-incomplete causes from logs.
+    if (!ready && process.env.NODE_ENV === "production") {
+      if (hasMissingConfig) logWarn("health.readiness", "configuration:incomplete missing-environment", { missingCount: missingConfiguration.length });
+      if (credentialDecryptFailures > 0) logWarn("health.readiness", "configuration:incomplete credential-decrypt-failures", { decryptFailures: credentialDecryptFailures });
+      if (plaintextCredentials > 0) logWarn("health.readiness", "configuration:incomplete plaintext-credentials", { plaintextCredentials });
+    }
     const now = getCurrentDate();
     const freshnessThreshold = new Date(now.getTime() - 36 * 60 * 60 * 1_000);
     const operationalJobs = ["subscriptions", "overdue-reminders", "daily-brief", "payment-submissions"].map((jobName) => {

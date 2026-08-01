@@ -15,6 +15,7 @@ const playwrightServerCommand = process.env.PLAYWRIGHT_SERVER_COMMAND
     : `pnpm exec next dev --port ${playwrightPort}`);
 
 export default defineConfig({
+  globalSetup: "./test/setup/playwright.global.ts",
   testDir: "./tests/e2e",
   fullyParallel: false,
   retries: 0,
