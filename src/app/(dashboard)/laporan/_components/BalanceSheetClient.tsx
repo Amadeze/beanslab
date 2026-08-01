@@ -53,7 +53,7 @@ function Line({ label, value, bold, positive, negative }: { label: string; value
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="border-b border-stone-200 bg-stone-50 px-5 py-2 font-bold text-[10px] uppercase tracking-widest text-stone-500">{children}</div>;
+  return <div className="border-b border-stone-200 bg-stone-50 px-5 py-2 font-bold text-xs uppercase tracking-widest text-stone-500">{children}</div>;
 }
 
 export function BalanceSheetClient({ report }: BalanceSheetClientProps) {
@@ -116,7 +116,7 @@ export function BalanceSheetClient({ report }: BalanceSheetClientProps) {
           <SectionTitle>Kewajiban</SectionTitle>
           <Line label="Hutang Usaha" value={fmt(liabilities.accountsPayable)} negative={liabilities.accountsPayable > 0} />
           {liabilities.accountsPayable > 0 && (
-            <div className="px-5 pb-2 space-y-1 text-[10px]">
+            <div className="px-5 pb-2 space-y-1 text-xs">
               <div className="flex justify-between text-stone-400"><span>Belum jatuh tempo</span><span>{fmt(liabilities.aging.current)}</span></div>
               <div className="flex justify-between text-amber-600"><span>Lewat 1-30 hari</span><span>{fmt(liabilities.aging.overdue1To30)}</span></div>
               <div className="flex justify-between text-orange-600"><span>Lewat 31-60 hari</span><span>{fmt(liabilities.aging.overdue31To60)}</span></div>

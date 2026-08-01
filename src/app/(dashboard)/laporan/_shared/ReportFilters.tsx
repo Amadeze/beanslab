@@ -96,7 +96,7 @@ export function ReportFilters({
             <button
               key={preset.days}
               onClick={() => handlePreset(preset.days)}
-              className="rounded-md px-2 py-1 text-[10px] font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-700"
+              className="rounded-md px-2 py-1 text-xs font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-700"
             >
               {preset.label}
             </button>
@@ -133,7 +133,7 @@ export function ReportFilters({
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-stone-100 bg-stone-50/50 p-3">
           {filters.map((filter) => (
             <div key={filter.key} className="flex items-center gap-2">
-              <label className="text-[10px] font-medium text-stone-500">
+              <label className="text-xs font-medium text-stone-500">
                 {filter.label}
               </label>
               <select

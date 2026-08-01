@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Package, AlertTriangle, ArrowUpDown, BarChart3 } from "lucide-react";
 import {
   ReportLayout,
@@ -10,6 +10,8 @@ import {
   ReportFilters,
   ReportExport,
   ReportSkeleton,
+  ReportError,
+  useReportData,
   type DateRange,
   type ReportColumn,
 } from "../../../_shared";
@@ -27,23 +29,10 @@ export default function StockReportClient() {
     start: getLocalDateString(-30),
     end: getLocalDateString(),
   });
-  const [data, setData] = useState<InventoryValuationReport | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const result = await getInventoryValuationReport(new Date(dateRange.end));
-        setData(result);
-      } catch (error) {
-        console.error("Failed to fetch stock report:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [dateRange]);
+  const { data, error, loading, retry } = useReportData(
+    () => getInventoryValuationReport(new Date(dateRange.end)),
+    [dateRange.start, dateRange.end],
+  );
 
   const columns: ReportColumn<InventoryValuationReport["items"][0]>[] = [
     { key: "code", label: "Kode", sortable: true },
@@ -75,6 +64,14 @@ export default function StockReportClient() {
       className: "text-right",
     },
   ];
+
+  if (error) {
+    return (
+      <ReportLayout activeTab="inventory/stock">
+        <ReportError message={error} onRetry={retry} />
+      </ReportLayout>
+    );
+  }
 
   if (loading || !data) {
     return (

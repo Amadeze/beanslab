@@ -4,9 +4,9 @@ import { getChartOfAccounts, getJournalEntries, getTrialBalance } from "./action
 
 export default async function AkuntansiPage() {
   const [accounts, entries, trialBalance] = await Promise.all([
-    getChartOfAccounts().catch(() => []),
-    getJournalEntries().catch(() => []),
-    getTrialBalance().catch(() => []),
+    getChartOfAccounts(),
+    getJournalEntries(),
+    getTrialBalance(),
   ]);
 
   return (

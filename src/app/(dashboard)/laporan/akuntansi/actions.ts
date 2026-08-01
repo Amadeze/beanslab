@@ -345,8 +345,9 @@ export async function getArusKas(
       .map((l) => l.account.code);
 
     const refType = entry.refType;
-    if (refType === "SALE") {
+    if (refType === "SALE" || refType === "INVOICE" || refType === "PAYMENT") {
       operatingIn += kasIn;
+      operatingOut += kasOut;
     } else if (refType === "SUPPLIER_PAYMENT" || refType === "PURCHASE") {
       operatingOut += kasOut;
     } else if (refType === "EXPENSE") {
@@ -411,12 +412,14 @@ export async function getLabaDitahan(
   const tp = await requireTenantPrisma();
   const tenantId = await getCurrentTenantId();
 
+  // Laba ditahan digulir otomatis per laporan: saldo awal = laba ditahan
+  // historis (3-1020, bila pernah dijurnal manual) + laba bersih periode sebelum fromDate.
   const retainedEarnings = await tp.account.findFirst({
-    where: { tenantId, code: "3-2000", isActive: true },
+    where: { tenantId, code: "3-1020", isActive: true },
     select: { id: true },
   });
   const dividendAccount = await tp.account.findFirst({
-    where: { tenantId, code: "3-3000", isActive: true },
+    where: { tenantId, code: "3-1010", isActive: true },
     select: { id: true },
   });
 
@@ -437,31 +440,13 @@ export async function getLabaDitahan(
     : {};
 
   const openingAgg = retainedEarnings
-    ? await prisma.journalLine.aggregate({
+    ? await tp.journalLine.aggregate({
         where: { accountId: retainedEarnings.id, ...beforeFilter },
         _sum: { credit: true, debit: true },
       })
     : { _sum: { credit: 0, debit: 0 } };
-  const openingBalance =
+  const openingRetained =
     Number(openingAgg._sum.credit ?? 0) - Number(openingAgg._sum.debit ?? 0);
-
-  const periodAgg = retainedEarnings
-    ? await prisma.journalLine.aggregate({
-        where: { accountId: retainedEarnings.id, ...dateFilter },
-        _sum: { credit: true, debit: true },
-      })
-    : { _sum: { credit: 0, debit: 0 } };
-  const periodMovement =
-    Number(periodAgg._sum.credit ?? 0) - Number(periodAgg._sum.debit ?? 0);
-  const netMovement = openingBalance + periodMovement;
-
-  const dividendAgg = dividendAccount
-    ? await prisma.journalLine.aggregate({
-        where: { accountId: dividendAccount.id, ...dateFilter },
-        _sum: { debit: true },
-      })
-    : { _sum: { debit: 0 } };
-  const dividends = Number(dividendAgg._sum.debit ?? 0);
 
   const revenueAccounts = await tp.account.findMany({
     where: { tenantId, type: "REVENUE", isActive: true },
@@ -477,7 +462,7 @@ export async function getLabaDitahan(
 
   const revenueAgg =
     revIds.length > 0
-      ? await prisma.journalLine.aggregate({
+      ? await tp.journalLine.aggregate({
           where: { accountId: { in: revIds }, ...dateFilter },
           _sum: { credit: true, debit: true },
         })
@@ -487,7 +472,7 @@ export async function getLabaDitahan(
 
   const expenseAgg =
     expIds.length > 0
-      ? await prisma.journalLine.aggregate({
+      ? await tp.journalLine.aggregate({
           where: { accountId: { in: expIds }, ...dateFilter },
           _sum: { debit: true, credit: true },
         })
@@ -497,11 +482,41 @@ export async function getLabaDitahan(
 
   const netIncome = totalRevenue - totalExpense;
 
+  // Laba bersih akumulatif sebelum periode berjalan (rollover otomatis).
+  const priorRevenueAgg =
+    revIds.length > 0
+      ? await tp.journalLine.aggregate({
+          where: { accountId: { in: revIds }, ...beforeFilter },
+          _sum: { credit: true, debit: true },
+        })
+      : { _sum: { credit: 0, debit: 0 } };
+  const priorExpenseAgg =
+    expIds.length > 0
+      ? await tp.journalLine.aggregate({
+          where: { accountId: { in: expIds }, ...beforeFilter },
+          _sum: { debit: true, credit: true },
+        })
+      : { _sum: { debit: 0, credit: 0 } };
+  const priorNetIncome =
+    Number(priorRevenueAgg._sum.credit ?? 0) -
+    Number(priorRevenueAgg._sum.debit ?? 0) -
+    (Number(priorExpenseAgg._sum.debit ?? 0) - Number(priorExpenseAgg._sum.credit ?? 0));
+
+  const openingBalance = openingRetained + priorNetIncome;
+
+  const dividendAgg = dividendAccount
+    ? await tp.journalLine.aggregate({
+        where: { accountId: dividendAccount.id, ...dateFilter },
+        _sum: { debit: true },
+      })
+    : { _sum: { debit: 0 } };
+  const dividends = Number(dividendAgg._sum.debit ?? 0);
+
   return {
     openingBalance,
     netIncome,
     dividends,
-    closingBalance: netMovement + netIncome - dividends,
+    closingBalance: openingBalance + netIncome - dividends,
   };
 }
 
@@ -595,7 +610,7 @@ export async function getGlIntegrityCheck(): Promise<GlIntegrityIssue[]> {
   const issues: GlIntegrityIssue[] = [];
 
   // Check 1: Unbalanced journal entries
-  const entries = await prisma.journalEntry.findMany({
+  const entries = await tp.journalEntry.findMany({
     include: {
       lines: { select: { debit: true, credit: true } },
     },
@@ -635,7 +650,7 @@ export async function getGlIntegrityCheck(): Promise<GlIntegrityIssue[]> {
   const accountIds = accounts.map((a) => a.id);
 
   if (accountIds.length > 0) {
-    const lines = await prisma.journalLine.groupBy({
+    const lines = await tp.journalLine.groupBy({
       by: ["accountId"],
       where: { accountId: { in: accountIds } },
       _sum: { debit: true, credit: true },

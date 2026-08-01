@@ -59,10 +59,10 @@ export function ReportInsightCard({
   return (
     <div className={cn("rounded-xl border border-stone-200 bg-white p-4", className)}>
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
+        <p className="text-xs font-bold uppercase tracking-wider text-stone-500">
           {title}
         </p>
-        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-medium text-stone-500">
+        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
           {insights.length} insight
         </span>
       </div>

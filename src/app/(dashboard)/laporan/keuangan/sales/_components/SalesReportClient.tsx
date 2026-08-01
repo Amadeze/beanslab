@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { TrendingUp, ReceiptText, Users, FileText } from "lucide-react";
 import {
   ReportLayout,
@@ -10,6 +10,8 @@ import {
   ReportFilters,
   ReportExport,
   ReportSkeleton,
+  ReportError,
+  useReportData,
   ReportHeader,
   ReportInsightCard,
   type DateRange,
@@ -31,23 +33,10 @@ export default function SalesReportClient() {
     start: getLocalDateString(-30),
     end: getLocalDateString(),
   });
-  const [data, setData] = useState<SalesReportData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const result = await getSalesReport(dateRange.start, dateRange.end);
-        setData(result);
-      } catch (error) {
-        console.error("Failed to fetch sales report:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [dateRange]);
+  const { data, error, loading, retry } = useReportData(
+    () => getSalesReport(dateRange.start, dateRange.end),
+    [dateRange.start, dateRange.end],
+  );
 
   const columns: ReportColumn<SalesReportData["invoices"][0]>[] = [
     { key: "code", label: "Invoice", sortable: true },
@@ -70,7 +59,7 @@ export default function SalesReportClient() {
       label: "Status",
       format: (v) => (
         <span
-          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
             v === "PAID"
               ? "bg-emerald-100 text-emerald-700"
               : v === "PARTIAL"
@@ -83,6 +72,14 @@ export default function SalesReportClient() {
       ),
     },
   ];
+
+  if (error) {
+    return (
+      <ReportLayout activeTab="keuangan/sales">
+        <ReportError message={error} onRetry={retry} />
+      </ReportLayout>
+    );
+  }
 
   if (loading || !data) {
     return (

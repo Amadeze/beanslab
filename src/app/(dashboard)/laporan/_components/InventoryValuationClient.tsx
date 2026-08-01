@@ -81,7 +81,7 @@ export function InventoryValuationClient({ report, hideLayout }: InventoryValuat
           <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-30 transition-opacity"><TrendingUp size={48} className="text-fuchsia-600" /></div>
           <p className="text-xs font-medium text-fuchsia-600 relative z-10">Potensi Laba Kotor (Retail)</p>
           <p className="mt-1 font-mono text-lg font-black tabular-nums text-fuchsia-700 relative z-10">{report.totalMarginHealth.toFixed(1)}%</p>
-          <p className="text-[10px] text-fuchsia-600 mt-1 relative z-10">dari {formatRupiah(report.totalPotentialRevenue)}</p>
+          <p className="text-xs text-fuchsia-600 mt-1 relative z-10">dari {formatRupiah(report.totalPotentialRevenue)}</p>
         </div>
         <div className="rounded-2xl border border-white/60 bg-emerald-50 p-4 shadow-sm">
           <p className="text-xs font-medium text-emerald-600">Green Bean</p>
@@ -166,7 +166,7 @@ export function InventoryValuationClient({ report, hideLayout }: InventoryValuat
                        <TableRow key={item.id} className="border-white/40 hover:bg-white/40">
                           <TableCell className="font-semibold text-slate-700">{item.name}</TableCell>
                           <TableCell>
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-slate-600">
                                {CATEGORY_MAP[item.category]?.icon}
                                {CATEGORY_MAP[item.category]?.label || item.category}
                             </span>

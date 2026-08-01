@@ -54,10 +54,10 @@ export function ReportKpiCard({
     <div className="group relative rounded-xl border border-stone-200 bg-white p-4 transition-all hover:shadow-md hover:border-stone-300">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">{label}</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-stone-500">{label}</p>
           <p className="mt-1.5 text-xl font-black tracking-tight text-stone-900 tabular-nums">{value}</p>
           {subtitle && <p className="mt-0.5 text-[11px] text-stone-500">{subtitle}</p>}
-          {target && <p className="mt-0.5 text-[10px] text-stone-400">Target: {target}</p>}
+          {target && <p className="mt-0.5 text-xs text-stone-400">Target: {target}</p>}
         </div>
         <div className="flex flex-col items-end gap-1.5">
           {Icon && (
@@ -76,7 +76,7 @@ export function ReportKpiCard({
           <span className={cn("text-xs font-semibold tabular-nums", trendColor)}>
             {trend > 0 ? "+" : ""}{trend.toFixed(1)}%
           </span>
-          <span className="text-[10px] text-stone-400">vs periode lalu</span>
+          <span className="text-xs text-stone-400">vs periode lalu</span>
         </div>
       )}
     </div>

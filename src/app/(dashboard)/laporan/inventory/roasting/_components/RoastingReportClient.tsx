@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Flame, TrendingUp, Package, AlertTriangle } from "lucide-react";
 import {
   ReportLayout,
@@ -10,6 +10,8 @@ import {
   ReportFilters,
   ReportExport,
   ReportSkeleton,
+  ReportError,
+  useReportData,
   ReportHeader,
   ReportInsightCard,
   type DateRange,
@@ -31,23 +33,10 @@ export default function RoastingReportClient() {
     start: getLocalDateString(-30),
     end: getLocalDateString(),
   });
-  const [data, setData] = useState<RoastingReportData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const result = await getRoastingReport(dateRange.start, dateRange.end);
-        setData(result);
-      } catch (error) {
-        console.error("Failed to fetch roasting report:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [dateRange]);
+  const { data, error, loading, retry } = useReportData(
+    () => getRoastingReport(dateRange.start, dateRange.end),
+    [dateRange.start, dateRange.end],
+  );
 
   const columns: ReportColumn<RoastingReportData["batches"][0]>[] = [
     { key: "id", label: "Batch", sortable: true },
@@ -83,6 +72,14 @@ export default function RoastingReportClient() {
     },
     { key: "machine", label: "Mesin", sortable: true },
   ];
+
+  if (error) {
+    return (
+      <ReportLayout activeTab="inventory/roasting">
+        <ReportError message={error} onRetry={retry} />
+      </ReportLayout>
+    );
+  }
 
   if (loading || !data) {
     return (

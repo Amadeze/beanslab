@@ -99,7 +99,7 @@ export function BukuBesarClient({
                 <h2 className="text-lg font-semibold text-stone-800">
                   {data.accountCode} — {data.accountName}
                 </h2>
-                <Badge variant="outline" className="mt-1 text-[10px]">
+                <Badge variant="outline" className="mt-1 text-xs">
                   {TYPE_LABELS[data.accountType] ?? data.accountType}
                 </Badge>
               </div>
@@ -146,7 +146,7 @@ export function BukuBesarClient({
                     <td className="px-4 py-2 text-xs text-stone-700">
                       {l.description}
                       {l.reference && (
-                        <span className="ml-1 text-[10px] text-stone-400">({l.reference})</span>
+                        <span className="ml-1 text-xs text-stone-400">({l.reference})</span>
                       )}
                     </td>
                     <td className="px-4 py-2 text-right font-mono text-xs text-stone-700">

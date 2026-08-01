@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Factory, TrendingUp, Package, CheckCircle } from "lucide-react";
 import {
   ReportLayout,
@@ -10,6 +10,8 @@ import {
   ReportFilters,
   ReportExport,
   ReportSkeleton,
+  ReportError,
+  useReportData,
   type DateRange,
   type ReportColumn,
   type ProductionReportData,
@@ -28,23 +30,10 @@ export default function ProductionReportClient() {
     start: getLocalDateString(-30),
     end: getLocalDateString(),
   });
-  const [data, setData] = useState<ProductionReportData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const result = await getProductionReport(dateRange.start, dateRange.end);
-        setData(result);
-      } catch (error) {
-        console.error("Failed to fetch production report:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [dateRange]);
+  const { data, error, loading, retry } = useReportData(
+    () => getProductionReport(dateRange.start, dateRange.end),
+    [dateRange.start, dateRange.end],
+  );
 
   const columns: ReportColumn<ProductionReportData["batches"][0]>[] = [
     { key: "id", label: "Batch", sortable: true },
@@ -75,7 +64,7 @@ export default function ProductionReportClient() {
       label: "Status",
       format: (v) => (
         <span
-          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
             v === "COMPLETED"
               ? "bg-emerald-100 text-emerald-700"
               : "bg-stone-100 text-stone-700"
@@ -86,6 +75,14 @@ export default function ProductionReportClient() {
       ),
     },
   ];
+
+  if (error) {
+    return (
+      <ReportLayout activeTab="inventory/production">
+        <ReportError message={error} onRetry={retry} />
+      </ReportLayout>
+    );
+  }
 
   if (loading || !data) {
     return (

@@ -54,7 +54,7 @@ export function ReportComparisonBar({
     <div className={cn("rounded-xl border border-stone-200 bg-white p-4", className)}>
       <div className="mb-3 flex items-center gap-2">
         <ArrowLeftRight size={14} className="text-stone-400" />
-        <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
+        <p className="text-xs font-bold uppercase tracking-wider text-stone-500">
           {title}
         </p>
       </div>
@@ -75,7 +75,7 @@ export function ReportComparisonBar({
                   <span className="text-sm font-bold text-stone-900 tabular-nums">
                     {formatValue(item.current, item.formatter)}
                   </span>
-                  <span className="text-[10px] text-stone-400">
+                  <span className="text-xs text-stone-400">
                     vs {formatValue(item.previous, item.formatter)}
                   </span>
                 </div>
@@ -93,7 +93,7 @@ export function ReportComparisonBar({
                 ) : (
                   <Minus size={10} className={changeColor} />
                 )}
-                <span className={cn("text-[10px] font-semibold tabular-nums", changeColor)}>
+                <span className={cn("text-xs font-semibold tabular-nums", changeColor)}>
                   {changePercent > 0 ? "+" : ""}
                   {changePercent.toFixed(1)}%
                 </span>

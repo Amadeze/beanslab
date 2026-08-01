@@ -15,6 +15,10 @@ export { ReportExport } from "./ReportExport";
 
 export { ReportSkeleton } from "./ReportSkeleton";
 
+export { ReportError } from "./ReportError";
+
+export { useReportData } from "./useReportData";
+
 export { ReportHeader } from "./ReportHeader";
 
 export { ReportInsightCard } from "./ReportInsightCard";

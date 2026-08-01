@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { TrendingUp, TrendingDown, WalletCards, ReceiptText } from "lucide-react";
 import {
   ReportLayout,
@@ -10,6 +10,8 @@ import {
   ReportFilters,
   ReportExport,
   ReportSkeleton,
+  ReportError,
+  useReportData,
   ReportHeader,
   ReportInsightCard,
   type DateRange,
@@ -31,23 +33,10 @@ export default function ExpenseReportClient() {
     start: getLocalDateString(-30),
     end: getLocalDateString(),
   });
-  const [data, setData] = useState<ExpenseReportData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const result = await getExpenseReport(dateRange.start, dateRange.end);
-        setData(result);
-      } catch (error) {
-        console.error("Failed to fetch expense report:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [dateRange]);
+  const { data, error, loading, retry } = useReportData(
+    () => getExpenseReport(dateRange.start, dateRange.end),
+    [dateRange.start, dateRange.end],
+  );
 
   const columns: ReportColumn<ExpenseReportData["expenses"][0]>[] = [
     {
@@ -70,7 +59,7 @@ export default function ExpenseReportClient() {
       label: "Status",
       format: (v) => (
         <span
-          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
             v === "Lunas"
               ? "bg-emerald-100 text-emerald-700"
               : "bg-amber-100 text-amber-700"
@@ -81,6 +70,14 @@ export default function ExpenseReportClient() {
       ),
     },
   ];
+
+  if (error) {
+    return (
+      <ReportLayout activeTab="keuangan/expenses">
+        <ReportError message={error} onRetry={retry} />
+      </ReportLayout>
+    );
+  }
 
   if (loading || !data) {
     return (

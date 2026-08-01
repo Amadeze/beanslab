@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Calendar, TrendingUp, TrendingDown, ReceiptText, WalletCards } from "lucide-react";
 import {
   ReportLayout,
@@ -9,6 +9,8 @@ import {
   ReportTable,
   ReportExport,
   ReportSkeleton,
+  ReportError,
+  useReportData,
   ReportHeader,
   type ReportColumn,
 } from "../../_shared";
@@ -29,62 +31,46 @@ export default function DailyReportClient() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
-  const [data, setData] = useState<{
-    revenue: number;
-    expenses: number;
-    transactions: number;
-    batches: number;
-    activities: DailyActivity[];
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, error, loading, retry } = useReportData(
+    async () => {
+      // Fetch daily data from multiple sources
+      const [salesResult, expenseResult, roastingResult] = await Promise.all([
+        getSalesReport(selectedDate, selectedDate),
+        getExpenseReport(selectedDate, selectedDate),
+        getRoastingReport(selectedDate, selectedDate),
+      ]);
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        // Fetch daily data from multiple sources
-        const [salesResult, expenseResult, roastingResult] = await Promise.all([
-          getSalesReport(selectedDate, selectedDate),
-          getExpenseReport(selectedDate, selectedDate),
-          getRoastingReport(selectedDate, selectedDate),
-        ]);
+      const revenue = salesResult.totalRevenue;
+      const expenses = expenseResult.totalExpenses;
+      const transactions = salesResult.invoiceCount;
+      const batches = roastingResult.totalBatches;
 
-        const revenue = salesResult.totalRevenue;
-        const expenses = expenseResult.totalExpenses;
-        const transactions = salesResult.invoiceCount;
-        const batches = roastingResult.totalBatches;
+      // Combine activities from sales, expenses, and roasting
+      const activities: DailyActivity[] = [
+        ...salesResult.invoices.map((inv) => ({
+          time: new Date(inv.date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          area: "Penjualan",
+          activity: `Invoice ${inv.code} - ${inv.customer}`,
+          amount: inv.amount,
+        })),
+        ...expenseResult.expenses.map((exp) => ({
+          time: new Date(exp.date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          area: "Pengeluaran",
+          activity: exp.description,
+          amount: exp.amount,
+        })),
+        ...roastingResult.batches.map((batch) => ({
+          time: new Date(batch.date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          area: "Roasting",
+          activity: `Batch ${batch.id} - ${batch.gbInput}kg → ${batch.rbOutput}kg`,
+          amount: null,
+        })),
+      ].sort((a, b) => a.time.localeCompare(b.time));
 
-        // Combine activities from sales, expenses, and roasting
-        const activities: DailyActivity[] = [
-          ...salesResult.invoices.map((inv) => ({
-            time: new Date(inv.date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-            area: "Penjualan",
-            activity: `Invoice ${inv.code} - ${inv.customer}`,
-            amount: inv.amount,
-          })),
-          ...expenseResult.expenses.map((exp) => ({
-            time: new Date(exp.date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-            area: "Pengeluaran",
-            activity: exp.description,
-            amount: exp.amount,
-          })),
-          ...roastingResult.batches.map((batch) => ({
-            time: new Date(batch.date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-            area: "Roasting",
-            activity: `Batch ${batch.id} - ${batch.gbInput}kg → ${batch.rbOutput}kg`,
-            amount: null,
-          })),
-        ].sort((a, b) => a.time.localeCompare(b.time));
-
-        setData({ revenue, expenses, transactions, batches, activities });
-      } catch (error) {
-        console.error("Failed to fetch daily report:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [selectedDate]);
+      return { revenue, expenses, transactions, batches, activities };
+    },
+    [selectedDate],
+  );
 
   const columns: ReportColumn<DailyActivity>[] = [
     { key: "time", label: "Waktu", sortable: true },
@@ -98,6 +84,14 @@ export default function DailyReportClient() {
       className: "text-right",
     },
   ];
+
+  if (error) {
+    return (
+      <ReportLayout activeTab="daily">
+        <ReportError message={error} onRetry={retry} />
+      </ReportLayout>
+    );
+  }
 
   if (loading || !data) {
     return (
@@ -179,7 +173,7 @@ export default function DailyReportClient() {
 
         {/* Executive Summary */}
         <div className="rounded-xl border border-stone-200 bg-white p-4">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Ringkasan Eksekutif</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-500">Ringkasan Eksekutif</p>
           <div className="space-y-1 text-xs text-stone-600">
             <p>• Revenue hari ini: <span className="font-semibold">{formatRupiah(data.revenue)}</span> dari {data.transactions} transaksi</p>
             <p>• Pengeluaran: <span className="font-semibold">{formatRupiah(data.expenses)}</span></p>

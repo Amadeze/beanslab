@@ -60,10 +60,10 @@ export function IntegrityClient({ issues }: { issues: GlIntegrityIssue[] }) {
                   <p className="text-xs mt-1 opacity-80">{issue.detail}</p>
                   <div className="flex gap-2 mt-2">
                     {issue.entryCode && (
-                      <span className="font-mono text-[10px] opacity-60">Entry: {issue.entryCode}</span>
+                      <span className="font-mono text-xs opacity-60">Entry: {issue.entryCode}</span>
                     )}
                     {issue.accountCode && (
-                      <span className="font-mono text-[10px] opacity-60">Akun: {issue.accountCode}</span>
+                      <span className="font-mono text-xs opacity-60">Akun: {issue.accountCode}</span>
                     )}
                   </div>
                 </div>

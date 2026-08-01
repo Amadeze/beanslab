@@ -52,7 +52,7 @@ export function SampleReportClient({ report }: SampleReportClientProps) {
         <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-4 shadow-sm">
           <p className="text-xs font-medium text-violet-600">Total Sample</p>
           <p className="mt-1 font-mono text-xl font-black tabular-nums text-violet-700">{report.totalSamples}</p>
-          <p className="text-[10px] text-violet-500">transaksi selesai</p>
+          <p className="text-xs text-violet-500">transaksi selesai</p>
         </div>
         <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm">
           <p className="text-xs font-medium text-violet-600">Total Biaya Sample</p>

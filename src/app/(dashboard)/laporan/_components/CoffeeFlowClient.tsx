@@ -112,13 +112,13 @@ function FlowPipeline({ report, onStageClick }: { report: CoffeeFlowReport; onSt
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-800">{stage.label}</p>
-                      <p className="text-[10px] text-slate-500">{stage.sub}</p>
+                      <p className="text-xs text-slate-500">{stage.sub}</p>
                     </div>
                   </div>
                   <p className={cn("text-2xl font-black tabular-nums", `text-${stage.color}-700`)}>{stage.metric}</p>
                   <p className={cn("text-xs font-semibold mt-1", `text-${stage.color}-600`)}>{stage.subMetric}</p>
                   <p className="text-[11px] text-slate-500 mt-0.5">{stage.value}</p>
-                  <p className="text-[10px] text-slate-400 mt-2 border-t border-slate-200/50 pt-2">{stage.stock}</p>
+                  <p className="text-xs text-slate-400 mt-2 border-t border-slate-200/50 pt-2">{stage.stock}</p>
                 </button>
                 {i < stages.length - 1 && (
                   <div className="hidden md:flex items-center px-1">
@@ -178,15 +178,15 @@ function ConversionFunnel({ report }: { report: CoffeeFlowReport }) {
         ))}
         <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-4 text-center">
           <div>
-            <p className="text-[10px] font-bold uppercase text-slate-400">Revenue</p>
+            <p className="text-xs font-bold uppercase text-slate-400">Revenue</p>
             <p className="text-sm font-black text-slate-800">Rp {totalRevenue.toLocaleString("id-ID")}</p>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase text-slate-400">COGS</p>
+            <p className="text-xs font-bold uppercase text-slate-400">COGS</p>
             <p className="text-sm font-black text-slate-800">Rp {totalCOGS.toLocaleString("id-ID")}</p>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase text-slate-400">Laba Kotor</p>
+            <p className="text-xs font-bold uppercase text-slate-400">Laba Kotor</p>
             <p className={cn("text-sm font-black", totalRevenue - totalCOGS >= 0 ? "text-emerald-600" : "text-red-600")}>
               Rp {(totalRevenue - totalCOGS).toLocaleString("id-ID")}
             </p>
@@ -316,7 +316,7 @@ export function CoffeeFlowClient({ report }: { report: CoffeeFlowReport }) {
               </Table>
             </div>
             <div className="border-l border-slate-100 p-4">
-              <p className="text-[10px] font-bold uppercase text-slate-400 mb-2">Top GB Dibeli</p>
+              <p className="text-xs font-bold uppercase text-slate-400 mb-2">Top GB Dibeli</p>
               <GBChart data={gbChartData} />
             </div>
           </div>
@@ -390,7 +390,7 @@ export function CoffeeFlowClient({ report }: { report: CoffeeFlowReport }) {
                 <TableRow key={fg.id} className="hover:bg-violet-50/20">
                   <TableCell className="font-medium text-slate-700">
                     <div>{fg.name}</div>
-                    <div className="text-[10px] text-slate-400">{fg.weightPerUnitGrams}g/unit</div>
+                    <div className="text-xs text-slate-400">{fg.weightPerUnitGrams}g/unit</div>
                   </TableCell>
                   <TableCell className="text-right text-emerald-700 font-medium">+{fg.producedUnits.toLocaleString("id-ID")}</TableCell>
                   <TableCell className="text-right text-indigo-700 font-medium">-{fg.soldUnits.toLocaleString("id-ID")}</TableCell>

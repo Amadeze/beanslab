@@ -69,13 +69,13 @@ export function ReportTable<T extends Record<string, any>>({
       {showColumnToggle && columns.some((c) => c.hideable !== false) && (
         <div className="flex items-center justify-between border-b border-border bg-muted/55 px-4 py-2">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium text-stone-500">{data.length} baris</span>
-            <span className="text-[10px] text-stone-400">|</span>
-            <span className="text-[10px] text-stone-400">{visibleColumns.length} kolom</span>
+            <span className="text-xs font-medium text-stone-500">{data.length} baris</span>
+            <span className="text-xs text-stone-400">|</span>
+            <span className="text-xs text-stone-400">{visibleColumns.length} kolom</span>
           </div>
           <div className="relative">
             <button onClick={() => setShowColumnSettings(!showColumnSettings)}
-              className="flex items-center gap-1 rounded-[7px] border border-border bg-card px-2 py-1 text-[10px] font-bold text-muted-foreground hover:bg-accent">
+              className="flex items-center gap-1 rounded-[7px] border border-border bg-card px-2 py-1 text-xs font-bold text-muted-foreground hover:bg-accent">
               <Settings2 size={10} /> Kolom
             </button>
             {showColumnSettings && (
@@ -102,7 +102,7 @@ export function ReportTable<T extends Record<string, any>>({
             <tr className="instrument-grid-dark border-b border-white/10 bg-[#0B141B]">
               {visibleColumns.map((col) => (
                 <th key={col.key}
-                  className={cn("sticky top-0 z-5 bg-[#0B141B] px-4 py-3 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-white/62",
+                  className={cn("sticky top-0 z-5 bg-[#0B141B] px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.12em] text-white/62",
                     col.sortable && "cursor-pointer select-none hover:text-stone-700", col.className)}
                   onClick={() => col.sortable && handleSort(col.key)}>
                   <span className="flex items-center gap-1">

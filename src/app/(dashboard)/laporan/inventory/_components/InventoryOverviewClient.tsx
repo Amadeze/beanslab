@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Package,
@@ -17,6 +17,8 @@ import {
   ReportChart,
   ReportFilters,
   ReportSkeleton,
+  ReportError,
+  useReportData,
   type DateRange,
 } from "../../_shared";
 import {
@@ -36,23 +38,18 @@ export default function InventoryOverviewClient() {
     start: getLocalDateString(-30),
     end: getLocalDateString(),
   });
-  const [data, setData] = useState<InventoryValuationReport | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, error, loading, retry } = useReportData(
+    () => getInventoryValuationReport(new Date(dateRange.end)),
+    [dateRange.start, dateRange.end],
+  );
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const result = await getInventoryValuationReport(new Date(dateRange.end));
-        setData(result);
-      } catch (error) {
-        console.error("Failed to fetch inventory overview:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [dateRange]);
+  if (error) {
+    return (
+      <ReportLayout activeTab="inventory">
+        <ReportError message={error} onRetry={retry} />
+      </ReportLayout>
+    );
+  }
 
   if (loading || !data) {
     return (

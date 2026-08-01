@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Download, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { exportToPdf, exportToExcel, exportToProfessionalPdf, exportToProfessionalExcel } from "@/lib/export-utils";
 
 interface ReportExportProps {
@@ -67,8 +68,10 @@ export function ReportExport({
           data,
         });
       }
+      toast.success("PDF berhasil diunduh");
     } catch (error) {
       console.error("PDF export failed:", error);
+      toast.error("Gagal mengekspor PDF");
     } finally {
       setExporting(null);
     }
@@ -98,6 +101,10 @@ export function ReportExport({
           data,
         });
       }
+      toast.success("Excel berhasil diunduh");
+    } catch (error) {
+      console.error("Excel export failed:", error);
+      toast.error("Gagal mengekspor Excel");
     } finally {
       setExporting(null);
     }

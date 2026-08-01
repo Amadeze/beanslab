@@ -216,7 +216,7 @@ export function CoaListClient({ accounts, entries, trialBalance }: Props) {
                             {a.name}
                           </span>
                           {a.isSystem && (
-                            <Badge variant="outline" className="text-[10px] text-stone-400 border-stone-200">sistem</Badge>
+                            <Badge variant="outline" className="text-xs text-stone-400 border-stone-200">sistem</Badge>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
@@ -248,7 +248,7 @@ export function CoaListClient({ accounts, entries, trialBalance }: Props) {
                       <span className="font-mono text-xs font-bold text-stone-700">{e.code}</span>
                       <span className="text-xs text-stone-400">{formatDate(e.date)}</span>
                       {e.refType && (
-                        <Badge variant="outline" className="text-[10px]">{e.refType}</Badge>
+                        <Badge variant="outline" className="text-xs">{e.refType}</Badge>
                       )}
                     </div>
                     <span className="text-xs text-stone-500">{e.description}</span>
@@ -295,7 +295,7 @@ export function CoaListClient({ accounts, entries, trialBalance }: Props) {
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="font-mono text-xs text-stone-400 w-16 shrink-0">{r.accountCode}</span>
                       <span className="text-stone-700 truncate">{r.accountName}</span>
-                      <Badge variant="outline" className={`text-[10px] shrink-0 ${TYPE_COLORS[r.type] || ""}`}>
+                      <Badge variant="outline" className={`text-xs shrink-0 ${TYPE_COLORS[r.type] || ""}`}>
                         {TYPE_LABELS[r.type] || r.type}
                       </Badge>
                     </div>

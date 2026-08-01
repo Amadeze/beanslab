@@ -70,7 +70,7 @@ async function exportToPdf(report: PnLReport) {
 function SectionHeader({ label }: { label: string }) {
   return (
     <div className="border-b border-stone-200 bg-stone-50 px-5 py-2">
-      <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500">{label}</span>
+      <span className="text-xs font-bold uppercase tracking-widest text-stone-500">{label}</span>
     </div>
   );
 }
@@ -147,13 +147,13 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
           <div key={idx} className="rounded-xl border border-stone-200 bg-white p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">{item.label}</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-stone-500">{item.label}</p>
                 <p className={cn("mt-1 font-mono text-lg font-black tabular-nums", item.color.split(" ")[0])}>
                   {typeof item.value === "number" && item.value < 0
                     ? `(${formatRupiah(Math.abs(item.value))})`
                     : typeof item.value === "number" ? formatRupiah(item.value) : item.value}
                 </p>
-                {(item as any).pct && <p className="text-[10px] text-stone-400">Margin: {(item as any).pct}</p>}
+                {(item as any).pct && <p className="text-xs text-stone-400">Margin: {(item as any).pct}</p>}
               </div>
               <div className={cn("rounded-lg p-2", item.color.split(" ").slice(1).join(" "))}>
                 <item.icon size={16} className={item.color.split(" ")[0]} />
@@ -181,7 +181,7 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
       {/* Charts */}
       <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="flex h-[260px] flex-col rounded-xl border border-stone-200 bg-white p-4">
-          <h3 className="mb-3 text-[10px] font-bold uppercase tracking-wider text-stone-500">Distribusi Pendapatan</h3>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-stone-500">Distribusi Pendapatan</h3>
           <div className="flex-1 min-h-0">
             {revenue > 0 ? (() => {
               const pieData = [
@@ -207,7 +207,7 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
           </div>
         </div>
         <div className="flex h-[260px] flex-col rounded-xl border border-stone-200 bg-white p-4">
-          <h3 className="mb-3 text-[10px] font-bold uppercase tracking-wider text-stone-500">Bulan Lalu vs Bulan Ini</h3>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-stone-500">Bulan Lalu vs Bulan Ini</h3>
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={[
@@ -238,8 +238,8 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">roastd.id</p>
-              <p className="text-[10px] text-stone-400">Dalam Rupiah (IDR)</p>
+              <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">roastd.id</p>
+              <p className="text-xs text-stone-400">Dalam Rupiah (IDR)</p>
             </div>
           </div>
         </div>
@@ -286,7 +286,7 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
 
         {/* Footer */}
         <div className="border-t border-stone-100 bg-stone-50/60 px-5 py-3">
-          <div className="flex items-center justify-between text-[10px] text-stone-400">
+          <div className="flex items-center justify-between text-xs text-stone-400">
             <span>Dibuat otomatis oleh roastd.id</span>
             <span className="tabular-nums">Dicetak: {formatDateLong(getCurrentDate())}</span>
           </div>

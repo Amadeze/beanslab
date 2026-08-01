@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   TrendingUp,
@@ -17,6 +17,8 @@ import {
   ReportFilters,
   ReportExport,
   ReportSkeleton,
+  ReportError,
+  useReportData,
   type DateRange,
   type KeuanganOverviewData,
 } from "../../_shared";
@@ -34,26 +36,18 @@ export default function KeuanganOverviewClient() {
     start: getLocalDateString(-30),
     end: getLocalDateString(),
   });
-  const [data, setData] = useState<KeuanganOverviewData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, error, loading, retry } = useReportData(
+    () => getKeuanganOverview(dateRange.start, dateRange.end),
+    [dateRange.start, dateRange.end],
+  );
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const result = await getKeuanganOverview(
-          dateRange.start,
-          dateRange.end,
-        );
-        setData(result);
-      } catch (error) {
-        console.error("Failed to fetch keuangan overview:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [dateRange]);
+  if (error) {
+    return (
+      <ReportLayout activeTab="keuangan">
+        <ReportError message={error} onRetry={retry} />
+      </ReportLayout>
+    );
+  }
 
   if (loading || !data) {
     return (
