@@ -80,7 +80,7 @@ export function PackagingForm({ id, onSuccess, onPendingChange, initialData }: P
         Kode dibuat otomatis. Semua field wajib diisi.
       </div>
       <div className="space-y-1.5">
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
           Nama Kemasan <span className="text-red-500">*</span>
         </Label>
         <Input placeholder="Contoh: Zipper Bag 250g, Kraft Box 1kg" className={cn("h-9", glassInput)} {...register("name")} />
@@ -89,13 +89,13 @@ export function PackagingForm({ id, onSuccess, onPendingChange, initialData }: P
 
       <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white/40 p-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Berat Kemasan (gram) *</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Berat Kemasan (gram) *</Label>
           <Input type="number" min="1" step="0.1" placeholder="Contoh: 12" className={cn("h-9", glassInput)} {...register("weightGrams", { valueAsNumber: true })} />
           {errors.weightGrams && <p className="text-xs text-red-500">{errors.weightGrams.message}</p>}
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Harga Pokok per Unit (Rp) *</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Harga Pokok per Unit (Rp) *</Label>
           <Input type="number" min="1" placeholder="Contoh: 2000" className={cn("h-9 font-semibold", glassInput)} {...register("costPerUnit", { valueAsNumber: true })} />
           {errors.costPerUnit && <p className="text-xs text-red-500">{errors.costPerUnit.message}</p>}
         </div>
@@ -103,7 +103,7 @@ export function PackagingForm({ id, onSuccess, onPendingChange, initialData }: P
 
       {isEditMode && (
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Status</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Status</Label>
           <Controller
             control={control}
             name="isActive"

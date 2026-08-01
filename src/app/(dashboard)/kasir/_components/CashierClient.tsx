@@ -327,9 +327,14 @@ export function CashierClient({
                   const price = priceResolution.unitPrice;
                   const unavailable = product.stockUnit <= 0;
                   return (
-                    <article key={product.id} className="flex min-h-[154px] flex-col rounded-xl border border-stone-200 bg-white p-3.5">
+                    <article key={product.id} className="relative flex min-h-[154px] flex-col rounded-xl border border-stone-200 bg-white p-3.5">
+                      {quantity > 0 ? (
+                        <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white shadow-sm ring-2 ring-white">
+                          {quantity}
+                        </div>
+                      ) : null}
                       <div className="min-w-0">
-                        <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-stone-400">{product.code}</p>
+                        <p className="truncate text-xs font-semibold uppercase tracking-wide text-stone-400">{product.code}</p>
                         <h2 className="mt-1 line-clamp-2 text-sm font-bold leading-5 text-stone-900">{product.name}</h2>
                         <p className={cn("mt-1 text-[11px] font-medium", unavailable ? "text-red-600" : "text-stone-500")}>
                           {unavailable ? "Stok habis" : `${product.stockUnit} pcs tersedia`}
@@ -389,7 +394,7 @@ export function CashierClient({
               <div key={row.product.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-4 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold text-stone-900">{row.product.name}</p>
-                  <p className="mt-0.5 text-[10px] text-stone-500">{row.quantity} × {formatRupiah(row.unitPrice)}</p>
+                  <p className="mt-0.5 text-xs text-stone-500">{row.quantity} × {formatRupiah(row.unitPrice)}</p>
                 </div>
                 <p className="text-xs font-bold tabular-nums text-stone-900">{formatRupiah(row.subtotal)}</p>
               </div>
@@ -398,7 +403,7 @@ export function CashierClient({
 
           <div className="border-t border-stone-200 p-4">
             <fieldset>
-              <legend className="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Metode pembayaran</legend>
+              <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-500">Metode pembayaran</legend>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: "CASH", label: "Tunai", icon: Banknote },
@@ -413,7 +418,7 @@ export function CashierClient({
                       type="button"
                       onClick={() => setPaymentMethod(method.id as PaymentMethod)}
                       className={cn(
-                        "flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg border text-[10px] font-semibold",
+                        "flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg border text-xs font-semibold",
                         active ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 text-stone-600 hover:bg-stone-50",
                       )}
                     >
@@ -445,17 +450,36 @@ export function CashierClient({
         </aside>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setMobileCartOpen(true)}
-        className="fixed bottom-[calc(78px+env(safe-area-inset-bottom,0px))] left-4 right-4 z-30 flex min-h-12 items-center justify-between rounded-xl bg-stone-900 px-4 text-sm font-bold text-white shadow-xl lg:hidden"
-      >
-        <span className="inline-flex items-center gap-2">
-          <ShoppingCart size={17} />
-          Keranjang · {totalUnits} item
-        </span>
-        <span>{formatRupiah(total)}</span>
-      </button>
+      {/* Mobile Persistent Total Bar */}
+      <div className="fixed bottom-[calc(78px+env(safe-area-inset-bottom,0px))] left-4 right-4 z-30 flex min-h-14 items-center justify-between overflow-hidden rounded-xl bg-stone-900 shadow-2xl lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileCartOpen(true)}
+          className="flex flex-1 items-center gap-3 px-4 py-3 text-left hover:bg-stone-800 transition-colors"
+        >
+          <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
+            <ShoppingCart size={15} />
+            {totalUnits > 0 ? (
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                {totalUnits}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-medium text-stone-400">Total belanja</span>
+            <span className="truncate text-sm font-bold tracking-tight text-white">{formatRupiah(total)}</span>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={checkout}
+          disabled={submitting || cartRows.length === 0 || !customerId}
+          className="flex h-full min-h-14 items-center justify-center gap-1.5 bg-emerald-600 px-5 text-sm font-bold text-white hover:bg-emerald-500 disabled:bg-stone-800 disabled:text-stone-500 transition-colors"
+        >
+          {submitting ? <Loader2 size={16} className="animate-spin" /> : null}
+          {submitting ? "Proses..." : "Bayar"}
+        </button>
+      </div>
 
       <StandardDrawer
         open={mobileCartOpen}
@@ -504,7 +528,7 @@ export function CashierClient({
           )}
 
           <fieldset>
-            <legend className="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Metode pembayaran</legend>
+            <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-500">Metode pembayaran</legend>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: "CASH", label: "Tunai", icon: Banknote },
@@ -519,7 +543,7 @@ export function CashierClient({
                     type="button"
                     onClick={() => setPaymentMethod(method.id as PaymentMethod)}
                     className={cn(
-                      "flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg border text-[10px] font-semibold",
+                      "flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg border text-xs font-semibold",
                       active ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 text-stone-600",
                     )}
                   >

@@ -115,7 +115,7 @@ export default function PortalCustomizerPage() {
           <div className="h-4 w-px bg-gray-800" />
           <div className="flex items-center gap-2">
             <span className="font-bold text-white tracking-wide text-sm">Portal Customizer</span>
-            <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+            <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-400">
               roastd.id Studio
             </span>
           </div>
@@ -275,7 +275,7 @@ export default function PortalCustomizerPage() {
                         <ChevronLeft size={16} />
                         <span>Back to Sections</span>
                       </button>
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700">
+                      <span className="text-xs font-mono uppercase px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700">
                         Editing Block
                       </span>
                     </div>
@@ -293,7 +293,7 @@ export default function PortalCustomizerPage() {
           {/* Sidebar Footer Info */}
           <div className="p-3 border-t border-gray-800 bg-gray-950/50 flex items-center justify-between text-[11px] text-gray-500 shrink-0">
             <span>Roastery Operating System</span>
-            <span className="font-mono text-[10px]">v2.4 Block Engine</span>
+            <span className="font-mono text-xs">v2.4 Block Engine</span>
           </div>
         </aside>
 

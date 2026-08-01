@@ -73,14 +73,14 @@ function EmptyState({ label }: { label: string }) {
 
 function ActiveBadge({ active }: { active: boolean }) {
   return active
-    ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 shadow-sm border border-emerald-100"><CheckCircle2 size={9} strokeWidth={3} />Aktif</span>
-    : <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900/10 px-2 py-0.5 text-[10px] font-bold text-zinc-500 shadow-sm border border-zinc-200"><XCircle size={9} strokeWidth={3} />Nonaktif</span>;
+    ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 shadow-sm border border-emerald-100"><CheckCircle2 size={9} strokeWidth={3} />Aktif</span>
+    : <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900/10 px-2 py-0.5 text-xs font-bold text-zinc-500 shadow-sm border border-zinc-200"><XCircle size={9} strokeWidth={3} />Nonaktif</span>;
 }
 
 function EditButton({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className="inline-flex items-center gap-1 rounded-lg border border-white/60 bg-white/50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-600 transition-all hover:border-white hover:bg-white hover:text-zinc-900 hover:shadow-md hover:scale-105">
+      className="inline-flex items-center gap-1 rounded-lg border border-white/60 bg-white/50 px-2 py-1 text-xs font-bold uppercase tracking-wider text-zinc-600 transition-all hover:border-white hover:bg-white hover:text-zinc-900 hover:shadow-md hover:scale-105">
       <Pencil size={10} strokeWidth={3} /> Edit
     </button>
   );
@@ -92,7 +92,7 @@ const ROLE_BADGE_CLASS: Record<UserRow["role"], string> = {
 };
 
 function RoleBadge({ role }: { role: UserRow["role"] }) {
-  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ROLE_BADGE_CLASS[role]}`}>{role}</span>;
+  return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${ROLE_BADGE_CLASS[role]}`}>{role}</span>;
 }
 
 function EntityTable({ children }: { children: React.ReactNode }) {
@@ -104,7 +104,7 @@ function EntityTable({ children }: { children: React.ReactNode }) {
 }
 
 function Th({ children, className, hide }: { children: React.ReactNode; className?: string; hide?: string }) {
-  return <th className={`px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-zinc-500 ${hide ?? ""} ${className ?? ""}`}>{children}</th>;
+  return <th className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-zinc-500 ${hide ?? ""} ${className ?? ""}`}>{children}</th>;
 }
 
 function SupplierTable({ rows, onEdit }: { rows: SupplierRow[]; onEdit: (r: SupplierRow) => void }) {
@@ -131,7 +131,7 @@ function SupplierTable({ rows, onEdit }: { rows: SupplierRow[]; onEdit: (r: Supp
             <td className="px-4 py-3 text-xs text-zinc-500 hidden md:table-cell">{row.phone ?? "\u2014"}</td>
             <td className="px-4 py-3 hidden lg:table-cell">
               {row.region
-                ? <span className="rounded-full bg-zinc-900/10 px-2 py-0.5 text-[10px] font-medium text-zinc-700">{row.region}</span>
+                ? <span className="rounded-full bg-zinc-900/10 px-2 py-0.5 text-xs font-medium text-zinc-700">{row.region}</span>
                 : <span className="text-xs text-zinc-400">—</span>}
             </td>
             <td className="px-4 py-3 text-center font-mono text-xs font-semibold text-zinc-700">{row.purchaseCount}×</td>
@@ -214,7 +214,7 @@ function ProductTable({ rows, onEdit }: { rows: ProductRow[]; onEdit: (r: Produc
               {row.description && <p className="text-[11px] text-zinc-400 truncate max-w-[200px]">{row.description}</p>}
             </td>
             <td className="px-4 py-3">
-              <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${PROD_TYPE_COLOR[row.type]}`}>{PROD_TYPE_LABEL[row.type]}</span>
+              <span className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase ${PROD_TYPE_COLOR[row.type]}`}>{PROD_TYPE_LABEL[row.type]}</span>
               <span className="ml-1.5 text-xs text-zinc-500 hidden sm:inline">{PROD_TYPE_FULL[row.type]}</span>
             </td>
             <td className="px-4 py-3 text-xs text-zinc-500 hidden md:table-cell">{row.origin ?? "\u2014"}</td>
@@ -427,7 +427,7 @@ export function MasterDataClient({
                     <Icon size={16} className={cn("transition-transform", active && "scale-110")} />
                     {tab.label}
                     <span className={cn(
-                      "ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors",
+                      "ml-1 rounded-full px-2 py-0.5 text-xs font-bold transition-colors",
                       active ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
                     )}>
                       {count}

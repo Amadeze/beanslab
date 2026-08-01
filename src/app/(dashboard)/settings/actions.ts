@@ -66,6 +66,8 @@ const SettingsSchema = z.object({
   animationDirection: z.enum(["up", "down", "left", "right"]).optional(),
   iconStyle: z.enum(["thin", "light", "regular", "bold", "fill", "duotone"]).optional(),
   themeConfig: z.record(z.string(), z.unknown()).optional(),
+  taxEnabled: z.boolean().optional(),
+  defaultTaxRate: z.number().min(0).max(100).optional(),
   problemStatement: optionalText(1_500),
   solutionStatement: optionalText(1_500),
   uspText: optionalText(1_500),
@@ -125,6 +127,17 @@ export async function updateTenantSettings(_tenantId: string, data: unknown): Pr
           animationDirection: parsed.animationDirection,
           iconStyle: parsed.iconStyle,
           themeConfig: parsed.themeConfig as Prisma.InputJsonValue | undefined,
+          taxEnabled: parsed.taxEnabled,
+          defaultTaxRate: parsed.defaultTaxRate,
+          // Sinkronkan tarif pajak portal (storefront) dengan toggle pajak.
+          ...(parsed.taxEnabled !== undefined || parsed.defaultTaxRate !== undefined
+            ? {
+                storefrontTaxRate:
+                  parsed.taxEnabled === false
+                    ? 0
+                    : (parsed.defaultTaxRate ?? undefined),
+              }
+            : {}),
           problemStatement: parsed.problemStatement,
           solutionStatement: parsed.solutionStatement,
           uspText: parsed.uspText,

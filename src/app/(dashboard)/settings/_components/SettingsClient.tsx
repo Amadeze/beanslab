@@ -93,6 +93,10 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
   const [midtransIsProduction, setMidtransIsProduction] = useState(tenant.midtransIsProduction || false);
   const [isTestingMidtrans, setIsTestingMidtrans] = useState(false);
 
+  // Tax (PPN) settings
+  const [taxEnabled, setTaxEnabled] = useState(tenant.taxEnabled || false);
+  const [defaultTaxRate, setDefaultTaxRate] = useState(Number(tenant.defaultTaxRate ?? 11));
+
   const [refreshKey, setRefreshKey] = useState(0);
   const [previewEnabled, setPreviewEnabled] = useState(false);
 
@@ -223,6 +227,8 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
         problemStatement,
         solutionStatement,
         uspText,
+        taxEnabled,
+        defaultTaxRate,
         features: features.filter((feature) => feature.title?.trim() && feature.desc?.trim()),
         testimonials: testimonials.filter((item) => item.name?.trim() && item.text?.trim()),
         faqs: faqs.filter((item) => item.question?.trim() && item.answer?.trim()),
@@ -352,6 +358,40 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
         </a>
       </div>
 
+      {/* Tax (PPN) Settings */}
+      <div className="glass-card-static p-6">
+        <h2 className="text-lg font-bold text-slate-800 mb-1">Pajak Penjualan (PPN)</h2>
+        <p className="text-sm text-slate-500 mb-4">
+          Atur pemungutan PPN pada nota penjualan (kasir, penjualan, dan portal B2B).
+          Saat nonaktif, seksi pajak disembunyikan dari form dan tidak ada pajak yang dikenakan.
+          Perubahan setting ini tidak mengubah nota yang sudah diterbitkan.
+        </p>
+        <div className="space-y-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={taxEnabled}
+              onChange={(e) => setTaxEnabled(e.target.checked)}
+              className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-4 w-4"
+            />
+            <span className="text-sm font-semibold text-slate-700">Aktifkan pemungutan PPN</span>
+          </label>
+          <div className={taxEnabled ? "" : "pointer-events-none opacity-50"}>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Tarif PPN Default (%)</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.01}
+              value={defaultTaxRate}
+              onChange={(e) => setDefaultTaxRate(Number(e.target.value) || 0)}
+              className="w-32 rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
+            />
+            <p className="text-xs text-slate-500 mt-1">Dipakai saat jenis pajak "PPN" dipilih di form nota.</p>
+          </div>
+        </div>
+      </div>
+
       {/* Payment Gateway */}
       <div className="glass-card-static p-6">
         <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
@@ -415,7 +455,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-lg font-bold text-slate-800">B2B Portal Customization</h2>
-              <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-600">
+              <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-xs font-extrabold uppercase tracking-wider text-amber-600">
                 roastd.id Studio
               </span>
             </div>

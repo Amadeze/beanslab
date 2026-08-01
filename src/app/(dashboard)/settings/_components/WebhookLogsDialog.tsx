@@ -55,13 +55,13 @@ export function WebhookLogModal() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-xs font-semibold text-slate-500">Payload:</span>
-                    <pre className="mt-1 bg-slate-800 text-slate-100 p-2 rounded text-[10px] overflow-x-auto">
+                    <pre className="mt-1 bg-slate-800 text-slate-100 p-2 rounded text-xs overflow-x-auto">
                       {log.payload}
                     </pre>
                   </div>
                   <div>
                     <span className="text-xs font-semibold text-slate-500">Response ({log.status}):</span>
-                    <pre className="mt-1 bg-slate-800 text-slate-100 p-2 rounded text-[10px] overflow-x-auto">
+                    <pre className="mt-1 bg-slate-800 text-slate-100 p-2 rounded text-xs overflow-x-auto">
                       {log.response}
                     </pre>
                   </div>

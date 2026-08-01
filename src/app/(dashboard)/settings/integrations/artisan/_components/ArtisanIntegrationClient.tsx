@@ -209,7 +209,7 @@ export function ArtisanIntegrationClient({
                       {c.computerName}
                     </p>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                      className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${
                         c.status === "REVOKED"
                           ? "bg-red-500/10 text-red-500"
                           : c.isOnline
@@ -384,7 +384,7 @@ function LiveTelemetrySection() {
                 <span className="font-semibold text-sm text-[var(--text-primary)]">
                   {s.machine.name}
                 </span>
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-600">
                   LIVE
                 </span>
               </div>
@@ -410,7 +410,7 @@ function LiveTelemetrySection() {
           <p className="text-xs font-medium text-[var(--text-secondary)]">
             Menunggu titik telemetry berikutnya…
           </p>
-          <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">
+          <p className="mt-1 text-xs text-[var(--text-tertiary)]">
             Grafik dimulai setelah dua pembaruan berbeda diterima.
           </p>
         </div>
@@ -418,7 +418,7 @@ function LiveTelemetrySection() {
 
       {sessions.length > 0 && liveData.length >= 2 && (
         <div className="mt-4 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] p-3">
-          <p className="text-[10px] font-bold text-[var(--text-tertiary)] mb-3">
+          <p className="text-xs font-bold text-[var(--text-tertiary)] mb-3">
             LIVE BT/ET
           </p>
           <ResponsiveContainer width="100%" height={140}>

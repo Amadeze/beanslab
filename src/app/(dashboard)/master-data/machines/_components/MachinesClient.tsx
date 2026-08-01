@@ -173,7 +173,7 @@ export function MachinesClient({ machines }: { machines: Machine[] }) {
               <div className="flex items-center gap-2">
                 <p className="font-semibold text-[var(--text-primary)]">{m.name}</p>
                 {!m.isActive && (
-                  <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-bold uppercase text-red-500">
+                  <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-bold uppercase text-red-500">
                     Nonaktif
                   </span>
                 )}

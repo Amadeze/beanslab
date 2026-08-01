@@ -154,7 +154,8 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
 
   const selectedType     = watch("type");
   const blendType        = watch("blendType");
-  const recipeItems      = watch("recipeItems") ?? [];
+  const rawRecipeItems   = watch("recipeItems");
+  const recipeItems      = useMemo(() => rawRecipeItems ?? [], [rawRecipeItems]);
   const recipeOutputGrams = watch("recipeOutputGrams") ?? 0;
   const currentImageUrl = watch("imageUrl");
   const totalGrams       = recipeItems.reduce((s, i) => s + (Number(i.gramsPerUnit) || 0), 0);
@@ -312,14 +313,14 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
     <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-5 relative">
       {/* ── Nama ── */}
       <div className="space-y-1.5">
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Nama Produk <span className="text-red-500">*</span></Label>
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Nama Produk <span className="text-red-500">*</span></Label>
         <Input placeholder="Arabica Gayo, Full Arabica 250g, dll." className={cn("h-9 font-medium", glassInput)} {...register("name")} />
-        {errors.name && <p className="text-[10px] text-red-500 font-medium pt-0.5">{errors.name.message}</p>}
+        {errors.name && <p className="text-xs text-red-500 font-medium pt-0.5">{errors.name.message}</p>}
       </div>
 
       {/* ── Tipe ── */}
       <div className="space-y-1.5">
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Tipe Produk <span className="text-red-500">*</span></Label>
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Tipe Produk <span className="text-red-500">*</span></Label>
         <Controller
           control={control}
           name="type"
@@ -339,7 +340,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           )}
         />
         {isEditMode && (
-          <p className="text-[10px] font-medium text-slate-500 flex items-center gap-1 pt-0.5">
+          <p className="text-xs font-medium text-slate-500 flex items-center gap-1 pt-0.5">
             <Info size={12} className="opacity-70" /> Tipe tidak dapat diubah setelah produk dibuat.
           </p>
         )}
@@ -347,7 +348,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
       <div className="grid grid-cols-2 gap-4">
         {/* ── Jenis Kopi ── */}
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Jenis Kopi</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Jenis Kopi</Label>
           <Controller
             control={control}
             name="coffeeSpecies"
@@ -369,7 +370,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
         </div>
         {/* ── Kategori ── */}
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
             {isFG ? "Kategori" : "Kategori"}
           </Label>
           {isFG ? (
@@ -398,20 +399,20 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
 
         {/* ── Origin ── */}
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Origin / Asal</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Origin / Asal</Label>
           <Input placeholder="Gayo, Toraja, Ethiopia, dll." className={cn("h-9", glassInput)} {...register("origin")} />
         </div>
       </div>
 
       {/* ── Deskripsi ── */}
       <div className="space-y-1.5">
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Deskripsi (opsional)</Label>
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Deskripsi (opsional)</Label>
         <Input placeholder="Tasting notes, karakteristik, dll." className={cn("h-9", glassInput)} {...register("description")} />
       </div>
 
       {/* ── Foto Produk ── */}
       <div className="space-y-1.5">
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Foto Produk</Label>
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Foto Produk</Label>
         <div className="flex items-center gap-4">
           {currentImageUrl && (
             <div className="w-16 h-16 rounded-xl overflow-hidden bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0">
@@ -434,7 +435,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
             >
               {isUploading ? "Mengupload..." : "Upload Foto"}
             </button>
-            <p className="text-[10px] text-slate-500 mt-1">Format: JPG/PNG. Maksimal 2MB.</p>
+            <p className="text-xs text-slate-500 mt-1">Format: JPG/PNG. Maksimal 2MB.</p>
           </div>
         </div>
       </div>
@@ -442,7 +443,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
       {/* ── Tipe Campuran (FINISHED_GOODS only) ── */}
       {isFG && (
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Tipe Kopi</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Tipe Kopi</Label>
           <Controller
             control={control}
             name="blendType"
@@ -472,7 +473,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
               </div>
             )}
           />
-          <p className="text-[10px] text-slate-400">
+          <p className="text-xs text-slate-400">
             {blendType === "SINGLE" ? "Satu jenis Roasted Bean, 100% murni" : "Campuran beberapa Roasted Bean dengan rasio tertentu"}
           </p>
         </div>
@@ -482,31 +483,31 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
       {selectedType === "FINISHED_GOODS" && (
         <div className={cn(glassCard, "space-y-4")}>
           <div className="flex items-center justify-between">
-            <h3 className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Harga Jual</h3>
+            <h3 className="text-xs uppercase font-bold tracking-wider text-slate-500">Harga Jual</h3>
             {estimatedHpp > 0 && (
-              <span className="text-[10px] font-bold text-amber-800 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+              <span className="text-xs font-bold text-amber-800 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
                 Estimasi Resep: Rp {estimatedHpp.toLocaleString("id-ID")}
               </span>
             )}
             {initialData?.lastHpp && Number(initialData.lastHpp) > 0 && (
-              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 ml-1">
+              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 ml-1">
                 HPP Aktual: Rp {Number(initialData.lastHpp).toLocaleString("id-ID")}
               </span>
             )}
           </div>
           
           <div className="space-y-1.5">
-            <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Harga Retail (Eceran)</Label>
+            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Harga Retail (Eceran)</Label>
             <Input type="number" placeholder="0" className={cn("h-9 font-semibold", glassInput)} {...register("price", { valueAsNumber: true })} />
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Harga Grosir Silver</Label>
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Harga Grosir Silver</Label>
               <Input type="number" placeholder="0" className={cn("h-9", glassInput)} {...register("priceSilver", { valueAsNumber: true })} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Harga Grosir Gold</Label>
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Harga Grosir Gold</Label>
               <Input type="number" placeholder="0" className={cn("h-9", glassInput)} {...register("priceGold", { valueAsNumber: true })} />
             </div>
           </div>
@@ -516,7 +517,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
       {/* ── Status (edit mode only) ── */}
       {isEditMode && (
         <div className="space-y-1.5">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Status</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Status</Label>
           <Controller
             control={control}
             name="isActive"
@@ -555,13 +556,13 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           <div className="flex items-center gap-2">
             <FlaskConical size={16} className="text-violet-500 drop-shadow-sm" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Resep Produksi</h3>
-            <span className="rounded-full bg-white/50 border border-white/60 px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-slate-500 shadow-sm">opsional</span>
+            <span className="rounded-full bg-white/50 border border-white/60 px-2.5 py-0.5 text-xs font-bold tracking-wide text-slate-500 shadow-sm">opsional</span>
           </div>
 
           {/* Packaging + Output grams — 2 col */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Kemasan Default</Label>
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Kemasan Default</Label>
               <Controller
                 control={control}
                 name="recipePackagingId"
@@ -582,7 +583,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Output (gram / unit)</Label>
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Output (gram / unit)</Label>
               <Input
                 type="number" min="1" step="1" placeholder="250"
                 className={cn("h-9 font-semibold tabular-nums", glassInput)}
@@ -594,7 +595,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           {/* Recipe items */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
                 {blendType === "SINGLE" ? "Bahan Baku (100% Roasted Bean)" : "Komposisi Blend (Rasio %)"}
               </Label>
               {fields.length > 0 && recipeOutputGrams > 0 && blendType === "SINGLE" && (
@@ -632,7 +633,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
                   
                   {/* RB selector */}
                   <div className="flex-1 min-w-[150px] space-y-1">
-                    <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Bahan Baku</Label>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Bahan Baku</Label>
                     <Controller
                       control={control}
                       name={`recipeItems.${index}.rbProductId`}
@@ -661,7 +662,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
                   {blendType === "SINGLE" ? (
                     /* SINGLE mode — Grams input */
                     <div className="w-36 shrink-0 space-y-1">
-                      <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Gramasi</Label>
+                      <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Gramasi</Label>
                       <div className="relative flex items-center gap-2">
                         <div className="relative flex-1">
                           <Input
@@ -669,7 +670,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
                             className={cn("h-9 text-right tabular-nums text-sm font-semibold pr-6", glassInput)}
                             {...register(`recipeItems.${index}.gramsPerUnit`, { valueAsNumber: true })}
                           />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">g</span>
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">g</span>
                         </div>
                         {recipeOutputGrams > 0 && (
                           <span className="w-10 shrink-0 text-right text-[11px] font-bold text-slate-400 tabular-nums">
@@ -681,7 +682,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
                   ) : (
                     /* BLEND mode — Ratio % input */
                     <div className="w-36 shrink-0 space-y-1">
-                      <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Rasio</Label>
+                      <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Rasio</Label>
                       <div className="relative flex items-center gap-2">
                         <div className="relative flex-1">
                           <Controller
@@ -703,7 +704,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
                               />
                             )}
                           />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">%</span>
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
                         </div>
                         {recipeOutputGrams > 0 && (
                           <span className="w-14 shrink-0 text-right text-[11px] font-bold text-slate-500 tabular-nums">
@@ -730,7 +731,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
 
           {/* Notes */}
           <div className="space-y-1.5">
-            <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Catatan Resep (opsional)</Label>
+            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Catatan Resep (opsional)</Label>
             <Input placeholder="Instruksi, variasi, dll." className={cn("h-9", glassInput)} {...register("recipeNotes")} />
           </div>
           </div>
@@ -743,7 +744,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-slate-700">Ingatkan saat stok menipis</h3>
-            <p className="text-[10px] text-slate-500">App menghitung kapan produk perlu dibeli lagi</p>
+            <p className="text-xs text-slate-500">App menghitung kapan produk perlu dibeli lagi</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <Controller
@@ -762,14 +763,14 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           </label>
         </div>
 
-        <p className="text-[10px] text-slate-500 italic">
+        <p className="text-xs text-slate-500 italic">
           Perhitungan memakai riwayat pemakaian, waktu tunggu supplier, dan stok cadangan.
         </p>
 
         {watch("reorderAlertEnabled") && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
                 Lead Time Supplier (hari)
               </Label>
               <Controller
@@ -788,7 +789,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
                 Safety Stock {selectedType === "FINISHED_GOODS" ? "(pcs)" : "(kg)"}
               </Label>
               <Controller
@@ -807,7 +808,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
                 Periode Analisis (hari)
               </Label>
               <Controller
