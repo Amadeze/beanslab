@@ -161,7 +161,7 @@ export function TerimaPaymentDialog({
         {/* Invoice balance summary */}
         <div className="grid grid-cols-3 divide-x divide-white/20 border-b border-white/20 bg-white/20 backdrop-blur-sm">
           <div className="px-4 py-3 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
               Total Nota
             </p>
             <p className="mt-0.5 font-mono text-sm font-bold text-slate-800">
@@ -169,7 +169,7 @@ export function TerimaPaymentDialog({
             </p>
           </div>
           <div className="px-4 py-3 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
               Terbayar
             </p>
             <p className="mt-0.5 font-mono text-sm font-bold text-emerald-700">
@@ -177,7 +177,7 @@ export function TerimaPaymentDialog({
             </p>
           </div>
           <div className="px-4 py-3 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
               Sisa Tagihan
             </p>
             <p className="mt-0.5 font-mono text-sm font-bold text-amber-700">

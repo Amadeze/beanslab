@@ -118,15 +118,15 @@ export function SupplierPaymentDialog({
 
         <div className="grid grid-cols-3 gap-3 border-y border-white/50 bg-white/20 px-5 py-3 text-center">
           <div>
-            <p className="text-[10px] uppercase text-slate-400">Total</p>
+            <p className="text-xs uppercase text-slate-400">Total</p>
             <p className="font-mono text-sm font-bold">{formatRupiah(purchase.totalCost)}</p>
           </div>
           <div>
-            <p className="text-[10px] uppercase text-slate-400">Terbayar</p>
+            <p className="text-xs uppercase text-slate-400">Terbayar</p>
             <p className="font-mono text-sm font-bold text-emerald-700">{formatRupiah(purchase.paidAmount)}</p>
           </div>
           <div>
-            <p className="text-[10px] uppercase text-slate-400">Sisa</p>
+            <p className="text-xs uppercase text-slate-400">Sisa</p>
             <p className="font-mono text-sm font-bold text-amber-700">{formatRupiah(purchase.balance)}</p>
           </div>
         </div>

@@ -235,20 +235,20 @@ export function KeuanganClient({
                     {/* Summary Cards */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
-                        <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-700">Modal Disetor</p>
+                        <p className="text-xs uppercase tracking-wider font-bold text-emerald-700">Modal Disetor</p>
                         <p className="text-lg font-bold text-emerald-800 mt-1">{formatRupiah(capitalSummary.totalInitial + capitalSummary.totalInjections)}</p>
-                        {capitalSummary.totalInjections > 0 && <p className="text-[10px] text-emerald-600 mt-0.5">+{formatRupiah(capitalSummary.totalInjections)} tambahan</p>}
+                        {capitalSummary.totalInjections > 0 && <p className="text-xs text-emerald-600 mt-0.5">+{formatRupiah(capitalSummary.totalInjections)} tambahan</p>}
                       </div>
                       <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-                        <p className="text-[10px] uppercase tracking-wider font-bold text-amber-700">Prive & Bagi Hasil</p>
+                        <p className="text-xs uppercase tracking-wider font-bold text-amber-700">Prive & Bagi Hasil</p>
                         <p className="text-lg font-bold text-amber-800 mt-1">{formatRupiah(capitalSummary.totalWithdrawals + capitalSummary.totalDividends)}</p>
                       </div>
                       <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-                        <p className="text-[10px] uppercase tracking-wider font-bold text-blue-700">Modal Bersih</p>
+                        <p className="text-xs uppercase tracking-wider font-bold text-blue-700">Modal Bersih</p>
                         <p className="text-lg font-bold text-blue-800 mt-1">{formatRupiah(capitalSummary.netCapital)}</p>
                       </div>
                       <div className="rounded-xl border border-stone-200 bg-stone-50/50 p-4">
-                        <p className="text-[10px] uppercase tracking-wider font-bold text-stone-700">Total Transaksi</p>
+                        <p className="text-xs uppercase tracking-wider font-bold text-stone-700">Total Transaksi</p>
                         <p className="text-lg font-bold text-stone-800 mt-1">{capitalSummary.count} mutasi</p>
                       </div>
                     </div>

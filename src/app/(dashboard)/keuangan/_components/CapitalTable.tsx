@@ -33,11 +33,11 @@ export function CapitalTable({ rows }: CapitalTableProps) {
       <Table>
         <TableHeader>
           <TableRow className="bg-stone-50">
-            <TableHead className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Tipe</TableHead>
-            <TableHead className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Tanggal</TableHead>
-            <TableHead className="text-[10px] uppercase tracking-widest text-stone-500 font-bold">Keterangan</TableHead>
-            <TableHead className="text-right text-[10px] uppercase tracking-widest text-stone-500 font-bold">Nominal</TableHead>
-            <TableHead className="text-right text-[10px] uppercase tracking-widest text-stone-500 font-bold">Dicatat oleh</TableHead>
+            <TableHead className="text-xs uppercase tracking-widest text-stone-500 font-bold">Tipe</TableHead>
+            <TableHead className="text-xs uppercase tracking-widest text-stone-500 font-bold">Tanggal</TableHead>
+            <TableHead className="text-xs uppercase tracking-widest text-stone-500 font-bold">Keterangan</TableHead>
+            <TableHead className="text-right text-xs uppercase tracking-widest text-stone-500 font-bold">Nominal</TableHead>
+            <TableHead className="text-right text-xs uppercase tracking-widest text-stone-500 font-bold">Dicatat oleh</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

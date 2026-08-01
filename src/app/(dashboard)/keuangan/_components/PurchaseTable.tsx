@@ -91,7 +91,7 @@ export function PurchaseTable({ rows, onVoid, onPay }: PurchaseTableProps) {
               <TableRow key={row.id} className="hover:bg-white/40 transition-colors">
                 <TableCell className="text-sm text-zinc-600">
                   <div>{formatDate(row.receivedAt)}</div>
-                  <div className="text-[10px] text-zinc-400">{row.code}</div>
+                  <div className="text-xs text-zinc-400">{row.code}</div>
                 </TableCell>
                 <TableCell>
                   <Badge
@@ -114,7 +114,7 @@ export function PurchaseTable({ rows, onVoid, onPay }: PurchaseTableProps) {
                     {row.balance > 0 ? `Sisa ${formatRupiah(row.balance)}` : "Lunas"}
                   </div>
                   {row.dueDate && row.balance > 0 && (
-                    <div className="text-[10px] text-slate-400">Tempo {formatDate(row.dueDate)}</div>
+                    <div className="text-xs text-slate-400">Tempo {formatDate(row.dueDate)}</div>
                   )}
                 </TableCell>
                 <TableCell className="flex gap-1">
@@ -156,7 +156,7 @@ export function PurchaseTable({ rows, onVoid, onPay }: PurchaseTableProps) {
             <div className="flex justify-between items-start mb-2">
               <Badge
                 variant="outline"
-                className={`text-[10px] font-bold ${CATEGORY_COLOR[row.type] ?? "bg-zinc-100 text-zinc-500"}`}
+                className={`text-xs font-bold ${CATEGORY_COLOR[row.type] ?? "bg-zinc-100 text-zinc-500"}`}
               >
                 {CATEGORY_LABEL[row.type] ?? row.type}
               </Badge>

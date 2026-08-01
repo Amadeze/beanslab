@@ -77,7 +77,7 @@ export function SupplierPaymentTable({
             <div className="mt-2 flex items-center justify-between">
               <div>
                 <div className="text-xs font-medium text-slate-700">{row.purchaseCode}</div>
-                <div className="text-[10px] text-slate-500">{row.supplierName}</div>
+                <div className="text-xs text-slate-500">{row.supplierName}</div>
               </div>
               <div className="font-mono text-sm font-bold text-red-600">{formatRupiah(row.amount)}</div>
             </div>
