@@ -6,7 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 // Stores the active tenant-scoped client so assertion queries inside
 // $transaction use the same connection and can see uncommitted writes.
-const assertionClientStore = new AsyncLocalStorage<any>();
+const assertionClientStore = new AsyncLocalStorage<PrismaClient | Prisma.TransactionClient>();
 
 function getAssertionClient() {
   return assertionClientStore.getStore() ?? prisma;
@@ -271,11 +271,17 @@ export function withTenant(tenantId: string) {
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
-          const mArgs = args as any;
+          const mArgs = (args || {}) as any;
+
+          // Default take 1000 untuk mencegah OOM pada query findMany
+          if (operation === "findMany" && mArgs.take === undefined) {
+            mArgs.take = 1000;
+          }
+
           const isDirectTenantModel = tenantScopedModels.has(model);
 
           if (!isDirectTenantModel) {
-            return query(args);
+            return query(mArgs);
           }
 
           const filteredOperations = [
@@ -337,7 +343,7 @@ export function withTenant(tenantId: string) {
     options?: any,
   ) {
     if (typeof fnOrOps === "function") {
-      return assertionClientStore.run(client, async () => {
+      return assertionClientStore.run(client as any, async () => {
         return origTx(async (tx: any) => {
           return assertionClientStore.run(tx, () => fnOrOps(tx));
         }, options);

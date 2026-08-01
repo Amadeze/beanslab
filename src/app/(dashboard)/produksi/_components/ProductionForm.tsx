@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useForm, useFieldArray, Controller, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useEffect } from "react";
@@ -41,8 +41,8 @@ const schema = z.object({
   packagingId:     z.string().min(1, "Wajib pilih kemasan"),
   unitsProduced:   z.number().int().positive("Minimal 1 unit"),
   rbComponents:    z.array(rbComponentSchema).min(1, "Minimal 1 komponen RB"),
-  laborCost:       z.number().min(0).optional(),
-  overheadAllocated: z.number().min(0).optional(),
+  laborCost:       z.coerce.number().min(0).optional(),
+  overheadAllocated: z.coerce.number().min(0).optional(),
   notes:           z.string().optional(),
 });
 
@@ -204,7 +204,7 @@ export function ProductionForm({
     formState: { errors },
     reset,
   } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as unknown as Resolver<FormValues>,
     defaultValues: {
       outputProductId: "",
       recipeId:        "",
