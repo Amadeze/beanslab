@@ -266,4 +266,71 @@ describe("appendFefoLedgerOut", () => {
       }),
     });
   });
+
+  it("allocates from lots beyond the 20-batch cap without falling back to untracked", async () => {
+    const tx = transaction();
+    const lots = Array.from({ length: 25 }, (_, i) => ({
+      id: `lot-${i}`,
+      batchCode: `LOT-${String(i).padStart(2, "0")}`,
+      expiryDate: new Date(Date.UTC(2026, 7 + i, 1)),
+      quantityKg: 5,
+      quantityUnit: 0,
+      inventoryLedgers: [{ entryType: "IN", quantityKg: 5, quantityUnit: null }],
+    }));
+    tx.lot.findMany.mockImplementation(({ take } = {}) => Promise.resolve(take ? lots.slice(0, take) : lots));
+
+    await appendFefoLedgerOut(tx, {
+      tenantId: "tenant-1",
+      productId: "green-bean-1",
+      quantityKg: 103,
+      refType: "ROASTING_GB_OUT",
+      refId: "roast-1",
+      createdById: "user-1",
+    });
+
+    const createCalls = (tx.inventoryLedger.create as ReturnType<typeof vi.fn>).mock.calls.map(
+      (call) => call[0].data,
+    );
+    expect(createCalls).toHaveLength(21);
+    expect(createCalls.some((entry) => entry.lotId === null)).toBe(false);
+    expect(createCalls[19]).toMatchObject({ lotId: "lot-19", quantityKg: 5 });
+    expect(createCalls[20]).toMatchObject({ lotId: "lot-20", quantityKg: 3 });
+    expect(tx.lot.update).toHaveBeenCalledTimes(20);
+    expect(tx.lot.update).toHaveBeenCalledWith({
+      where: { id: "lot-19" },
+      data: { consumedAt: expect.any(Date) },
+    });
+  });
+
+  it("allocates the full 20-batch cap plus beyond in strict FEFO order", async () => {
+    const tx = transaction();
+    const lots = Array.from({ length: 25 }, (_, i) => ({
+      id: `lot-${i}`,
+      batchCode: `LOT-${String(i).padStart(2, "0")}`,
+      expiryDate: new Date(Date.UTC(2026, 7 + i, 1)),
+      quantityKg: 5,
+      quantityUnit: 0,
+      inventoryLedgers: [{ entryType: "IN", quantityKg: 5, quantityUnit: null }],
+    }));
+    tx.lot.findMany.mockImplementation(({ take } = {}) => Promise.resolve(take ? lots.slice(0, take) : lots));
+
+    await appendFefoLedgerOut(tx, {
+      tenantId: "tenant-1",
+      productId: "green-bean-1",
+      quantityKg: 125,
+      refType: "ROASTING_GB_OUT",
+      refId: "roast-2",
+      createdById: "user-1",
+    });
+
+    const createCalls = (tx.inventoryLedger.create as ReturnType<typeof vi.fn>).mock.calls.map(
+      (call) => call[0].data,
+    );
+    expect(createCalls).toHaveLength(25);
+    expect(createCalls.map((entry) => entry.lotId)).toEqual(
+      Array.from({ length: 25 }, (_, i) => `lot-${i}`),
+    );
+    expect(createCalls.some((entry) => entry.lotId === null)).toBe(false);
+    expect(tx.lot.update).toHaveBeenCalledTimes(25);
+  });
 });
