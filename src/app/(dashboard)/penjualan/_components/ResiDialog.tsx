@@ -121,7 +121,7 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
               value={shippingCost}
               onChange={(e) => setShippingCost(e.target.value)}
             />
-            <p className="text-[10px] text-slate-400">Ongkir akan ditambahkan ke total tagihan pesanan.</p>
+            <p className="text-xs text-slate-400">Ongkir akan ditambahkan ke total tagihan pesanan.</p>
           </div>
         </div>
 

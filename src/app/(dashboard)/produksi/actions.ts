@@ -511,7 +511,7 @@ export async function createProductionBatch(
       revalidatePath("/laporan");
       revalidatePath("/penjualan");
       return { success: true, batchCode };
-    }, { isolationLevel: "Serializable" });
+    }, { isolationLevel: "Serializable", maxWait: 5000, timeout: 30000 });
   } catch (err) {
     console.error("[createProductionBatch]", err);
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" && input.operationKey) {

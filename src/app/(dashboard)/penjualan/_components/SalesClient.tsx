@@ -379,7 +379,7 @@ export function SalesClient({
                         {tab.badge !== undefined && (
                           <span
                             className={cn(
-                              "ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors",
+                              "ml-1 rounded-full px-2 py-0.5 text-xs font-bold transition-colors",
                               isActive
                                 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300"
                                 : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
@@ -416,7 +416,7 @@ export function SalesClient({
                         />
                         <div className="mt-3 space-y-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                            <span className="text-xs font-medium text-[var(--text-tertiary)]">
                               Sample diberikan
                             </span>
                             <span className="text-xs font-bold text-[var(--text-primary)]">
@@ -424,7 +424,7 @@ export function SalesClient({
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                            <span className="text-xs font-medium text-[var(--text-tertiary)]">
                               Biaya
                             </span>
                             <span className="text-xs font-bold text-amber-600">
@@ -432,7 +432,7 @@ export function SalesClient({
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                            <span className="text-xs font-medium text-[var(--text-tertiary)]">
                               Bulan ini
                             </span>
                             <span className="text-xs font-bold text-[var(--text-primary)]">
@@ -485,7 +485,7 @@ export function SalesClient({
                         />
                         <div className="mt-3 space-y-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                            <span className="text-xs font-medium text-[var(--text-tertiary)]">
                               Total pack
                             </span>
                             <span className="text-xs font-bold text-[var(--text-primary)]">
@@ -493,7 +493,7 @@ export function SalesClient({
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                            <span className="text-xs font-medium text-[var(--text-tertiary)]">
                               Total berat
                             </span>
                             <span className="text-xs font-bold text-[var(--text-primary)]">
@@ -504,7 +504,7 @@ export function SalesClient({
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                            <span className="text-xs font-medium text-[var(--text-tertiary)]">
                               Biaya (HPP)
                             </span>
                             <span className="text-xs font-bold text-amber-600">
