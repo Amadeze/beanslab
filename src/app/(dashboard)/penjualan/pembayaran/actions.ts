@@ -146,7 +146,7 @@ export async function rejectPaymentSubmission(id: string, reason: string): Promi
     await tp.$transaction(async (tx) => {
       await tx.paymentSubmission.update({
         where: { id },
-        data: { status: "REJECTED", reviewedAmount: null, rejectionReason: cleanReason, reviewedAt: new Date(), reviewedById: user.id },
+        data: { status: "REJECTED", reviewedAmount: null, rejectionReason: cleanReason, reviewedAt: getCurrentDate(), reviewedById: user.id },
       });
       await recordAudit(tx, {
         tenantId: user.tenantId,

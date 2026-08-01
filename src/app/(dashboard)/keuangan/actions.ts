@@ -11,6 +11,7 @@ export type ReceivableAgingBucket = _ReceivableAgingBucket;
 import { getCurrentDate, getZonedMonthRange } from "@/lib/date-utils";
 import { postCapitalInjection, postOwnerWithdrawal, postCustomerPayment, postExpense, postSupplierPayment, postVoidReversal } from "@/lib/posting";
 import { calculateSalesPerformance } from "@/lib/financial-reporting";
+import { computeSampleCostByType, computeCogsComponentBreakdown } from "@/lib/financial-helpers";
 import { prisma } from "@/lib/prisma";
 
 // =============================================================================
@@ -436,8 +437,8 @@ export async function createExpense(input: CreateExpenseInput): Promise<CreateEx
     revalidatePath("/laporan");
 
     return { success: true, id: expense.id };
-  } catch (err: any) {
-    if (err.code === "P2002") {
+  } catch (err: unknown) {
+    if (typeof err === "object" && err !== null && "code" in err && err.code === "P2002") {
       return { success: false, error: "Transaksi sedang diproses. Mohon tunggu sebentar." };
     }
     console.error("[createExpense]", err);
@@ -518,20 +519,21 @@ export async function getCapitalSummary(): Promise<CapitalSummary> {
 export async function getCapitalSummaryQuick(): Promise<CapitalSummary> {
   await requireRole("OWNER", "MANAGER");
   const tp = await requireTenantPrisma();
-  const [rows, countResult] = await Promise.all([
-    tp.capitalTransaction.findMany({ select: { type: true, amount: true } }),
+  const [grouped, countResult] = await Promise.all([
+    tp.capitalTransaction.groupBy({
+      by: ["type"],
+      _sum: { amount: true },
+    }),
     tp.capitalTransaction.count(),
   ]);
-  let totalInitial = 0, totalInjections = 0, totalWithdrawals = 0, totalDividends = 0;
-  for (const row of rows) {
-    const amt = Number(row.amount);
-    switch (row.type) {
-      case "INITIAL": totalInitial += amt; break;
-      case "INJECTION": totalInjections += amt; break;
-      case "WITHDRAWAL": totalWithdrawals += amt; break;
-      case "DIVIDEND": totalDividends += amt; break;
-    }
+  const sums: Record<string, number> = {};
+  for (const group of grouped) {
+    sums[group.type] = Number(group._sum.amount ?? 0);
   }
+  const totalInitial = sums["INITIAL"] ?? 0;
+  const totalInjections = sums["INJECTION"] ?? 0;
+  const totalWithdrawals = sums["WITHDRAWAL"] ?? 0;
+  const totalDividends = sums["DIVIDEND"] ?? 0;
   return {
     totalInitial,
     totalInjections,
@@ -775,23 +777,6 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
   if (currentAdjustments.loss > 0) {
     opexMap.KERUGIAN_MATERIAL = currentAdjustments.loss;
   }
-  // Break down sample costs by component type
-  const computeSampleCostByType = (components: typeof sampleComponents) => {
-    const result: Record<string, number> = {};
-    for (const comp of components) {
-      const qty = comp.quantityKg ? Number(comp.quantityKg) : (comp.quantityUnit ?? 0);
-      const cost = Number(comp.unitCost) * qty;
-      if (comp.product?.type === "ROASTED_BEAN") {
-        result.BIAYA_SAMPLE_RB = (result.BIAYA_SAMPLE_RB ?? 0) + cost;
-      } else if (comp.product?.type === "FINISHED_GOODS") {
-        result.BIAYA_SAMPLE_FG = (result.BIAYA_SAMPLE_FG ?? 0) + cost;
-      } else if (comp.packagingId) {
-        result.BIAYA_SAMPLE_PKG = (result.BIAYA_SAMPLE_PKG ?? 0) + cost;
-      }
-    }
-    return result;
-  };
-
   const currentSampleBreakdown = computeSampleCostByType(sampleComponents);
   const previousSampleBreakdown = computeSampleCostByType(prevSampleComponents);
   for (const [key, value] of Object.entries(currentSampleBreakdown)) {
@@ -801,40 +786,8 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
   const opexBreakdown = Object.entries(opexMap).map(([category, amount]) => ({ category, amount }));
   const opex = opexBreakdown.reduce((sum, row) => sum + row.amount, 0);
 
-  // COGS component breakdown from production batches
-  let batchRawMaterial = 0, batchLabor = 0, batchOverhead = 0, batchPackaging = 0;
-  for (const b of productionBatches) {
-    const totalBatchCost = Number(b.hppPerUnit) * b.unitsProduced;
-    const labor = Number(b.laborCost ?? 0);
-    const overhead = Number(b.overheadAllocated ?? 0);
-    const pkgUnitCost = Number(b.packaging.avgCostPerUnit || b.packaging.costPerUnit || 0);
-    const packaging = pkgUnitCost * b.unitsProduced;
-    const rawMaterial = totalBatchCost - labor - overhead - packaging;
-    if (rawMaterial > 0) batchRawMaterial += rawMaterial;
-    batchLabor += labor;
-    batchOverhead += overhead;
-    batchPackaging += packaging;
-  }
-  const totalBatchComponent = batchRawMaterial + batchLabor + batchOverhead + batchPackaging;
   const cogs = currentSales.cogs;
-  let cogsComponentBreakdown: { category: string; amount: number }[];
-  if (totalBatchComponent > 0) {
-    const rawMaterialCOGS = Math.round((batchRawMaterial / totalBatchComponent) * cogs);
-    const laborCOGS = Math.round((batchLabor / totalBatchComponent) * cogs);
-    const overheadCOGS = Math.round((batchOverhead / totalBatchComponent) * cogs);
-    const packagingCOGS = cogs - rawMaterialCOGS - laborCOGS - overheadCOGS;
-    cogsComponentBreakdown = [
-      { category: "BAHAN_BAKU", amount: rawMaterialCOGS },
-      { category: "TENAGA_KERJA", amount: laborCOGS },
-      { category: "OVERHEAD_PABRIK", amount: overheadCOGS },
-      { category: "KEMASAN", amount: packagingCOGS },
-    ].filter((c) => c.amount > 0);
-  } else {
-    cogsComponentBreakdown = [
-      { category: "BAHAN_BAKU", amount: Math.round(cogs * 0.75) },
-      { category: "KEMASAN", amount: Math.round(cogs * 0.25) },
-    ].filter((c) => c.amount > 0);
-  }
+  const cogsComponentBreakdown = computeCogsComponentBreakdown(productionBatches, cogs);
 
   const prevSampleCost = Object.values(previousSampleBreakdown).reduce((sum, v) => sum + v, 0);
   const previousOpex = prevExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0) + previousAdjustments.loss + prevSampleCost;

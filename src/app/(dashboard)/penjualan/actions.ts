@@ -9,7 +9,8 @@ import { randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
 import { findDuplicateSaleProductIds, resolveCustomerUnitPrice } from "@/lib/sale-intent";
 import { calculateTax } from "@/lib/tax";
-import { postSalesInvoice, postCreditNote, postVoidReversal } from "@/lib/posting";
+import { getTenantTaxConfig } from "@/lib/tax-server";
+import { postSalesInvoice, postCreditNote, postVoidReversal, postJournalEntry } from "@/lib/posting";
 import { getCurrentDate } from "@/lib/date-utils";
 import { createMidtransSnapTransaction } from "@/lib/midtrans";
 
@@ -473,17 +474,26 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
     if (parsed.invoiceDiscount > subtotal) {
       return { success: false, error: "Diskon invoice tidak boleh melebihi subtotal." };
     }
-    const taxResult = calculateTax(
+    const taxConfig = await getTenantTaxConfig();
+    let taxResult = calculateTax(
       subtotal,
       parsed.invoiceDiscount,
       parsed.taxType || "NONE",
       parsed.customTaxRate,
-      parsed.pphType
+      parsed.pphType,
+      taxConfig,
     );
+    // Pajak manual (Rp) hanya berlaku saat tidak ada jenis pajak terpilih.
+    if ((!parsed.taxType || parsed.taxType === "NONE") && parsed.tax > 0) {
+      taxResult = { ...taxResult, taxAmount: parsed.tax, taxRate: 0, taxableAmount: 0 };
+    }
 
     const grandTotal = subtotal - parsed.invoiceDiscount + taxResult.taxAmount;
     if (grandTotal <= 0) {
       return { success: false, error: "Total invoice harus lebih dari 0." };
+    }
+    if (parsed.status === "PAID" && parsed.paymentMethod === "CREDIT") {
+      return { success: false, error: "Nota lunas (PAID) tidak dapat memakai metode pembayaran kredit." };
     }
 
     // ── ACID transaction ──
@@ -588,6 +598,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
           quantity: item.quantity,
         })),
         { tx, tenantId, userId },
+        taxResult.taxAmount,
       );
 
       return inv;
@@ -891,21 +902,25 @@ export async function approveInvoiceForMidtrans(invoiceId: string) {
 
     const existingNotes = inv.notes ? inv.notes + "\n\n" : "";
     const newNotes = paymentLink ? `${existingNotes}Link Pembayaran (Midtrans): ${paymentLink}` : inv.notes;
+    const orderPublicToken = randomBytes(24).toString("base64url");
 
     await prisma.invoice.update({
       where: { id: invoiceId },
       data: { 
         status: "ISSUED",
         midtransOrderId: inv.code,
+        paymentUrl: paymentLink,
+        publicOrderToken: orderPublicToken,
         notes: newNotes
       }
     });
 
     revalidatePath("/penjualan");
     return { success: true, paymentLink, warning: warningMessage };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[approveInvoiceForMidtrans]", err);
-    return { success: false, error: "Gagal memproses nota: " + (err.message || "Unknown error") };
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return { success: false, error: "Gagal memproses nota: " + message };
   }
 }
 
@@ -961,6 +976,34 @@ export async function updateInvoiceShipping(
         where: { id: invoiceId },
         data: updateData,
       });
+
+      // Jurnal penyesuaian ongkir: selisih ongkir mempengaruhi piutang/kas dan pendapatan.
+      if (shippingCost !== undefined && shippingCost !== Number(invoice.shippingCost)) {
+        const diff = shippingCost - Number(invoice.shippingCost);
+        if (diff !== 0) {
+          const receiver = invoice.status === "PAID" ? "1-1000" : "1-1100";
+          await postJournalEntry(
+            {
+              date: getCurrentDate(),
+              description: `Penyesuaian ongkir ${invoice.code}`,
+              reference: invoiceId,
+              refType: "INVOICE",
+              lines:
+                diff > 0
+                  ? [
+                      { accountCode: receiver, debit: diff, credit: 0 },
+                      { accountCode: "4-1000", debit: 0, credit: diff },
+                    ]
+                  : [
+                      { accountCode: receiver, debit: 0, credit: -diff },
+                      { accountCode: "4-1000", debit: -diff, credit: 0 },
+                    ],
+            },
+            { tx, tenantId, userId },
+          );
+        }
+      }
+
       await recordAudit(tx, {
         tenantId,
         userId,
@@ -1048,16 +1091,16 @@ export async function createCreditNote(input: CreditNoteInput) {
       if (item.quantity > (invItem.quantity - returnedQty)) {
         return { success: false, error: "Quantity for product exceeds maximum returnable limit" };
       }
+      if (item.unitDiscount < 0 || item.unitDiscount > Number(invItem.unitPrice)) {
+        return { success: false, error: "Unit discount exceeds unit price" };
+      }
     }
 
     let creditNoteCode = "";
     let totalReturnedAmount = 0;
 
     await (await requireTenantPrisma()).$transaction(async (tx) => {
-      // Get next credit note code
-      const count = await tx.creditNote.count({ where: { tenantId } });
-      const nextId = String(count + 1).padStart(5, "0");
-      creditNoteCode = `CN-${nextId}`;
+      creditNoteCode = `CN-${randomBytes(4).toString("hex").toUpperCase()}`;
 
       const cnItemsData = items.map((item) => {
         const invItem = inv.items.find((i) => i.productId === item.productId)!;
@@ -1125,6 +1168,15 @@ export async function createCreditNote(input: CreditNoteInput) {
         });
       }
 
+      // Pajak proporsional atas jumlah yang diretur + arah refund (kas vs piutang).
+      const taxRatio =
+        Number(inv.tax) > 0 && Number(inv.grandTotal) > 0
+          ? Number(inv.tax) / Number(inv.grandTotal)
+          : 0;
+      const refundToCash =
+        inv.status === "PAID" &&
+        Number(inv.paidAmount) >= Number(inv.grandTotal) - Number(inv.returnedAmount);
+
       await postCreditNote(
         creditNote.id,
         totalReturnedAmount,
@@ -1138,6 +1190,7 @@ export async function createCreditNote(input: CreditNoteInput) {
           };
         }),
         { tx, tenantId, userId },
+        { refundToCash, taxAmount: totalReturnedAmount * taxRatio },
       );
     });
 

@@ -88,12 +88,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
 
-    const paidAmount = Number(grossAmount);
-    const expectedAmount = Number(invoice.grandTotal);
-    if (!Number.isFinite(paidAmount) || Math.abs(paidAmount - expectedAmount) > 0.01) {
-      return NextResponse.json({ error: "Payment amount does not match invoice total" }, { status: 400 });
-    }
-
     const eventId = `${orderId}:${transactionStatus || "unknown"}:${data.transaction_id || statusCode}`;
     const claim = await claimWebhookEvent(prisma, {
       tenantId: invoice.tenantId,
@@ -105,6 +99,20 @@ export async function POST(req: Request) {
     webhookEventId = claim.eventId;
     if (!claim.claimed) {
       return NextResponse.json({ success: true, duplicate: true });
+    }
+
+    const paidAmount = Number(grossAmount);
+    const expectedAmount = Number(invoice.grandTotal);
+    if (!Number.isFinite(paidAmount) || Math.abs(paidAmount - expectedAmount) > 0.01) {
+      await prisma.webhookEvent.update({
+        where: { id: webhookEventId! },
+        data: {
+          status: "IGNORED",
+          error: "Payment amount does not match invoice total",
+          processedAt: getCurrentDate(),
+        },
+      });
+      return NextResponse.json({ success: true, ignored: "amount_mismatch" });
     }
 
     // Update Invoice Status

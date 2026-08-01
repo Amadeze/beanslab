@@ -233,7 +233,7 @@ export async function POST(
 
     const invoiceCode = `INV-${tenant.code}-${getCurrentDate().getFullYear()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
     const orderPublicToken = crypto.randomBytes(24).toString("base64url");
-    const paymentExpiresAt = new Date(Date.now() + tenant.storefrontReservationMinutes * 60 * 1000);
+    const paymentExpiresAt = new Date(getCurrentDate().getTime() + tenant.storefrontReservationMinutes * 60 * 1000);
 
     if (shippingCost > 0) {
       midtransItemDetails.push({ id: "SHIPPING", price: Math.round(shippingCost), quantity: 1, name: "Ongkos kirim" });
@@ -364,6 +364,7 @@ export async function POST(
           quantity: item.quantity,
         })),
         { tx, tenantId: tenant.id, userId: createdById },
+        tax,
       );
 
       await recordAudit(tx, {
@@ -393,9 +394,13 @@ export async function POST(
       sendInvoiceWhatsApp(customerPhone, invoiceCode, publicOrderUrl),
     ]);
 
-    return NextResponse.json({ 
-      success: true, 
-      invoice,
+    return NextResponse.json({
+      success: true,
+      invoice: {
+        code: invoice.code,
+        status: invoice.status,
+        grandTotal: Number(invoice.grandTotal),
+      },
       snapToken,
       paymentUrl,
       orderUrl: `/tenant/${subdomain}/order/${orderPublicToken}`,

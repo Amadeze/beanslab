@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getIronSession } from "iron-session";
+import { randomBytes } from "crypto";
 import { SESSION_OPTIONS, type SessionUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import midtransClient from "midtrans-client";
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
       clientKey,
     });
 
-    const orderId = `SUB-${tenant.id}-${Date.now()}`;
+    const orderId = `SUB-${tenant.id}-${Date.now()}-${randomBytes(4).toString("hex")}`;
 
     const parameter = {
       transaction_details: {
