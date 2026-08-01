@@ -122,6 +122,10 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
       alert("Mohon lengkapi Nama, Nomor HP, dan alamat jika pesanan dikirim.");
       return;
     }
+    if (tenant.paymentMethods?.length && !paymentMethodId) {
+      alert("Mohon pilih metode pembayaran.");
+      return;
+    }
 
     try {
       setIsCheckingOut(true);

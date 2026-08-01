@@ -132,13 +132,13 @@ function ShrinkageDisplay({
   return (
     <div className={`flex items-center justify-between rounded-[1.25rem] border backdrop-blur-md px-5 py-4 ${badgeColor}`}>
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">Shrinkage</p>
+        <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-1">Shrinkage</p>
         <p className="text-3xl font-black tabular-nums tracking-tight">{lossPercent.toFixed(2)}%</p>
       </div>
       <div className="text-right">
-        <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">Susut</p>
+        <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-1">Susut</p>
         <p className="text-lg font-bold tabular-nums">{formatKg(lossKg)}</p>
-        <p className="mt-1 text-[10px] font-medium opacity-80">
+        <p className="mt-1 text-xs font-medium opacity-80">
           Acuan {outcome.expectedMinPercent.toFixed(1)}–{outcome.expectedMaxPercent.toFixed(1)}%
         </p>
       </div>
@@ -308,7 +308,7 @@ export function RoastingForm({
       {/* ── Mode Toggle ── */}
       {/* ── Pilih Green Bean ── */}
       <FieldGroup>
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
           Green Bean <span className="text-red-500">*</span>
         </Label>
         <Controller
@@ -343,7 +343,7 @@ export function RoastingForm({
           )}
         />
         {selectedGB && (
-          <p className="text-[10px] font-medium text-slate-500 pt-1">
+          <p className="text-xs font-medium text-slate-500 pt-1">
             Stok tersedia: <span className="font-bold text-slate-800">{formatKg(selectedGB.stockKg)}</span>
           </p>
         )}
@@ -352,7 +352,7 @@ export function RoastingForm({
 
       {/* ── Mesin Roasting ── */}
       <FieldGroup>
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
           Mesin Roasting (Opsional)
         </Label>
         <Controller
@@ -384,7 +384,7 @@ export function RoastingForm({
 
       {/* ── Berat Masuk ── */}
       <FieldGroup>
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
           Berat Green Bean masuk (kg) <span className="text-red-500">*</span>
         </Label>
         <Input
@@ -396,7 +396,7 @@ export function RoastingForm({
           {...register("targetWeightKg", { valueAsNumber: true })}
         />
         {selectedGB && Number(targetWeightKg) > selectedGB.stockKg && (
-          <p className="text-[10px] font-medium text-red-500">
+          <p className="text-xs font-medium text-red-500">
             Melebihi stok tersedia ({formatKg(selectedGB.stockKg)})
           </p>
         )}
@@ -407,7 +407,7 @@ export function RoastingForm({
 
       {/* Operator chooses the roast fact; product identity is inherited from GB. */}
       <FieldGroup>
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
           Roast Level <span className="text-red-500">*</span>
         </Label>
         <Controller
@@ -444,7 +444,7 @@ export function RoastingForm({
       {/* ── Select existing RB ── */}
       {outputMode === "existing" && (
         <FieldGroup>
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Pilih Roasted Bean</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Pilih Roasted Bean</Label>
           <Controller
             control={control}
             name="outputProductId"
@@ -480,7 +480,7 @@ export function RoastingForm({
       {outputMode === "new" && (
         <div className={cn(glassCard, "space-y-4")}>
           <FieldGroup>
-            <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
               Nama Roasted Bean <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -493,7 +493,7 @@ export function RoastingForm({
 
           <div className="grid grid-cols-2 gap-4">
             <FieldGroup>
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Origin</Label>
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Origin</Label>
               <Input
                 placeholder="e.g. Aceh Gayo"
                 className={cn("h-9", glassInput)}
@@ -502,7 +502,7 @@ export function RoastingForm({
             </FieldGroup>
 
             <FieldGroup>
-              <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Roast Level</Label>
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Roast Level</Label>
               <Controller
                 control={control}
                 name="outputRoastLevel"
@@ -536,7 +536,7 @@ export function RoastingForm({
         <>
           <Separator className="bg-white/50" />
           <FieldGroup>
-            <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
               Berat Roasted Bean keluar (kg) <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -572,7 +572,7 @@ export function RoastingForm({
       {showAdvanced && (
         <div className={cn(glassCard, "space-y-4")}>
           <div>
-            <Label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <Label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
               Alur pencatatan
             </Label>
             <Controller
@@ -607,7 +607,7 @@ export function RoastingForm({
                 </div>
               )}
             />
-            <p className="mt-2 text-[10px] leading-4 text-slate-500">
+            <p className="mt-2 text-xs leading-4 text-slate-500">
               {mode === "ARTISAN"
                 ? "Green Bean dicadangkan sekarang; hasil akhir masuk otomatis dari Artisan."
                 : "Green Bean keluar dan Roasted Bean masuk dalam satu penyimpanan."}
@@ -615,7 +615,7 @@ export function RoastingForm({
           </div>
 
           <FieldGroup>
-            <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Catatan (opsional)</Label>
+            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Catatan (opsional)</Label>
             <Textarea
               placeholder="Profil, kondisi mesin, atau hasil cupping"
               rows={2}

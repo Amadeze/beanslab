@@ -44,8 +44,7 @@ export function ReturDialog({
           if (result) {
             const initial: Record<string, number> = {};
             result.items.forEach((item) => {
-              const maxReturn = item.quantity - item.returnedQuantity;
-              initial[item.productId] = maxReturn;
+              initial[item.productId] = 0;
             });
             setQuantities(initial);
           }
