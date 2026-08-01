@@ -10,6 +10,7 @@ vi.mock("@/lib/date-utils", () => ({
 const mockTx = {
   journalEntry: {
     findFirst: vi.fn().mockResolvedValue(null),
+    findMany: vi.fn().mockResolvedValue([]),
     update: vi.fn().mockResolvedValue({}),
     create: vi.fn((args: any) => {
       journalEntryCreateArgs = args;
@@ -141,16 +142,17 @@ describe("journal idempotency", () => {
 
 describe("postVoidReversal", () => {
   it("swaps debit and credit and marks the source journal void", async () => {
-    mockTx.journalEntry.findFirst
-      .mockResolvedValueOnce({
-        id: "source-je",
-        description: "Penjualan INV-1",
-        lines: [
-          { sideId: 0, debit: 200_000, credit: 0, account: { code: "1-1100" } },
-          { sideId: 1, debit: 0, credit: 200_000, account: { code: "4-1000" } },
-        ],
-      })
-      .mockResolvedValueOnce(null);
+    mockTx.journalEntry.findMany
+      .mockResolvedValueOnce([
+        {
+          id: "source-je",
+          description: "Penjualan INV-1",
+          lines: [
+            { sideId: 0, debit: 200_000, credit: 0, account: { code: "1-1100" } },
+            { sideId: 1, debit: 0, credit: 200_000, account: { code: "4-1000" } },
+          ],
+        },
+      ]);
 
     await postVoidReversal("INVOICE", "invoice-1", "Salah input", {
       tx: mockTx,

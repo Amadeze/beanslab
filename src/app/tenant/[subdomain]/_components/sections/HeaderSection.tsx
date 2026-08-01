@@ -91,7 +91,7 @@ export function HeaderSection({ tenant, cart, setIsCartOpen, skin, showTestimoni
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
-                    className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center text-[10px] font-medium rounded-full bg-[var(--t-accent)] text-[var(--t-bg)] shadow-md"
+                    className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center text-xs font-medium rounded-full bg-[var(--t-accent)] text-[var(--t-bg)] shadow-md"
                   >
                     {totalItems}
                   </motion.span>

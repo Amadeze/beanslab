@@ -113,7 +113,7 @@ export function BentoShowcaseSection({ settings, blocks }: BentoShowcaseProps) {
           transition={{ duration: 0.8, ease }}
           className="max-w-3xl mb-8 sm:mb-16"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest bg-[var(--portal-accent,#D4A574)]/15 border border-[var(--portal-accent,#D4A574)]/30 text-[var(--portal-accent,#D4A574)] mb-3 sm:mb-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs sm:text-xs font-bold uppercase tracking-widest bg-[var(--portal-accent,#D4A574)]/15 border border-[var(--portal-accent,#D4A574)]/30 text-[var(--portal-accent,#D4A574)] mb-3 sm:mb-4">
             <Sparkles size={14} /> Modular Architecture
           </div>
           <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight sm:leading-none mb-3 sm:mb-4" style={{ fontFamily: "var(--portal-font-heading)" }}>
@@ -163,7 +163,7 @@ export function BentoShowcaseSection({ settings, blocks }: BentoShowcaseProps) {
                 <div className="flex items-start justify-between gap-3 relative z-10">
                   {st.badge ? (
                     <span 
-                      className="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border backdrop-blur-md"
+                      className="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border backdrop-blur-md"
                       style={{ 
                         backgroundColor: "rgba(0,0,0,0.4)",
                         borderColor: (st.accentColor as string) || "rgba(255,255,255,0.2)",

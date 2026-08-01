@@ -262,7 +262,7 @@ export function CatalogSection({
               <SlidersHorizontal size={14} strokeWidth={1.5} />
               Filter
               {activeFilterCount > 0 && (
-                <span className="w-5 h-5 flex items-center justify-center text-[10px] font-medium rounded-full bg-[var(--t-primary)] text-white">
+                <span className="w-5 h-5 flex items-center justify-center text-xs font-medium rounded-full bg-[var(--t-primary)] text-white">
                   {activeFilterCount}
                 </span>
               )}
@@ -434,7 +434,7 @@ export function CatalogSection({
                       <ProductVisual imageUrl={product.imageUrl} name={product.name} />
 
                       {/* Stock badge */}
-                      <span className={`absolute top-3 left-3 text-[10px] uppercase font-medium tracking-[0.1em] px-2.5 py-1 rounded-lg backdrop-blur-md ${
+                      <span className={`absolute top-3 left-3 text-xs uppercase font-medium tracking-[0.1em] px-2.5 py-1 rounded-lg backdrop-blur-md ${
                         hasStock ? "bg-[#4a7c59]/85 text-white" : "bg-[#8b7e74]/85 text-white"
                       }`}
                         style={{ fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}
@@ -445,7 +445,7 @@ export function CatalogSection({
                       {/* Tier Savings */}
                       {showTierPrice && (
                         <span
-                          className="absolute top-3 right-3 text-[10px] uppercase font-medium tracking-[0.1em] px-2.5 py-1 rounded-lg bg-[var(--t-accent)]/90 text-white backdrop-blur-md"
+                          className="absolute top-3 right-3 text-xs uppercase font-medium tracking-[0.1em] px-2.5 py-1 rounded-lg bg-[var(--t-accent)]/90 text-white backdrop-blur-md"
                           style={{ fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}
                         >
                           -{pricing.savingsPercent}%
@@ -470,7 +470,7 @@ export function CatalogSection({
 
                       {/* Origin + Roast */}
                       {(product.origin || product.roastLevel) && (
-                        <div className="flex items-center gap-2 mb-4 text-[10px] uppercase tracking-[0.1em] text-[var(--t-text-muted)] font-medium">
+                        <div className="flex items-center gap-2 mb-4 text-xs uppercase tracking-[0.1em] text-[var(--t-text-muted)] font-medium">
                           {product.origin && <span>{product.origin}</span>}
                           {product.origin && product.roastLevel && <span className="opacity-30">&bull;</span>}
                           {product.roastLevel && <span>{product.roastLevel.replace("_", " ")}</span>}
@@ -482,18 +482,18 @@ export function CatalogSection({
                         <div className="flex justify-between items-end bg-[var(--t-bg)] p-3 rounded-2xl border border-[var(--t-border)]">
                           <div className="flex flex-col">
                             <span
-                              className="text-[10px] text-[var(--t-text-muted)] uppercase tracking-[0.1em] font-medium"
+                              className="text-xs text-[var(--t-text-muted)] uppercase tracking-[0.1em] font-medium"
                               style={{ fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}
                             >
                               Price
                             </span>
                             {showTierPrice && (
-                              <span className="text-[10px] font-semibold text-[var(--t-primary)]">Tier {pricing.tierLabel}</span>
+                              <span className="text-xs font-semibold text-[var(--t-primary)]">Tier {pricing.tierLabel}</span>
                             )}
                           </div>
                           <div className="text-right">
                             {showTierPrice && (
-                              <div className="text-[10px] line-through text-[var(--t-text-muted)]/40">
+                              <div className="text-xs line-through text-[var(--t-text-muted)]/40">
                                 {formatPrice(pricing.retailPrice)}
                               </div>
                             )}
@@ -508,7 +508,7 @@ export function CatalogSection({
 
                         {/* MOQ */}
                         {moq > 1 && (
-                          <div className="flex items-center gap-1.5 text-[10px] text-[var(--t-text-muted)] font-medium">
+                          <div className="flex items-center gap-1.5 text-xs text-[var(--t-text-muted)] font-medium">
                             <Package size={12} strokeWidth={1.5} />
                             <span style={{ fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}>Min. order: {moq} units</span>
                           </div>
@@ -598,7 +598,7 @@ export function CatalogSection({
                         {product.origin || "—"}
                       </td>
                       <td className="p-4">
-                        <span className="px-2 py-1 text-[10px] font-medium rounded-full bg-[var(--t-primary)]/8 text-[var(--t-primary)] uppercase tracking-[0.1em]">
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-[var(--t-primary)]/8 text-[var(--t-primary)] uppercase tracking-[0.1em]">
                           {product.category || "General"}
                         </span>
                       </td>
@@ -610,7 +610,7 @@ export function CatalogSection({
                       <td className="p-4 text-right">
                         <div className="flex flex-col items-end">
                           {showTierPrice && (
-                            <span className="text-[10px] line-through text-[var(--t-text-muted)]/40">{formatPrice(pricing.retailPrice)}</span>
+                            <span className="text-xs line-through text-[var(--t-text-muted)]/40">{formatPrice(pricing.retailPrice)}</span>
                           )}
                           <span
                             className="font-semibold text-[var(--t-primary)]"

@@ -138,7 +138,7 @@ export default async function InvoicePrintPage({
             <div className="mb-8 grid grid-cols-2 gap-6">
               {/* Customer */}
               <div className="rounded-lg bg-zinc-50 p-4">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-zinc-400">
                   Kepada
                 </p>
                 <p className="font-semibold text-zinc-900">{inv.customerName}</p>
@@ -152,7 +152,7 @@ export default async function InvoicePrintPage({
 
               {/* Invoice details */}
               <div className="rounded-lg bg-zinc-50 p-4 space-y-1.5">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-zinc-400">
                   Detail Nota
                 </p>
                 <div className="flex justify-between text-sm">
@@ -257,7 +257,7 @@ export default async function InvoicePrintPage({
             {/* ── Payment Records ── */}
             {inv.payments.length > 0 && (
               <div className="mb-8 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-600">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-600">
                   Riwayat Pembayaran
                 </p>
                 {inv.payments.map((p, i) => (
@@ -274,7 +274,7 @@ export default async function InvoicePrintPage({
             {/* ── Notes ── */}
             {inv.notes && (
               <div className="mb-8 rounded-lg bg-zinc-50 p-4">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-zinc-400">
                   Catatan
                 </p>
                 <p className="text-sm text-zinc-600">{inv.notes}</p>

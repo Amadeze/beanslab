@@ -136,7 +136,7 @@ export function OperatingHero({
               <Link
                 href={next.href}
                 className={cn(
-                  "mt-2.5 inline-flex min-h-6 items-center gap-2 text-[10px] font-bold transition-[color,gap] hover:gap-3 hover:text-white",
+                  "mt-2.5 inline-flex min-h-6 items-center gap-2 text-xs font-bold transition-[color,gap] hover:gap-3 hover:text-white",
                   tone.link,
                 )}
               >

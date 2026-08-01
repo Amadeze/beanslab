@@ -34,7 +34,7 @@ function RegisterForm() {
       }
     } else {
       if (!roasteryName || !subdomain || !email || !password) {
-        setError("All fields are required");
+        setError("Semua kolom wajib diisi.");
         return;
       }
     }
@@ -52,12 +52,12 @@ function RegisterForm() {
           });
           
       if (!result.success) {
-        setError(result.error || "Pendaftaran gagal. Silakan coba lagi.");
+        setError(result.error || "Pendaftaran gagal. Periksa kembali data Anda dan coba lagi.");
         return;
       }
       router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan yang tidak terduga. Silakan coba lagi.");
     } finally {
       setLoading(false);
     }

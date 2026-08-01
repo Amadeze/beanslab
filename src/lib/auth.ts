@@ -88,7 +88,7 @@ export async function getCurrentTenantId(): Promise<string> {
 export async function requireRole(...allowedRoles: SessionUser["role"][]) {
   const user = await requireCurrentUser();
   if (!canAccessTenantRole(user.role, allowedRoles)) {
-    throw new Error("FORBIDDEN");
+    throw new Error(`FORBIDDEN: requires ${allowedRoles.join(" | ")}, got ${user.role}`);
   }
   return user;
 }

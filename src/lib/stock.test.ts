@@ -267,6 +267,40 @@ describe("appendFefoLedgerOut", () => {
     });
   });
 
+  it("consumes across more than 20 lots in FIFO order when demand exceeds the oldest 20", async () => {
+    const tx = transaction();
+    const lots = Array.from({ length: 25 }, (_, i) => ({
+      id: `lot-${i + 1}`,
+      batchCode: `LOT-${i + 1}`,
+      expiryDate: new Date(2026, 7, i + 2),
+      quantityKg: 1,
+      quantityUnit: 0,
+      inventoryLedgers: [{ entryType: "IN", quantityKg: 1, quantityUnit: null }],
+    }));
+    tx.lot.findMany = vi.fn().mockImplementation((args: any) =>
+      Promise.resolve(args?.take !== undefined ? lots.slice(0, args.take) : lots),
+    );
+
+    await appendFefoLedgerOut(tx, {
+      tenantId: "tenant-1",
+      productId: "green-bean-1",
+      quantityKg: 22,
+      refType: "ROASTING_GB_OUT",
+      refId: "roast-1",
+      createdById: "user-1",
+    });
+
+    const createCalls = (tx.inventoryLedger.create as ReturnType<typeof vi.fn>).mock.calls;
+    expect(createCalls).toHaveLength(22);
+    const consumedLotIds = createCalls.map((c) => c[0].data.lotId);
+    expect(consumedLotIds).toEqual(Array.from({ length: 22 }, (_, i) => `lot-${i + 1}`));
+    expect(consumedLotIds).not.toContain(null);
+    const updatedLotIds = (tx.lot.update as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c) => c[0].where.id,
+    );
+    expect(updatedLotIds).toEqual(Array.from({ length: 22 }, (_, i) => `lot-${i + 1}`));
+  });
+
   it("allocates from lots beyond the 20-batch cap without falling back to untracked", async () => {
     const tx = transaction();
     const lots = Array.from({ length: 25 }, (_, i) => ({

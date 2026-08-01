@@ -88,10 +88,10 @@ export function GlobalColorsPanel() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Colors</h3>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Colors</h3>
         <button
           onClick={() => setShowPresets(!showPresets)}
-          className="text-[10px] font-medium text-blue-500 hover:text-blue-700"
+          className="text-xs font-medium text-blue-500 hover:text-blue-700"
         >
           {showPresets ? "Custom" : "Presets"}
         </button>
@@ -141,7 +141,7 @@ export function GlobalColorsPanel() {
                     />
                   ))}
                 </div>
-                <span className="text-[10px] font-semibold text-gray-600 group-hover:text-blue-700">{preset.name}</span>
+                <span className="text-xs font-semibold text-gray-600 group-hover:text-blue-700">{preset.name}</span>
               </div>
             </button>
           ))}
@@ -157,7 +157,7 @@ export function GlobalColorsPanel() {
               <div key={group.label}>
                 <button
                   onClick={() => setExpandedGroup(isExpanded ? null : group.label)}
-                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-[10px] font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
+                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
                 >
                   {group.label}
                   <span className="text-gray-300">{isExpanded ? "−" : "+"}</span>

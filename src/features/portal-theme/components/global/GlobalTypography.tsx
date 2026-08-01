@@ -21,7 +21,7 @@ export function GlobalTypographyPanel() {
 
   return (
     <div className="space-y-5">
-      <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Typography</h3>
+      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Typography</h3>
 
       {/* Live Preview */}
       <div className="rounded-xl border border-gray-200 overflow-hidden">
@@ -52,7 +52,7 @@ export function GlobalTypographyPanel() {
 
       {/* Font Presets */}
       <div>
-        <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Font Pairing</label>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Font Pairing</label>
         <div className="grid grid-cols-2 gap-1.5">
           {FONT_PRESETS.map((preset) => {
             const isActive = typography.headingFont === preset.heading && typography.bodyFont === preset.body;
@@ -66,7 +66,7 @@ export function GlobalTypographyPanel() {
                     : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                 }`}
               >
-                <div className="text-[10px] font-bold truncate" style={{ fontFamily: `'${preset.heading}', ${preset.style}` }}>
+                <div className="text-xs font-bold truncate" style={{ fontFamily: `'${preset.heading}', ${preset.style}` }}>
                   Aa
                 </div>
                 <div className="text-[8px] text-gray-500 mt-1 truncate">{preset.label}</div>
@@ -79,7 +79,7 @@ export function GlobalTypographyPanel() {
       {/* Custom Font Selects */}
       <div className="space-y-2">
         <div>
-          <label className="block text-[10px] font-semibold text-gray-500 mb-1">Heading Font</label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Heading Font</label>
           <select
             value={typography.headingFont}
             onChange={(e) => updateGlobalTypography({ headingFont: e.target.value })}
@@ -91,7 +91,7 @@ export function GlobalTypographyPanel() {
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-semibold text-gray-500 mb-1">Body Font</label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Body Font</label>
           <select
             value={typography.bodyFont}
             onChange={(e) => updateGlobalTypography({ bodyFont: e.target.value })}
@@ -106,7 +106,7 @@ export function GlobalTypographyPanel() {
 
       {/* Size & Scale */}
       <div className="space-y-3">
-        <label className="block text-[10px] font-semibold text-gray-500">Scale & Spacing</label>
+        <label className="block text-xs font-semibold text-gray-500">Scale & Spacing</label>
         <SliderField label="Base Size" value={typography.baseFontSize} min={12} max={24} unit="px" onChange={(v) => updateGlobalTypography({ baseFontSize: v })} />
         <SliderField label="Scale Ratio" value={typography.scaleRatio} min={1.0} max={1.6} step={0.05} unit="×" onChange={(v) => updateGlobalTypography({ scaleRatio: v })} />
         <SliderField label="Line Height" value={typography.lineHeight} min={1.0} max={2.2} step={0.05} unit="" onChange={(v) => updateGlobalTypography({ lineHeight: v })} />
@@ -116,13 +116,13 @@ export function GlobalTypographyPanel() {
       {/* Weights */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-[10px] font-semibold text-gray-500 mb-1">Heading Weight</label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Heading Weight</label>
           <select value={typography.headingWeight} onChange={(e) => updateGlobalTypography({ headingWeight: Number(e.target.value) })} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs">
             {[400, 500, 600, 700, 800, 900].map((w) => <option key={w} value={w}>{w}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-semibold text-gray-500 mb-1">Body Weight</label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Body Weight</label>
           <select value={typography.bodyWeight} onChange={(e) => updateGlobalTypography({ bodyWeight: Number(e.target.value) })} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs">
             {[300, 400, 500, 600].map((w) => <option key={w} value={w}>{w}</option>)}
           </select>
@@ -131,13 +131,13 @@ export function GlobalTypographyPanel() {
 
       {/* Transform */}
       <div>
-        <label className="block text-[10px] font-semibold text-gray-500 mb-1">Heading Transform</label>
+        <label className="block text-xs font-semibold text-gray-500 mb-1">Heading Transform</label>
         <div className="flex gap-1">
           {(["none", "uppercase", "capitalize"] as const).map((t) => (
             <button
               key={t}
               onClick={() => updateGlobalTypography({ textTransform: t })}
-              className={`flex-1 rounded-md border px-2 py-1.5 text-[10px] font-medium capitalize transition-colors ${
+              className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-medium capitalize transition-colors ${
                 typography.textTransform === t
                   ? "border-blue-500 bg-blue-50 text-blue-700"
                   : "border-gray-200 text-gray-500 hover:border-gray-300"
@@ -160,8 +160,8 @@ function SliderField({ label, value, min, max, step = 1, unit, onChange }: {
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] text-gray-500">{label}</span>
-        <span className="text-[10px] font-mono text-gray-400">{Number.isInteger(value) ? value : value.toFixed(2)}{unit}</span>
+        <span className="text-xs text-gray-500">{label}</span>
+        <span className="text-xs font-mono text-gray-400">{Number.isInteger(value) ? value : value.toFixed(2)}{unit}</span>
       </div>
       <input
         type="range"

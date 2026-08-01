@@ -67,11 +67,11 @@ export function KpiCard({ label, value, sub, trend, color = "#A94728", icon, onC
       </div>
       <div className="relative z-10 mt-2">
         <h3 className="font-heading text-lg font-bold leading-none tracking-[-0.04em] text-foreground lg:text-xl">{value}</h3>
-        {sub && <p className="mt-1.5 text-[10px] text-muted-foreground">{sub}</p>}
+        {sub && <p className="mt-1.5 text-xs text-muted-foreground">{sub}</p>}
       </div>
       {/* Signal indicator */}
       {signal && (
-        <div className={cn("mt-2 flex items-center gap-1.5 text-[10px] font-semibold", signalColor)}>
+        <div className={cn("mt-2 flex items-center gap-1.5 text-xs font-semibold", signalColor)}>
           <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
           <span>{signal.label}</span>
           <span className="font-bold">{signal.value}</span>

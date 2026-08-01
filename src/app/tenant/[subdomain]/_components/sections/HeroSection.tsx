@@ -172,7 +172,7 @@ export function HeroSection({ heroText, aboutText, bgImage, waLink, skin }: Hero
                   <div className="absolute right-7 top-20 max-w-36 rounded-[var(--t-radius)] border border-[var(--t-border)] bg-[var(--t-bg)]/80 p-3 shadow-[var(--t-shadow-md)] backdrop-blur-md">
                     <p className="font-mono text-[8px] uppercase tracking-[0.14em] text-[var(--t-text-muted)]">Lot passport</p>
                     <p className="mt-2 text-sm font-semibold text-[var(--t-text)]">Single origin</p>
-                    <p className="mt-1 text-[10px] text-[var(--t-text-muted)]">Traceable · Seasonal</p>
+                    <p className="mt-1 text-xs text-[var(--t-text-muted)]">Traceable · Seasonal</p>
                   </div>
                 </div>
               )}

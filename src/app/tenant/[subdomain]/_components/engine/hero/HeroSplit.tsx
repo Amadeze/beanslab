@@ -44,7 +44,7 @@ export function HeroSplit({
           <div className="flex-1 w-full relative aspect-[4/5] md:aspect-square lg:aspect-[4/5] rounded-[var(--rep-radius)] overflow-hidden shadow-[var(--rep-shadow)] group">
             <img 
               src={imageUrl} 
-              alt="Hero" 
+              alt="Hero banner for specialty coffee" 
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
             />
           </div>

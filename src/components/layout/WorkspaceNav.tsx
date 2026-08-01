@@ -126,7 +126,7 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-[7px] border px-2 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C8DF]",
+                "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-[7px] border px-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C8DF]",
                 active
                   ? workspaceTone.active
                   : "border-transparent text-white/46 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",

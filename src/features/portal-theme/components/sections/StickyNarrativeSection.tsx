@@ -116,17 +116,17 @@ export function StickyNarrativeSection({ settings, blocks }: StickyNarrativeProp
 
               {/* Top Pill */}
               <div className="absolute top-4 left-4 right-4 sm:top-6 sm:left-6 sm:right-6 flex items-center justify-between gap-2 sm:gap-3 z-10">
-                <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl bg-black/60 backdrop-blur-md border border-white/20 text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-white">
+                <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl bg-black/60 backdrop-blur-md border border-white/20 text-xs sm:text-xs font-extrabold uppercase tracking-wider text-white">
                   {pinnedTitle}
                 </div>
-                <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl bg-[var(--portal-accent,#D4A574)] text-black text-[10px] sm:text-xs font-black uppercase tracking-widest shadow-lg">
+                <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl bg-[var(--portal-accent,#D4A574)] text-black text-xs sm:text-xs font-black uppercase tracking-widest shadow-lg">
                   {currentStep.stepNumber} / {displaySteps.length < 10 ? `0${displaySteps.length}` : displaySteps.length}
                 </div>
               </div>
 
               {/* Bottom Pinned Info */}
               <div className="relative z-10">
-                <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-widest text-[var(--portal-accent,#D4A574)] block mb-0.5 sm:mb-1">
+                <span className="text-xs sm:text-xs font-extrabold uppercase tracking-widest text-[var(--portal-accent,#D4A574)] block mb-0.5 sm:mb-1">
                   {currentStep.tag}
                 </span>
                 <h3 className="text-base sm:text-2xl font-black text-white leading-snug">
@@ -164,7 +164,7 @@ export function StickyNarrativeSection({ settings, blocks }: StickyNarrativeProp
                           {step.title}
                         </h4>
                         {step.subtitle && (
-                          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-white/60 block mt-0.5">
+                          <span className="text-xs sm:text-xs font-semibold uppercase tracking-wider text-white/60 block mt-0.5">
                             {step.subtitle}
                           </span>
                         )}

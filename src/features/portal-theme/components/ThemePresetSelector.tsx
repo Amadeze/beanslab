@@ -73,9 +73,9 @@ export function ThemePresetSelector() {
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Sparkles size={14} className="text-amber-500" />
-        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Theme Presets</h3>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Theme Presets</h3>
       </div>
-      <p className="text-[10px] text-gray-400">One-click complete visual identities. Click to apply.</p>
+      <p className="text-xs text-gray-400">One-click complete visual identities. Click to apply.</p>
 
       <div className="space-y-2">
         {THEME_PRESETS.map((preset, i) => {
@@ -140,7 +140,7 @@ export function ThemePresetSelector() {
                     className="overflow-hidden"
                   >
                     <div className="mt-1 rounded-xl border-2 border-blue-300 bg-blue-50 p-3 text-center">
-                      <p className="text-[10px] text-blue-700 font-semibold mb-2">
+                      <p className="text-xs text-blue-700 font-semibold mb-2">
                         Apply "{preset.name}" theme?
                       </p>
                       <p className="text-[9px] text-blue-500 mb-3">
@@ -149,13 +149,13 @@ export function ThemePresetSelector() {
                       <div className="flex gap-2 justify-center">
                         <button
                           onClick={(e) => { e.stopPropagation(); setShowConfirm(null); }}
-                          className="rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-[10px] font-semibold text-gray-600 hover:bg-gray-50"
+                          className="rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
                         >
                           Cancel
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); applyPreset(preset.id); }}
-                          className="flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-1.5 text-[10px] font-semibold text-white hover:bg-blue-700"
+                          className="flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
                         >
                           <Check size={12} /> Apply Theme
                         </button>

@@ -64,13 +64,13 @@ export function SpacingControl({ value, onChange }: SpacingControlProps) {
 
       {/* Quick Presets */}
       <div>
-        <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Quick Presets</label>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Quick Presets</label>
         <div className="flex gap-1">
           {PRESETS.map((p) => (
             <button
               key={p.label}
               onClick={() => onChange({ ...s, paddingTop: p.pt, paddingBottom: p.pb })}
-              className={`flex-1 rounded-lg border py-2 text-[10px] font-semibold transition-all ${
+              className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition-all ${
                 s.paddingTop === p.pt && s.paddingBottom === p.pb
                   ? "border-blue-400 bg-blue-50 text-blue-700 shadow-sm"
                   : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
@@ -84,7 +84,7 @@ export function SpacingControl({ value, onChange }: SpacingControlProps) {
 
       {/* Individual Controls */}
       <div className="space-y-2">
-        <label className="block text-[10px] font-semibold text-gray-500">Custom Values</label>
+        <label className="block text-xs font-semibold text-gray-500">Custom Values</label>
         <div className="grid grid-cols-2 gap-2">
           {([
             { field: "paddingTop" as const, label: "Pad Top", color: "amber" },

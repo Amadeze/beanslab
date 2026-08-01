@@ -57,7 +57,7 @@ export function EditorSectionWrapper({ id, type, index, totalSections, children,
         isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
       }`}>
         {/* Badge Name */}
-        <div className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-sm shadow-sm flex items-center gap-1">
+        <div className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-sm shadow-sm flex items-center gap-1">
           {type}
         </div>
         

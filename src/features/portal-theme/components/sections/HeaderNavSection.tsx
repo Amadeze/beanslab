@@ -86,7 +86,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
               <ShoppingBag size={14} className="stroke-[2.5]" />
               <span className="hidden sm:inline">{ctaText}</span>
               {cartItemCount > 0 && (
-                <span className="w-5 h-5 rounded-full bg-black text-white text-[10px] font-black flex items-center justify-center -mr-1">
+                <span className="w-5 h-5 rounded-full bg-black text-white text-xs font-black flex items-center justify-center -mr-1">
                   {cartItemCount}
                 </span>
               )}
@@ -149,7 +149,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
                     <ShoppingBag size={18} />
                     <span>View Cart ({cartItemCount})</span>
                   </button>
-                  <p className="text-[10px] text-white/40 text-center uppercase tracking-widest">
+                  <p className="text-xs text-white/40 text-center uppercase tracking-widest">
                     B2B Wholesale Portal
                   </p>
                 </div>
@@ -357,7 +357,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
               <Activity size={16} className="text-[#00FF66] animate-pulse" />
               <span>{logoText}</span>
             </a>
-            <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded bg-[#00FF66]/10 border border-[#00FF66]/30 text-[10px] text-[#00FF66]">
+            <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded bg-[#00FF66]/10 border border-[#00FF66]/30 text-xs text-[#00FF66]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#00FF66] animate-ping" />
               <span>SYS.ONLINE // TELEMETRY: ACTIVE</span>
             </div>

@@ -51,13 +51,13 @@ export function AnimationControl({ value, onChange }: AnimationControlProps) {
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-[10px] font-semibold text-gray-500 mb-1">Scroll Animation</label>
+        <label className="block text-xs font-semibold text-gray-500 mb-1">Scroll Animation</label>
         <div className="grid grid-cols-2 gap-1">
           {SCROLL_TRIGGERS.map(({ value: v, label }) => (
             <button
               key={v}
               onClick={() => onChange({ ...animation, scrollTrigger: v as SectionAnimation["scrollTrigger"] })}
-              className={`rounded-md border px-2 py-1.5 text-[10px] font-medium transition-colors ${
+              className={`rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ${
                 animation.scrollTrigger === v
                   ? "border-blue-500 bg-blue-50 text-blue-700"
                   : "border-gray-200 text-gray-500 hover:border-gray-300"
@@ -71,7 +71,7 @@ export function AnimationControl({ value, onChange }: AnimationControlProps) {
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-[10px] font-semibold text-gray-500 mb-1">
+          <label className="block text-xs font-semibold text-gray-500 mb-1">
             Duration ({animation.duration}ms)
           </label>
           <input
@@ -85,7 +85,7 @@ export function AnimationControl({ value, onChange }: AnimationControlProps) {
           />
         </div>
         <div>
-          <label className="block text-[10px] font-semibold text-gray-500 mb-1">
+          <label className="block text-xs font-semibold text-gray-500 mb-1">
             Delay ({animation.delay}ms)
           </label>
           <input
@@ -101,7 +101,7 @@ export function AnimationControl({ value, onChange }: AnimationControlProps) {
       </div>
 
       <div>
-        <label className="block text-[10px] font-semibold text-gray-500 mb-1">Easing</label>
+        <label className="block text-xs font-semibold text-gray-500 mb-1">Easing</label>
         <select
           value={animation.easing}
           onChange={(e) => onChange({ ...animation, easing: e.target.value })}
@@ -114,13 +114,13 @@ export function AnimationControl({ value, onChange }: AnimationControlProps) {
       </div>
 
       <div>
-        <label className="block text-[10px] font-semibold text-gray-500 mb-1">Hover Effect</label>
+        <label className="block text-xs font-semibold text-gray-500 mb-1">Hover Effect</label>
         <div className="flex flex-wrap gap-1">
           {HOVER_EFFECTS.map(({ value: v, label }) => (
             <button
               key={v}
               onClick={() => onChange({ ...animation, hoverEffect: v as SectionAnimation["hoverEffect"] })}
-              className={`rounded-md border px-2.5 py-1 text-[10px] font-medium transition-colors ${
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
                 animation.hoverEffect === v
                   ? "border-blue-500 bg-blue-50 text-blue-700"
                   : "border-gray-200 text-gray-500 hover:border-gray-300"

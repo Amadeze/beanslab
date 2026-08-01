@@ -81,9 +81,9 @@ export default async function PublicOrderPage({ params }: { params: Promise<{ su
 
         <div className="space-y-6 p-6 md:p-8">
           <section className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">Total</p><p className="mt-1 text-xl font-black">Rp {Number(invoice.grandTotal).toLocaleString("id-ID")}</p></div>
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">Pembayaran</p><p className="mt-1 text-sm font-black">{invoice.status === "PAID" ? "Lunas" : amountDue > 0 ? `Sisa Rp ${amountDue.toLocaleString("id-ID")}` : invoice.status}</p></div>
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">Pengiriman</p><p className="mt-1 text-sm font-black">{invoice.shippingMethod === "PICKUP" ? "Ambil di roastery" : invoice.trackingNumber ? `${invoice.courierName || "Kurir"} · ${invoice.trackingNumber}` : "Belum dikirim"}</p></div>
+            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4"><p className="text-xs font-bold uppercase tracking-wider text-stone-500">Total</p><p className="mt-1 text-xl font-black">Rp {Number(invoice.grandTotal).toLocaleString("id-ID")}</p></div>
+            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4"><p className="text-xs font-bold uppercase tracking-wider text-stone-500">Pembayaran</p><p className="mt-1 text-sm font-black">{invoice.status === "PAID" ? "Lunas" : amountDue > 0 ? `Sisa Rp ${amountDue.toLocaleString("id-ID")}` : invoice.status}</p></div>
+            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4"><p className="text-xs font-bold uppercase tracking-wider text-stone-500">Pengiriman</p><p className="mt-1 text-sm font-black">{invoice.shippingMethod === "PICKUP" ? "Ambil di roastery" : invoice.trackingNumber ? `${invoice.courierName || "Kurir"} · ${invoice.trackingNumber}` : "Belum dikirim"}</p></div>
           </section>
 
           <section>

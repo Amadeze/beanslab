@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         "X-Request-Id": requestId,
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof RateLimitError) {
       return NextResponse.json(
         { error: err.message },
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     logServerError("ai-insights", err, { requestId });
 
-    if (err.message === "FORBIDDEN") {
+    if (err instanceof Error && err.message === "FORBIDDEN") {
       return NextResponse.json(
         { error: "Akses ditolak. Hanya OWNER dan MANAGER yang dapat menggunakan fitur ini." },
         { status: 403 },

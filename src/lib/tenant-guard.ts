@@ -84,7 +84,5 @@ export async function setTenantContext(
   tx: Prisma.TransactionClient,
   tenantId: string,
 ): Promise<void> {
-  await tx.$executeRawUnsafe(
-    `SET LOCAL app.tenant_id = '${tenantId.replace(/'/g, "''")}'`,
-  );
+  await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
 }

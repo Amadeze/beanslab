@@ -120,7 +120,7 @@ export function WholesaleRadarSection({ settings, blocks }: WholesaleRadarProps)
                         : "bg-white/[0.02] border-white/10 hover:bg-white/5 opacity-70 hover:opacity-100"
                     }`}
                   >
-                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider block mb-0.5 sm:mb-1 text-[var(--portal-accent,#D4A574)]">
+                    <span className="text-[9px] sm:text-xs font-bold uppercase tracking-wider block mb-0.5 sm:mb-1 text-[var(--portal-accent,#D4A574)]">
                       {prof.roast}
                     </span>
                     <h4 className="text-xs sm:text-sm font-black text-white line-clamp-1">
@@ -212,7 +212,7 @@ export function WholesaleRadarSection({ settings, blocks }: WholesaleRadarProps)
                         }`}
                       >
                         <span className="text-sm">{tier.kg} kg / mo</span>
-                        <span className={`text-[10px] uppercase mt-1 ${isSel ? "text-black/75" : "text-white/50"}`}>
+                        <span className={`text-xs uppercase mt-1 ${isSel ? "text-black/75" : "text-white/50"}`}>
                           {tier.discount > 0 ? `${(tier.discount * 100)}% Discount` : "Standard Rate"}
                         </span>
                       </button>

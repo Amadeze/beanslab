@@ -632,7 +632,7 @@ export async function receivePO(
         receivedAt: newStatus === "RECEIVED" ? receivedAt : undefined,
       },
     });
-  });
+  }, { maxWait: 15000, timeout: 30000 });
 
   return { purchaseCodes };
 }

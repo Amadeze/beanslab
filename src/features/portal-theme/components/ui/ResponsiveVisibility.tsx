@@ -23,7 +23,7 @@ export function ResponsiveVisibilityControl({ value, onChange }: ResponsiveVisib
 
   return (
     <div className="space-y-2">
-      <label className="block text-[10px] font-semibold text-gray-500">Visible On</label>
+      <label className="block text-xs font-semibold text-gray-500">Visible On</label>
       <div className="flex gap-2">
         {breakpoints.map(({ key, icon: Icon, label }) => (
           <button

@@ -111,7 +111,7 @@ export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavor
           transition={{ duration: 0.8, ease }}
           className="text-center max-w-3xl mx-auto mb-8 sm:mb-16"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest bg-white/5 border border-white/10 text-[var(--portal-accent,#D4A574)] mb-3 sm:mb-4 backdrop-blur-md">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs sm:text-xs font-bold uppercase tracking-widest bg-white/5 border border-white/10 text-[var(--portal-accent,#D4A574)] mb-3 sm:mb-4 backdrop-blur-md">
             <SlidersHorizontal size={14} /> Sensory Alchemy Engine
           </div>
           <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight sm:leading-none mb-3 sm:mb-4" style={{ fontFamily: "var(--portal-font-heading)" }}>
@@ -178,7 +178,7 @@ export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavor
                   
                   {/* Cupping Score Badge */}
                   <div className="absolute top-4 right-4 px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 flex items-center gap-1.5 shadow-lg">
-                    <span className="text-[10px] uppercase font-bold text-white/60">SCA Score</span>
+                    <span className="text-xs uppercase font-bold text-white/60">SCA Score</span>
                     <span className="text-sm font-black text-[var(--portal-accent,#D4A574)]">{coffee.score}</span>
                   </div>
 
@@ -201,7 +201,7 @@ export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavor
 
                     {/* Tasting Notes Box */}
                     <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 mb-6">
-                      <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--portal-accent,#D4A574)] block mb-1">
+                      <span className="text-xs uppercase tracking-widest font-bold text-[var(--portal-accent,#D4A574)] block mb-1">
                         Sensory Profile
                       </span>
                       <p className="text-xs sm:text-sm font-medium text-white/90 italic leading-snug">
@@ -213,7 +213,7 @@ export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavor
                   {/* Price & CTA */}
                   <div className="pt-4 border-t border-white/10 flex items-center justify-between gap-4">
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-white/50 block">Contract Price</span>
+                      <span className="text-xs uppercase font-bold text-white/50 block">Contract Price</span>
                       <span className="text-sm sm:text-base font-extrabold text-white">{coffee.price}</span>
                     </div>
 

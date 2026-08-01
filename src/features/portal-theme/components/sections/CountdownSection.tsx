@@ -107,7 +107,7 @@ export function CountdownSection({ settings, typography }: CountdownProps) {
                     {String(u.value).padStart(2, "0")}
                   </span>
                   <span
-                    className="mt-1 text-[10px] uppercase tracking-[0.14em] font-medium"
+                    className="mt-1 text-xs uppercase tracking-[0.14em] font-medium"
                     style={{ color: "var(--portal-text-muted, #6B7280)" }}
                   >
                     {u.label}

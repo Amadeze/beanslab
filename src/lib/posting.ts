@@ -104,8 +104,7 @@ export async function postJournalEntry(
     { isolationLevel: "Serializable" },
   );
 }
-
-/** Membalik jurnal sumber secara utuh dan menandai jurnal sumber sebagai void. */
+/** Membalik seluruh jurnal sumber yang belum dibatalkan, lalu menandai mereka sebagai void. */
 export async function postVoidReversal(
   sourceRefType: JournalRefType,
   sourceReference: string,
@@ -128,7 +127,7 @@ export async function postVoidReversal(
   }
 
   const tx = options.tx as PostingTransaction;
-  const source = await tx.journalEntry.findFirst({
+  const sources = await tx.journalEntry.findMany({
     where: {
       tenantId,
       refType: sourceRefType,
@@ -142,27 +141,31 @@ export async function postVoidReversal(
       },
     },
   });
-  if (!source) {
+  if (sources.length === 0) {
     throw new Error(`Jurnal sumber ${sourceRefType}/${sourceReference} tidak ditemukan atau sudah dibatalkan.`);
   }
 
-  const reversalCode = await postJournalEntry({
-    date: getCurrentDate(),
-    description: `Pembatalan: ${source.description}`,
-    reference: sourceReference,
-    refType: "VOID_REVERSAL",
-    lines: source.lines.map((line) => ({
-      accountCode: line.account.code,
-      debit: Number(line.credit),
-      credit: Number(line.debit),
-    })),
-  }, { tx, tenantId, userId });
+  let firstCode = "";
+  for (const source of sources) {
+    firstCode = await postJournalEntry({
+      date: getCurrentDate(),
+      description: `Pembatalan: ${source.description}`,
+      reference: sourceReference,
+      refType: "VOID_REVERSAL",
+      lines: source.lines.map((line) => ({
+        accountCode: line.account.code,
+        debit: Number(line.credit),
+        credit: Number(line.debit),
+      })),
+    }, { tx, tenantId, userId });
 
-  await tx.journalEntry.update({
-    where: { id: source.id },
-    data: { voidAt: getCurrentDate(), voidReason: reason.trim() },
-  });
-  return reversalCode;
+    await tx.journalEntry.update({
+      where: { id: source.id },
+      data: { voidAt: getCurrentDate(), voidReason: reason.trim() },
+    });
+  }
+
+  return firstCode;
 }
 
 // ── Auto-posting helpers ──
@@ -174,6 +177,7 @@ export async function postSalesInvoice(
   customerName: string,
   items: Array<{ productType?: ProductType; hpp: number; quantity: number }> = [],
   options: PostingOptions = {},
+  taxAmount = 0,
 ): Promise<string> {
   const remaining = total - paidAmount;
   const lines: PostingLine[] = [];
@@ -185,7 +189,11 @@ export async function postSalesInvoice(
     lines.push({ accountCode: "1-1100", debit: remaining, credit: 0 });
   }
 
-  lines.push({ accountCode: "4-1000", debit: 0, credit: total });
+  // Pendapatan bersih (tanpa pajak) + utang pajak bila ada.
+  lines.push({ accountCode: "4-1000", debit: 0, credit: total - taxAmount });
+  if (taxAmount > 0) {
+    lines.push({ accountCode: "2-1100", debit: 0, credit: taxAmount });
+  }
 
   const totalCogs = items.reduce((sum, item) => sum + item.hpp * item.quantity, 0);
   if (totalCogs > 0) {
@@ -323,11 +331,22 @@ export async function postCreditNote(
   invoiceCode: string,
   items: Array<{ productType?: ProductType; hpp: number; quantity: number }> = [],
   options: PostingOptions = {},
+  taxInfo?: { refundToCash: boolean; taxAmount: number },
 ): Promise<string> {
+  const taxAmount = Math.min(taxInfo?.taxAmount ?? 0, totalReturned);
+  const netReturn = totalReturned - taxAmount;
   const lines: PostingLine[] = [
-    { accountCode: "4-1000", debit: totalReturned, credit: 0 },
-    { accountCode: "1-1100", debit: 0, credit: totalReturned },
+    { accountCode: "4-1000", debit: netReturn, credit: 0 },
   ];
+  if (taxAmount > 0) {
+    lines.push({ accountCode: "2-1100", debit: taxAmount, credit: 0 });
+  }
+  // Invoice lunas tunai → refund ke kas; invoice kredit → kurangi piutang.
+  lines.push({
+    accountCode: taxInfo?.refundToCash ? "1-1000" : "1-1100",
+    debit: 0,
+    credit: totalReturned,
+  });
   const totalCogs = items.reduce((sum, item) => sum + item.hpp * item.quantity, 0);
   if (totalCogs > 0) {
     lines.push({ accountCode: getInventoryAccountCode(items), debit: totalCogs, credit: 0 });

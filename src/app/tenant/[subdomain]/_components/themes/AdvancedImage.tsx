@@ -126,7 +126,7 @@ export function PremiumImageRenderer({ config, className = "" }: { config: Image
       >
         <img
           src={config.url}
-          alt="Premium Render"
+          alt="Product display"
           className="absolute inset-0 w-full h-full object-cover transition-all duration-300"
           style={{ filter: filterString }}
         />

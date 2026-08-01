@@ -30,7 +30,7 @@ export function InlinePreview({ products = [], subdomain = "your-roastery" }: In
     <div className="flex flex-col h-full bg-gray-200">
       {/* Viewport indicator */}
       {previewViewport !== "desktop" && (
-        <div className="flex items-center justify-center gap-2 py-1.5 bg-gray-300 text-[10px] font-semibold text-gray-500">
+        <div className="flex items-center justify-center gap-2 py-1.5 bg-gray-300 text-xs font-semibold text-gray-500">
           {previewViewport === "tablet" ? <Tablet size={12} /> : <Smartphone size={12} />}
           {previewViewport} — {size.width}
         </div>
@@ -47,7 +47,7 @@ export function InlinePreview({ products = [], subdomain = "your-roastery" }: In
             <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
             <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
             <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
-            <div className="ml-3 flex-1 bg-white rounded-md px-3 py-1 text-[10px] text-gray-400 font-mono border border-gray-200 truncate">
+            <div className="ml-3 flex-1 bg-white rounded-md px-3 py-1 text-xs text-gray-400 font-mono border border-gray-200 truncate">
               https://{subdomain}.roastd.id
             </div>
           </div>

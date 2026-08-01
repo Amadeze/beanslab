@@ -104,7 +104,7 @@ export function CatalogGridSection({ settings, typography, products = [], onAddT
                     />
                   )}
                   {product.roastLevel && (
-                    <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-black/60 text-white backdrop-blur-sm">
+                    <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wider uppercase bg-black/60 text-white backdrop-blur-sm">
                       {product.roastLevel}
                     </span>
                   )}
@@ -133,7 +133,7 @@ export function CatalogGridSection({ settings, typography, products = [], onAddT
                   <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: "var(--portal-border-subtle, #F0F0F0)" }}>
                     {showPrices && (
                       <div>
-                        <span className="text-[10px] block uppercase font-medium" style={{ color: "var(--portal-text-muted, #6B7280)" }}>
+                        <span className="text-xs block uppercase font-medium" style={{ color: "var(--portal-text-muted, #6B7280)" }}>
                           Price / kg
                         </span>
                         <span className="text-base font-bold" style={{ color: "var(--portal-primary, #D4A574)" }}>

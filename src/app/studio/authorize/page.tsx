@@ -52,9 +52,9 @@ export default async function StudioAuthorizePage({
           <div>
             <div className="mb-12 flex items-center gap-3">
               <span className="grid size-10 place-items-center rounded-xl border border-[#f07a42]/40 bg-[#f07a42]/10"><Coffee size={19} className="text-[#f07a42]" /></span>
-              <div><p className="font-bold">Roastd Studio</p><p className="text-[10px] uppercase tracking-[.18em] text-[#809091]">Device login</p></div>
+              <div><p className="font-bold">Roastd Studio</p><p className="text-xs uppercase tracking-[.18em] text-[#809091]">Device login</p></div>
             </div>
-            <p className="mb-3 text-[10px] font-bold uppercase tracking-[.18em] text-[#5ad4dc]">Sambungkan komputer roasting</p>
+            <p className="mb-3 text-xs font-bold uppercase tracking-[.18em] text-[#5ad4dc]">Sambungkan komputer roasting</p>
             <h1 className="max-w-sm text-3xl font-semibold leading-tight tracking-[-.04em] sm:text-4xl">Pilih mesin. Studio mengurus sisanya.</h1>
           </div>
           <div className="mt-12 space-y-4 text-sm text-[#94a2a3]">
@@ -66,7 +66,7 @@ export default async function StudioAuthorizePage({
         <section className="flex flex-col justify-center p-7 sm:p-10 lg:p-14">
           <div className="mb-8 flex items-center gap-3 rounded-xl border border-[#2d4645] bg-[#122020] px-4 py-3">
             <Monitor size={18} className="text-[#5ad4dc]" />
-            <div><p className="text-xs font-bold">{authorization.computerName}</p><p className="text-[10px] text-[#809091]">{authorization.platform} · meminta akses ke {tenant?.name ?? "workspace"}</p></div>
+            <div><p className="text-xs font-bold">{authorization.computerName}</p><p className="text-xs text-[#809091]">{authorization.platform} · meminta akses ke {tenant?.name ?? "workspace"}</p></div>
           </div>
 
           <h2 className="text-xl font-semibold">Hubungkan ke mesin</h2>
@@ -79,7 +79,7 @@ export default async function StudioAuthorizePage({
             <form action={approveStudioDevice} className="mt-7 space-y-5">
               <input type="hidden" name="code" value={code} />
               <label className="block">
-                <span className="mb-2 block text-[10px] font-bold uppercase tracking-[.14em] text-[#809091]">Mesin roasting</span>
+                <span className="mb-2 block text-xs font-bold uppercase tracking-[.14em] text-[#809091]">Mesin roasting</span>
                 <select name="machineId" required defaultValue="" className="h-12 w-full rounded-[10px] border border-white/15 bg-[#0b0f10] px-4 text-sm text-[#f2e7d5] outline-none focus:border-[#5ad4dc] focus:ring-2 focus:ring-[#5ad4dc]/20">
                   <option value="" disabled>Pilih mesin…</option>
                   {machines.map((machine) => <option key={machine.id} value={machine.id}>{machine.name}{machine.capacityKg ? ` · ${machine.capacityKg.toString()} kg` : ""}</option>)}
@@ -90,7 +90,7 @@ export default async function StudioAuthorizePage({
               </button>
             </form>
           )}
-          <p className="mt-6 text-center text-[10px] leading-5 text-[#667475]">Izin kedaluwarsa otomatis dalam 10 menit dan hanya dapat digunakan sekali.</p>
+          <p className="mt-6 text-center text-xs leading-5 text-[#667475]">Izin kedaluwarsa otomatis dalam 10 menit dan hanya dapat digunakan sekali.</p>
         </section>
       </div>
     </main>

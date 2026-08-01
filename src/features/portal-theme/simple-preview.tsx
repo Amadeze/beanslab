@@ -86,11 +86,11 @@ export function SimplePreview({ config, products = [] }: { config: SimpleConfig;
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold truncate" style={{ color: "var(--tx)" }}>{item.name}</div>
-                    <div className="text-[10px]" style={{ color: "var(--tm)" }}>Rp {(item.price || 0).toLocaleString("id-ID")}</div>
+                    <div className="text-xs" style={{ color: "var(--tm)" }}>Rp {(item.price || 0).toLocaleString("id-ID")}</div>
                     <div className="flex items-center gap-2 mt-1">
-                      <button onClick={() => updateQty(item.id, -1)} className="w-5 h-5 rounded flex items-center justify-center text-[10px] border" style={{ borderColor: "var(--bd)", color: "var(--tm)" }}><Minus size={10} /></button>
+                      <button onClick={() => updateQty(item.id, -1)} className="w-5 h-5 rounded flex items-center justify-center text-xs border" style={{ borderColor: "var(--bd)", color: "var(--tm)" }}><Minus size={10} /></button>
                       <span className="text-xs font-semibold" style={{ color: "var(--tx)" }}>{item.quantity}</span>
-                      <button onClick={() => updateQty(item.id, 1)} className="w-5 h-5 rounded flex items-center justify-center text-[10px] border" style={{ borderColor: "var(--bd)", color: "var(--tm)" }}><Plus size={10} /></button>
+                      <button onClick={() => updateQty(item.id, 1)} className="w-5 h-5 rounded flex items-center justify-center text-xs border" style={{ borderColor: "var(--bd)", color: "var(--tm)" }}><Plus size={10} /></button>
                       <button onClick={() => removeFromCart(item.id)} className="ml-auto" style={{ color: "var(--tm)" }}><Trash2 size={12} /></button>
                     </div>
                   </div>
@@ -252,14 +252,14 @@ function Catalog({ title, subtitle, columns, products, onAddToCart }: any) {
 
                 {/* Product info */}
                 <div className="p-4" style={{ backgroundColor: "var(--sf)" }}>
-                  {product.origin && <div className="text-[10px] font-medium uppercase tracking-wider mb-1" style={{ color: "var(--ca)" }}>{product.origin}</div>}
+                  {product.origin && <div className="text-xs font-medium uppercase tracking-wider mb-1" style={{ color: "var(--ca)" }}>{product.origin}</div>}
                   <h3 className="text-sm font-bold mb-1 truncate" style={{ color: "var(--tx)" }}>{product.name}</h3>
                   {product.description && <p className="text-[11px] mb-3 line-clamp-2" style={{ color: "var(--tm)" }}>{product.description}</p>}
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-bold" style={{ color: "var(--c)" }}>
                       {product.price ? `Rp ${product.price.toLocaleString("id-ID")}` : "Contact for price"}
                     </div>
-                    <button onClick={() => onAddToCart(product)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all hover:scale-105" style={{ backgroundColor: "var(--c)", color: "var(--ti)" }}>
+                    <button onClick={() => onAddToCart(product)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105" style={{ backgroundColor: "var(--c)", color: "var(--ti)" }}>
                       <Plus size={12} /> Add
                     </button>
                   </div>
@@ -327,7 +327,7 @@ function Testimonials({ items, title }: { items: Array<{ name: string; role: str
               <p className="text-sm italic mb-4 leading-relaxed" style={{ color: "var(--tx)" }}>&ldquo;{item.text}&rdquo;</p>
               <div className="flex items-center gap-3 pt-3 border-t" style={{ borderColor: "var(--bs)" }}>
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ backgroundColor: "color-mix(in srgb, var(--c) 10%, transparent)", color: "var(--c)" }}>{item.name?.charAt(0)}</div>
-                <div><div className="text-xs font-semibold" style={{ color: "var(--tx)" }}>{item.name}</div>{item.role && <div className="text-[10px]" style={{ color: "var(--tm)" }}>{item.role}</div>}</div>
+                <div><div className="text-xs font-semibold" style={{ color: "var(--tx)" }}>{item.name}</div>{item.role && <div className="text-xs" style={{ color: "var(--tm)" }}>{item.role}</div>}</div>
               </div>
             </div>
           ))}

@@ -59,7 +59,7 @@ export function SectionSettings() {
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`flex-1 px-1 py-2 text-[10px] font-semibold transition-colors ${
+            className={`flex-1 px-1 py-2 text-xs font-semibold transition-colors ${
               activeTab === key
                 ? "border-b-2 border-blue-500 text-blue-600"
                 : "text-gray-400 hover:text-gray-600"
@@ -80,7 +80,7 @@ export function SectionSettings() {
                   <span>💡</span>
                   <span>Template Contoh Cepat (1-Click Fill)</span>
                 </div>
-                <p className="text-[10px] text-amber-700/90 mb-2.5 leading-relaxed">
+                <p className="text-xs text-amber-700/90 mb-2.5 leading-relaxed">
                   Biar gak bingung mulai dari mana, klik salah satu template di bawah untuk mengisi tata letak & konten seksi ini secara otomatis:
                 </p>
                 <div className="grid grid-cols-1 gap-1.5">
@@ -102,7 +102,7 @@ export function SectionSettings() {
                       <span className="text-base shrink-0 mt-0.5 group-hover:scale-110 transition-transform">{preset.icon}</span>
                       <div className="min-w-0 flex-1">
                         <div className="font-bold text-gray-800 text-[11px] truncate group-hover:text-amber-900">{preset.label}</div>
-                        <div className="text-[10px] text-gray-500 line-clamp-2 leading-tight mt-0.5">{preset.description}</div>
+                        <div className="text-xs text-gray-500 line-clamp-2 leading-tight mt-0.5">{preset.description}</div>
                       </div>
                     </button>
                   ))}
@@ -116,10 +116,10 @@ export function SectionSettings() {
                 {section.blocks.map((block) => (
                   <div key={block.id} className="rounded-lg border border-gray-200 p-2 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-semibold text-gray-500">
+                      <span className="text-xs font-semibold text-gray-500">
                         {def.blockTypes?.find((bt) => bt.type === block.type)?.label || block.type}
                       </span>
-                      <button onClick={() => removeBlock(section.id, block.id)} className="text-[10px] text-red-400 hover:text-red-600">Remove</button>
+                      <button onClick={() => removeBlock(section.id, block.id)} className="text-xs text-red-400 hover:text-red-600">Remove</button>
                     </div>
                     {Object.entries(block.settings).map(([key, val]) => {
                       if (key === "colSpan") {
@@ -135,7 +135,7 @@ export function SectionSettings() {
                         ];
                         return (
                           <div key="span-picker" className="pt-2 border-t border-gray-100">
-                            <label className="block text-[10px] font-semibold text-gray-500 mb-1">Visual Span Picker (Grid Size)</label>
+                            <label className="block text-xs font-semibold text-gray-500 mb-1">Visual Span Picker (Grid Size)</label>
                             <div className="grid grid-cols-2 gap-1">
                               {spanOptions.map((opt) => {
                                 const isSel = curCol === opt.c && curRow === opt.r;
@@ -144,7 +144,7 @@ export function SectionSettings() {
                                     key={`${opt.c}x${opt.r}`}
                                     type="button"
                                     onClick={() => updateBlockSettings(section.id, block.id, { colSpan: opt.c, rowSpan: opt.r })}
-                                    className={`flex items-center gap-1.5 p-1.5 rounded text-left border text-[10px] transition-all ${
+                                    className={`flex items-center gap-1.5 p-1.5 rounded text-left border text-xs transition-all ${
                                       isSel ? "bg-blue-50 border-blue-500 text-blue-700 font-bold" : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
                                     }`}
                                   >
@@ -175,7 +175,7 @@ export function SectionSettings() {
                 ))}
                 <button
                   onClick={() => addBlock(section.id, def.blockTypes![0].type)}
-                  className="w-full rounded-lg border border-dashed border-gray-300 py-1.5 text-[10px] text-gray-500 hover:border-gray-400"
+                  className="w-full rounded-lg border border-dashed border-gray-300 py-1.5 text-xs text-gray-500 hover:border-gray-400"
                 >
                   + Add {def.blockTypes[0].label}
                 </button>
@@ -188,7 +188,7 @@ export function SectionSettings() {
         {activeTab === "background" && (
           <div className="space-y-3">
             <div>
-              <label className="block text-[10px] font-semibold text-gray-500 mb-1">Background Type</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Background Type</label>
               <div className="flex gap-1">
                 {["color", "image", "gradient"].map((t) => (
                   <button
@@ -198,7 +198,7 @@ export function SectionSettings() {
                       color: section.background?.color || "#ffffff",
                       opacity: section.background?.opacity ?? 100,
                     })}
-                    className={`flex-1 rounded-md border px-2 py-1.5 text-[10px] font-medium capitalize transition-colors ${
+                    className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-medium capitalize transition-colors ${
                       (section.background?.type || "color") === t
                         ? "border-blue-500 bg-blue-50 text-blue-700"
                         : "border-gray-200 text-gray-500 hover:border-gray-300"
@@ -212,7 +212,7 @@ export function SectionSettings() {
 
             {(section.background?.type || "color") === "color" && (
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Color</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Color</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
@@ -238,7 +238,7 @@ export function SectionSettings() {
 
             {(section.background?.type || "color") === "image" && (
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Image</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Image</label>
                 <ImagePicker
                   value={section.background?.imageUrl || ""}
                   onChange={(url) => updateSectionBackground(section.id, {
@@ -253,7 +253,7 @@ export function SectionSettings() {
 
             {(section.background?.type || "color") === "gradient" && (
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Gradient</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Gradient</label>
                 <GradientBuilder
                   value={section.background?.gradient}
                   onChange={(gradient) => updateSectionBackground(section.id, {
@@ -265,7 +265,7 @@ export function SectionSettings() {
             )}
 
             <div>
-              <label className="block text-[10px] font-semibold text-gray-500 mb-1">
+              <label className="block text-xs font-semibold text-gray-500 mb-1">
                 Opacity ({section.background?.opacity ?? 100}%)
               </label>
               <input
@@ -284,12 +284,12 @@ export function SectionSettings() {
             {/* ── Surface & Texture Alchemy Builder ───────────────────────── */}
             <div className="pt-3 border-t border-gray-200 space-y-2.5">
               <div className="flex items-center justify-between">
-                <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
                   ✨ Surface & Texture Alchemy
                 </label>
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Texture Type</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Texture Type</label>
                 <div className="grid grid-cols-2 gap-1">
                   {[
                     { val: "none", label: "None (Flat)" },
@@ -306,7 +306,7 @@ export function SectionSettings() {
                         ...(section.background || { type: "color" }),
                         textureType: tex.val as any,
                       })}
-                      className={`px-2 py-1.5 rounded border text-left text-[10px] transition-colors ${
+                      className={`px-2 py-1.5 rounded border text-left text-xs transition-colors ${
                         (section.background?.textureType || "none") === tex.val
                           ? "border-amber-500 bg-amber-50/50 text-amber-800 font-bold"
                           : "border-gray-200 text-gray-600 hover:border-gray-300"
@@ -320,7 +320,7 @@ export function SectionSettings() {
 
               {((section.background?.textureType || "none") !== "none") && (
                 <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-1">
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">
                     Texture Intensity ({section.background?.textureOpacity ?? 50}%)
                   </label>
                   <input
@@ -368,7 +368,7 @@ export function SectionSettings() {
         {activeTab === "advanced" && (
           <div className="space-y-3">
             <div>
-              <label className="block text-[10px] font-semibold text-gray-500 mb-1">Custom CSS</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Custom CSS</label>
               <p className="text-[9px] text-gray-400 mb-1.5">Scoped to this section. No JavaScript allowed.</p>
               <textarea
                 value={section.customCSS?.css || ""}
@@ -552,7 +552,7 @@ function renderContentFields(
 // ── Tiny form primitives ────────────────────────────────────────────────────
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-1"><label className="block text-[10px] font-semibold text-gray-500">{label}</label>{children}</div>;
+  return <div className="space-y-1"><label className="block text-xs font-semibold text-gray-500">{label}</label>{children}</div>;
 }
 
 function TextInput({ value, onChange, placeholder }: { value?: string | number | null; onChange: (v: string) => void; placeholder?: string }) {

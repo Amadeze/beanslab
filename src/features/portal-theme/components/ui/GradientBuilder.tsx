@@ -66,7 +66,7 @@ export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
 
       {/* Preset gradients */}
       <div>
-        <label className="block text-[10px] font-semibold text-gray-500 mb-1">Presets</label>
+        <label className="block text-xs font-semibold text-gray-500 mb-1">Presets</label>
         <div className="grid grid-cols-3 gap-1.5">
           {PRESETS.map((preset) => {
             const stops = preset.gradient.stops.map((s) => `${s.color} ${s.position}%`).join(", ");
@@ -88,7 +88,7 @@ export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
       {/* Type & Angle */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-[10px] font-semibold text-gray-500 mb-1">Type</label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Type</label>
           <div className="flex gap-1">
             {(["linear", "radial", "conic"] as const).map((t) => (
               <button
@@ -106,7 +106,7 @@ export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
           </div>
         </div>
         <div>
-          <label className="block text-[10px] font-semibold text-gray-500 mb-1">Angle ({gradient.angle}°)</label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Angle ({gradient.angle}°)</label>
           <div className="flex items-center gap-2">
             <input
               type="range"
@@ -124,7 +124,7 @@ export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
       {/* Color Stops */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="block text-[10px] font-semibold text-gray-500">Color Stops</label>
+          <label className="block text-xs font-semibold text-gray-500">Color Stops</label>
           {gradient.stops.length < 10 && (
             <button onClick={addStop} className="text-[9px] text-blue-500 hover:text-blue-700 font-medium">+ Add</button>
           )}
@@ -146,7 +146,7 @@ export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
               min={0}
               max={100}
               onChange={(e) => updateStop(i, "position", Number(e.target.value))}
-              className="w-14 rounded border border-gray-200 px-1.5 py-1 text-[10px] text-center font-mono"
+              className="w-14 rounded border border-gray-200 px-1.5 py-1 text-xs text-center font-mono"
             />
             <span className="text-[9px] text-gray-400">%</span>
             <div className="flex-1 h-1.5 rounded-full" style={{ background: `linear-gradient(to right, ${stop.color} 0%, transparent 100%)` }} />

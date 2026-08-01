@@ -83,7 +83,7 @@ export function CompactHeader({
             )}
           </div>
           {description && (
-            <p className="mt-1 max-w-2xl truncate text-[10px] leading-3.5 text-white/40">
+            <p className="mt-1 max-w-2xl truncate text-xs leading-3.5 text-white/40">
               {description}
             </p>
           )}
@@ -194,7 +194,7 @@ export function CompactHeader({
                       <span className="truncate font-mono text-[7px] font-bold uppercase tracking-[0.1em] text-white/30 sm:text-[8px] sm:tracking-[0.12em]">
                         {metric.label}
                       </span>
-                      <span className="max-w-full truncate font-heading text-[10px] font-bold tabular-nums text-white/80 sm:text-xs">
+                      <span className="max-w-full truncate font-heading text-xs font-bold tabular-nums text-white/80 sm:text-xs">
                         {metric.value}
                       </span>
                     </div>
@@ -210,7 +210,7 @@ export function CompactHeader({
                 <Link
                   href={next.href}
                   className={cn(
-                    "ml-auto text-[10px] font-bold transition-[color,gap] hover:gap-2",
+                    "ml-auto text-xs font-bold transition-[color,gap] hover:gap-2",
                     headerTone?.signal ?? "text-[#71D2DA]",
                   )}
                 >

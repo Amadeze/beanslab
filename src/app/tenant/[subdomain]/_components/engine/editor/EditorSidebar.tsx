@@ -41,7 +41,7 @@ export function EditorSidebar() {
             </button>
             <div>
               <div className="text-xs font-bold text-slate-900">{activeSection.type}</div>
-              <div className="text-[10px] text-slate-500 font-mono">{activeSection.id}</div>
+              <div className="text-xs text-slate-500 font-mono">{activeSection.id}</div>
             </div>
           </div>
           
@@ -62,7 +62,7 @@ export function EditorSidebar() {
                     <option value="col-span-2 row-span-2">2x2 (Large)</option>
                     <option value="col-span-4 row-span-1">4x1 (Full Width)</option>
                   </select>
-                  <p className="text-[10px] text-slate-500 mt-1">Hanya berlaku jika Grid Type = Bento</p>
+                  <p className="text-xs text-slate-500 mt-1">Hanya berlaku jika Grid Type = Bento</p>
                 </div>
               </div>
             </div>
@@ -128,7 +128,7 @@ export function EditorSidebar() {
                     <div className="w-full h-1/2 bg-slate-200 rounded-sm"></div>
                   </div>
                   <span className="text-xs font-bold text-slate-900">Standard 1-Col</span>
-                  <span className="text-[10px] text-slate-500">Classic layout</span>
+                  <span className="text-xs text-slate-500">Classic layout</span>
                 </button>
 
                 <button 
@@ -144,7 +144,7 @@ export function EditorSidebar() {
                     <div className="col-span-1 row-span-1 bg-blue-100 rounded-sm"></div>
                   </div>
                   <span className="text-xs font-bold text-slate-900">Modern Bento</span>
-                  <span className="text-[10px] text-blue-600 font-semibold">Free-form grid</span>
+                  <span className="text-xs text-blue-600 font-semibold">Free-form grid</span>
                 </button>
               </div>
             </div>
@@ -239,7 +239,7 @@ export function EditorSidebar() {
           <div className="space-y-4 animate-in fade-in slide-in-from-left-2 duration-300">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Active Sections</h3>
-              <button className="text-[10px] bg-slate-900 text-white px-2 py-1 rounded font-bold uppercase tracking-wider">
+              <button className="text-xs bg-slate-900 text-white px-2 py-1 rounded font-bold uppercase tracking-wider">
                 + Add
               </button>
             </div>
@@ -249,7 +249,7 @@ export function EditorSidebar() {
                 <div key={section.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between shadow-sm group">
                   <div>
                     <p className="text-xs font-bold text-slate-800">{section.type}</p>
-                    <p className="text-[10px] text-slate-400 font-mono">{section.id}</p>
+                    <p className="text-xs text-slate-400 font-mono">{section.id}</p>
                   </div>
                   <div className="flex flex-col gap-1 opacity-20 group-hover:opacity-100 transition-opacity">
                     <button 
@@ -286,7 +286,7 @@ function ColorInput({ label, value, onChange }: { label: string, value: string, 
     <div className="flex items-center justify-between">
       <label className="text-xs font-semibold text-slate-700">{label}</label>
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-mono text-slate-500 uppercase bg-white border border-slate-200 px-2 py-1 rounded">
+        <span className="text-xs font-mono text-slate-500 uppercase bg-white border border-slate-200 px-2 py-1 rounded">
           {value}
         </span>
         <div className="w-6 h-6 rounded-md shadow-sm border border-black/10 overflow-hidden relative cursor-pointer">
