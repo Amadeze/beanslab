@@ -35,7 +35,7 @@ export default async function SuperadminAuditLogPage() {
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-7 p-5 md:p-8">
       <div>
-        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.24em] text-domain-roasting">System observability</p>
+        <p className="mb-3 text-xs font-black uppercase tracking-[0.24em] text-domain-roasting">System observability</p>
         <h2 className="text-3xl font-black tracking-[-0.045em]">Audit log viewer</h2>
         <p className="mt-2 text-sm text-muted-foreground">Aktivitas lintas tenant yang tercatat di sistem.</p>
       </div>
@@ -74,7 +74,7 @@ export default async function SuperadminAuditLogPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="inline-flex border border-domain-roasting/20 bg-domain-roasting/8 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-domain-roasting">
+                    <span className="inline-flex border border-domain-roasting/20 bg-domain-roasting/8 px-2 py-1 text-xs font-bold uppercase tracking-wider text-domain-roasting">
                       {log.action}
                     </span>
                   </td>

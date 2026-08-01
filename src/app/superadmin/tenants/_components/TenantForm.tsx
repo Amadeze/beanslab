@@ -67,7 +67,7 @@ export function TenantForm() {
         
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 p-5 sm:p-6">
           <div className="flex flex-col gap-4">
-            <h3 className="flex items-center gap-2 border-b border-border pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+            <h3 className="flex items-center gap-2 border-b border-border pb-2 text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
               <Server size={14} /> Outlet Details
             </h3>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -104,7 +104,7 @@ export function TenantForm() {
           </div>
 
           <div className="flex flex-col gap-4">
-            <h3 className="mt-2 flex items-center gap-2 border-b border-border pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+            <h3 className="mt-2 flex items-center gap-2 border-b border-border pb-2 text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
               <UserIcon size={14} /> Owner Details
             </h3>
             <div className="flex flex-col gap-1.5">

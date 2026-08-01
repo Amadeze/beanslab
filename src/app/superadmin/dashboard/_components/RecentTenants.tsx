@@ -37,7 +37,7 @@ export function RecentTenants({ tenants }: { tenants: RecentTenant[] }) {
                   {tenant.tier}
                 </span>
                 <span className={`size-1.5 rounded-full ${tenant.accessState === "ACTIVE" ? "bg-domain-inventory" : "bg-red-500"}`} />
-                <span className="truncate font-mono text-[10px] text-muted-foreground">{tenant.subdomain || "domain belum diatur"}</span>
+                <span className="truncate font-mono text-xs text-muted-foreground">{tenant.subdomain || "domain belum diatur"}</span>
               </div>
             </div>
           </div>

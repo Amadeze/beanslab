@@ -75,7 +75,7 @@ function Metric({
   const content = (
     <>
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{label}</span>
+        <span className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">{label}</span>
         <span className="text-muted-foreground transition-colors group-hover:text-primary">{icon}</span>
       </div>
       <p className="mt-4 whitespace-nowrap text-[clamp(1.6rem,2.2vw,2.15rem)] font-black leading-none tracking-[-0.055em] tabular-nums lg:mt-6">{value}</p>
@@ -105,7 +105,7 @@ function PlatformPulse({ data }: { data: SuperadminData }) {
       <div className="absolute inset-y-0 left-0 w-1 bg-[#B65331]" />
       <div className="relative grid gap-8 p-6 md:p-8 xl:grid-cols-[1.35fr_1fr] xl:items-end">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-white/45">
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-white/45">
             <Radio size={13} className={incidentCount > 0 ? "text-amber-400" : "text-[#67D8C8]"} />
             Platform pulse
           </div>
@@ -154,11 +154,11 @@ export function SuperadminShell({ data }: { data: SuperadminData }) {
       <header className="border-b border-border bg-card px-5 py-6 md:px-8">
         <div className="mx-auto flex max-w-[1480px] flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.24em] text-domain-roasting">Roastd control room</p>
+            <p className="mb-3 text-xs font-black uppercase tracking-[0.24em] text-domain-roasting">Roastd control room</p>
             <h1 className="text-3xl font-black tracking-[-0.05em] md:text-4xl">Kendalikan platform, bukan tabel.</h1>
             <p className="mt-2 text-sm text-muted-foreground">Prioritas tenant, pendapatan, dan kesehatan integrasi dalam satu pandangan.</p>
           </div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Diperbarui {generatedAt}</p>
+          <p className="font-mono text-xs uppercase tracking-[0.16em] text-muted-foreground">Diperbarui {generatedAt}</p>
         </div>
       </header>
 
@@ -205,7 +205,7 @@ export function SuperadminShell({ data }: { data: SuperadminData }) {
                     <p className="truncate text-sm font-bold">{tenant.name}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{tenant.reason}</p>
                   </div>
-                  <span className="font-mono text-[10px] text-muted-foreground">{tenant.code}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{tenant.code}</span>
                 </div>
               ))}
               {data.attentionTenants.length === 0 && (

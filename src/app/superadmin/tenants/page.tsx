@@ -25,7 +25,7 @@ export default async function TenantsPage() {
     <div className="mx-auto flex max-w-7xl flex-col gap-7 p-5 md:p-8">
       <div className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <p className="mb-3 text-[10px] font-black uppercase tracking-[0.24em] text-domain-roasting">Roastery network</p>
+          <p className="mb-3 text-xs font-black uppercase tracking-[0.24em] text-domain-roasting">Roastery network</p>
           <h2 className="text-3xl font-black tracking-[-0.045em]">Tenant registry</h2>
           <p className="mt-2 text-sm text-muted-foreground">Kelola identitas, akses, domain, dan subscription seluruh roastery.</p>
         </div>
@@ -84,7 +84,7 @@ export default async function TenantsPage() {
                     </p>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex border px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                    <span className={`inline-flex border px-2 py-1 text-xs font-bold uppercase tracking-wider ${
                       t.isActive 
                         ? "border-domain-inventory/20 bg-domain-inventory/8 text-domain-inventory" 
                         : "border-destructive/20 bg-destructive/8 text-destructive"

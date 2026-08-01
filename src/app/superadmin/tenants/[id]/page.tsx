@@ -88,7 +88,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
               <Coffee size={24} />
             </div>
             <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-domain-roasting">{tenant.code}</p>
+              <p className="font-mono text-xs uppercase tracking-[0.18em] text-domain-roasting">{tenant.code}</p>
               <h1 className="mt-1 text-3xl font-black tracking-[-0.045em] md:text-4xl">{tenant.name}</h1>
             </div>
           </div>
@@ -134,8 +134,8 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                   <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-mono text-[10px] font-bold">{user.role}</p>
-                  <p className={`mt-1 text-[10px] ${user.lockedUntil && user.lockedUntil > new Date() ? "text-red-600" : user.isActive ? "text-domain-inventory" : "text-muted-foreground"}`}>
+                  <p className="font-mono text-xs font-bold">{user.role}</p>
+                  <p className={`mt-1 text-xs ${user.lockedUntil && user.lockedUntil > new Date() ? "text-red-600" : user.isActive ? "text-domain-inventory" : "text-muted-foreground"}`}>
                     {user.lockedUntil && user.lockedUntil > new Date() ? "TERKUNCI" : user.isActive ? "AKTIF" : "NONAKTIF"}
                   </p>
                 </div>
@@ -150,11 +150,11 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
               <div key={connector.id} className="flex items-center justify-between gap-4 py-4">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold">{connector.machine.name}</p>
-                  <p className="truncate font-mono text-[10px] text-muted-foreground">{connector.computerName} · v{connector.appVersion}</p>
+                  <p className="truncate font-mono text-xs text-muted-foreground">{connector.computerName} · v{connector.appVersion}</p>
                 </div>
                 <div className="text-right">
-                  <p className={`text-[10px] font-black ${connector.status === "ONLINE" ? "text-domain-inventory" : connector.status === "REVOKED" ? "text-red-600" : "text-amber-600"}`}>{connector.status}</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">{connector.lastSeenAt ? dateTime.format(connector.lastSeenAt) : "belum terhubung"}</p>
+                  <p className={`text-xs font-black ${connector.status === "ONLINE" ? "text-domain-inventory" : connector.status === "REVOKED" ? "text-red-600" : "text-amber-600"}`}>{connector.status}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{connector.lastSeenAt ? dateTime.format(connector.lastSeenAt) : "belum terhubung"}</p>
                 </div>
               </div>
             ))}
@@ -190,9 +190,9 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
           <div className="divide-y divide-border">
             {tenant.auditLogs.map((log) => (
               <div key={log.id} className="grid gap-1 py-3 sm:grid-cols-[8rem_1fr_auto] sm:items-center sm:gap-4">
-                <span className="font-mono text-[10px] text-muted-foreground">{dateTime.format(log.createdAt)}</span>
+                <span className="font-mono text-xs text-muted-foreground">{dateTime.format(log.createdAt)}</span>
                 <span className="text-xs"><b>{log.action}</b> · {log.entityType}</span>
-                <span className="text-[10px] text-muted-foreground">{log.user?.name || "Sistem"}</span>
+                <span className="text-xs text-muted-foreground">{log.user?.name || "Sistem"}</span>
               </div>
             ))}
             {tenant.auditLogs.length === 0 && <Empty text="Belum ada aktivitas audit tenant ini." />}
@@ -204,7 +204,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
 }
 
 function Pulse({ label, value, note }: { label: string; value: string; note: string }) {
-  return <div className="border-b border-white/10 p-5 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40">{label}</p><p className="mt-3 text-xl font-black">{value}</p><p className="mt-1 text-[10px] text-white/45">{note}</p></div>;
+  return <div className="border-b border-white/10 p-5 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40">{label}</p><p className="mt-3 text-xl font-black">{value}</p><p className="mt-1 text-xs text-white/45">{note}</p></div>;
 }
 
 function Metric({ icon, label, value, note }: { icon: React.ReactNode; label: string; value: string; note: string }) {
@@ -216,7 +216,7 @@ function Panel({ eyebrow, title, icon, actionHref, children }: { eyebrow: string
 }
 
 function Info({ label, value }: { label: string; value: string }) {
-  return <div className="border-l-2 border-border pl-3"><dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{label}</dt><dd className="mt-1 font-bold">{value}</dd></div>;
+  return <div className="border-l-2 border-border pl-3"><dt className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{label}</dt><dd className="mt-1 font-bold">{value}</dd></div>;
 }
 
 function Empty({ text }: { text: string }) {

@@ -52,7 +52,7 @@ export default async function SuperadminLayout({
             <ShieldCheck className="size-5 text-[#15B8C6]" />
             <div>
               <p className="text-xs font-bold">Akses terverifikasi</p>
-              <p className="mt-1 text-[10px] text-white/45">Superadmin · seluruh tenant</p>
+              <p className="mt-1 text-xs text-white/45">Superadmin · seluruh tenant</p>
             </div>
           </div>
         </div>

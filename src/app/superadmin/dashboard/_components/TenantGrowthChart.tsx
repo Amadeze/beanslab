@@ -28,7 +28,7 @@ export function TenantGrowthChart({ data }: { data: GrowthPoint[] }) {
                   style={{ height: `${height}%` }}
                 />
               </div>
-              <div className={`mt-3 text-center text-[10px] font-black uppercase tracking-[0.14em] ${latest ? "text-domain-roasting" : "text-muted-foreground"}`}>
+              <div className={`mt-3 text-center text-xs font-black uppercase tracking-[0.14em] ${latest ? "text-domain-roasting" : "text-muted-foreground"}`}>
                 {point.name}
               </div>
             </div>

@@ -51,11 +51,11 @@ export default async function SubscriptionOperationsPage() {
     <div className="mx-auto flex max-w-[1480px] flex-col gap-6 p-5 md:p-8">
       <header className="flex flex-col justify-between gap-4 border-b border-border pb-6 md:flex-row md:items-end">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-domain-sales">Commercial operations</p>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-domain-sales">Commercial operations</p>
           <h1 className="mt-3 text-3xl font-black tracking-[-0.05em] md:text-4xl">Subscription & pembayaran</h1>
           <p className="mt-2 text-sm text-muted-foreground">Pantau akses tenant dan arus pembayaran platform tanpa masuk ke transaksi milik tenant.</p>
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{payments.length} pembayaran terakhir</span>
+        <span className="font-mono text-xs uppercase tracking-[0.16em] text-muted-foreground">{payments.length} pembayaran terakhir</span>
       </header>
 
       <section className="grid overflow-hidden bg-[#080B0C] text-white md:grid-cols-4">
@@ -93,13 +93,13 @@ export default async function SubscriptionOperationsPage() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-border bg-muted/60 text-[10px] uppercase tracking-[0.14em] text-muted-foreground"><tr><th className="px-5 py-3">Waktu</th><th className="px-5 py-3">Tenant</th><th className="px-5 py-3">Order</th><th className="px-5 py-3">Paket</th><th className="px-5 py-3 text-right">Nilai</th><th className="px-5 py-3">Status</th></tr></thead>
+              <thead className="border-b border-border bg-muted/60 text-xs uppercase tracking-[0.14em] text-muted-foreground"><tr><th className="px-5 py-3">Waktu</th><th className="px-5 py-3">Tenant</th><th className="px-5 py-3">Order</th><th className="px-5 py-3">Paket</th><th className="px-5 py-3 text-right">Nilai</th><th className="px-5 py-3">Status</th></tr></thead>
               <tbody className="divide-y divide-border">
                 {payments.map((payment) => (
                   <tr key={payment.id} className="hover:bg-muted/40">
-                    <td className="px-5 py-4 font-mono text-[10px] text-muted-foreground">{date.format(payment.createdAt)}</td>
-                    <td className="px-5 py-4"><Link href={`/superadmin/tenants/${payment.tenant.id}`} className="font-bold hover:text-primary hover:underline">{payment.tenant.name}</Link><p className="font-mono text-[10px] text-muted-foreground">{payment.tenant.code}</p></td>
-                    <td className="px-5 py-4 font-mono text-[10px] text-muted-foreground">{payment.midtransOrderId}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-muted-foreground">{date.format(payment.createdAt)}</td>
+                    <td className="px-5 py-4"><Link href={`/superadmin/tenants/${payment.tenant.id}`} className="font-bold hover:text-primary hover:underline">{payment.tenant.name}</Link><p className="font-mono text-xs text-muted-foreground">{payment.tenant.code}</p></td>
+                    <td className="px-5 py-4 font-mono text-xs text-muted-foreground">{payment.midtransOrderId}</td>
                     <td className="px-5 py-4 font-bold">{payment.tier}</td>
                     <td className="px-5 py-4 text-right font-bold tabular-nums">{idr.format(Number(payment.amount))}</td>
                     <td className="px-5 py-4"><Status value={payment.status} /></td>
@@ -116,7 +116,7 @@ export default async function SubscriptionOperationsPage() {
 }
 
 function DarkMetric({ label, value, note, warn = false }: { label: string; value: string; note: string; warn?: boolean }) {
-  return <div className="border-b border-white/10 p-5 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0"><div className="flex items-center gap-2"><span className={`size-1.5 rounded-full ${warn ? "bg-amber-400" : "bg-[#67D8C8]"}`} /><p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/40">{label}</p></div><p className="mt-4 truncate text-2xl font-black tracking-[-0.04em]">{value}</p><p className="mt-1 text-[10px] text-white/45">{note}</p></div>;
+  return <div className="border-b border-white/10 p-5 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0"><div className="flex items-center gap-2"><span className={`size-1.5 rounded-full ${warn ? "bg-amber-400" : "bg-[#67D8C8]"}`} /><p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/40">{label}</p></div><p className="mt-4 truncate text-2xl font-black tracking-[-0.04em]">{value}</p><p className="mt-1 text-xs text-white/45">{note}</p></div>;
 }
 
 function Status({ value }: { value: string }) {
