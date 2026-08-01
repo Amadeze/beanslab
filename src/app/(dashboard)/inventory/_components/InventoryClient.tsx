@@ -25,6 +25,7 @@ import type {
   PackagingStockRow,
   ProductStockRow,
   FGStockRow,
+  ProductLotRow,
   SupplierOption,
   SampleConsumptionSummary,
 } from "../actions";
@@ -44,6 +45,7 @@ interface InventoryClientProps {
   gbProducts: GBProductOption[];
   packagings: PackagingOption[];
   sampleConsumption: SampleConsumptionSummary;
+  lotsByProduct?: Record<string, ProductLotRow[]>;
   productReorderSummaries?: ReorderSummary[];
   packagingReorderSummaries?: ReorderSummary[];
   poSummary?: {
@@ -239,6 +241,7 @@ type WorkspaceTab = "stock" | "po" | "receiving" | "mutations";
 
 export function InventoryClient({
   gbStocks, rbStocks, fgStocks, pkgStocks, ledgerEntries, suppliers, gbProducts, packagings, sampleConsumption,
+  lotsByProduct,
   productReorderSummaries, packagingReorderSummaries, poSummary,
 }: InventoryClientProps) {
   const router = useRouter();
@@ -536,7 +539,7 @@ export function InventoryClient({
               </div>
             </div>
             <div className="shrink-0 text-right">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-0.5">Total Biaya Sample</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-0.5">Total Biaya Sample</p>
               <p className="text-xl font-black text-[var(--text-primary)] tabular-nums tracking-tight">{formatRupiah(sampleConsumption.totalCost)}</p>
             </div>
           </div>
@@ -554,6 +557,7 @@ export function InventoryClient({
               productReorderSummaries={productReorderSummaries}
               packagingReorderSummaries={packagingReorderSummaries}
               metricFilter={metricParam}
+              lotsByProduct={lotsByProduct}
             />
           )}
           {activeView === "po" && (

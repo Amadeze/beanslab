@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -12,9 +12,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowUpDown, ChevronDown } from "lucide-react";
+import { Search, ArrowUpDown, ChevronDown, ChevronRight } from "lucide-react";
 import { formatKg, formatRupiah, formatUnit } from "@/lib/format";
-import type { PackagingStockRow, ProductStockRow, FGStockRow } from "../actions";
+import type { PackagingStockRow, ProductStockRow, FGStockRow, ProductLotRow } from "../actions";
 import type { ReorderSummary } from "@/lib/reorder";
 import { CategoryTabs, type CategoryId } from "./CategoryTabs";
 import { InventoryStatusBadge } from "./InventoryStatusBadge";
@@ -25,6 +25,7 @@ import {
   formatInventoryValue,
   type DisplayStatus,
 } from "@/lib/inventory-utils";
+import type { LotOperationalStatus } from "@/lib/lot";
 
 // ─── Unified row type ───
 
@@ -62,6 +63,57 @@ interface StockTableProps {
   productReorderSummaries?: ReorderSummary[];
   packagingReorderSummaries?: ReorderSummary[];
   metricFilter?: string | null;
+  lotsByProduct?: Record<string, ProductLotRow[]>;
+}
+
+const LOT_STATUS_META: Record<LotOperationalStatus, { label: string; className: string }> = {
+  ok: { label: "Aktif", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  expiring_soon: { label: "Segera Kadaluarsa", className: "bg-amber-50 text-amber-700 border-amber-200" },
+  expired: { label: "Kadaluarsa", className: "bg-red-50 text-red-700 border-red-200" },
+  consumed: { label: "Habis", className: "bg-slate-100 text-slate-500 border-slate-200" },
+};
+
+function LotStatusBadge({ status }: { status: LotOperationalStatus }) {
+  const meta = LOT_STATUS_META[status];
+  return (
+    <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium", meta.className)}>
+      {meta.label}
+    </span>
+  );
+}
+
+function LotBreakdown({ lots, unit }: { lots: ProductLotRow[]; unit: "kg" | "unit" }) {
+  if (lots.length === 0) {
+    return <p className="pl-6 text-xs text-slate-500">Tidak ada lot aktif untuk item ini.</p>;
+  }
+  return (
+    <div className="pl-6">
+      <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-slate-100 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <span>Kode Lot</span>
+        <span>Supplier</span>
+        <span className="pr-2">Kedaluwarsa</span>
+        <span className="text-right w-24">Sisa</span>
+      </div>
+      {lots.map((lot) => (
+        <div
+          key={lot.id}
+          className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-slate-100/70 py-1.5 last:border-0"
+        >
+          <span className="flex items-center gap-2 truncate text-xs font-medium text-slate-800">
+            <span className="truncate">{lot.batchCode}</span>
+            <LotStatusBadge status={lot.status} />
+          </span>
+          <span className="truncate text-xs text-slate-500">{lot.supplierName ?? "—"}</span>
+          <span className="pr-2 text-xs tabular-nums text-slate-500">
+            {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "—"}
+          </span>
+          <span className="w-24 text-right text-xs font-semibold tabular-nums text-slate-900">
+            {unit === "kg" ? formatKg(lot.remainingKg) : formatUnit(lot.remainingUnit)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ─── Main component ───
@@ -74,6 +126,7 @@ export function StockTable({
   productReorderSummaries,
   packagingReorderSummaries,
   metricFilter,
+  lotsByProduct,
 }: StockTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -92,6 +145,7 @@ export function StockTable({
   const [statusFilter, setStatusFilter] = useState<"all" | DisplayStatus>(initialStatus);
   const [sortKey, setSortKey] = useState<SortKey>("status");
   const [sortAsc, setSortAsc] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Sync URL → state on param change (e.g. browser back/forward)
   useEffect(() => {
@@ -100,6 +154,7 @@ export function StockTable({
     const st = searchParams.get("status");
     if (st === "aman" || st === "rendah" || st === "habis" || st === "belum_dikonfigurasi") setStatusFilter(st);
     else if (!st) setStatusFilter("all");
+    setExpandedId(null);
   }, [searchParams]);
 
   const updateUrl = useCallback((updates: Record<string, string | null>) => {
@@ -217,7 +272,7 @@ export function StockTable({
   return (
     <div className="space-y-0">
       {/* Category Tabs */}
-      <CategoryTabs tabs={categoryTabs} active={activeTab} onChange={(tab) => { setActiveTab(tab); setSearchQuery(""); setStatusFilter("all"); updateUrl({ category: tab, status: null }); }} />
+      <CategoryTabs tabs={categoryTabs} active={activeTab} onChange={(tab) => { setActiveTab(tab); setSearchQuery(""); setStatusFilter("all"); setExpandedId(null); updateUrl({ category: tab, status: null }); }} />
 
       {/* Toolbar */}
       <div className="flex items-center gap-2 py-3">
@@ -291,31 +346,61 @@ export function StockTable({
             ) : (
               rows.map((row) => {
                 const valueInfo = formatInventoryValue(row._stockValue, row._hpp);
+                const lotList = lotsByProduct?.[row.id] ?? [];
+                const expanded = expandedId === row.id;
                 return (
-                  <TableRow key={row.id} className="hover:bg-slate-50/50 transition-colors">
-                    <TableCell>
-                      <p className="text-sm font-medium text-slate-900">{row.name}</p>
-                      {row._meta && (
-                        <p className="text-[10px] text-slate-500">{row._meta}</p>
+                  <Fragment key={row.id}>
+                    <TableRow
+                      className={cn(
+                        "transition-colors cursor-pointer",
+                        lotList.length > 0 ? "hover:bg-slate-50/50" : "hover:bg-transparent"
                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className={cn("text-sm font-semibold tabular-nums", row._stockValue <= 0 ? "text-slate-400" : "text-slate-900")}>
-                        {isKg ? formatKg(row._stockValue) : formatUnit(row._stockValue)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <InventoryStatusBadge status={row._status} />
-                    </TableCell>
-                    <TableCell className="text-right text-xs text-slate-600 tabular-nums">
-                      {row._hpp != null ? formatRupiah(row._hpp) : <span className="text-slate-300" title="HPP belum tersedia">—</span>}
-                    </TableCell>
-                    <TableCell className="text-right text-xs font-semibold text-slate-900 tabular-nums">
-                      <span title={valueInfo.unavailable ? "HPP belum tersedia" : undefined}>
-                        {valueInfo.text}
-                      </span>
-                    </TableCell>
-                  </TableRow>
+                      onClick={() => {
+                        if (lotList.length === 0) return;
+                        setExpandedId(expanded ? null : row.id);
+                      }}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          {lotList.length > 0 && (
+                            <ChevronRight
+                              size={13}
+                              className={cn("shrink-0 text-slate-400 transition-transform", expanded && "rotate-90")}
+                            />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-900">{row.name}</p>
+                            {row._meta && (
+                              <p className="text-xs text-slate-500">{row._meta}</p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={cn("text-sm font-semibold tabular-nums", row._stockValue <= 0 ? "text-slate-400" : "text-slate-900")}>
+                          {isKg ? formatKg(row._stockValue) : formatUnit(row._stockValue)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <InventoryStatusBadge status={row._status} />
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-slate-600 tabular-nums">
+                        {row._hpp != null ? formatRupiah(row._hpp) : <span className="text-slate-300" title="HPP belum tersedia">—</span>}
+                      </TableCell>
+                      <TableCell className="text-right text-xs font-semibold text-slate-900 tabular-nums">
+                        <span title={valueInfo.unavailable ? "HPP belum tersedia" : undefined}>
+                          {valueInfo.text}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                    {expanded && (
+                      <TableRow className="bg-slate-50/60">
+                        <TableCell colSpan={5} className="px-4 py-3">
+                          <LotBreakdown lots={lotList} unit={row._unit} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
                 );
               })
             )}
@@ -334,26 +419,71 @@ export function StockTable({
         ) : (
           rows.map((row) => {
             const valueInfo = formatInventoryValue(row._stockValue, row._hpp);
+            const lotList = lotsByProduct?.[row.id] ?? [];
+            const expanded = expandedId === row.id;
             return (
               <div
                 key={row.id}
-                className="flex justify-between items-center rounded-lg border border-slate-200/60 bg-white/50 px-3 py-2.5"
+                className={cn(
+                  "rounded-lg border border-slate-200/60 bg-white/50 overflow-hidden",
+                  lotList.length > 0 && "cursor-pointer"
+                )}
+                onClick={() => {
+                  if (lotList.length === 0) return;
+                  setExpandedId(expanded ? null : row.id);
+                }}
               >
-                <div className="min-w-0 flex-1 mr-3">
-                  <p className="text-sm font-medium text-slate-900 truncate">{row.name}</p>
-                  {row._meta && (
-                    <p className="text-[10px] text-slate-500 truncate">{row._meta}</p>
-                  )}
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <InventoryStatusBadge status={row._status} />
-                    <span className="text-[10px] text-slate-500 tabular-nums" title={valueInfo.unavailable ? "HPP belum tersedia" : undefined}>
-                      {valueInfo.text}
-                    </span>
+                <div className="flex justify-between items-center px-3 py-2.5">
+                  <div className="min-w-0 flex-1 mr-3">
+                    <p className="text-sm font-medium text-slate-900 truncate">{row.name}</p>
+                    {row._meta && (
+                      <p className="text-xs text-slate-500 truncate">{row._meta}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <InventoryStatusBadge status={row._status} />
+                      <span className="text-xs text-slate-500 tabular-nums" title={valueInfo.unavailable ? "HPP belum tersedia" : undefined}>
+                        {valueInfo.text}
+                      </span>
+                    </div>
                   </div>
+                  <span className={cn("text-sm font-semibold tabular-nums shrink-0", row._stockValue <= 0 ? "text-slate-400" : "text-slate-900")}>
+                    {isKg ? formatKg(row._stockValue) : formatUnit(row._stockValue)}
+                  </span>
+                  {lotList.length > 0 && (
+                    <ChevronRight
+                      size={14}
+                      className={cn("ml-1 shrink-0 text-slate-400 transition-transform", expanded && "rotate-90")}
+                    />
+                  )}
                 </div>
-                <span className={cn("text-sm font-semibold tabular-nums shrink-0", row._stockValue <= 0 ? "text-slate-400" : "text-slate-900")}>
-                  {isKg ? formatKg(row._stockValue) : formatUnit(row._stockValue)}
-                </span>
+                {expanded && (
+                  <div className="space-y-1.5 px-3 pb-2.5">
+                    {lotList.length === 0 ? (
+                      <p className="text-xs text-slate-500">Tidak ada lot aktif.</p>
+                    ) : (
+                      lotList.map((lot) => (
+                        <div
+                          key={lot.id}
+                          className="flex items-center justify-between rounded-md border border-slate-200/70 bg-white/70 px-2.5 py-1.5"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-medium text-slate-800">{lot.batchCode}</p>
+                            <p className="text-[11px] text-slate-500">
+                              {lot.supplierName ?? "—"} ·{" "}
+                              {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "tanpa kedaluwarsa"}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <LotStatusBadge status={lot.status} />
+                            <span className="text-xs font-semibold tabular-nums text-slate-900">
+                              {row._unit === "kg" ? formatKg(lot.remainingKg) : formatUnit(lot.remainingUnit)}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             );
           })

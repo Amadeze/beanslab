@@ -22,6 +22,7 @@ export default async function InventoryPage() {
       suppliers={data.suppliers}
       gbProducts={data.gbProducts}
       sampleConsumption={data.sampleConsumption}
+      lotsByProduct={data.lotsByProduct}
       packagings={packagings.map((p) => ({
         id:          p.id,
         name:        p.name,
