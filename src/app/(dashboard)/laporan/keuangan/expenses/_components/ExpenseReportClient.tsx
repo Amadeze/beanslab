@@ -60,9 +60,9 @@ export default function ExpenseReportClient() {
       format: (v) => (
         <span
           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-            v === "Lunas"
-              ? "bg-emerald-100 text-emerald-700"
-              : "bg-amber-100 text-amber-700"
+            v === "Dibatal"
+              ? "bg-rose-100 text-rose-700 line-through"
+              : "bg-emerald-100 text-emerald-700"
           }`}
         >
           {v}
@@ -102,7 +102,13 @@ export default function ExpenseReportClient() {
         <ReportExport
           title="Laporan Pengeluaran"
           filename="expense-report"
-          columns={columns.map((c) => ({ header: c.label, key: c.key }))}
+          columns={[
+            { header: "Tanggal", key: "date", format: (v) => new Date(v as string).toLocaleDateString("id-ID") },
+            { header: "Kategori", key: "category" },
+            { header: "Deskripsi", key: "description" },
+            { header: "Jumlah", key: "amount", format: (v) => formatRupiah(Number(v)) },
+            { header: "Status", key: "status" },
+          ]}
           data={data.expenses}
           subtitle="Biaya operasional, pembelian, dan analisa pengeluaran"
           period={dateRangeLabel}
@@ -157,6 +163,7 @@ export default function ExpenseReportClient() {
             value={formatRupiah(data.profit)}
             icon={data.profit > 0 ? TrendingUp : TrendingDown}
             color={data.profit > 0 ? "emerald" : "rose"}
+            help="Net profit = Revenue − Pengeluaran − Biaya Pembelian (definisi tunggal untuk semua laporan)."
           />
         </div>
 

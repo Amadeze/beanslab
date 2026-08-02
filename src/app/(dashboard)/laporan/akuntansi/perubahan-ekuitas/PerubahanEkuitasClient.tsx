@@ -7,6 +7,7 @@ import type { PerubahanEkuitasRow } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ReportExport } from "../../_shared/ReportExport";
 
 export function PerubahanEkuitasClient({
   data,
@@ -25,6 +26,8 @@ export function PerubahanEkuitasClient({
 
   const totalOpening = data?.reduce((s, r) => s + r.openingBalance, 0) ?? 0;
   const totalClosing = data?.reduce((s, r) => s + r.closingBalance, 0) ?? 0;
+  const totalAddition = data?.reduce((s, r) => s + r.addition, 0) ?? 0;
+  const totalDeduction = data?.reduce((s, r) => s + r.deduction, 0) ?? 0;
 
   function handleFilter() {
     const p = new URLSearchParams();
@@ -45,6 +48,31 @@ export function PerubahanEkuitasClient({
           <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
         <Button onClick={handleFilter}>Terapkan</Button>
+        {data && data.length > 0 && (
+          <div className="ml-auto">
+            <ReportExport
+              title="Laporan Perubahan Ekuitas"
+              filename="perubahan-ekuitas"
+              period={from || to ? `${from || "…"} s.d. ${to || "…"}` : undefined}
+              subtitle="Mutasi setiap komponen ekuitas selama periode"
+              status="FINAL"
+              summary={[
+                { label: "Total Saldo Awal", value: formatRupiah(totalOpening) },
+                { label: "Total Penambahan", value: formatRupiah(totalAddition) },
+                { label: "Total Pengurangan", value: formatRupiah(totalDeduction) },
+                { label: "Total Saldo Akhir", value: formatRupiah(totalClosing) },
+              ]}
+              columns={[
+                { header: "Komponen", key: "component" },
+                { header: "Saldo Awal", key: "openingBalance", format: (v) => formatRupiah(Number(v)) },
+                { header: "Penambahan", key: "addition", format: (v) => formatRupiah(Number(v)) },
+                { header: "Pengurangan", key: "deduction", format: (v) => formatRupiah(Number(v)) },
+                { header: "Saldo Akhir", key: "closingBalance", format: (v) => formatRupiah(Number(v)) },
+              ]}
+              data={data.map((r) => ({ ...r }))}
+            />
+          </div>
+        )}
       </div>
 
       {error && (

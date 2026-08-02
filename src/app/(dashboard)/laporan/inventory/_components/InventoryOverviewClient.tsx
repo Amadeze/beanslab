@@ -10,6 +10,8 @@ import {
   Flame,
   Factory,
   TrendingUp,
+  Database,
+  Activity,
 } from "lucide-react";
 import {
   ReportLayout,
@@ -26,6 +28,7 @@ import {
   type InventoryValuationReport,
 } from "../../actions";
 import { formatRupiah } from "@/lib/format";
+import { dateToLocalRange } from "@/lib/date-utils";
 
 export default function InventoryOverviewClient() {
   // Use local timezone for initial date (browser timezone, matches user expectation)
@@ -38,9 +41,11 @@ export default function InventoryOverviewClient() {
     start: getLocalDateString(-30),
     end: getLocalDateString(),
   });
+  // Nilai stok dihitung "per tanggal akhir" (as-of, sampai akhir hari WIB).
+  const { end: asOfEnd } = dateToLocalRange(dateRange.end);
   const { data, error, loading, retry } = useReportData(
-    () => getInventoryValuationReport(new Date(dateRange.end)),
-    [dateRange.start, dateRange.end],
+    () => getInventoryValuationReport(asOfEnd),
+    [asOfEnd.toISOString()],
   );
 
   if (error) {
@@ -67,8 +72,8 @@ export default function InventoryOverviewClient() {
     { name: "Kemasan", value: data.totalPackagingValue },
   ].filter((item) => item.value > 0);
 
-  // Low stock items count
-  const lowStockItems = data.items.filter((item) => item.stock < 100).length;
+  // Low stock items (stock ≤ ambang per item: safety stock atau default per satuan)
+  const lowStockItems = data.items.filter((item) => item.stock <= item.lowStockThreshold).length;
 
   return (
     <ReportLayout activeTab="inventory">
@@ -85,6 +90,7 @@ export default function InventoryOverviewClient() {
             value={formatRupiah(data.grandTotalValue)}
             icon={BarChart3}
             color="emerald"
+            help="Penilaian persediaan per tanggal akhir (metode rata-rata tertimbang / weighted average)."
           />
           <ReportKpiCard
             label="Jumlah Item"
@@ -96,17 +102,20 @@ export default function InventoryOverviewClient() {
           <ReportKpiCard
             label="Stok Menipis"
             value={lowStockItems}
-            subtitle="< 100 unit"
+            subtitle="≤ ambang per item"
             icon={AlertTriangle}
             color="rose"
             inverse
+            help="Item dengan stok lebih kecil/ sama dengan ambangnya (pakai safety stock jika diaktifkan, selain itu default: 10 &nbsp;untuk kg, 20 pcs)."
           />
           <ReportKpiCard
             label="Sample Write-Off"
-            value={data.totalSampleWriteOff}
-            subtitle="item"
+            value={formatRupiah(data.totalSampleWriteOff)}
+            subtitle="nilai"
             icon={TrendingUp}
             color="amber"
+            inverse
+            help="Nilai barang yang dipakai untuk sampel (cupping/uji coba) pada periode laporan."
           />
         </div>
 
@@ -189,6 +198,48 @@ export default function InventoryOverviewClient() {
                   <p className="text-sm font-semibold text-stone-900">Produksi Detail</p>
                   <p className="text-[11px] text-stone-500">
                     {formatRupiah(data.totalFinishedGoodsValue)}
+                  </p>
+                </div>
+              </div>
+              <ArrowRight
+                size={14}
+                className="text-stone-300 transition-colors group-hover:text-[#00C8DF]"
+              />
+            </Link>
+
+            <Link
+              href="/laporan/analisa/nilai-stok"
+              className="group flex items-center justify-between rounded-lg border border-stone-200 p-4 transition-colors hover:border-[#00C8DF]/30 hover:bg-[#00C8DF]/[0.03]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-indigo-50 p-2">
+                  <Database size={16} className="text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-stone-900">Nilai Stok</p>
+                  <p className="text-[11px] text-stone-500">
+                    Valuasi aset persediaan lengkap
+                  </p>
+                </div>
+              </div>
+              <ArrowRight
+                size={14}
+                className="text-stone-300 transition-colors group-hover:text-[#00C8DF]"
+              />
+            </Link>
+
+            <Link
+              href="/laporan/analisa/alur-kopi"
+              className="group flex items-center justify-between rounded-lg border border-stone-200 p-4 transition-colors hover:border-[#00C8DF]/30 hover:bg-[#00C8DF]/[0.03]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-neutral-50 p-2">
+                  <Activity size={16} className="text-neutral-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-stone-900">Alur Kopi</p>
+                  <p className="text-[11px] text-stone-500">
+                    Dari bahan sampai produk jadi
                   </p>
                 </div>
               </div>

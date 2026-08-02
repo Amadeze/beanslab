@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, TrendingDown, Minus, type LucideIcon } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Info, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ReportKpiCardProps {
@@ -13,6 +13,8 @@ interface ReportKpiCardProps {
   inverse?: boolean;
   sparkline?: number[];
   target?: string;
+  /** Definisi/sumber metrik. Ditampilkan sebagai tooltip kecil di sebelah label. */
+  help?: string;
 }
 
 const colorMap = {
@@ -41,7 +43,7 @@ function MiniSparkline({ data, color }: { data: number[]; color: { bar: string }
 }
 
 export function ReportKpiCard({
-  label, value, subtitle, trend, icon: Icon, color = "stone", inverse = false, sparkline, target,
+  label, value, subtitle, trend, icon: Icon, color = "stone", inverse = false, sparkline, target, help,
 }: ReportKpiCardProps) {
   const c = colorMap[color];
   const trendColor = (() => {
@@ -54,7 +56,18 @@ export function ReportKpiCard({
     <div className="group relative rounded-xl border border-stone-200 bg-white p-4 transition-all hover:shadow-md hover:border-stone-300">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-wider text-stone-500">{label}</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-stone-500">
+            {label}
+            {help && (
+              <span
+                className="ml-1.5 inline-flex cursor-help align-middle text-stone-400 hover:text-stone-600"
+                title={help}
+                aria-label={help}
+              >
+                <Info size={12} />
+              </span>
+            )}
+          </p>
           <p className="mt-1.5 text-xl font-black tracking-tight text-stone-900 tabular-nums">{value}</p>
           {subtitle && <p className="mt-0.5 text-[11px] text-stone-500">{subtitle}</p>}
           {target && <p className="mt-0.5 text-xs text-stone-400">Target: {target}</p>}

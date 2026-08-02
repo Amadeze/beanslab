@@ -104,7 +104,14 @@ export default function RoastingReportClient() {
         <ReportExport
           title="Laporan Roasting"
           filename="roasting-report"
-          columns={columns.map((c) => ({ header: c.label, key: c.key }))}
+          columns={[
+            { header: "Batch", key: "id" },
+            { header: "Tanggal", key: "date", format: (v) => new Date(v as string).toLocaleDateString("id-ID") },
+            { header: "GB Input", key: "gbInput", format: (v) => `${Number(v).toFixed(1)} kg` },
+            { header: "RB Output", key: "rbOutput", format: (v) => `${Number(v).toFixed(1)} kg` },
+            { header: "Yield", key: "yield", format: (v) => `${Number(v).toFixed(1)}%` },
+            { header: "Mesin", key: "machine" },
+          ]}
           data={data.batches}
           subtitle="Batch roasting, yield, dan analisa produksi"
           period={dateRangeLabel}
@@ -158,12 +165,16 @@ export default function RoastingReportClient() {
             icon={TrendingUp}
             color="emerald"
             sparkline={data.yieldTrend.slice(-7).map((y) => y.yield)}
+            help="Yale = berat output (RB) ÷ berat input (GB) × 100. Semakin mendekati 100% semakin efisien."
           />
           <ReportKpiCard
             label="Loss"
             value={`${data.lossPercent.toFixed(1)}%`}
+            subtitle={`${data.totalLossKg.toFixed(1)} kg`}
             icon={AlertTriangle}
             color="rose"
+            inverse
+            help="Susut sangrai = berat biji yang hilang saat proses (100% − yield). Umumnya 12­–20% untuk batch normal."
           />
         </div>
 

@@ -9,6 +9,7 @@ import {
   Banknote,
   ArrowRight,
   ReceiptText,
+  FileText,
 } from "lucide-react";
 import {
   ReportLayout,
@@ -93,6 +94,7 @@ export default function KeuanganOverviewClient() {
             trend={data.revenueTrend}
             icon={TrendingUp}
             color="emerald"
+            help="Basis pendapatan: invoice lunas (PAID), sudah dikurangi nilai retur."
           />
           <ReportKpiCard
             label="Total Expenses"
@@ -101,6 +103,7 @@ export default function KeuanganOverviewClient() {
             icon={WalletCards}
             color="rose"
             inverse
+            help="Total beban operasional kas periode ini (tanpa pembelian bahan)."
           />
           <ReportKpiCard
             label="Net Profit"
@@ -108,6 +111,7 @@ export default function KeuanganOverviewClient() {
             trend={data.profitTrend}
             icon={data.netProfit > 0 ? TrendingUp : TrendingDown}
             color={data.netProfit > 0 ? "emerald" : "rose"}
+            help="Net profit = Revenue − Expenses − Biaya Pembelian (definisi tunggal di semua laporan)."
           />
           <ReportKpiCard
             label="Cash Flow"
@@ -115,6 +119,7 @@ export default function KeuanganOverviewClient() {
             trend={data.cashFlowTrend}
             icon={Banknote}
             color="blue"
+            help="Arus kas operasional = Revenue − Expenses. Beda dengan Net Profit (belum dikurangi pembelian)."
           />
         </div>
 
@@ -178,6 +183,25 @@ export default function KeuanganOverviewClient() {
                   </p>
                   <p className="text-[11px] text-stone-500">
                     Laporan pengeluaran lengkap
+                  </p>
+                </div>
+              </div>
+              <ArrowRight size={16} className="text-stone-400" />
+            </Link>
+            <Link
+              href="/laporan/analisa/laba-rugi"
+              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[#00C8DF] hover:bg-[#00C8DF]/5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-indigo-50 p-2">
+                  <FileText size={16} className="text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-stone-900">
+                    Laba Rugi
+                  </p>
+                  <p className="text-[11px] text-stone-500">
+                    Pendapatan, HPP, dan beban per bulan
                   </p>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { requireFeature } from "@/lib/auth";
 import { getLabaDitahan } from "../actions";
 import { LabaDitahanClient } from "./LabaDitahanClient";
 
@@ -11,6 +12,7 @@ export default async function LabaDitahanPage({
   const params = await searchParams;
   const from = params.from ?? "";
   const to = params.to ?? "";
+  await requireFeature("ADVANCED_REPORTS");
 
   let data = null;
   let error = null;

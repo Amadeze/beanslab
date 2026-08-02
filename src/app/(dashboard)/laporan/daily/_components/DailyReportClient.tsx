@@ -62,7 +62,7 @@ export default function DailyReportClient() {
         ...roastingResult.batches.map((batch) => ({
           time: new Date(batch.date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
           area: "Roasting",
-          activity: `Batch ${batch.id} - ${batch.gbInput}kg → ${batch.rbOutput}kg`,
+          activity: `Roasting ${batch.gbInput}kg → ${batch.rbOutput}kg`,
           amount: null,
         })),
       ].sort((a, b) => a.time.localeCompare(b.time));
@@ -148,6 +148,7 @@ export default function DailyReportClient() {
             value={formatRupiah(data.revenue)}
             icon={TrendingUp}
             color="emerald"
+            help="Basis pendapatan: invoice lunas (PAID) hari ini, dikurangi nilai retur."
           />
           <ReportKpiCard
             label="Pengeluaran"
@@ -159,15 +160,17 @@ export default function DailyReportClient() {
           <ReportKpiCard
             label="Transaksi"
             value={data.transactions}
-            subtitle="invoice"
+            subtitle="invoice lunas"
             icon={ReceiptText}
             color="blue"
+            help="Jumlah nota dengan status lunas hari ini."
           />
           <ReportKpiCard
             label="Net Cash Flow"
             value={formatRupiah(netCashFlow)}
             icon={netCashFlow >= 0 ? TrendingUp : TrendingDown}
             color={netCashFlow >= 0 ? "emerald" : "rose"}
+            help="Arus kas bersih hari ini = Revenue − Pengeluaran."
           />
         </div>
 

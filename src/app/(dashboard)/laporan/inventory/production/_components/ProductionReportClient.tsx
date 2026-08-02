@@ -99,7 +99,15 @@ export default function ProductionReportClient() {
         <ReportExport
           title="Production Report"
           filename="production-report"
-          columns={columns.map((c) => ({ header: c.label, key: c.key }))}
+          columns={[
+            { header: "Batch", key: "id" },
+            { header: "Tanggal", key: "date", format: (v) => new Date(v as string).toLocaleDateString("id-ID") },
+            { header: "SKU", key: "sku" },
+            { header: "RB Used", key: "rbUsed", format: (v) => `${Number(v).toFixed(1)} kg` },
+            { header: "FG Output", key: "fgOutput", format: (v) => `${v} unit` },
+            { header: "Resep", key: "recipe" },
+            { header: "Status", key: "status" },
+          ]}
           data={data.batches}
         />
       }
@@ -138,10 +146,12 @@ export default function ProductionReportClient() {
             color="purple"
           />
           <ReportKpiCard
-            label="Efficiency"
+            label="Hasil Bahan"
             value={`${data.efficiency.toFixed(1)}%`}
+            subtitle={`${data.totalFgKg.toFixed(1)} kg produk jadi`}
             icon={TrendingUp}
             color="emerald"
+            help="Hasil produksi = kg produk jadi ÷ kg bahan × 100 (berbasis berat resep). Bila resep belum berisi berat, nilainya 0%."
           />
         </div>
 

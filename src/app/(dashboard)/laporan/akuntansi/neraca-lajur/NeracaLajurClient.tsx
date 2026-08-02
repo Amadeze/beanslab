@@ -7,6 +7,7 @@ import type { NeracaLajurRow } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ReportExport } from "../../_shared/ReportExport";
 
 const TYPE_LABELS: Record<string, string> = {
   ASSET: "Aset",
@@ -33,6 +34,25 @@ export function NeracaLajurClient({
 
   const sum = (rows: NeracaLajurRow[], key: keyof NeracaLajurRow) =>
     rows.reduce((s, r) => s + (r[key] as number), 0);
+
+  const isPL = (r: NeracaLajurRow) => r.type === "REVENUE" || r.type === "EXPENSE";
+  const plRows = data?.filter(isPL) ?? [];
+  const bsRows = data?.filter((r) => !isPL(r)) ?? [];
+  const totalsRow = data
+    ? [{
+        accountCode: "TOTAL",
+        accountName: "",
+        type: "",
+        tbDebit: sum(data, "tbDebit"),
+        tbCredit: sum(data, "tbCredit"),
+        plDebit: sum(plRows, "plDebit"),
+        plCredit: sum(plRows, "plCredit"),
+        neracaDebit: sum(bsRows, "neracaDebit"),
+        neracaCredit: sum(bsRows, "neracaCredit"),
+      }]
+    : [];
+  const netIncome = (data ? sum(plRows, "plCredit") - sum(plRows, "plDebit") : 0);
+  const fmtSigned = (v: number) => (v < 0 ? `(${formatRupiah(Math.abs(v))})` : formatRupiah(v));
 
   function handleFilter() {
     const p = new URLSearchParams();
@@ -61,6 +81,35 @@ export function NeracaLajurClient({
 
       {data && (
         <div className="rounded-xl border border-stone-200 bg-white overflow-x-auto">
+          <div className="flex items-center justify-between gap-3 border-b border-stone-200 bg-stone-50 px-3 py-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Kertas Kerja 10 Kolom</span>
+            <ReportExport
+              title="Neraca Lajur"
+              filename="neraca-lajur"
+              period={from || to ? `${from || "…"} s.d. ${to || "…"}` : undefined}
+              subtitle="Kertas kerja 10 kolom — Trial Balance, Laba Rugi, Neraca"
+              status="FINAL"
+              orientation="landscape"
+              summary={[
+                { label: "Total Trial Balance D", value: formatRupiah(sum(data ?? [], "tbDebit")) },
+                { label: "Total Trial Balance K", value: formatRupiah(sum(data ?? [], "tbCredit")) },
+                { label: "Laba (Rugi) Bersih", value: fmtSigned(netIncome) },
+                { label: "Total Neraca D", value: formatRupiah(sum(data ?? [], "neracaDebit")) },
+              ]}
+              columns={[
+                { header: "Kode", key: "accountCode" },
+                { header: "Nama Akun", key: "accountName" },
+                { header: "Tipe", key: "type" },
+                { header: "NS D", key: "tbDebit", format: (v) => (Number(v) > 0 ? formatRupiah(Number(v)) : "") },
+                { header: "NS K", key: "tbCredit", format: (v) => (Number(v) > 0 ? formatRupiah(Number(v)) : "") },
+                { header: "LR D", key: "plDebit", format: (v) => (Number(v) > 0 ? formatRupiah(Number(v)) : "") },
+                { header: "LR K", key: "plCredit", format: (v) => (Number(v) > 0 ? formatRupiah(Number(v)) : "") },
+                { header: "Neraca D", key: "neracaDebit", format: (v) => (Number(v) > 0 ? formatRupiah(Number(v)) : "") },
+                { header: "Neraca K", key: "neracaCredit", format: (v) => (Number(v) > 0 ? formatRupiah(Number(v)) : "") },
+              ]}
+              data={[...data.map((r) => ({ ...r, type: TYPE_LABELS[r.type] ?? r.type })), ...totalsRow]}
+            />
+          </div>
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b bg-stone-50">

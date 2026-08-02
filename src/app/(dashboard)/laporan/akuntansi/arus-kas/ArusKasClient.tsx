@@ -7,6 +7,7 @@ import type { ArusKasRow } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ReportExport } from "../../_shared/ReportExport";
 
 const CATEGORY_LABELS: Record<string, string> = {
   OPERATING: "Aktivitas Operasi",
@@ -34,6 +35,12 @@ export function ArusKasClient({
     return acc;
   }, {});
 
+  const fmtMoney = (v: number) => (v < 0 ? `(${formatRupiah(Math.abs(v))})` : formatRupiah(v));
+  const netOf = (labelPart: string) => data?.find((r) => r.label.includes(labelPart))?.amount ?? 0;
+  const netOperating = netOf("Kas Bersih dari Operasi");
+  const netInvesting = netOf("Kas Bersih dari Investasi");
+  const netFinancing = netOf("Kas Bersih dari Pendanaan");
+
   function handleFilter() {
     const p = new URLSearchParams();
     if (from) p.set("from", from);
@@ -53,6 +60,36 @@ export function ArusKasClient({
           <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
         <Button onClick={handleFilter}>Terapkan</Button>
+        {data && data.length > 0 && (
+          <div className="ml-auto">
+            <ReportExport
+              title="Laporan Arus Kas"
+              filename="arus-kas"
+              period={from || to ? `${from || "…"} s.d. ${to || "…"}` : undefined}
+              subtitle="Metode langsung — kas masuk & keluar per aktivitas"
+              status="FINAL"
+              summary={[
+                { label: "Kas Bersih Operasi", value: fmtMoney(netOperating) },
+                { label: "Kas Bersih Investasi", value: fmtMoney(netInvesting) },
+                { label: "Kas Bersih Pendanaan", value: fmtMoney(netFinancing) },
+                { label: "Kenaikan Kas Bersih", value: fmtMoney(netOperating + netInvesting + netFinancing) },
+              ]}
+              columns={[
+                { header: "Keterangan", key: "label" },
+                { header: "Jumlah", key: "amount", format: (v) => fmtMoney(Number(v)) },
+              ]}
+              data={data.map((r) => ({ label: r.label, amount: r.amount }))}
+              sections={Object.entries(grouped ?? {}).map(([cat, rows]) => ({
+                title: CATEGORY_LABELS[cat] ?? cat,
+                columns: [
+                  { header: "Keterangan", key: "label" },
+                  { header: "Jumlah", key: "amount", format: (v) => fmtMoney(Number(v)) },
+                ],
+                data: rows.map((r) => ({ label: r.label, amount: r.amount })),
+              }))}
+            />
+          </div>
+        )}
       </div>
 
       {error && (

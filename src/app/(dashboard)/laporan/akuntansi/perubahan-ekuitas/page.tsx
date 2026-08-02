@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { requireFeature } from "@/lib/auth";
 import { getPerubahanEkuitas } from "../actions";
 import { PerubahanEkuitasClient } from "./PerubahanEkuitasClient";
 
@@ -11,6 +12,7 @@ export default async function PerubahanEkuitasPage({
   const params = await searchParams;
   const from = params.from ?? "";
   const to = params.to ?? "";
+  await requireFeature("ADVANCED_REPORTS");
 
   let data = null;
   let error = null;

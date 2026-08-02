@@ -17,6 +17,7 @@ import {
 } from "../../../_shared";
 import { getInventoryValuationReport, type InventoryValuationReport } from "../../../actions";
 import { formatRupiah, formatKg } from "@/lib/format";
+import { dateToLocalRange } from "@/lib/date-utils";
 
 export default function StockReportClient() {
   // Use local timezone for initial date (browser timezone, matches user expectation)
@@ -29,9 +30,11 @@ export default function StockReportClient() {
     start: getLocalDateString(-30),
     end: getLocalDateString(),
   });
+  // Nilai stok dihitung "per tanggal akhir" (as-of, sampai akhir hari WIB).
+  const { end: asOfEnd } = dateToLocalRange(dateRange.end);
   const { data, error, loading, retry } = useReportData(
-    () => getInventoryValuationReport(new Date(dateRange.end)),
-    [dateRange.start, dateRange.end],
+    () => getInventoryValuationReport(asOfEnd),
+    [asOfEnd.toISOString()],
   );
 
   const columns: ReportColumn<InventoryValuationReport["items"][0]>[] = [
@@ -43,7 +46,7 @@ export default function StockReportClient() {
       label: "Stok",
       sortable: true,
       format: (v, row) => (
-        <span className={v < 100 ? "font-semibold text-red-600" : ""}>
+        <span className={v <= row.lowStockThreshold ? "font-semibold text-red-600" : ""}>
           {row.unit === "kg" ? formatKg(v) : `${v.toLocaleString()} ${row.unit}`}
         </span>
       ),
@@ -89,8 +92,8 @@ export default function StockReportClient() {
     { name: "Kemasan", value: data.totalPackagingValue },
   ].filter((item) => item.value > 0);
 
-  // Count low stock items (stock < 100)
-  const lowStockItems = data.items.filter((item) => item.stock < 100).length;
+  // Count low stock items (stock ≤ ambang per item: safety stock atau default per satuan)
+  const lowStockItems = data.items.filter((item) => item.stock <= item.lowStockThreshold).length;
 
   return (
     <ReportLayout
@@ -128,10 +131,11 @@ export default function StockReportClient() {
           <ReportKpiCard
             label="Stok Menipis"
             value={lowStockItems}
-            subtitle="< 100 unit"
+            subtitle="≤ ambang per item"
             icon={AlertTriangle}
             color="rose"
             inverse
+            help="Jumlah item dengan stok di bawah/ sama ambangnya (safety stock jika diaktifkan, default 10 kg / 20 pcs)."
           />
           <ReportKpiCard
             label="Zero Cost"

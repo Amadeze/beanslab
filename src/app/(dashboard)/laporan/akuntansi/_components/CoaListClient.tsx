@@ -25,11 +25,14 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { createAccount, updateAccount, toggleAccountStatus } from "../actions";
+import { ReportExport } from "../../_shared/ReportExport";
 
 const TYPE_LABELS: Record<string, string> = {
   ASSET: "Aset", LIABILITY: "Kewajiban", EQUITY: "Ekuitas",
   REVENUE: "Pendapatan", EXPENSE: "Beban",
 };
+
+const money = (v: unknown) => (Number(v) > 0 ? formatRupiah(Number(v)) : "");
 
 const TYPE_COLORS: Record<string, string> = {
   ASSET: "bg-blue-50 text-blue-700 border-blue-200",
@@ -194,7 +197,23 @@ export function CoaListClient({ accounts, entries, trialBalance }: Props) {
 
           {tab === "coa" && (
             <div className="space-y-6">
-              <div className="flex justify-end">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <ReportExport
+                  title="Chart of Accounts"
+                  filename="chart-of-accounts"
+                  columns={[
+                    { header: "Kode", key: "code" },
+                    { header: "Nama", key: "name" },
+                    { header: "Tipe", key: "type" },
+                    { header: "Status", key: "status" },
+                  ]}
+                  data={accounts.map((a) => ({
+                    code: a.code,
+                    name: a.name,
+                    type: TYPE_LABELS[a.type] ?? a.type,
+                    status: a.isActive ? "Aktif" : "Nonaktif",
+                  }))}
+                />
                 <Button size="sm" onClick={openCreate}>
                   + Akun Baru
                 </Button>
@@ -237,6 +256,30 @@ export function CoaListClient({ accounts, entries, trialBalance }: Props) {
 
           {tab === "jurnal" && (
             <div className="space-y-4">
+              <div className="flex justify-end">
+                <ReportExport
+                  title="Jurnal Umum"
+                  filename="jurnal-umum"
+                  columns={[
+                    { header: "Tanggal", key: "date", format: (v) => formatDate(v as string) },
+                    { header: "No. Jurnal", key: "journalCode" },
+                    { header: "Keterangan", key: "description" },
+                    { header: "Akun", key: "accountName" },
+                    { header: "Debit", key: "debit", format: money },
+                    { header: "Kredit", key: "credit", format: money },
+                  ]}
+                  data={entries.flatMap((e) =>
+                    e.lines.map((l) => ({
+                      date: e.date,
+                      journalCode: e.code,
+                      description: e.description,
+                      accountName: `${l.accountCode} ${l.accountName}`,
+                      debit: l.debit,
+                      credit: l.credit,
+                    })),
+                  )}
+                />
+              </div>
               {entries.length === 0 ? (
                 <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-sm text-stone-400">
                   Belum ada jurnal. Jurnal akan tercatat otomatis saat ada transaksi.
@@ -285,9 +328,57 @@ export function CoaListClient({ accounts, entries, trialBalance }: Props) {
 
           {tab === "neraca" && (
             <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
-              <div className="px-5 py-3 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
+              <div className="px-5 py-3 bg-stone-50 border-b border-stone-200 flex items-center justify-between gap-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Neraca Saldo</span>
-                <span className="text-xs text-stone-400">{trialBalance.length} akun</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-stone-400">{trialBalance.length} akun</span>
+                  <ReportExport
+                    title="Neraca Saldo"
+                    filename="neraca-saldo"
+                    status="FINAL"
+                    orientation="landscape"
+                    columns={[
+                      { header: "Kode", key: "code" },
+                      { header: "Nama", key: "name" },
+                      { header: "Tipe", key: "type" },
+                      { header: "Debit", key: "debit", format: money },
+                      { header: "Kredit", key: "credit", format: money },
+                      { header: "Saldo", key: "balance", format: (v) => formatRupiah(Math.abs(Number(v))) },
+                    ]}
+                    data={[
+                      ...trialBalance.map((r) => ({
+                        code: r.accountCode,
+                        name: r.accountName,
+                        type: TYPE_LABELS[r.type] ?? r.type,
+                        debit: r.debit,
+                        credit: r.credit,
+                        balance: r.balance,
+                      })),
+                      {
+                        code: "TOTAL",
+                        name: "",
+                        type: "",
+                        debit: trialBalance.reduce((s, r) => s + r.debit, 0),
+                        credit: trialBalance.reduce((s, r) => s + r.credit, 0),
+                        balance: trialBalance.reduce((s, r) => s + r.balance, 0),
+                      },
+                    ]}
+                    summary={[
+                      {
+                        label: "Total Trial Balance (Debit)",
+                        value: formatRupiah(trialBalance.reduce((s, r) => s + r.debit, 0)),
+                      },
+                      {
+                        label: "Total Trial Balance (Kredit)",
+                        value: formatRupiah(trialBalance.reduce((s, r) => s + r.credit, 0)),
+                      },
+                      {
+                        label: "Saldo Akhir",
+                        value: formatRupiah(Math.abs(trialBalance.reduce((s, r) => s + r.balance, 0))),
+                      },
+                    ]}
+                  />
+                </div>
               </div>
               <div className="divide-y divide-stone-100">
                 {trialBalance.map((r) => (

@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { ReportExport } from "../../_shared/ReportExport";
 
 const TYPE_LABELS: Record<string, string> = {
   ASSET: "Aset",
@@ -113,6 +114,31 @@ export function BukuBesarClient({
           </div>
 
           <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+            <div className="flex items-center justify-between gap-3 border-b border-stone-200 bg-stone-50 px-4 py-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Mutasi</span>
+              <ReportExport
+                title={`Buku Besar - ${data.accountCode} ${data.accountName}`}
+                filename={`buku-besar-${data.accountCode}`}
+                period={from || to ? `${from || "…"} s.d. ${to || "…"}` : undefined}
+                subtitle="Riwayat mutasi per akun dengan saldo berjalan"
+                status="FINAL"
+                summary={[
+                  { label: "Saldo Awal", value: formatRupiah(data.openingBalance) },
+                  { label: "Total Debit", value: formatRupiah(data.lines.reduce((s, l) => s + l.debit, 0)) },
+                  { label: "Total Kredit", value: formatRupiah(data.lines.reduce((s, l) => s + l.credit, 0)) },
+                  { label: "Saldo Akhir", value: formatRupiah(data.closingBalance) },
+                ]}
+                columns={[
+                  { header: "Tanggal", key: "date", format: (v) => formatDate(v as string) },
+                  { header: "Jurnal", key: "journalCode" },
+                  { header: "Keterangan", key: "description" },
+                  { header: "Debit", key: "debit", format: (v) => (Number(v) > 0 ? formatRupiah(Number(v)) : "") },
+                  { header: "Kredit", key: "credit", format: (v) => (Number(v) > 0 ? formatRupiah(Number(v)) : "") },
+                  { header: "Saldo", key: "balance", format: (v) => formatRupiah(Number(v)) },
+                ]}
+                data={data.lines.map((l) => ({ ...l }))}
+              />
+            </div>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-stone-50">

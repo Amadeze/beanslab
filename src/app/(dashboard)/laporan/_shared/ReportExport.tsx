@@ -6,10 +6,25 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { exportToPdf, exportToExcel, exportToProfessionalPdf, exportToProfessionalExcel } from "@/lib/export-utils";
 
+interface ReportExportColumn {
+  header: string;
+  key: string;
+  width?: number;
+  /** Formatter opsional per kolom (mis. formatRupiah, formatDate) supaya ekspor rapi. */
+  format?: (value: unknown, row: Record<string, any>) => string | number | null;
+}
+
+/** Bagian laporan dengan judul & tabel sendiri (khusus PDF professional). */
+interface ReportExportSection {
+  title: string;
+  columns: ReportExportColumn[];
+  data: Record<string, any>[];
+}
+
 interface ReportExportProps {
   title: string;
   filename: string;
-  columns: { header: string; key: string; width?: number }[];
+  columns: ReportExportColumn[];
   data: Record<string, any>[];
   className?: string;
   // Professional export options
@@ -18,7 +33,19 @@ interface ReportExportProps {
   status?: "DRAFT" | "FINAL";
   summary?: { label: string; value: string }[];
   useProfessional?: boolean;
+  sections?: ReportExportSection[];
+  /** Orientasi halaman PDF (default portrait). Gunakan "landscape" untuk tabel lebar. */
+  orientation?: "portrait" | "landscape";
 }
+
+const toExportColumns = (columns: ReportExportColumn[]) =>
+  columns.map((col) => ({
+    header: col.header,
+    accessor: (row: unknown) =>
+      col.format
+        ? col.format((row as Record<string, any>)[col.key], row as Record<string, any>)
+        : ((row as Record<string, any>)[col.key] ?? null),
+  }));
 
 export function ReportExport({
   title,
@@ -31,12 +58,16 @@ export function ReportExport({
   status,
   summary,
   useProfessional = true,
+  sections,
+  orientation = "portrait",
 }: ReportExportProps) {
   const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
 
-  const exportColumns = columns.map((col) => ({
-    header: col.header,
-    accessor: (row: Record<string, any>) => row[col.key] ?? null,
+  const exportColumns = toExportColumns(columns);
+  const exportSections = sections?.map((s) => ({
+    title: s.title,
+    columns: toExportColumns(s.columns),
+    data: s.data,
   }));
 
   const handlePdf = async () => {
@@ -49,10 +80,12 @@ export function ReportExport({
           sheetName: title,
           columns: exportColumns,
           data,
+          sections: exportSections,
           subtitle,
           period,
           status,
           summary,
+          orientation,
           showHeader: true,
           showFooter: true,
           showPageNumbers: true,

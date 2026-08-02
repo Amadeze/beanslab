@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { requireFeature } from "@/lib/auth";
 import { getGlIntegrityCheck } from "../actions";
 import { IntegrityClient } from "./IntegrityClient";
 
 export default async function IntegrityPage() {
+  await requireFeature("ADVANCED_REPORTS");
   const issues = await getGlIntegrityCheck().catch(() => []);
 
   return (

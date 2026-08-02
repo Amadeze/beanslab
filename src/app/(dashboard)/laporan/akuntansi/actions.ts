@@ -1,7 +1,7 @@
 "use server";
 
-import { getCurrentTenantId, requireRole, requireTenantPrisma } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getCurrentTenantId, requireFeature, requireRole, requireTenantPrisma, getTenantTimezone } from "@/lib/auth";
+import { dateToLocalRange } from "@/lib/date-utils";
 import { revalidatePath } from "next/cache";
 
 export type CoaRow = {
@@ -140,7 +140,7 @@ export async function getTrialBalance(): Promise<TrialBalanceRow[]> {
   const accountIds = accounts.map((a) => a.id);
   if (accountIds.length === 0) return [];
 
-  const lines = await prisma.journalLine.groupBy({
+  const lines = await tp.journalLine.groupBy({
     by: ["accountId"],
     where: { accountId: { in: accountIds } },
     _sum: { debit: true, credit: true },
@@ -207,8 +207,10 @@ export async function getNeracaLajur(
   fromDate?: string,
   toDate?: string,
 ): Promise<NeracaLajurRow[]> {
+  await requireFeature("ADVANCED_REPORTS");
   await requireRole("OWNER", "MANAGER");
   const tp = await requireTenantPrisma();
+  const timezone = await getTenantTimezone();
 
   const accounts = await tp.account.findMany({
     where: { isActive: true },
@@ -223,14 +225,14 @@ export async function getNeracaLajur(
     ? {
         journalEntry: {
           date: {
-            ...(fromDate ? { gte: new Date(fromDate) } : {}),
-            ...(toDate ? { lte: new Date(toDate + "T23:59:59.999Z") } : {}),
+            ...(fromDate ? { gte: dateToLocalRange(fromDate, timezone).start } : {}),
+            ...(toDate ? { lte: dateToLocalRange(toDate, timezone).end } : {}),
           },
         },
       }
     : {};
 
-  const lines = await prisma.journalLine.groupBy({
+  const lines = await tp.journalLine.groupBy({
     by: ["accountId"],
     where: { accountId: { in: accountIds }, ...dateFilter },
     _sum: { debit: true, credit: true },
@@ -274,9 +276,11 @@ export async function getArusKas(
   fromDate?: string,
   toDate?: string,
 ): Promise<ArusKasRow[]> {
+  await requireFeature("ADVANCED_REPORTS");
   await requireRole("OWNER", "MANAGER");
   const tp = await requireTenantPrisma();
   const tenantId = await getCurrentTenantId();
+  const timezone = await getTenantTimezone();
 
   const kasAccount = await tp.account.findFirst({
     where: { tenantId, code: "1-1000", isActive: true },
@@ -288,13 +292,13 @@ export async function getArusKas(
     fromDate || toDate
       ? {
           date: {
-            ...(fromDate ? { gte: new Date(fromDate) } : {}),
-            ...(toDate ? { lte: new Date(toDate + "T23:59:59.999Z") } : {}),
+            ...(fromDate ? { gte: dateToLocalRange(fromDate, timezone).start } : {}),
+            ...(toDate ? { lte: dateToLocalRange(toDate, timezone).end } : {}),
           },
         }
       : {};
 
-  const entries = await prisma.journalEntry.findMany({
+  const entries = await tp.journalEntry.findMany({
     where: {
       lines: { some: { accountId: kasAccount.id } },
       ...dateFilter,
@@ -312,7 +316,7 @@ export async function getArusKas(
   const entryIds = entries.map((e) => e.id);
   if (entryIds.length === 0) return [];
 
-  const allLines = await prisma.journalLine.findMany({
+  const allLines = await tp.journalLine.findMany({
     where: { journalEntryId: { in: entryIds } },
     include: { account: { select: { code: true, name: true } } },
   });
@@ -408,9 +412,11 @@ export async function getLabaDitahan(
   fromDate?: string,
   toDate?: string,
 ): Promise<LabaDitahanData> {
+  await requireFeature("ADVANCED_REPORTS");
   await requireRole("OWNER", "MANAGER");
   const tp = await requireTenantPrisma();
   const tenantId = await getCurrentTenantId();
+  const timezone = await getTenantTimezone();
 
   // Laba ditahan digulir otomatis per laporan: saldo awal = laba ditahan
   // historis (3-1020, bila pernah dijurnal manual) + laba bersih periode sebelum fromDate.
@@ -428,15 +434,15 @@ export async function getLabaDitahan(
       ? {
           journalEntry: {
             date: {
-              ...(fromDate ? { gte: new Date(fromDate) } : {}),
-              ...(toDate ? { lte: new Date(toDate + "T23:59:59.999Z") } : {}),
+              ...(fromDate ? { gte: dateToLocalRange(fromDate, timezone).start } : {}),
+              ...(toDate ? { lte: dateToLocalRange(toDate, timezone).end } : {}),
             },
           },
         }
       : {};
 
   const beforeFilter = fromDate
-    ? { journalEntry: { date: { lt: new Date(fromDate) } } }
+    ? { journalEntry: { date: { lt: dateToLocalRange(fromDate, timezone).start } } }
     : {};
 
   const openingAgg = retainedEarnings
@@ -536,9 +542,11 @@ export async function getPerubahanEkuitas(
   fromDate?: string,
   toDate?: string,
 ): Promise<PerubahanEkuitasRow[]> {
+  await requireFeature("ADVANCED_REPORTS");
   await requireRole("OWNER", "MANAGER");
   const tp = await requireTenantPrisma();
   const tenantId = await getCurrentTenantId();
+  const timezone = await getTenantTimezone();
 
   const equityAccounts = await tp.account.findMany({
     where: { tenantId, type: "EQUITY", isActive: true },
@@ -551,20 +559,20 @@ export async function getPerubahanEkuitas(
       ? {
           journalEntry: {
             date: {
-              ...(fromDate ? { gte: new Date(fromDate) } : {}),
-              ...(toDate ? { lte: new Date(toDate + "T23:59:59.999Z") } : {}),
+              ...(fromDate ? { gte: dateToLocalRange(fromDate, timezone).start } : {}),
+              ...(toDate ? { lte: dateToLocalRange(toDate, timezone).end } : {}),
             },
           },
         }
       : {};
 
   const beforeFilter = fromDate
-    ? { journalEntry: { date: { lt: new Date(fromDate) } } }
+    ? { journalEntry: { date: { lt: dateToLocalRange(fromDate, timezone).start } } }
     : {};
 
   const results: PerubahanEkuitasRow[] = [];
   for (const acct of equityAccounts) {
-    const openingAgg = await prisma.journalLine.aggregate({
+    const openingAgg = await tp.journalLine.aggregate({
       where: { accountId: acct.id, ...beforeFilter },
       _sum: { credit: true, debit: true },
     });
@@ -572,7 +580,7 @@ export async function getPerubahanEkuitas(
       Number(openingAgg._sum.credit ?? 0) -
       Number(openingAgg._sum.debit ?? 0);
 
-    const periodAgg = await prisma.journalLine.aggregate({
+    const periodAgg = await tp.journalLine.aggregate({
       where: { accountId: acct.id, ...dateFilter },
       _sum: { credit: true, debit: true },
     });
@@ -605,6 +613,7 @@ export type GlIntegrityIssue = {
 };
 
 export async function getGlIntegrityCheck(): Promise<GlIntegrityIssue[]> {
+  await requireFeature("ADVANCED_REPORTS");
   await requireRole("OWNER", "MANAGER");
   const tp = await requireTenantPrisma();
   const issues: GlIntegrityIssue[] = [];
@@ -699,9 +708,11 @@ export async function getBukuBesar(
   fromDate?: string,
   toDate?: string,
 ): Promise<BukuBesarData> {
+  await requireFeature("ADVANCED_REPORTS");
   await requireRole("OWNER", "MANAGER");
   const tenantId = await getCurrentTenantId();
   const tp = await requireTenantPrisma();
+  const timezone = await getTenantTimezone();
 
   const account = await tp.account.findUnique({
     where: { tenantId_code: { tenantId, code: accountCode } },
@@ -709,10 +720,10 @@ export async function getBukuBesar(
   });
   if (!account) throw new Error("Akun tidak ditemukan");
 
-  const from = fromDate ? new Date(fromDate) : new Date("2000-01-01");
-  const to = toDate ? new Date(toDate + "T23:59:59.999Z") : new Date("2100-01-01");
+  const from = fromDate ? dateToLocalRange(fromDate, timezone).start : new Date("2000-01-01T00:00:00.000Z");
+  const to = toDate ? dateToLocalRange(toDate, timezone).end : new Date("2100-01-01T00:00:00.000Z");
 
-  const openingAgg = await prisma.journalLine.aggregate({
+  const openingAgg = await tp.journalLine.aggregate({
     where: {
       accountId: account.id,
       journalEntry: { date: { lt: from } },
@@ -724,7 +735,7 @@ export async function getBukuBesar(
   const isDebitNorm = account.type === "ASSET" || account.type === "EXPENSE";
   const openingBalance = isDebitNorm ? openingDebit - openingCredit : openingCredit - openingDebit;
 
-  const lines = await prisma.journalLine.findMany({
+  const lines = await tp.journalLine.findMany({
     where: {
       accountId: account.id,
       journalEntry: { date: { gte: from, lte: to } },

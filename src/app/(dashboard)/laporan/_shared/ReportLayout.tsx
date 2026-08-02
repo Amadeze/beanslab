@@ -5,7 +5,7 @@ import {
   ReceiptText,
   WalletCards,
   Package,
-  Flame,
+Flame,
   Factory,
   Calendar,
   BadgeDollarSign,
@@ -15,6 +15,7 @@ import {
   Database,
   Activity,
   Beaker,
+  ChartPie,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,8 +28,12 @@ export type ReportTab =
   | "inventory/stock"
   | "inventory/roasting"
   | "inventory/production"
-  | "daily"
-  | "super";
+  | "analisa/laba-rugi"
+  | "analisa/nilai-stok"
+  | "analisa/neraca"
+  | "analisa/alur-kopi"
+  | "analisa/sample"
+  | "daily";
 
 interface TabConfig {
   id: ReportTab;
@@ -38,9 +43,9 @@ interface TabConfig {
 }
 
 const SUPER_TABS: TabConfig[] = [
-  { id: "super", label: "Dashboard", icon: TrendingUp, href: "/laporan" },
   { id: "keuangan", label: "Keuangan", icon: BadgeDollarSign, href: "/laporan/keuangan" },
   { id: "inventory", label: "Inventory", icon: Package, href: "/laporan/inventory" },
+  { id: "analisa/laba-rugi", label: "Analisa", icon: ChartPie, href: "/laporan/analisa/laba-rugi" },
   { id: "daily", label: "Harian", icon: Calendar, href: "/laporan/daily" },
 ];
 
@@ -57,6 +62,14 @@ const INVENTORY_TABS: TabConfig[] = [
   { id: "inventory/production", label: "Produksi", icon: Factory, href: "/laporan/inventory/production" },
 ];
 
+const ANALISA_TABS: TabConfig[] = [
+  { id: "analisa/laba-rugi", label: "Laba Rugi", icon: FileText, href: "/laporan/analisa/laba-rugi" },
+  { id: "analisa/neraca", label: "Neraca", icon: Scale, href: "/laporan/analisa/neraca" },
+  { id: "analisa/alur-kopi", label: "Alur Kopi", icon: Activity, href: "/laporan/analisa/alur-kopi" },
+  { id: "analisa/nilai-stok", label: "Nilai Stok", icon: Database, href: "/laporan/analisa/nilai-stok" },
+  { id: "analisa/sample", label: "Sample", icon: Beaker, href: "/laporan/analisa/sample" },
+];
+
 interface ReportLayoutProps {
   activeTab: ReportTab;
   children: React.ReactNode;
@@ -65,15 +78,15 @@ interface ReportLayoutProps {
 }
 
 export function ReportLayout({ activeTab, children, actions, title }: ReportLayoutProps) {
-  const isSuper = activeTab === "super";
   const isKeuangan = activeTab.startsWith("keuangan");
   const isInventory = activeTab.startsWith("inventory");
-  const subTabs = isKeuangan ? KEUANGAN_TABS : isInventory ? INVENTORY_TABS : [];
+  const isAnalisa = activeTab.startsWith("analisa");
+  const subTabs = isKeuangan ? KEUANGAN_TABS : isInventory ? INVENTORY_TABS : isAnalisa ? ANALISA_TABS : [];
 
   const currentMain = SUPER_TABS.find((t) => {
-    if (isSuper) return t.id === "super";
     if (isKeuangan) return t.id === "keuangan";
     if (isInventory) return t.id === "inventory";
+    if (isAnalisa) return t.id === "analisa/laba-rugi";
     return t.id === activeTab;
   });
 
@@ -97,7 +110,8 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
               const Icon = tab.icon;
               const isActive = tab.id === activeTab ||
                 (tab.id === "keuangan" && isKeuangan) ||
-                (tab.id === "inventory" && isInventory);
+                (tab.id === "inventory" && isInventory) ||
+                (tab.id === "analisa/laba-rugi" && isAnalisa);
               return (
                 <Link
                   key={tab.id}

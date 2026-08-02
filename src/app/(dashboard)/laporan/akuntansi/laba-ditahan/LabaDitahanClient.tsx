@@ -7,6 +7,7 @@ import type { LabaDitahanData } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ReportExport } from "../../_shared/ReportExport";
 
 export function LabaDitahanClient({
   data,
@@ -42,6 +43,33 @@ export function LabaDitahanClient({
           <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
         <Button onClick={handleFilter}>Terapkan</Button>
+        {data && (
+          <div className="ml-auto">
+            <ReportExport
+              title="Laporan Laba Ditahan"
+              filename="laba-ditahan"
+              period={from || to ? `${from || "…"} s.d. ${to || "…"}` : undefined}
+              subtitle="Mutasi saldo laba ditahan selama periode"
+              status="FINAL"
+              summary={[
+                { label: "Saldo Awal Laba Ditahan", value: formatRupiah(data.openingBalance) },
+                { label: "Laba (Rugi) Bersih", value: data.netIncome < 0 ? `(${formatRupiah(Math.abs(data.netIncome))})` : formatRupiah(data.netIncome) },
+                { label: "Dividen", value: data.dividends > 0 ? `(${formatRupiah(data.dividends)})` : "—" },
+                { label: "Saldo Akhir Laba Ditahan", value: formatRupiah(data.closingBalance) },
+              ]}
+              columns={[
+                { header: "Komponen", key: "label" },
+                { header: "Jumlah", key: "amount", format: (v) => formatRupiah(Number(v)) },
+              ]}
+              data={[
+                { label: "Saldo Awal Laba Ditahan", amount: data.openingBalance },
+                { label: "Laba (Rugi) Bersih Periode", amount: data.netIncome },
+                ...(data.dividends > 0 ? [{ label: "Dividen", amount: -data.dividends }] : []),
+                { label: "Saldo Akhir Laba Ditahan", amount: data.closingBalance },
+              ]}
+            />
+          </div>
+        )}
       </div>
 
       {error && (

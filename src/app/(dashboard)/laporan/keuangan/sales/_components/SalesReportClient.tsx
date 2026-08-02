@@ -104,7 +104,13 @@ export default function SalesReportClient() {
         <ReportExport
           title="Laporan Penjualan"
           filename="sales-report"
-          columns={columns.map((c) => ({ header: c.label, key: c.key }))}
+          columns={[
+            { header: "Invoice", key: "code" },
+            { header: "Tanggal", key: "date", format: (v) => new Date(v as string).toLocaleDateString("id-ID") },
+            { header: "Pelanggan", key: "customer" },
+            { header: "Nilai", key: "amount", format: (v) => formatRupiah(Number(v)) },
+            { header: "Status", key: "status" },
+          ]}
           data={data.invoices}
           subtitle="Revenue, invoice, dan analisa penjualan"
           period={dateRangeLabel}
@@ -139,18 +145,20 @@ export default function SalesReportClient() {
             icon={TrendingUp}
             color="emerald"
             sparkline={data.revenueTrend.slice(-7).map((r) => r.revenue)}
+            help="Basis pendapatan: invoice berstatus lunas (PAID), sudah dikurangi nilai retur."
           />
           <ReportKpiCard
             label="Invoice"
             value={data.invoiceCount}
-            subtitle="nota"
+            subtitle="nota lunas"
             icon={FileText}
             color="blue"
+            help="Jumlah nota dengan status lunas pada periode ini."
           />
           <ReportKpiCard
             label="Rata-rata"
             value={formatRupiah(data.avgInvoice)}
-            subtitle="per invoice"
+            subtitle="per nota lunas"
             icon={ReceiptText}
             color="purple"
           />

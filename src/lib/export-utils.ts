@@ -34,6 +34,8 @@ export type ProfessionalExportConfig<T> = ExportConfig<T> & {
   showPageNumbers?: boolean;
   showTimestamp?: boolean;
   status?: "DRAFT" | "FINAL";
+  /** Orientasi halaman PDF; gunakan "landscape" untuk tabel lebar (mis. 10-kolom). */
+  orientation?: "portrait" | "landscape";
   summary?: { label: string; value: string }[];
   sections?: {
     title: string;
@@ -92,7 +94,7 @@ export async function exportToProfessionalPdf<T>(
   const { jsPDF }         = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
 
-  const doc       = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const doc       = new jsPDF({ orientation: config.orientation ?? "portrait", unit: "mm", format: "a4" });
   const pageW     = doc.internal.pageSize.getWidth();
   const pageH     = doc.internal.pageSize.getHeight();
   const margin    = 16;

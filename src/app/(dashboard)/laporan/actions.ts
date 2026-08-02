@@ -8,6 +8,14 @@ import { revalidatePath, unstable_cache } from "next/cache";
 import { getCurrentDate, dateToLocalRange, formatChartDate, getZonedDayRange, getTodayStringForTimezone } from "@/lib/date-utils";
 import { weightedAverageCost } from "@/lib/financial-reporting";
 import { formatRupiah } from "@/lib/format";
+import {
+  computeRevenue,
+  computeNetProfit,
+  computePeriodMetrics,
+  computeTrend,
+  computeAverageInvoice,
+  type InputTotals,
+} from "@/lib/report-finance";
 import { getRbCostPrioritizingCache, getFgHppPrioritizingCache } from "@/lib/costing";
 import { computeValuationMetrics } from "@/lib/inventory-helpers";
 import { prisma } from "@/lib/prisma";
@@ -117,7 +125,20 @@ export type ValuationRow = {
   retailPrice?: number;
   potentialRevenue?: number;
   sampleWriteOff: number;
+  /** Ambang "stok menipis" per item (pakai safety stock bila diaktifkan). */
+  lowStockThreshold: number;
 };
+
+/** Ambang stok menipis: safety stock tenant bila diaktifkan, selain itu default sesuai satuan. */
+function lowStockThresholdFor(
+  unit: string,
+  safetyStock?: { toNumber?: () => number } | number | null,
+  enabled?: boolean,
+): number {
+  const safety = typeof safetyStock === "number" ? safetyStock : Number(safetyStock?.toNumber?.() ?? safetyStock ?? 0);
+  if (enabled && safety > 0) return safety;
+  return unit === "kg" ? 10 : 20;
+}
 
 export type InventoryValuationReport = {
   items: ValuationRow[];
@@ -276,6 +297,7 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
           unitCost,
           totalValue: stockKg * unitCost,
           sampleWriteOff: sampleWriteOffMap.get(p.id) ?? 0,
+          lowStockThreshold: lowStockThresholdFor("kg", p.safetyStockQuantity, p.reorderAlertEnabled),
           ...(p.type === "ROASTED_BEAN" && { retailPrice, potentialRevenue }),
         });
       }
@@ -312,6 +334,7 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
           unitCost,
           totalValue: stockUnit * unitCost,
           sampleWriteOff: sampleWriteOffMap.get(p.id) ?? 0,
+          lowStockThreshold: lowStockThresholdFor("pcs", p.safetyStockQuantity, p.reorderAlertEnabled),
           retailPrice,
           potentialRevenue,
         });
@@ -350,7 +373,7 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
         totalCost: Number(purchase.totalCost),
       })));
       const unitCost = calculatedCost || Number(pkg.costPerUnit);
-      items.push({
+items.push({
         id: pkg.id,
         code: pkg.code,
         name: pkg.name,
@@ -359,7 +382,9 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
         unit: "pcs",
         unitCost,
         totalValue: stockUnit * unitCost,
-        sampleWriteOff: sampleWriteOffMap.get(pkg.id) ?? 0,
+
+        sampleWriteOff: sampleWriteOffMap.get(pkg.id) ?? 0,
+        lowStockThreshold: lowStockThresholdFor("pcs", pkg.safetyStockQuantity, pkg.reorderAlertEnabled),
       });
     }
   }
@@ -972,9 +997,10 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
   // Use start of startDate for the lower bound
   const { start: rangeStartUTC } = dateToLocalRange(startDate, timezone);
 
+// Basis pendapatan konsisten: hanya invoice LUNAS (PAID).
   const reportWhere = {
     issuedAt: { gte: rangeStartUTC, lte: endUTC },
-    status: { in: ["PAID", "ISSUED", "PARTIAL"] },
+    status: "PAID",
   } satisfies Prisma.InvoiceWhereInput;
   const detailLimit = 500;
   const start = new Date(startDate);
@@ -986,9 +1012,9 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
   type ProductSalesRow = { name: string; value: string };
   type TopCustomerRow = { name: string };
   const [paidTotal, invoiceCount, topCustomers, invoices, dailyTotals, productSales] = await Promise.all([
-    tp.invoice.aggregate({
+tp.invoice.aggregate({
       where: { issuedAt: reportWhere.issuedAt, status: "PAID" },
-      _sum: { grandTotal: true },
+      _sum: { grandTotal: true, returnedAmount: true },
     }),
     tp.invoice.count({ where: reportWhere }),
     tenantQuery<TopCustomerRow[]>(tenantId, async (t) => prisma.$queryRaw`
@@ -997,9 +1023,9 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
       JOIN customers c ON c.id = i."customerId"
       WHERE i."tenantId" = ${t}
         AND c."tenantId" = ${t}
-        AND i."issuedAt" >= ${rangeStartUTC}
+AND i."issuedAt" >= ${rangeStartUTC}
         AND i."issuedAt" <= ${endUTC}
-        AND i.status IN ('PAID', 'ISSUED', 'PARTIAL')
+        AND i.status = 'PAID'
       GROUP BY c.id, c.name
       ORDER BY SUM(i."grandTotal") DESC
       LIMIT 10
@@ -1032,16 +1058,18 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
       JOIN products p ON p.id = ii."productId"
       WHERE i."tenantId" = ${t}
         AND ii."tenantId" = ${t}
-        AND i."issuedAt" >= ${rangeStartUTC}
+AND i."issuedAt" >= ${rangeStartUTC}
         AND i."issuedAt" <= ${endUTC}
-        AND i.status IN ('PAID', 'ISSUED', 'PARTIAL')
+        AND i.status = 'PAID'
       GROUP BY p.category
       ORDER BY SUM(ii.subtotal) DESC
     `),
   ]);
 
-  const totalRevenue = Number(paidTotal._sum.grandTotal ?? 0);
-  const avgInvoice = invoiceCount > 0 ? totalRevenue / invoiceCount : 0;
+const totalRevenue = computeRevenue([
+    { grandTotal: paidTotal._sum.grandTotal, returnedAmount: paidTotal._sum.returnedAmount },
+  ]);
+  const avgInvoice = computeAverageInvoice(totalRevenue, invoiceCount);
 
   const topCustomer = topCustomers[0]?.name ?? "-";
   const revenueTrend = chartDays.map((day) => ({
@@ -1138,7 +1166,12 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
     },
   });
   const totalRevenue = invoices.reduce((sum, i) => sum + Number(i.grandTotal) - Number(i.returnedAmount), 0);
-  const profit = totalRevenue - totalExpenses - totalPurchases;
+  // Net profit konsisten: Revenue - Expenses - Purchases.
+  const profit = computeNetProfit({
+    revenue: totalRevenue,
+    expenses: totalExpenses,
+    purchases: totalPurchases,
+  });
 
   // Expense trend (based on date range) using tenant timezone
   const expenseTrend: { date: string; expenses: number }[] = [];
@@ -1195,6 +1228,7 @@ export type RoastingReportData = {
   totalRbProduced: number;
   avgYield: number;
   lossPercent: number;
+  totalLossKg: number;
   yieldTrend: { date: string; yield: number }[];
   batches: {
     id: string;
@@ -1272,6 +1306,7 @@ export async function getRoastingReport(startDate: string, endDate: string): Pro
     totalRbProduced,
     avgYield,
     lossPercent,
+    totalLossKg: Math.max(0, totalGbUsed - totalRbProduced),
     yieldTrend,
     batches: batches.map((b) => ({
       id: b.id,
@@ -1294,6 +1329,7 @@ export type ProductionReportData = {
   totalBatches: number;
   totalRbUsed: number;
   totalFgProduced: number;
+  totalFgKg: number;
   totalPackagingUsed: number;
   efficiency: number;
   productionTrend: { date: string; units: number }[];
@@ -1327,7 +1363,7 @@ export async function getProductionReport(startDate: string, endDate: string): P
     },
     include: {
       outputProduct: { select: { name: true } },
-      recipe: { select: { name: true } },
+      recipe: { select: { name: true, outputGrams: true } },
     },
     orderBy: { producedAt: "desc" },
   });
@@ -1336,7 +1372,14 @@ export async function getProductionReport(startDate: string, endDate: string): P
   const totalRbUsed = batches.reduce((sum, b) => sum + Number(b.totalRbUsedKg), 0);
   const totalFgProduced = batches.reduce((sum, b) => sum + b.unitsProduced, 0);
   const totalPackagingUsed = batches.reduce((sum, b) => sum + b.unitsProduced, 0); // 1:1 with FG
-  const efficiency = totalRbUsed > 0 ? (totalFgProduced / totalRbUsed) * 100 : 0;
+
+  // Hasil bahan dari resep: kg produk jadi ÷ kg bahan × 100.
+  // Berbasis berat per unit outputsGrams -> hanya akurat bila resep punya berat.
+  const totalFgKg = batches.reduce((sum, b) => {
+    const grams = Number(b.recipe?.outputGrams ?? 0);
+    return sum + (grams > 0 ? (b.unitsProduced * grams) / 1000 : 0);
+  }, 0);
+  const efficiency = totalRbUsed > 0 ? (totalFgKg / totalRbUsed) * 100 : 0;
 
   // Production trend (based on date range) using tenant timezone
   const productionTrend: { date: string; units: number }[] = [];
@@ -1362,6 +1405,7 @@ export async function getProductionReport(startDate: string, endDate: string): P
     totalBatches,
     totalRbUsed,
     totalFgProduced,
+    totalFgKg,
     totalPackagingUsed,
     efficiency,
     productionTrend,
@@ -1496,7 +1540,7 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
   const chartDays = buildChartDaysFrom(startStr, chartDayCount, timezone);
 
   // Aggregate in PostgreSQL instead of loading every invoice/expense into Node.
-  const [invoiceTotal, expenseGroups, prevInvoiceTotal, prevExpenseTotal, dailyTotals] = await Promise.all([
+const [invoiceTotal, expenseGroups, prevInvoiceTotal, prevExpenseTotal, purchaseTotal, prevPurchaseTotal, dailyTotals] = await Promise.all([
     tp.invoice.aggregate({
       where: {
         issuedAt: { gte: rangeStart, lte: rangeEnd },
@@ -1523,6 +1567,22 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
       where: { date: { gte: prevStart, lte: prevEnd }, voidAt: null },
       _sum: { amount: true },
     }),
+    tp.purchase.aggregate({
+      where: {
+        receivedAt: { gte: rangeStart, lte: rangeEnd },
+        status: { in: ["COMPLETED", "VOID"] },
+        OR: [{ voidAt: null }, { voidAt: { gt: rangeEnd } }],
+      },
+      _sum: { totalCost: true },
+    }),
+    tp.purchase.aggregate({
+      where: {
+        receivedAt: { gte: prevStart, lte: prevEnd },
+        status: { in: ["COMPLETED", "VOID"] },
+        OR: [{ voidAt: null }, { voidAt: { gt: prevEnd } }],
+      },
+      _sum: { totalCost: true },
+    }),
     getDailyFinancialTotals({
       tenantId,
       timezone,
@@ -1531,23 +1591,34 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
     }),
   ]);
 
-  const totalRevenue = Number(invoiceTotal._sum.grandTotal ?? 0) - Number(invoiceTotal._sum.returnedAmount ?? 0);
+const totalRevenue = Number(invoiceTotal._sum.grandTotal ?? 0) - Number(invoiceTotal._sum.returnedAmount ?? 0);
   const totalExpenses = expenseGroups.reduce(
     (sum, group) => sum + Number(group._sum.amount ?? 0),
     0,
   );
-  const netProfit = totalRevenue - totalExpenses;
-  const cashFlow = totalRevenue - totalExpenses;
+  const totalPurchases = Number(purchaseTotal._sum.totalCost ?? 0);
 
   const lastRevenue = Number(prevInvoiceTotal._sum.grandTotal ?? 0) - Number(prevInvoiceTotal._sum.returnedAmount ?? 0);
   const lastExpenses = Number(prevExpenseTotal._sum.amount ?? 0);
-  const lastProfit = lastRevenue - lastExpenses;
-  const lastCashFlow = lastRevenue - lastExpenses;
+  const prevPurchases = Number(prevPurchaseTotal._sum.totalCost ?? 0);
 
-  const revenueTrend = lastRevenue > 0 ? ((totalRevenue - lastRevenue) / lastRevenue) * 100 : 0;
-  const expensesTrend = lastExpenses > 0 ? ((totalExpenses - lastExpenses) / lastExpenses) * 100 : 0;
-  const profitTrend = lastProfit > 0 ? ((netProfit - lastProfit) / lastProfit) * 100 : 0;
-  const cashFlowTrend = lastCashFlow > 0 ? ((cashFlow - lastCashFlow) / lastCashFlow) * 100 : 0;
+  // Definisi konsisten: NET PROFIT = Revenue - Expenses - Purchases;
+  // CASH FLOW = Revenue - Expenses (lihat src/lib/report-finance.ts).
+  const { netProfit, cashFlow } = computePeriodMetrics({
+    revenue: totalRevenue,
+    expenses: totalExpenses,
+    purchases: totalPurchases,
+  });
+  const { netProfit: lastNetProfit, cashFlow: lastCashFlow } = computePeriodMetrics({
+    revenue: lastRevenue,
+    expenses: lastExpenses,
+    purchases: prevPurchases,
+  });
+
+  const revenueTrend = computeTrend(totalRevenue, lastRevenue);
+  const expensesTrend = computeTrend(totalExpenses, lastExpenses);
+  const profitTrend = computeTrend(netProfit, lastNetProfit);
+  const cashFlowTrend = computeTrend(cashFlow, lastCashFlow);
 
   const revenueVsExpensesChart = chartDays.map((day) => {
     const totals = dailyTotals.get(day.dateKey);

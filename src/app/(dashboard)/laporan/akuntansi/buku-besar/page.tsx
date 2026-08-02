@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { requireFeature } from "@/lib/auth";
 import { getChartOfAccounts, getBukuBesar } from "../actions";
 import { BukuBesarClient } from "./BukuBesarClient";
 
@@ -9,6 +10,7 @@ export default async function BukuBesarPage({
   searchParams: Promise<{ account?: string; from?: string; to?: string }>;
 }) {
   const params = await searchParams;
+  await requireFeature("ADVANCED_REPORTS");
   const accounts = await getChartOfAccounts().catch(() => []);
 
   let data = null;
