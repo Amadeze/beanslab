@@ -3,13 +3,15 @@
 import { formatRupiah, formatDate } from "@/lib/format";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import type { InventoryValuationReport } from "../actions";
-import { Package, Download, Database, Boxes, Coffee, TrendingUp } from "lucide-react";
+import { Package, Download, Database, Boxes, Coffee, TrendingUp, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentDate } from "@/lib/date-utils";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { useState } from "react";
+import { exportToProfessionalPdf, exportToProfessionalExcel } from "@/lib/export-utils";
 
 const CATEGORY_MAP: Record<string, { label: string, icon: React.ReactNode }> = {
   GREEN_BEAN: { label: "Green Bean", icon: <Database size={16} /> },
@@ -18,37 +20,32 @@ const CATEGORY_MAP: Record<string, { label: string, icon: React.ReactNode }> = {
   PACKAGING: { label: "Kemasan", icon: <Boxes size={16} /> },
 };
 
-function exportToCSV(report: InventoryValuationReport) {
-  const rows = [
-    ["Laporan Valuasi Persediaan", `roastd.id - ${formatDate(report.asOf)}`],
-    ["Metode biaya", "Rata-rata tertimbang"],
-    [],
-    ["Ringkasan Valuasi", "Nilai (IDR)"],
-    ["Green Bean", report.totalGreenBeanValue],
-    ["Roasted Bean", report.totalRoastedBeanValue],
-    ["Produk Jadi", report.totalFinishedGoodsValue],
-    ["Kemasan", report.totalPackagingValue],
-    ["TOTAL VALUASI", report.grandTotalValue],
-    [],
-    ["Rincian Aset", "Kategori", "Stok", "Satuan", "Harga Satuan (IDR)", "Total Nilai (IDR)"],
-    ...report.items.map(item => [
-      item.name, 
-      CATEGORY_MAP[item.category]?.label || item.category, 
-      item.stock, 
-      item.unit, 
-      item.unitCost, 
-      item.totalValue
-    ])
-  ];
-
-  const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `Valuasi_Persediaan_${getCurrentDate().toISOString().slice(0,10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+function getExportConfig(report: InventoryValuationReport) {
+  type RowType = typeof report.items[0];
+  return {
+    title: "Laporan Valuasi Persediaan",
+    filename: `Valuasi_Persediaan_${getCurrentDate().toISOString().slice(0,10)}`,
+    sheetName: "Valuasi",
+    columns: [
+      { header: "Nama Aset", accessor: (row: RowType) => row.name, align: "left" as const },
+      { header: "Kategori", accessor: (row: RowType) => CATEGORY_MAP[row.category]?.label || row.category, align: "left" as const },
+      { header: "Stok", accessor: (row: RowType) => `${row.stock} ${row.unit}`, align: "right" as const },
+      { header: "HPP / Unit", accessor: (row: RowType) => formatRupiah(row.unitCost), align: "right" as const },
+      { header: "Total Nilai HPP", accessor: (row: RowType) => formatRupiah(row.totalValue), align: "right" as const }
+    ],
+    data: report.items,
+    subtitle: `roastd.id - ${formatDate(report.asOf)}`,
+    summary: [
+      { label: "Metode Biaya", value: "Rata-rata tertimbang" },
+      { label: "Total Green Bean", value: formatRupiah(report.totalGreenBeanValue) },
+      { label: "Total Roasted Bean", value: formatRupiah(report.totalRoastedBeanValue) },
+      { label: "Total Produk Jadi", value: formatRupiah(report.totalFinishedGoodsValue) },
+      { label: "Total Kemasan", value: formatRupiah(report.totalPackagingValue) },
+      { label: "TOTAL VALUASI", value: formatRupiah(report.grandTotalValue) }
+    ],
+    generatedBy: "Roastd Studio",
+    status: "DRAFT" as const,
+  };
 }
 
 interface InventoryValuationClientProps {
@@ -57,6 +54,26 @@ interface InventoryValuationClientProps {
 }
 
 export function InventoryValuationClient({ report, hideLayout }: InventoryValuationClientProps) {
+  const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
+
+  const doExportPdf = async () => {
+    try {
+      setExporting("pdf");
+      await exportToProfessionalPdf(getExportConfig(report));
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const doExportExcel = async () => {
+    try {
+      setExporting("excel");
+      await exportToProfessionalExcel(getExportConfig(report));
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const chartColors = ["#2B7567", "#A66F12", "#B65331", "#6F4A6A"];
   const chartData = [
     { name: "Green Bean", value: report.totalGreenBeanValue },
@@ -263,14 +280,24 @@ export function InventoryValuationClient({ report, hideLayout }: InventoryValuat
         eyebrow="Intelligence"
         description="Ringkasan nilai aset persediaan di gudang saat ini."
         actions={
-            <Button onClick={() => exportToCSV(report)} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm print:hidden">
-              <Download size={14} /> Export CSV
+          <div className="flex gap-2 print:hidden">
+            <Button onClick={doExportPdf} disabled={exporting !== null} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm">
+              {exporting === 'pdf' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} Export PDF
             </Button>
+            <Button onClick={doExportExcel} disabled={exporting !== null} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm">
+              {exporting === 'excel' ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />} Export Excel
+            </Button>
+          </div>
         }
         mobileActions={
-          <Button onClick={() => exportToCSV(report)} variant="outline" size="sm" className="gap-1.5 print:hidden">
-            <Download size={14} /> CSV
-          </Button>
+          <div className="flex gap-2 print:hidden">
+            <Button onClick={doExportPdf} disabled={exporting !== null} variant="outline" size="sm" className="gap-1.5">
+              {exporting === 'pdf' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF
+            </Button>
+            <Button onClick={doExportExcel} disabled={exporting !== null} variant="outline" size="sm" className="gap-1.5">
+              {exporting === 'excel' ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />} Excel
+            </Button>
+          </div>
         }
       />
 

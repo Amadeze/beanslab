@@ -12,7 +12,7 @@ type Machine = {
   capacityKg: number | null;
   isActive: boolean;
   createdAt: string;
-  _count: { artisanConnectors: number; artisanImports: number };
+  _count: { roastdStudios: number; artisanImports: number };
 };
 
 export function MachinesClient({ machines }: { machines: Machine[] }) {
@@ -185,7 +185,7 @@ export function MachinesClient({ machines }: { machines: Machine[] }) {
                 {m.capacityKg && (
                   <span>Kapasitas: <strong>{m.capacityKg} kg</strong></span>
                 )}
-                <span>{m._count.artisanConnectors} connector · {m._count.artisanImports} import</span>
+                <span>{m._count.roastdStudios} connector Â· {m._count.artisanImports} import</span>
               </div>
             </div>
             <div className="flex items-center gap-2">

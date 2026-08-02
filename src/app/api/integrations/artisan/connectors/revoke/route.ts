@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify connector belongs to tenant
-    const connector = await tenantPrisma.artisanConnector.findFirst({
+    const connector = await tenantPrisma.roastdStudio.findFirst({
       where: { id: connectorId },
       select: { id: true, tenantId: true, computerName: true, revokedAt: true },
     });
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     }
 
     await tenantPrisma.$transaction(async (tx) => {
-      await tx.artisanConnector.update({
+      await tx.roastdStudio.update({
         where: { id: connectorId },
         data: {
           status: "REVOKED",
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
         tenantId: user.tenantId,
         userId: user.id,
         action: "REVOKE",
-        entityType: "ArtisanConnector",
+        entityType: "RoastdStudio",
         entityId: connectorId,
         metadata: { computerName: connector.computerName },
       });

@@ -757,7 +757,7 @@ export async function createParentRoastingBatch(
         },
       });
       return { batchCode: batch.code, outcome, splits };
-    }, { isolationLevel: "Serializable" });
+    }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
 
     revalidatePath("/roasting");
     revalidatePath("/inventory");
@@ -903,7 +903,7 @@ export async function completeParentRoastingBatch(
         },
       });
       return { batchCode: batch.code, outcome };
-    }, { isolationLevel: "Serializable" });
+    }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
 
     revalidatePath("/roasting");
     revalidatePath("/inventory");
@@ -1011,7 +1011,7 @@ export async function voidParentRoastingBatch(
         before: { status: batch.status },
         after: { status: "VOID", reason: reason.trim() },
       });
-    }, { isolationLevel: "Serializable" });
+    }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
 
     revalidatePath("/roasting");
     revalidatePath("/inventory");
@@ -1199,3 +1199,4 @@ export async function splitBatchByCapacity(
     };
   }
 }
+

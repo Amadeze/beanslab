@@ -1,66 +1,162 @@
 "use client";
 
-import { Scale, Download } from "lucide-react";
+import { useState } from "react";
+import { FileText, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BalanceSheetReport } from "../actions";
 import { ReportHeader } from "../_shared";
 import { formatRupiah } from "@/lib/format";
+import { exportToProfessionalPdf, exportToProfessionalExcel } from "@/lib/export-utils";
 
 interface BalanceSheetClientProps {
   report: BalanceSheetReport;
 }
 
-function exportCSV(report: BalanceSheetReport) {
+type BSRow = { kat: string; jml: string; ket: string };
+
+async function doExportPdf(report: BalanceSheetReport) {
   const { assets, liabilities, equity } = report;
-  const rows = [
-    ["Neraca (Balance Sheet)"],
-    [""],
-    ["ASET", ""],
-    ["Kas & Bank", String(assets.cashAndBank)],
-    ["Piutang Usaha", String(assets.accountsReceivable)],
-    ["Persediaan", String(assets.inventory)],
-    ["Total Aset", String(assets.totalAssets)],
-    [""],
-    ["LIABILITAS & EKUITAS", ""],
-    ["Hutang Usaha", String(liabilities.accountsPayable)],
-    ["Total Liabilitas", String(liabilities.totalLiabilities)],
-    [""],
-    ["Modal Disetor", String(equity.contributedCapital)],
-    ["Prive", String(equity.withdrawals)],
-    ["Laba Ditahan", String(equity.retainedEarnings)],
-    ["Bagi Hasil", String(equity.distributedProfit)],
-    ["Total Ekuitas", String(equity.totalEquity)],
-    ["Total Kewajiban & Ekuitas", String(liabilities.totalLiabilities + equity.totalEquity)],
+  const asOf = new Date(report.asOf).toLocaleDateString("id-ID", {
+    day: "numeric", month: "long", year: "numeric",
+  });
+  const fmt = (v: number) => formatRupiah(v);
+
+  const asetRows: BSRow[] = [
+    { kat: "Kas & Bank",             jml: fmt(assets.cashAndBank),          ket: "Aset Lancar" },
+    { kat: "Piutang Usaha",           jml: fmt(assets.accountsReceivable),   ket: "Aset Lancar" },
+    { kat: "Persediaan (Inventory)",  jml: fmt(assets.inventory),            ket: "Aset Lancar" },
+    { kat: "TOTAL ASET",             jml: fmt(assets.totalAssets),          ket: "" },
   ];
-  const csv = "data:text/csv;charset=utf-8," + rows.map(r => r.join(",")).join("\n");
-  const link = document.createElement("a");
-  link.setAttribute("href", encodeURI(csv));
-  link.setAttribute("download", `Neraca_${new Date().toISOString().slice(0, 10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+
+  const pasivaRows: BSRow[] = [
+    { kat: "Hutang Usaha",            jml: fmt(liabilities.accountsPayable),  ket: "Kewajiban" },
+    { kat: "Total Kewajiban",         jml: fmt(liabilities.totalLiabilities), ket: "" },
+    { kat: "Modal Disetor",           jml: fmt(equity.contributedCapital),    ket: "Ekuitas" },
+    { kat: "Laba Ditahan",            jml: fmt(equity.retainedEarnings),      ket: "Ekuitas" },
+    ...(equity.withdrawals > 0 ? [{ kat: "Prive (Penarikan)", jml: fmt(equity.withdrawals), ket: "Ekuitas" }] : []),
+    ...(equity.distributedProfit > 0 ? [{ kat: "Bagi Hasil", jml: fmt(equity.distributedProfit), ket: "Ekuitas" }] : []),
+    { kat: "Total Ekuitas",           jml: fmt(equity.totalEquity),           ket: "" },
+    { kat: "TOTAL KEWAJIBAN & EKUITAS", jml: fmt(liabilities.totalLiabilities + equity.totalEquity), ket: "" },
+  ];
+
+  const cols = [
+    { header: "Keterangan",   accessor: (r: BSRow) => r.kat },
+    { header: "Jumlah (IDR)", accessor: (r: BSRow) => r.jml, align: "right" as const },
+    { header: "Klasifikasi",  accessor: (r: BSRow) => r.ket },
+  ];
+
+  const summary = [
+    { label: "Total Aset",       value: fmt(assets.totalAssets) },
+    { label: "Total Kewajiban",  value: fmt(liabilities.totalLiabilities) },
+    { label: "Total Ekuitas",    value: fmt(equity.totalEquity) },
+    { label: "Hutang Usaha",     value: fmt(liabilities.accountsPayable) },
+    { label: "Laba Ditahan",     value: fmt(equity.retainedEarnings) },
+    {
+      label: "Neraca Seimbang",
+      value: Math.abs(assets.totalAssets - (liabilities.totalLiabilities + equity.totalEquity)) < 1 ? "✓ Ya" : "⚠ Selisih",
+    },
+  ];
+
+  await exportToProfessionalPdf({
+    title: "Neraca (Balance Sheet)",
+    subtitle: "Roastd Studio · Posisi Keuangan",
+    filename: `Neraca_${new Date(report.asOf).toISOString().slice(0, 10)}`,
+    sheetName: "Neraca",
+    columns: cols,
+    data: [...asetRows, { kat: "─────────────", jml: "", ket: "" }, ...pasivaRows],
+    summary,
+    period: `Per ${asOf}`,
+    status: "DRAFT",
+    sections: [
+      { title: "AKTIVA (Aset)", columns: cols as Parameters<typeof exportToProfessionalPdf>[0]["columns"], data: asetRows },
+      { title: "PASIVA (Kewajiban & Ekuitas)", columns: cols as Parameters<typeof exportToProfessionalPdf>[0]["columns"], data: pasivaRows },
+    ],
+    generatedBy: "Roastd Studio",
+  });
 }
 
-function Line({ label, value, bold, positive, negative }: { label: string; value: string; bold?: boolean; positive?: boolean; negative?: boolean }) {
+async function doExportExcel(report: BalanceSheetReport) {
+  const { assets, liabilities, equity } = report;
+  const asOf = new Date(report.asOf).toLocaleDateString("id-ID", {
+    day: "numeric", month: "long", year: "numeric",
+  });
+  const fmt = (v: number) => formatRupiah(v);
+
+  const allRows: BSRow[] = [
+    { kat: "=== AKTIVA ===",              jml: "",                                        ket: "" },
+    { kat: "Kas & Bank",                  jml: fmt(assets.cashAndBank),                  ket: "Aset Lancar" },
+    { kat: "Piutang Usaha",               jml: fmt(assets.accountsReceivable),           ket: "Aset Lancar" },
+    { kat: "Persediaan (Inventory)",      jml: fmt(assets.inventory),                    ket: "Aset Lancar" },
+    { kat: "TOTAL ASET",                  jml: fmt(assets.totalAssets),                  ket: "" },
+    { kat: "",                            jml: "",                                        ket: "" },
+    { kat: "=== PASIVA ===",              jml: "",                                        ket: "" },
+    { kat: "Hutang Usaha",                jml: fmt(liabilities.accountsPayable),         ket: "Kewajiban" },
+    { kat: "Total Kewajiban",             jml: fmt(liabilities.totalLiabilities),        ket: "" },
+    { kat: "Modal Disetor",               jml: fmt(equity.contributedCapital),           ket: "Ekuitas" },
+    { kat: "Laba Ditahan",                jml: fmt(equity.retainedEarnings),             ket: "Ekuitas" },
+    { kat: "Total Ekuitas",               jml: fmt(equity.totalEquity),                  ket: "" },
+    { kat: "TOTAL KEWAJIBAN & EKUITAS",   jml: fmt(liabilities.totalLiabilities + equity.totalEquity), ket: "" },
+  ];
+
+  await exportToProfessionalExcel({
+    title: "Neraca (Balance Sheet)",
+    subtitle: "Roastd Studio · Posisi Keuangan",
+    filename: `Neraca_${new Date(report.asOf).toISOString().slice(0, 10)}`,
+    sheetName: "Neraca",
+    columns: [
+      { header: "Keterangan",   accessor: (r: BSRow) => r.kat },
+      { header: "Jumlah (IDR)", accessor: (r: BSRow) => r.jml, align: "right" as const },
+      { header: "Klasifikasi",  accessor: (r: BSRow) => r.ket },
+    ],
+    data: allRows,
+    summary: [
+      { label: "Total Aset",      value: fmt(assets.totalAssets) },
+      { label: "Total Kewajiban", value: fmt(liabilities.totalLiabilities) },
+      { label: "Total Ekuitas",   value: fmt(equity.totalEquity) },
+      { label: "Hutang Usaha",    value: fmt(liabilities.accountsPayable) },
+      { label: "Laba Ditahan",    value: fmt(equity.retainedEarnings) },
+    ],
+    period: `Per ${asOf}`,
+    status: "DRAFT",
+    generatedBy: "Roastd Studio",
+  });
+}
+
+function Line({
+  label, value, bold, positive, negative,
+}: {
+  label: string; value: string; bold?: boolean; positive?: boolean; negative?: boolean;
+}) {
   return (
     <div className="flex justify-between items-center py-2.5 px-5 border-b border-stone-100 last:border-0">
       <span className={bold ? "text-sm font-bold text-stone-800" : "text-sm text-stone-600"}>{label}</span>
-      <span className={`font-mono text-sm tabular-nums ${bold ? "font-bold" : "font-medium"} ${
-        positive ? "text-emerald-600" : negative ? "text-red-500" : "text-stone-800"
-      }`}>{value}</span>
+      <span
+        className={`font-mono text-sm tabular-nums ${bold ? "font-bold" : "font-medium"} ${
+          positive ? "text-emerald-600" : negative ? "text-red-500" : "text-stone-800"
+        }`}
+      >
+        {value}
+      </span>
     </div>
   );
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="border-b border-stone-200 bg-stone-50 px-5 py-2 font-bold text-xs uppercase tracking-widest text-stone-500">{children}</div>;
+  return (
+    <div className="border-b border-stone-200 bg-stone-50 px-5 py-2 font-bold text-xs uppercase tracking-widest text-stone-500">
+      {children}
+    </div>
+  );
 }
 
 export function BalanceSheetClient({ report }: BalanceSheetClientProps) {
+  const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
+  const handlePdf   = async () => { setExporting("pdf");   try { await doExportPdf(report);   } finally { setExporting(null); } };
+  const handleExcel = async () => { setExporting("excel"); try { await doExportExcel(report); } finally { setExporting(null); } };
+
   const { assets, liabilities, equity } = report;
   const totalPasiva = liabilities.totalLiabilities + equity.totalEquity;
   const diff = Math.abs(assets.totalAssets - totalPasiva);
-
   const fmt = (v: number) => formatRupiah(v);
 
   return (
@@ -72,9 +168,14 @@ export function BalanceSheetClient({ report }: BalanceSheetClientProps) {
         status="DRAFT"
         generatedAt={new Date()}
         actions={
-          <Button onClick={() => exportCSV(report)} variant="outline" className="h-8 gap-1.5">
-            <Download size={14} /> Export CSV
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button onClick={handlePdf} disabled={exporting !== null} variant="outline" className="h-8 gap-1.5">
+              {exporting === "pdf" ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF
+            </Button>
+            <Button onClick={handleExcel} disabled={exporting !== null} variant="outline" className="h-8 gap-1.5">
+              {exporting === "excel" ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />} Excel
+            </Button>
+          </div>
         }
       />
 
@@ -110,7 +211,7 @@ export function BalanceSheetClient({ report }: BalanceSheetClientProps) {
         {/* PASIVA */}
         <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
           <div className="bg-gradient-to-r from-rose-50 to-orange-50/50 px-5 py-3 border-b border-stone-200">
-            <h3 className="text-sm font-bold text-rose-800">PASIVA (Kewajiban & Ekuitas)</h3>
+            <h3 className="text-sm font-bold text-rose-800">PASIVA (Kewajiban &amp; Ekuitas)</h3>
           </div>
 
           <SectionTitle>Kewajiban</SectionTitle>

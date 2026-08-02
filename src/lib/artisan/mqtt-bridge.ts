@@ -30,7 +30,7 @@ export async function processMqttLive(
   // in the same ingestion path prevents "connector offline / telemetry active"
   // contradictions when a heartbeat is delayed.
   if (connectorId) {
-    await prisma.artisanConnector.updateMany({
+    await prisma.roastdStudio.updateMany({
       where: {
         id: connectorId,
         tenantId,

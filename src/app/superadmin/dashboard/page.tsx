@@ -19,8 +19,8 @@ export default async function SuperadminDashboard() {
       where: { status: { in: ["PAID", "ISSUED", "PARTIAL"] } },
       _sum: { grandTotal: true }
     }),
-    prisma.artisanConnector.count({ where: { revokedAt: null } }),
-    prisma.artisanConnector.count({ where: { status: "ONLINE", revokedAt: null } }),
+    prisma.roastdStudio.count({ where: { revokedAt: null } }),
+    prisma.roastdStudio.count({ where: { status: "ONLINE", revokedAt: null } }),
     prisma.subscriptionPayment.count({ where: { status: "PENDING" } }),
     prisma.artisanRoastImport.count({ where: { status: "FAILED", uploadedAt: { gte: last24Hours } } }),
     prisma.jobRun.count({ where: { status: "FAILED", startedAt: { gte: last24Hours } } }),

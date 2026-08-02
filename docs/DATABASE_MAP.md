@@ -40,7 +40,7 @@ Money memakai `Decimal`; quantity dan weight dibedakan melalui field unit/kg/gra
 
 ## Integrasi dan observability
 
-- ArtisanPairingCode, ArtisanConnector, ArtisanRoastImport, Roast, LiveSession.
+- ArtisanPairingCode, RoastdStudio, ArtisanRoastImport, Roast, LiveSession.
 - AuditLog, WebhookEvent, ReminderDelivery, JobRun, DailyBriefSnapshot, RateLimitBucket.
 
 ## Klasifikasi

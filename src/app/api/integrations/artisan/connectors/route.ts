@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest) {
   try {
     const tenantPrisma = await requireTenantPrisma();
 
-    const connectors = await tenantPrisma.artisanConnector.findMany({
+    const connectors = await tenantPrisma.roastdStudio.findMany({
       select: {
         id: true,
         computerName: true,

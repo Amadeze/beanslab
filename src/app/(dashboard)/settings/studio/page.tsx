@@ -8,7 +8,7 @@ const TWO_MINUTES_MS = 2 * 60 * 1000;
 
 export default async function StudioPage() {
   const user = await requireRole("OWNER");
-  const connectors = await prisma.artisanConnector.findMany({
+  const connectors = await prisma.roastdStudio.findMany({
     where: { tenantId: user.tenantId },
     select: {
       id: true,
@@ -57,7 +57,7 @@ export default async function StudioPage() {
       <PageHeader
         title="Roastd Studio"
         eyebrow="Perangkat roasting"
-        description="Unduh Studio dan pantau perangkat yang terhubung. Login dari aplikasi—tanpa token atau pairing manual."
+        description="Unduh Studio dan pantau perangkat yang terhubung. Login dari aplikasiâ€”tanpa token atau pairing manual."
       />
       <SettingsNav userRole={user.role} />
       <div className="custom-scrollbar flex-1 overflow-auto">

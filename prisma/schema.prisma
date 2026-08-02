@@ -209,7 +209,7 @@ enum CapitalTransactionType {
   DIVIDEND // Pembagian laba
 }
 
-enum ArtisanConnectorStatus {
+enum StudioStatus {
   ONLINE
   OFFLINE
   REVOKED
@@ -368,7 +368,7 @@ model Tenant {
   machines                      Machine[]
   artisanPairingCodes           ArtisanPairingCode[]
   studioDeviceAuthorizations    StudioDeviceAuthorization[]
-  artisanConnectors             ArtisanConnector[]
+  roastdStudios                 RoastdStudio[]
   artisanImports                ArtisanRoastImport[]
   roasts                        Roast[]
   liveSessions                  LiveSession[]
@@ -425,7 +425,7 @@ model Machine {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  artisanConnectors          ArtisanConnector[]
+  roastdStudios              RoastdStudio[]
   artisanImports             ArtisanRoastImport[]
   artisanPairingCodes        ArtisanPairingCode[]
   studioDeviceAuthorizations StudioDeviceAuthorization[]
@@ -478,25 +478,25 @@ model User {
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
 
-  purchases                   Purchase[]
-  purchaseOrders              PurchaseOrder[]
-  parentRoastingBatches       ParentRoastingBatch[]
-  productionBatches           ProductionBatch[]
-  invoices                    Invoice[]
-  payments                    Payment[]
-  supplierPayments            SupplierPayment[]
-  ledgerEntries               InventoryLedger[]
-  capitalTransactions         CapitalTransaction[]
-  expenses                    Expense[]
-  journalEntries              JournalEntry[]
-  auditLogs                   AuditLog[]
-  passwordResetTokens         PasswordResetToken[]
-  studioDeviceAuthorizations  StudioDeviceAuthorization[] @relation("StudioDeviceAuthorizationApprover")
-  authorizedArtisanConnectors ArtisanConnector[]          @relation("ArtisanConnectorAuthorizer")
-  sampleUsages                SampleUsage[]
-  reviewedPaymentSubmissions  PaymentSubmission[]         @relation("PaymentSubmissionReviewer")
-  tenantId                    String
-  tenant                      Tenant                      @relation(fields: [tenantId], references: [id])
+  purchases                  Purchase[]
+  purchaseOrders             PurchaseOrder[]
+  parentRoastingBatches      ParentRoastingBatch[]
+  productionBatches          ProductionBatch[]
+  invoices                   Invoice[]
+  payments                   Payment[]
+  supplierPayments           SupplierPayment[]
+  ledgerEntries              InventoryLedger[]
+  capitalTransactions        CapitalTransaction[]
+  expenses                   Expense[]
+  journalEntries             JournalEntry[]
+  auditLogs                  AuditLog[]
+  passwordResetTokens        PasswordResetToken[]
+  studioDeviceAuthorizations StudioDeviceAuthorization[] @relation("StudioDeviceAuthorizationApprover")
+  authorizedRoastdStudios    RoastdStudio[]              @relation("RoastdStudioAuthorizer")
+  sampleUsages               SampleUsage[]
+  reviewedPaymentSubmissions PaymentSubmission[]         @relation("PaymentSubmissionReviewer")
+  tenantId                   String
+  tenant                     Tenant                      @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@map("users")
@@ -1824,25 +1824,25 @@ model StudioDeviceAuthorization {
   @@map("studio_device_authorizations")
 }
 
-model ArtisanConnector {
-  id                 String                 @id @default(cuid())
+model RoastdStudio {
+  id                 String       @id @default(cuid())
   tenantId           String
   machineId          String
-  installationId     String                 @unique
+  installationId     String       @unique
   computerName       String
   platform           String
   appVersion         String
-  credentialHash     String                 @unique
-  status             ArtisanConnectorStatus @default(OFFLINE)
+  credentialHash     String       @unique
+  status             StudioStatus @default(OFFLINE)
   lastSeenAt         DateTime?
   revokedAt          DateTime?
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
   authorizedByUserId String?
 
   tenant       Tenant               @relation(fields: [tenantId], references: [id])
   machine      Machine              @relation(fields: [machineId], references: [id])
-  authorizedBy User?                @relation("ArtisanConnectorAuthorizer", fields: [authorizedByUserId], references: [id], onDelete: SetNull)
+  authorizedBy User?                @relation("RoastdStudioAuthorizer", fields: [authorizedByUserId], references: [id], onDelete: SetNull)
   imports      ArtisanRoastImport[]
 
   @@index([tenantId])
@@ -1851,7 +1851,7 @@ model ArtisanConnector {
   @@index([lastSeenAt])
   @@index([status])
   @@index([authorizedByUserId])
-  @@map("artisan_connectors")
+  @@map("roastd_studios")
 }
 
 model ArtisanRoastImport {
@@ -1871,9 +1871,9 @@ model ArtisanRoastImport {
   uploadedAt       DateTime            @default(now())
   importedAt       DateTime?
 
-  tenant    Tenant           @relation(fields: [tenantId], references: [id])
-  machine   Machine          @relation(fields: [machineId], references: [id])
-  connector ArtisanConnector @relation(fields: [connectorId], references: [id])
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
+  machine   Machine      @relation(fields: [machineId], references: [id])
+  connector RoastdStudio @relation(fields: [connectorId], references: [id])
 
   @@unique([tenantId, machineId, fileHash])
   @@index([tenantId, uploadedAt])

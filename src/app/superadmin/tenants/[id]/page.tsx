@@ -40,7 +40,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
           orderBy: [{ role: "asc" }, { createdAt: "asc" }],
           select: { id: true, name: true, email: true, role: true, isActive: true, lockedUntil: true, createdAt: true },
         },
-        artisanConnectors: {
+        roastdStudios: {
           orderBy: { lastSeenAt: "desc" },
           take: 8,
           select: {
@@ -64,7 +64,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
           take: 10,
           select: { id: true, action: true, entityType: true, createdAt: true, user: { select: { name: true } } },
         },
-        _count: { select: { users: true, machines: true, roasts: true, invoices: true, products: true, artisanConnectors: true } },
+        _count: { select: { users: true, machines: true, roasts: true, invoices: true, products: true, roastdStudios: true } },
       },
     }),
     prisma.invoice.aggregate({ where: { tenantId: id, status: { in: ["ISSUED", "PARTIAL", "PAID"] } }, _sum: { grandTotal: true } }),
@@ -74,7 +74,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
   if (!tenant) notFound();
   const accessState = getTenantAccessState(tenant);
   const owner = tenant.users.find((user) => user.role === "OWNER");
-  const onlineConnectors = tenant.artisanConnectors.filter((connector) => connector.status === "ONLINE").length;
+  const onlineConnectors = tenant.roastdStudios.filter((connector) => connector.status === "ONLINE").length;
 
   return (
     <div className="mx-auto flex max-w-[1480px] flex-col gap-6 p-5 md:p-8">
@@ -113,13 +113,13 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
         <Pulse label="Paket" value={tenant.subscriptionTier} note={tenant.subscriptionStatus} />
-        <Pulse label="Studio" value={`${onlineConnectors}/${tenant._count.artisanConnectors}`} note="konektor online" />
+        <Pulse label="Studio" value={`${onlineConnectors}/${tenant._count.roastdStudios}`} note="konektor online" />
         <Pulse label="Aktivitas" value={roasts30d.toString()} note="roast dalam 30 hari" />
       </section>
 
       <section className="grid border border-border bg-card lg:grid-cols-4">
         <Metric icon={<Users size={17} />} label="Pengguna" value={tenant._count.users.toString()} note={`${tenant.users.filter((user) => user.isActive).length} aktif`} />
-        <Metric icon={<MonitorCog size={17} />} label="Mesin" value={tenant._count.machines.toString()} note={`${tenant._count.artisanConnectors} Studio terdaftar`} />
+        <Metric icon={<MonitorCog size={17} />} label="Mesin" value={tenant._count.machines.toString()} note={`${tenant._count.roastdStudios} Studio terdaftar`} />
         <Metric icon={<Boxes size={17} />} label="Produk" value={tenant._count.products.toString()} note={`${tenant._count.roasts} roast tersimpan`} />
         <Metric icon={<ReceiptText size={17} />} label="GMV tenant" value={idr.format(Number(gmv._sum.grandTotal ?? 0))} note={`${tenant._count.invoices} invoice`} />
       </section>
@@ -146,7 +146,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
 
         <Panel eyebrow="Studio fleet" title="Konektor roasting" icon={<Radio size={18} className="text-[#15B8C6]" />} actionHref="/superadmin/studio">
           <div className="divide-y divide-border">
-            {tenant.artisanConnectors.map((connector) => (
+            {tenant.roastdStudios.map((connector) => (
               <div key={connector.id} className="flex items-center justify-between gap-4 py-4">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold">{connector.machine.name}</p>
@@ -158,7 +158,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                 </div>
               </div>
             ))}
-            {tenant.artisanConnectors.length === 0 && <Empty text="Belum ada Roastd Studio yang dihubungkan." />}
+            {tenant.roastdStudios.length === 0 && <Empty text="Belum ada Roastd Studio yang dihubungkan." />}
           </div>
         </Panel>
       </div>

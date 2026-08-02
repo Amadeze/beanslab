@@ -15,7 +15,7 @@ export default async function MachineSettingsPage() {
       capacityKg: true,
       isActive: true,
       createdAt: true,
-      _count: { select: { artisanConnectors: true, artisanImports: true } },
+      _count: { select: { roastdStudios: true, artisanImports: true } },
     },
     orderBy: { createdAt: "desc" },
   });

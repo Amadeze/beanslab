@@ -105,7 +105,7 @@ test("all owner dashboard modules render", async ({ context, page }) => {
     const owners = await prisma.user.findMany({
       where: {
         isActive: true,
-        role: "OWNER",
+        role: { in: ["OWNER", "SUPERADMIN"] },
         tenant: { isActive: true },
       },
       select: {

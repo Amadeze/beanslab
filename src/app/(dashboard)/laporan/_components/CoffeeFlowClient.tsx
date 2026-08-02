@@ -3,42 +3,64 @@
 import { useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { CoffeeFlowReport } from "../actions";
-import { Package, Coffee, Box, ArrowRight, Search, Download, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Droplets, Store } from "lucide-react";
+import { Package, Coffee, Box, ArrowRight, Search, Download, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Droplets, Store, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { cn } from "@/lib/utils";
+import { exportToProfessionalPdf, exportToProfessionalExcel } from "@/lib/export-utils";
 
 // =============================================================================
 // CSV Export (keep existing)
 // =============================================================================
 
-function exportCoffeeFlowCSV(report: CoffeeFlowReport) {
-  const rows: string[][] = [
-    ["Laporan Arus Kopi"],
-    [`Periode: ${report.periodStart ? new Date(report.periodStart).toLocaleDateString("id-ID") : "Awal"} - ${report.periodEnd ? new Date(report.periodEnd).toLocaleDateString("id-ID") : "Sekarang"}`],
-    [],
-    ["GREEN BEAN", "Beli (kg)", "Di-roast (kg)", "Opname Out (kg)", "Stok (kg)", "HPP Avg/kg"],
-    ...report.greenBeans.map(gb => [
-      gb.name, String(gb.boughtKg), String(gb.roastedKg), String(gb.adjustmentOutKg), String(gb.currentStockKg), String(gb.avgPurchasePrice)
-    ]),
-    [],
-    ["ROASTED BEAN", "Produksi (kg)", "Susut (kg)", "Packaged (kg)", "Sample (kg)", "Opname Out (kg)", "Stok (kg)", "Nilai Susut"],
-    ...report.roastedBeans.map(rb => [
-      rb.name, String(rb.producedKg), String(rb.roastLossKg), String(rb.packagedKg), String(rb.sampleOutKg), String(rb.adjustmentOutKg), String(rb.currentStockKg), String(rb.roastLossValue)
-    ]),
-    [],
-    ["FINISHED GOODS", "Produksi (unit)", "Terjual (unit)", "Sample (unit)", "Opname Out (unit)", "Stok (unit)", "Pendapatan", "HPP", "Laba Kotor"],
-    ...report.finishedGoods.map(fg => [
-      fg.name, String(fg.producedUnits), String(fg.soldUnits), String(fg.sampleOutUnits), String(fg.adjustmentOutUnits), String(fg.currentStockUnits), String(fg.salesRevenue), String(fg.cogs), String(fg.grossProfit)
-    ]),
+function getExportConfig(report: CoffeeFlowReport) {
+  const gbCols = [
+    { header: "GREEN BEAN", accessor: (r: any) => r.name, align: "left" as const },
+    { header: "Beli (kg)", accessor: (r: any) => String(r.boughtKg), align: "right" as const },
+    { header: "Di-roast (kg)", accessor: (r: any) => String(r.roastedKg), align: "right" as const },
+    { header: "Opname Out (kg)", accessor: (r: any) => String(r.adjustmentOutKg), align: "right" as const },
+    { header: "Stok (kg)", accessor: (r: any) => String(r.currentStockKg), align: "right" as const },
+    { header: "HPP Avg/kg", accessor: (r: any) => String(r.avgPurchasePrice), align: "right" as const },
   ];
-  const csvContent = "data:text/csv;charset=utf-8," + rows.map(r => r.join(",")).join("\n");
-  const link = document.createElement("a");
-  link.setAttribute("href", encodeURI(csvContent));
-  link.setAttribute("download", `Arus_Kopi_${new Date().toISOString().slice(0, 10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  
+  const rbCols = [
+    { header: "ROASTED BEAN", accessor: (r: any) => r.name, align: "left" as const },
+    { header: "Produksi (kg)", accessor: (r: any) => String(r.producedKg), align: "right" as const },
+    { header: "Susut (kg)", accessor: (r: any) => String(r.roastLossKg), align: "right" as const },
+    { header: "Packaged (kg)", accessor: (r: any) => String(r.packagedKg), align: "right" as const },
+    { header: "Sample (kg)", accessor: (r: any) => String(r.sampleOutKg), align: "right" as const },
+    { header: "Opname Out (kg)", accessor: (r: any) => String(r.adjustmentOutKg), align: "right" as const },
+    { header: "Stok (kg)", accessor: (r: any) => String(r.currentStockKg), align: "right" as const },
+    { header: "Nilai Susut", accessor: (r: any) => String(r.roastLossValue), align: "right" as const },
+  ];
+  
+  const fgCols = [
+    { header: "FINISHED GOODS", accessor: (r: any) => r.name, align: "left" as const },
+    { header: "Produksi (unit)", accessor: (r: any) => String(r.producedUnits), align: "right" as const },
+    { header: "Terjual (unit)", accessor: (r: any) => String(r.soldUnits), align: "right" as const },
+    { header: "Sample (unit)", accessor: (r: any) => String(r.sampleOutUnits), align: "right" as const },
+    { header: "Opname Out (unit)", accessor: (r: any) => String(r.adjustmentOutUnits), align: "right" as const },
+    { header: "Stok (unit)", accessor: (r: any) => String(r.currentStockUnits), align: "right" as const },
+    { header: "Pendapatan", accessor: (r: any) => String(r.salesRevenue), align: "right" as const },
+    { header: "HPP", accessor: (r: any) => String(r.cogs), align: "right" as const },
+    { header: "Laba Kotor", accessor: (r: any) => String(r.grossProfit), align: "right" as const },
+  ];
+
+  return {
+    title: "Laporan Arus Kopi",
+    filename: `Arus_Kopi_${new Date().toISOString().slice(0, 10)}`,
+    sheetName: "Arus Kopi",
+    period: `${report.periodStart ? new Date(report.periodStart).toLocaleDateString("id-ID") : "Awal"} - ${report.periodEnd ? new Date(report.periodEnd).toLocaleDateString("id-ID") : "Sekarang"}`,
+    status: "FINAL" as const,
+    generatedBy: "Roastd Studio",
+    columns: gbCols,
+    data: report.greenBeans,
+    sections: [
+      { title: "I. Green Bean", columns: gbCols, data: report.greenBeans },
+      { title: "II. Roasted Bean", columns: rbCols, data: report.roastedBeans },
+      { title: "III. Finished Goods", columns: fgCols, data: report.finishedGoods },
+    ],
+  };
 }
 
 // =============================================================================
@@ -246,6 +268,15 @@ function GBChart({ data }: { data: { name: string; value: number }[] }) {
 // =============================================================================
 
 export function CoffeeFlowClient({ report }: { report: CoffeeFlowReport }) {
+  const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
+  
+  const doExportPdf = async () => {
+    try { setExporting("pdf"); await exportToProfessionalPdf(getExportConfig(report)); } finally { setExporting(null); }
+  };
+  const doExportExcel = async () => {
+    try { setExporting("excel"); await exportToProfessionalExcel(getExportConfig(report)); } finally { setExporting(null); }
+  };
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeStage, setActiveStage] = useState<string | null>(null);
 
@@ -270,9 +301,14 @@ export function CoffeeFlowClient({ report }: { report: CoffeeFlowReport }) {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button onClick={() => exportCoffeeFlowCSV(report)} variant="outline" className="h-9 gap-1.5">
-          <Download size={14} /> Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={doExportPdf} disabled={exporting !== null} variant="outline" className="h-9 gap-1.5">
+            {exporting === 'pdf' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF
+          </Button>
+          <Button onClick={doExportExcel} disabled={exporting !== null} variant="outline" className="h-9 gap-1.5">
+            {exporting === 'excel' ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />} Excel
+          </Button>
+        </div>
       </div>
 
       {/* FLOW PIPELINE */}

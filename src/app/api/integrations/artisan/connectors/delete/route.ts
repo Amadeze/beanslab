@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "connectorId wajib diisi." }, { status: 400 });
     }
 
-    const connector = await tenantPrisma.artisanConnector.findFirst({
+    const connector = await tenantPrisma.roastdStudio.findFirst({
       where: { id: connectorId, tenantId: user.tenantId },
       select: { id: true, computerName: true },
     });
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Delete the connector
-    await tenantPrisma.artisanConnector.delete({
+    await tenantPrisma.roastdStudio.delete({
       where: { id: connectorId },
     });
 
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       tenantId: user.tenantId,
       userId: user.id,
       action: "DELETE",
-      entityType: "ArtisanConnector",
+      entityType: "RoastdStudio",
       entityId: connectorId,
       metadata: { computerName: connector.computerName },
     });

@@ -2,10 +2,12 @@
 
 import { formatRupiah } from "@/lib/format";
 import type { SampleReport } from "../actions";
-import { Beaker, Users, Package, TrendingUp, Download } from "lucide-react";
+import { Beaker, Users, Package, TrendingUp, Download, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { exportToProfessionalPdf, exportToProfessionalExcel } from "@/lib/export-utils";
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
   FINISHED_GOODS: "Produk Jadi",
@@ -18,33 +20,70 @@ interface SampleReportClientProps {
 }
 
 
-function exportSampleCSV(report: SampleReport) {
-  const rows: string[][] = [
-    ["Laporan Sample"],
-    [""],
-    ["Total Sample", String(report.totalSamples)],
-    ["Total Biaya", String(report.totalCost)],
-    ["Total Gram", String(report.totalGrams)],
-    [""],
-    ["Sumber", "Pack", "Gram", "Biaya"],
-    ...report.bySourceType.map(s => [s.source, String(s.count), String(s.grams), String(s.cost)]),
-    [""],
-    ["Produk", "Kg", "Unit", "Biaya"],
-    ...report.byProduct.map(p => [p.productName, String(p.quantityKg), String(p.quantityUnit), String(p.cost)]),
-    [""],
-    ["Penerima", "Kali", "Total Biaya"],
-    ...report.topRecipients.map(r => [r.recipient, String(r.count), String(r.cost)]),
-  ];
-  const csvContent = "data:text/csv;charset=utf-8," + rows.map(r => r.join(",")).join("\n");
-  const link = document.createElement("a");
-  link.setAttribute("href", encodeURI(csvContent));
-  link.setAttribute("download", "Laporan_Sample_" + new Date().toISOString().slice(0, 10) + ".csv");
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+function getExportConfig(report: SampleReport) {
+  return {
+    title: "Laporan Sample",
+    filename: `Laporan_Sample_${new Date().toISOString().slice(0, 10)}`,
+    sheetName: "Laporan Sample",
+    period: "Keseluruhan",
+    status: "FINAL" as const,
+    generatedBy: "Roastd Studio",
+    summary: [
+      { label: "Total Sample", value: String(report.totalSamples) },
+      { label: "Total Biaya", value: formatRupiah(report.totalCost) },
+      { label: "Total Gram", value: `${report.totalGrams.toLocaleString("id-ID")} g` },
+    ],
+    columns: [
+      { header: "Produk", accessor: (r: any) => r.productName, align: "left" as const },
+      { header: "Kg", accessor: (r: any) => String(r.quantityKg), align: "right" as const },
+      { header: "Unit", accessor: (r: any) => String(r.quantityUnit), align: "right" as const },
+      { header: "Biaya", accessor: (r: any) => formatRupiah(r.cost), align: "right" as const },
+    ],
+    data: report.byProduct,
+    sections: [
+      {
+        title: "Berdasarkan Sumber",
+        columns: [
+          { header: "Sumber", accessor: (r: any) => r.source, align: "left" as const },
+          { header: "Pack", accessor: (r: any) => String(r.count), align: "right" as const },
+          { header: "Gram", accessor: (r: any) => String(r.grams), align: "right" as const },
+          { header: "Biaya", accessor: (r: any) => formatRupiah(r.cost), align: "right" as const },
+        ],
+        data: report.bySourceType,
+      },
+      {
+        title: "Berdasarkan Produk",
+        columns: [
+          { header: "Produk", accessor: (r: any) => r.productName, align: "left" as const },
+          { header: "Kg", accessor: (r: any) => String(r.quantityKg), align: "right" as const },
+          { header: "Unit", accessor: (r: any) => String(r.quantityUnit), align: "right" as const },
+          { header: "Biaya", accessor: (r: any) => formatRupiah(r.cost), align: "right" as const },
+        ],
+        data: report.byProduct,
+      },
+      {
+        title: "Penerima Terbanyak",
+        columns: [
+          { header: "Penerima", accessor: (r: any) => r.recipient, align: "left" as const },
+          { header: "Kali", accessor: (r: any) => String(r.count), align: "right" as const },
+          { header: "Total Biaya", accessor: (r: any) => formatRupiah(r.cost), align: "right" as const },
+        ],
+        data: report.topRecipients,
+      },
+    ],
+  };
 }
 
 export function SampleReportClient({ report }: SampleReportClientProps) {
+  const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
+  
+  const doExportPdf = async () => {
+    try { setExporting("pdf"); await exportToProfessionalPdf(getExportConfig(report)); } finally { setExporting(null); }
+  };
+  const doExportExcel = async () => {
+    try { setExporting("excel"); await exportToProfessionalExcel(getExportConfig(report)); } finally { setExporting(null); }
+  };
+
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
@@ -68,9 +107,12 @@ export function SampleReportClient({ report }: SampleReportClientProps) {
             {report.totalSamples > 0 ? formatRupiah(report.totalCost / report.totalSamples) : "\u2014"}
           </p>
         </div>
-        <div className="flex items-end">
-          <Button onClick={() => exportSampleCSV(report)} variant="outline" className="h-9 gap-1.5">
-            <Download size={14} /> Export CSV
+        <div className="flex items-end gap-2">
+          <Button onClick={doExportPdf} disabled={exporting !== null} variant="outline" className="h-9 gap-1.5">
+            {exporting === 'pdf' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF
+          </Button>
+          <Button onClick={doExportExcel} disabled={exporting !== null} variant="outline" className="h-9 gap-1.5">
+            {exporting === 'excel' ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />} Excel
           </Button>
         </div>
       </div>

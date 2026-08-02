@@ -7,7 +7,7 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const revoked = await prisma.artisanConnector.findMany({
+  const revoked = await prisma.roastdStudio.findMany({
     where: { status: 'REVOKED' },
     select: { id: true }
   });
@@ -24,13 +24,13 @@ async function main() {
   }
 
   // Delete revoked connectors
-  const result = await prisma.artisanConnector.deleteMany({
+  const result = await prisma.roastdStudio.deleteMany({
     where: { status: 'REVOKED' }
   });
   console.log('Deleted connectors:', result.count);
 
   // Verify
-  const remaining = await prisma.artisanConnector.findMany({
+  const remaining = await prisma.roastdStudio.findMany({
     select: { id: true, computerName: true, status: true }
   });
   console.log('Remaining:', JSON.stringify(remaining, null, 2));

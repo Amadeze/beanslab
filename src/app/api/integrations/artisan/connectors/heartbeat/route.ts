@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if connector exists before updating
-    const connector = await prisma.artisanConnector.findUnique({
+    const connector = await prisma.roastdStudio.findUnique({
       where: { id: auth.connectorId },
       select: { id: true },
     });
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await prisma.artisanConnector.update({
+    await prisma.roastdStudio.update({
       where: { id: auth.connectorId },
       data: {
         lastSeenAt: new Date(),

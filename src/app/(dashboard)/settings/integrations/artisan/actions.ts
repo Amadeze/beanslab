@@ -77,7 +77,7 @@ export async function revokeConnector(
     const user = await requireRole("OWNER");
     const tenantPrisma = await requireTenantPrisma();
 
-    const connector = await tenantPrisma.artisanConnector.findFirst({
+    const connector = await tenantPrisma.roastdStudio.findFirst({
       where: { id: connectorId, tenantId: user.tenantId },
       select: { id: true, computerName: true, revokedAt: true },
     });
@@ -90,7 +90,7 @@ export async function revokeConnector(
     }
 
     await tenantPrisma.$transaction(async (tx) => {
-      await tx.artisanConnector.update({
+      await tx.roastdStudio.update({
         where: { id: connectorId },
         data: { status: "REVOKED", revokedAt: new Date() },
       });
@@ -99,7 +99,7 @@ export async function revokeConnector(
         tenantId: user.tenantId,
         userId: user.id,
         action: "REVOKE",
-        entityType: "ArtisanConnector",
+        entityType: "RoastdStudio",
         entityId: connectorId,
         metadata: { computerName: connector.computerName },
       });

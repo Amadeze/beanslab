@@ -613,7 +613,7 @@ export async function createGreenBeanPurchase(
         supplier.name,
         { tx, tenantId, userId },
       );
-    }, { isolationLevel: "Serializable" });
+    }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
 
     revalidatePath("/inventory");
     revalidatePath("/dashboard");
@@ -783,7 +783,7 @@ export async function createPackagingPurchase(
         supplier.name,
         { tx, tenantId, userId },
       );
-    }, { isolationLevel: "Serializable" });
+    }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
 
     revalidatePath("/inventory");
     revalidatePath("/dashboard");
@@ -967,7 +967,7 @@ export async function adjustStock(input: {
         unitCost,
         { tx, tenantId, userId },
       );
-    }, { isolationLevel: "Serializable" });
+    }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
 
     revalidatePath("/inventory");
 
@@ -985,3 +985,4 @@ export async function getReorderAlertData() {
   const tp = await requireTenantPrisma();
   return getBatchReorderSummaries(tp);
 }
+

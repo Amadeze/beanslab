@@ -66,13 +66,13 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Handle old connector with same installationId
-    const existing = await prisma.artisanConnector.findUnique({
+    const existing = await prisma.roastdStudio.findUnique({
       where: { installationId },
       select: { id: true },
     });
     if (existing) {
       // Update old connector with unique placeholder to free up installationId
-      await prisma.artisanConnector.update({
+      await prisma.roastdStudio.update({
         where: { id: existing.id },
         data: {
           installationId: `old-${existing.id}`,
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     const connectorToken = generateConnectorToken();
     const credentialHash = hashConnectorToken(connectorToken);
 
-    const connector = await prisma.artisanConnector.create({
+    const connector = await prisma.roastdStudio.create({
       data: {
         tenantId: pairingRecord.tenantId,
         machineId: pairingRecord.machineId,

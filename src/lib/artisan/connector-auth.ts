@@ -35,7 +35,7 @@ export async function authenticateConnector(
 
   const tokenHash = hashToken(token);
 
-  const connector = await prisma.artisanConnector.findUnique({
+  const connector = await prisma.roastdStudio.findUnique({
     where: { credentialHash: tokenHash },
     select: {
       id: true,

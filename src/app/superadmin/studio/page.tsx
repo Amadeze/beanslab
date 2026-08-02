@@ -25,7 +25,7 @@ function compareVersion(a: string, b: string) {
 export default async function StudioFleetPage() {
   await requireRole("SUPERADMIN");
   const currentRelease = process.env.STUDIO_LATEST_VERSION?.trim() || "0.10.2";
-  const connectors = await prisma.artisanConnector.findMany({
+  const connectors = await prisma.roastdStudio.findMany({
     orderBy: [{ status: "asc" }, { lastSeenAt: "desc" }],
     include: {
       tenant: { select: { id: true, code: true, name: true } },
@@ -46,7 +46,7 @@ export default async function StudioFleetPage() {
   return (
     <div className="mx-auto flex max-w-[1480px] flex-col gap-6 p-5 md:p-8">
       <header className="flex flex-col justify-between gap-4 border-b border-border pb-6 md:flex-row md:items-end">
-        <div><p className="text-xs font-black uppercase tracking-[0.24em] text-[#078C9A]">Roasting edge network</p><h1 className="mt-3 text-3xl font-black tracking-[-0.05em] md:text-4xl">Studio fleet</h1><p className="mt-2 text-sm text-muted-foreground">Komputer, versi aplikasi, mesin, dan jalur upload seluruh tenant—tanpa membuka isi profil roasting.</p></div>
+        <div><p className="text-xs font-black uppercase tracking-[0.24em] text-[#078C9A]">Roasting edge network</p><h1 className="mt-3 text-3xl font-black tracking-[-0.05em] md:text-4xl">Studio fleet</h1><p className="mt-2 text-sm text-muted-foreground">Komputer, versi aplikasi, mesin, dan jalur upload seluruh tenantâ€”tanpa membuka isi profil roasting.</p></div>
         <div className="flex items-center gap-2 border border-border bg-card px-4 py-3 text-xs"><Radio size={15} className="text-[#078C9A]" /><b>Release saat ini:</b><span className="font-mono">v{currentRelease}</span></div>
       </header>
 
@@ -64,7 +64,7 @@ export default async function StudioFleetPage() {
             {connectors.map((connector) => (
               <article key={connector.id} className="grid gap-4 p-5 transition-colors hover:bg-muted/35 md:grid-cols-[3rem_1.1fr_1fr_8rem_7rem] md:items-center md:px-6">
                 <span className={`flex size-10 items-center justify-center ${connector.status === "ONLINE" ? "bg-domain-inventory/10 text-domain-inventory" : connector.status === "REVOKED" ? "bg-red-500/10 text-red-600" : "bg-amber-500/10 text-amber-700"}`}><MonitorCog size={18} /></span>
-                <div className="min-w-0"><p className="truncate text-sm font-bold">{connector.machine.name}</p><p className="mt-1 truncate font-mono text-xs text-muted-foreground">{connector.computerName} · {connector.platform}</p></div>
+                <div className="min-w-0"><p className="truncate text-sm font-bold">{connector.machine.name}</p><p className="mt-1 truncate font-mono text-xs text-muted-foreground">{connector.computerName} Â· {connector.platform}</p></div>
                 <div className="min-w-0"><Link href={`/superadmin/tenants/${connector.tenant.id}`} className="truncate text-xs font-bold hover:text-primary hover:underline">{connector.tenant.name}</Link><p className="mt-1 font-mono text-xs text-muted-foreground">{connector.tenant.code}</p></div>
                 <div><p className="font-mono text-xs font-bold">v{connector.appVersion}</p><p className="mt-1 text-xs text-muted-foreground">{connector._count.imports} upload</p></div>
                 <div className="flex items-center justify-between gap-3 md:block md:text-right"><Status value={connector.status} /><p className="mt-1 font-mono text-[9px] text-muted-foreground">{connector.lastSeenAt ? dateTime.format(connector.lastSeenAt) : "belum terlihat"}</p></div>
@@ -78,7 +78,7 @@ export default async function StudioFleetPage() {
           <div className="flex items-start justify-between"><div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-domain-sales">Release adoption</p><h2 className="mt-2 text-xl font-black">Versi terpasang</h2></div><UploadCloud size={20} className="text-domain-sales" /></div>
           <div className="mt-7 space-y-5">
             {versionCounts.map((entry) => (
-              <div key={entry.version}><div className="mb-2 flex items-center justify-between text-xs"><span className="font-mono font-bold">v{entry.version}</span><span className={entry.version === currentRelease ? "text-domain-inventory" : "text-amber-700"}>{entry.count} perangkat · {entry.version === currentRelease ? "terkini" : "perlu cek"}</span></div><div className="h-1.5 bg-muted"><div className={`h-full ${entry.version === currentRelease ? "bg-domain-inventory" : "bg-amber-500"}`} style={{ width: `${(entry.count / Math.max(1, active.length)) * 100}%` }} /></div></div>
+              <div key={entry.version}><div className="mb-2 flex items-center justify-between text-xs"><span className="font-mono font-bold">v{entry.version}</span><span className={entry.version === currentRelease ? "text-domain-inventory" : "text-amber-700"}>{entry.count} perangkat Â· {entry.version === currentRelease ? "terkini" : "perlu cek"}</span></div><div className="h-1.5 bg-muted"><div className={`h-full ${entry.version === currentRelease ? "bg-domain-inventory" : "bg-amber-500"}`} style={{ width: `${(entry.count / Math.max(1, active.length)) * 100}%` }} /></div></div>
             ))}
             {versionCounts.length === 0 && <p className="text-xs text-muted-foreground">Belum ada versi aktif untuk dibandingkan.</p>}
           </div>

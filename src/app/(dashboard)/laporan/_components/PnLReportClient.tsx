@@ -3,13 +3,15 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { formatRupiah, formatDateLong } from "@/lib/format";
 import type { PnLReport } from "../../keuangan/actions";
-import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { getCurrentDate } from "@/lib/date-utils";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ReportComparisonBar } from "../_shared";
+import { exportToProfessionalPdf, exportToProfessionalExcel } from "@/lib/export-utils";
+import { useState } from "react";
 
 const MONTHS = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -34,37 +36,96 @@ function pct(part: number, total: number): string {
   return `${((part / total) * 100).toFixed(1)}%`;
 }
 
-async function exportToPdf(report: PnLReport) {
-  const [{ jsPDF }, { default: autoTable }] = await Promise.all([
-    import("jspdf"), import("jspdf-autotable"),
-  ]);
-  const doc = new jsPDF();
+function buildPnLExportConfig(report: PnLReport) {
   const period = `${MONTHS[report.month - 1]} ${report.year}`;
-  doc.setFontSize(14);
-  doc.text("Laporan Laba Rugi", 14, 16);
-  doc.setFontSize(10);
-  doc.text(`roastd.id · ${period}`, 14, 23);
-  autoTable(doc, {
-    startY: 30,
-    head: [["Kategori", "Jumlah (IDR)"]],
-    body: [
-      ["Total Pendapatan", report.revenue],
-      ["HPP (COGS)", report.cogs],
-      ["Laba Kotor", report.grossProfit],
-      ["Total OPEX", report.opex],
-      ["Laba Bersih", report.netProfit],
-    ].map(([label, value]) => [label, formatRupiah(Number(value))]),
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: [109, 74, 42] },
+  const filename = `Laba_Rugi_${MONTHS[report.month - 1]}_${report.year}`;
+  const fmt = (v: number) => formatRupiah(v);
+  const pct2 = (p: number, t: number) => t > 0 ? `${((p / t) * 100).toFixed(1)}%` : "–";
+
+  const summary = [
+    { label: "Total Pendapatan",  value: fmt(report.revenue) },
+    { label: "Laba Kotor",        value: fmt(report.grossProfit) },
+    { label: "Gross Margin",      value: pct2(report.grossProfit, report.revenue) },
+    { label: "Total OPEX",        value: fmt(report.opex) },
+    { label: "Laba Bersih",       value: fmt(report.netProfit) },
+    { label: "Net Margin",        value: pct2(report.netProfit, report.revenue) },
+  ];
+
+  const revenueRows = report.revenueBreakdown.length > 0
+    ? report.revenueBreakdown.map(i => ({ kat: CATEGORY_LABELS[i.category] || i.category, jml: i.amount, pct: pct2(i.amount, report.revenue) }))
+    : [{ kat: "Penjualan Produk", jml: report.revenue, pct: "100%" }];
+  revenueRows.push({ kat: "TOTAL PENDAPATAN", jml: report.revenue, pct: "100%" });
+
+  const cogsRows = report.cogsBreakdown.length > 0
+    ? report.cogsBreakdown.map(i => ({ kat: CATEGORY_LABELS[i.category] || i.category, jml: i.amount, pct: pct2(i.amount, report.revenue) }))
+    : [{ kat: "HPP Produk Terjual", jml: report.cogs, pct: pct2(report.cogs, report.revenue) }];
+  cogsRows.push({ kat: "TOTAL HPP", jml: report.cogs, pct: pct2(report.cogs, report.revenue) });
+
+  const opexRows = report.opexBreakdown.map(i => ({ kat: CATEGORY_LABELS[i.category] || i.category, jml: i.amount, pct: pct2(i.amount, report.revenue) }));
+  opexRows.push({ kat: "TOTAL BEBAN OPERASIONAL", jml: report.opex, pct: pct2(report.opex, report.revenue) });
+
+  const profitRows = [
+    { kat: "Laba Kotor",   jml: report.grossProfit, pct: pct2(report.grossProfit, report.revenue) },
+    { kat: "Laba Bersih",  jml: report.netProfit,   pct: pct2(report.netProfit, report.revenue) },
+  ];
+
+  const stdCols = [
+    { header: "Keterangan",       accessor: (r: {kat:string;jml:number;pct:string}) => r.kat },
+    { header: "Jumlah (IDR)",     accessor: (r: {kat:string;jml:number;pct:string}) => fmt(r.jml), align: "right" as const },
+    { header: "% Revenue",        accessor: (r: {kat:string;jml:number;pct:string}) => r.pct, align: "right" as const },
+  ];
+
+  return {
+    filename,
+    summary,
+    period,
+    sections: [
+      { title: "I. Pendapatan Usaha",          columns: stdCols, data: revenueRows },
+      { title: "II. Harga Pokok Penjualan",    columns: stdCols, data: cogsRows },
+      { title: "III. Beban Operasional",        columns: stdCols, data: opexRows },
+      { title: "Ikhtisar Laba",                 columns: stdCols, data: profitRows },
+    ],
+    flatData: [
+      ...revenueRows, { kat: "---", jml: 0, pct: "" },
+      ...cogsRows,    { kat: "---", jml: 0, pct: "" },
+      ...opexRows,    { kat: "---", jml: 0, pct: "" },
+      ...profitRows,
+    ],
+    flatCols: stdCols,
+  };
+}
+
+async function doExportPdf(report: PnLReport) {
+  const cfg = buildPnLExportConfig(report);
+  await exportToProfessionalPdf({
+    title: "Laporan Laba Rugi",
+    subtitle: "Roastd Studio · Income Statement",
+    filename: cfg.filename,
+    sheetName: "P&L",
+    columns: cfg.flatCols as Parameters<typeof exportToProfessionalPdf>[0]["columns"],
+    data: cfg.flatData as Record<string, unknown>[],
+    summary: cfg.summary,
+    period: cfg.period,
+    status: "DRAFT",
+    sections: cfg.sections as Parameters<typeof exportToProfessionalPdf>[0]["sections"],
+    generatedBy: "Roastd Studio",
   });
-  autoTable(doc, {
-    startY: ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 62) + 8,
-    head: [["Rincian OPEX", "Jumlah (IDR)"]],
-    body: report.opexBreakdown.map((i) => [CATEGORY_LABELS[i.category] || i.category, formatRupiah(i.amount)]),
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: [120, 113, 108] },
+}
+
+async function doExportExcel(report: PnLReport) {
+  const cfg = buildPnLExportConfig(report);
+  await exportToProfessionalExcel({
+    title: "Laporan Laba Rugi",
+    subtitle: "Roastd Studio · Income Statement",
+    filename: cfg.filename,
+    sheetName: "P&L",
+    columns: cfg.flatCols as Parameters<typeof exportToProfessionalExcel>[0]["columns"],
+    data: cfg.flatData as Record<string, unknown>[],
+    summary: cfg.summary,
+    period: cfg.period,
+    status: "DRAFT",
+    generatedBy: "Roastd Studio",
   });
-  doc.save(`Laba_Rugi_${MONTHS[report.month - 1]}_${report.year}.pdf`);
 }
 
 function SectionHeader({ label }: { label: string }) {
@@ -114,6 +175,9 @@ interface PnLReportClientProps {
 }
 
 export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
+  const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
+  const handlePdf = async () => { setExporting("pdf"); try { await doExportPdf(report); } finally { setExporting(null); } };
+  const handleExcel = async () => { setExporting("excel"); try { await doExportExcel(report); } finally { setExporting(null); } };
   const { month, year, revenue, cogs, grossProfit, opex, netProfit, opexBreakdown, revenueBreakdown, cogsBreakdown, cogsComponentBreakdown, salesVolumeUnits, topProducts, topCustomers } = report;
   const grossMargin = pct(grossProfit, revenue);
   const netMargin = pct(netProfit, revenue);
@@ -348,11 +412,14 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
   if (hideLayout) return (
     <>
       <div className="mb-4 flex items-center gap-2">
-        <Button onClick={() => void exportToPdf(report)} variant="outline" className="h-8 gap-1.5 border-stone-200 bg-white shadow-sm">
-          <Download size={14} /> Export PDF
+        <Button onClick={handlePdf} disabled={exporting !== null} variant="outline" className="h-8 gap-1.5 border-stone-200 bg-white shadow-sm">
+          {exporting === "pdf" ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF
+        </Button>
+        <Button onClick={handleExcel} disabled={exporting !== null} variant="outline" className="h-8 gap-1.5 border-stone-200 bg-white shadow-sm">
+          {exporting === "excel" ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />} Excel
         </Button>
         <Button onClick={() => window.print()} variant="outline" className="h-8 gap-1.5 border-stone-200 bg-white shadow-sm">
-          <Download size={14} /> Cetak
+          Cetak
         </Button>
       </div>
       {content}
@@ -367,11 +434,14 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
         description={`Profit & Loss Statement · ${MONTHS[month - 1]} ${year}`}
         actions={
           <>
-            <Button onClick={() => void exportToPdf(report)} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm">
-              <Download size={14} /> Export PDF
+            <Button onClick={handlePdf} disabled={exporting !== null} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm">
+              {exporting === "pdf" ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF
+            </Button>
+            <Button onClick={handleExcel} disabled={exporting !== null} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm">
+              {exporting === "excel" ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />} Excel
             </Button>
             <Button onClick={() => window.print()} variant="outline" className="h-8 gap-1.5 border-white/60 bg-white/40 shadow-sm">
-              <Download size={14} /> Cetak
+              Cetak
             </Button>
           </>
         }

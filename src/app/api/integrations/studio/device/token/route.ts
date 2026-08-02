@@ -91,12 +91,12 @@ export async function POST(request: NextRequest) {
       });
       if (claimed.count !== 1) throw new AuthorizationAlreadyConsumedError();
 
-      const existing = await transaction.artisanConnector.findUnique({
+      const existing = await transaction.roastdStudio.findUnique({
         where: { installationId: authorization.installationId },
         select: { id: true },
       });
       if (existing) {
-        await transaction.artisanConnector.update({
+        await transaction.roastdStudio.update({
           where: { id: existing.id },
           data: {
             installationId: `old-${existing.id}`,
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      const created = await transaction.artisanConnector.create({
+      const created = await transaction.roastdStudio.create({
         data: {
           tenantId: authorization.tenantId!,
           machineId: authorization.machineId!,
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         tenantId: authorization.tenantId!,
         userId: authorization.approvedByUserId!,
         action: "CREATE",
-        entityType: "ArtisanConnector",
+        entityType: "RoastdStudio",
         entityId: created.id,
         metadata: {
           method: "browser_device_authorization",

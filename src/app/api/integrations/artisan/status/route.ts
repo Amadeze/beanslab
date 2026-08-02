@@ -16,10 +16,10 @@ export async function GET(_req: NextRequest) {
 
     const [connectorCount, onlineCount, importStats, machineCount] =
       await Promise.all([
-        tenantPrisma.artisanConnector.count({
+        tenantPrisma.roastdStudio.count({
           where: { revokedAt: null },
         }),
-        tenantPrisma.artisanConnector.findMany({
+        tenantPrisma.roastdStudio.findMany({
           where: {
             revokedAt: null,
             lastSeenAt: { not: null },
