@@ -1649,6 +1649,7 @@ model JobRun {
   finishedAt DateTime?
   summary    Json?
   error      String?
+  claimToken String?
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
 
