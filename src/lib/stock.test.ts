@@ -19,6 +19,7 @@ function transaction(updateCount = 1) {
       findMany: vi.fn().mockResolvedValue([]),
       update: vi.fn().mockResolvedValue({}),
     },
+    $queryRaw: vi.fn().mockResolvedValue([]),
   };
 }
 
@@ -206,6 +207,10 @@ describe("appendLedger", () => {
 describe("appendFefoLedgerOut", () => {
   it("allocates from the earliest expiry first and closes exhausted lots", async () => {
     const tx = transaction();
+    tx.$queryRaw.mockResolvedValue([
+      { id: "lot-early" },
+      { id: "lot-later" },
+    ]);
     tx.lot.findMany.mockResolvedValue([
       {
         id: "lot-early",
@@ -277,6 +282,7 @@ describe("appendFefoLedgerOut", () => {
       quantityUnit: 0,
       inventoryLedgers: [{ entryType: "IN", quantityKg: 1, quantityUnit: null }],
     }));
+    tx.$queryRaw.mockResolvedValue(lots.map((l) => ({ id: l.id })));
     tx.lot.findMany = vi.fn().mockImplementation((args: any) =>
       Promise.resolve(args?.take !== undefined ? lots.slice(0, args.take) : lots),
     );
@@ -311,6 +317,7 @@ describe("appendFefoLedgerOut", () => {
       quantityUnit: 0,
       inventoryLedgers: [{ entryType: "IN", quantityKg: 5, quantityUnit: null }],
     }));
+    tx.$queryRaw.mockResolvedValue(lots.map((l) => ({ id: l.id })));
     tx.lot.findMany.mockImplementation(({ take } = {}) => Promise.resolve(take ? lots.slice(0, take) : lots));
 
     await appendFefoLedgerOut(tx, {
@@ -346,6 +353,7 @@ describe("appendFefoLedgerOut", () => {
       quantityUnit: 0,
       inventoryLedgers: [{ entryType: "IN", quantityKg: 5, quantityUnit: null }],
     }));
+    tx.$queryRaw.mockResolvedValue(lots.map((l) => ({ id: l.id })));
     tx.lot.findMany.mockImplementation(({ take } = {}) => Promise.resolve(take ? lots.slice(0, take) : lots));
 
     await appendFefoLedgerOut(tx, {

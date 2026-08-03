@@ -187,102 +187,128 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
  * pada lot tidak menutup kebutuhan, sisanya dicatat tanpa lot. Dengan begitu
  * rollout traceability tidak memblokir operasi tenant lama, sementara semua
  * stok baru tetap memiliki jejak lot yang lengkap.
+ *
+ * Lot rows dikunci dengan SELECT ... FOR UPDATE sebelum alokasi, mencegah
+ * dua transaksi paralel mengalokasikan quantity dari lot yang sama.
  */
 export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedgerEntryData) {
   const quantityKg = Number(data.quantityKg ?? 0);
-  const quantityUnit = Number(data.quantityUnit ?? 0);
-  const requestedQuantity = quantityKg > 0 ? quantityKg : quantityUnit;
-  const quantityField = quantityKg > 0 ? "quantityKg" : "quantityUnit";
+    const quantityUnit = Number(data.quantityUnit ?? 0);
+    const requestedQuantity = quantityKg > 0 ? quantityKg : quantityUnit;
+    const quantityField = quantityKg > 0 ? "quantityKg" : "quantityUnit";
 
-  if (!data.tenantId) {
-    throw new Error("Tenant wajib diisi untuk alokasi FEFO.");
-  }
-  if (Boolean(data.productId) === Boolean(data.packagingId)) {
-    throw new Error("FEFO entry must target exactly one product or packaging item.");
-  }
-  if (requestedQuantity <= 0 || (quantityKg > 0 && quantityUnit > 0)) {
-    throw new Error("FEFO quantity must use exactly one positive unit.");
-  }
+    if (!data.tenantId) {
+      throw new Error("Tenant wajib diisi untuk alokasi FEFO.");
+    }
+    if (Boolean(data.productId) === Boolean(data.packagingId)) {
+      throw new Error("FEFO entry must target exactly one product or packaging item.");
+    }
+    if (requestedQuantity <= 0 || (quantityKg > 0 && quantityUnit > 0)) {
+      throw new Error("FEFO quantity must use exactly one positive unit.");
+    }
 
-  const lots = await tx.lot.findMany({
-    where: {
-      tenantId: data.tenantId,
-      productId: data.productId ?? undefined,
-      packagingId: data.packagingId ?? undefined,
-      consumedAt: null,
-    },
-    orderBy: [
-      { expiryDate: { sort: "asc", nulls: "last" } },
-      { receivedAt: "asc" },
-      { createdAt: "asc" },
-    ],
-    select: {
-      id: true,
-      batchCode: true,
-      expiryDate: true,
-      quantityKg: true,
-      quantityUnit: true,
-      inventoryLedgers: {
+    const lockedLotIds: { id: string }[] = await tx.$queryRaw`
+      SELECT l."id" FROM "lots" l
+      WHERE l."tenantId" = ${data.tenantId}
+        AND l."productId" IS NOT DISTINCT FROM ${data.productId}
+        AND l."packagingId" IS NOT DISTINCT FROM ${data.packagingId}
+        AND l."consumedAt" IS NULL
+      ORDER BY l."expiryDate" ASC NULLS LAST, l."receivedAt" ASC, l."createdAt" ASC
+      FOR UPDATE
+    `;
+
+    let lots;
+    if (lockedLotIds.length > 0) {
+      lots = await tx.lot.findMany({
+        where: {
+          id: { in: lockedLotIds.map((r) => r.id) },
+          tenantId: data.tenantId,
+          productId: data.productId ?? undefined,
+          packagingId: data.packagingId ?? undefined,
+          consumedAt: null,
+        },
+        orderBy: [
+          { expiryDate: { sort: "asc", nulls: "last" } },
+          { receivedAt: "asc" },
+          { createdAt: "asc" },
+        ],
         select: {
-          entryType: true,
+          id: true,
+          batchCode: true,
+          expiryDate: true,
           quantityKg: true,
           quantityUnit: true,
+          inventoryLedgers: {
+            select: {
+              entryType: true,
+              quantityKg: true,
+              quantityUnit: true,
+            },
+          },
         },
-      },
-    },
-  });
-
-  let remaining = requestedQuantity;
-  const entries = [];
-  const epsilon = quantityField === "quantityKg" ? 0.000001 : 0;
-
-  for (const lot of lots) {
-    if (remaining <= epsilon) break;
-
-    const originalQuantity = Number(lot[quantityField] ?? 0);
-    const ledgerBalance = lot.inventoryLedgers.reduce((balance: number, entry: {
-      entryType: "IN" | "OUT";
-      quantityKg: FlexibleNumber;
-      quantityUnit: FlexibleNumber;
-    }) => {
-      const amount = Number(entry[quantityField] ?? 0);
-      return balance + (entry.entryType === "IN" ? amount : -amount);
-    }, 0);
-    // Lot lama mungkin belum memiliki ledger IN yang tertaut. Dalam kasus itu,
-    // quantity awal pada lot menjadi sumber saldo.
-    const available = Math.max(0, lot.inventoryLedgers.length > 0 ? ledgerBalance : originalQuantity);
-    if (available <= epsilon) continue;
-
-    const allocated = Math.min(remaining, available);
-    const entry = await appendLedger(tx, {
-      ...data,
-      entryType: "OUT",
-      [quantityField]: allocated,
-      lotId: lot.id,
-      lotNumber: lot.batchCode,
-      expiryDate: lot.expiryDate,
-    });
-    entries.push(entry);
-    remaining -= allocated;
-
-    if (available - allocated <= epsilon) {
-      await tx.lot.update({
-        where: { id: lot.id },
-        data: { consumedAt: new Date() },
       });
+    } else {
+      lots = [];
     }
+
+    let remaining = requestedQuantity;
+    const entries = [];
+    const epsilon = quantityField === "quantityKg" ? 0.000001 : 0;
+
+    for (const lot of lots) {
+      if (remaining <= epsilon) break;
+
+      const originalQuantity = Number(lot[quantityField] ?? 0);
+      const ledgerBalance = lot.inventoryLedgers.reduce(
+        (balance: number, entry: {
+          entryType: "IN" | "OUT";
+          quantityKg: FlexibleNumber;
+          quantityUnit: FlexibleNumber;
+        }) => {
+          const amount = Number(entry[quantityField] ?? 0);
+          return balance + (entry.entryType === "IN" ? amount : -amount);
+        },
+        0,
+      );
+      const available = Math.max(
+        0,
+        lot.inventoryLedgers.length > 0 ? ledgerBalance : originalQuantity,
+      );
+      if (available <= epsilon) continue;
+
+      const allocated = Math.min(remaining, available);
+      const entry = await appendLedger(tx, {
+        ...data,
+        entryType: "OUT",
+        [quantityField]: allocated,
+        lotId: lot.id,
+        lotNumber: lot.batchCode,
+        expiryDate: lot.expiryDate,
+      });
+      entries.push(entry);
+      remaining -= allocated;
+
+      if (available - allocated <= epsilon) {
+        await tx.lot.update({
+          where: { id: lot.id },
+          data: { consumedAt: new Date() },
+        });
+      }
+    }
+
+    if (remaining > epsilon) {
+      entries.push(
+        await appendLedger(tx, {
+          ...data,
+          entryType: "OUT",
+          [quantityField]: remaining,
+          lotId: null,
+          lotNumber: null,
+          expiryDate: null,
+        }),
+      );
+    }
+
+    return entries;
   }
 
-  if (remaining > epsilon) {
-    entries.push(await appendLedger(tx, {
-      ...data,
-      entryType: "OUT",
-      [quantityField]: remaining,
-      lotId: null,
-      lotNumber: null,
-      expiryDate: null,
-    }));
-  }
-
-  return entries;
-}
