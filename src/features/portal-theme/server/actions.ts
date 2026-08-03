@@ -144,7 +144,11 @@ export async function savePortalThemeDraft(
     // Sanitize per-section custom CSS
     for (const section of parsed.sections) {
       if (section.customCSS?.css) {
-        section.customCSS.css = sanitizeCSS(section.customCSS.css);
+        const sanitized = sanitizeCSS(section.customCSS.css);
+        if (!sanitized.ok) {
+          throw new Error("Invalid custom CSS in section " + section.id + ": " + sanitized.error);
+        }
+        section.customCSS.css = sanitized.css || "";
       }
     }
 

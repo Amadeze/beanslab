@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { LandingClient } from "./LandingClient";
 import type { Metadata } from "next";
 

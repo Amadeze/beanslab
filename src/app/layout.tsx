@@ -15,6 +15,14 @@ import {
 import "./globals.css";
 import { ThemeProviderRoot } from "@/components/ThemeProviderRoot";
 
+// NOTE: NO root-level `export const dynamic` here. Nonce-based CSP (set per
+// request in src/proxy.ts) requires pages that emit inline scripts to be
+// dynamically rendered, so each affected page opts in individually with its
+// own `export const dynamic = "force-dynamic"` (see login, register,
+// forgot-password, reset-password, and the landing page). Keeping the root
+// layout static-default means unaffected routes stay prerenderable and no
+// request-dependent rendering is forced app-wide.
+
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],

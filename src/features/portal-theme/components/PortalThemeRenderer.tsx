@@ -284,7 +284,7 @@ export function PortalThemeRenderer({ config, isPreview = false, products = [], 
         lineHeight: "var(--portal-line-height)",
       }}
     >
-      <style dangerouslySetInnerHTML={{ __html: cssVars }} />
+      <style>{cssVars}</style>
 
       {/* Google Fonts */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -292,16 +292,16 @@ export function PortalThemeRenderer({ config, isPreview = false, products = [], 
       <link href={fontsUrl} rel="stylesheet" />
 
       {/* Per-section custom CSS */}
-      {config.sections.map((section) =>
-        section.customCSS?.css ? (
-          <style
-            key={`css-${section.id}`}
-            dangerouslySetInnerHTML={{
-              __html: `#${section.id} { ${sanitizeCSS(section.customCSS.css)} }`,
-            }}
-          />
-        ) : null,
-      )}
+      {config.sections.map((section) => {
+        if (!section.customCSS?.css) return null;
+        const sanitized = sanitizeCSS(section.customCSS.css);
+        if (!sanitized.ok) return null;
+        return (
+          <style key={`css-${section.id}`}>
+            {`#${section.id} { ${sanitized.css} }`}
+          </style>
+        );
+      })}
 
       {/* Sections */}
       {sortedSections.map((section) => {

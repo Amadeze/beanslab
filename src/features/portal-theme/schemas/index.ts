@@ -44,7 +44,7 @@ const safeCss = z
   .optional()
   .default("");
 
-const safeHtml = z
+export const safeHtml = z
   .string()
   .max(5000)
   .refine(
@@ -96,8 +96,8 @@ export const GradientSchema = z.object({
 // ── Typography ──────────────────────────────────────────────────────────────
 
 export const TypographySchema = z.object({
-  headingFont: z.string().min(1).max(60),
-  bodyFont: z.string().min(1).max(60),
+  headingFont: z.string().min(1).max(60).regex(/^[a-zA-Z0-9\s_-]+$/),
+  bodyFont: z.string().min(1).max(60).regex(/^[a-zA-Z0-9\s_-]+$/),
   baseFontSize: z.number().min(10).max(100),
   scaleRatio: z.number().min(0.8).max(2.0),
   lineHeight: z.number().min(0.8).max(3.0),
@@ -108,7 +108,7 @@ export const TypographySchema = z.object({
 });
 
 export const SectionTypographyOverrideSchema = z.object({
-  font: z.string().max(60).optional(),
+  font: z.string().max(60).regex(/^[a-zA-Z0-9\s_-]+$/).optional(),
   fontSize: z.number().min(10).max(100).optional(),
   fontWeight: z.number().min(100).max(900).optional(),
   lineHeight: z.number().min(0.8).max(3.0).optional(),
@@ -177,7 +177,7 @@ export const AnimationSchema = z.object({
   ]),
   duration: z.number().min(0).max(5000),
   delay: z.number().min(0).max(3000),
-  easing: z.string().max(100),
+  easing: z.string().max(100).regex(/^(linear|ease|ease-in|ease-out|ease-in-out|steps\([1-9]\d*(?:\,\s*(?:start|end))?\)|cubic-bezier\(\s*(?:0|1|0?\.\d+)\s*,\s*-?\d+(?:\.\d+)?\s*,\s*(?:0|1|0?\.\d+)\s*,\s*-?\d+(?:\.\d+)?\s*\))$/),
   hoverEffect: z.enum(["none", "scale", "lift", "glow", "shrink", "border-beam", "liquid"]),
   kineticSpeed: z.number().min(0).max(10).optional().default(1),
 });
@@ -298,7 +298,7 @@ export const GlobalSettingsSchema = z.object({
   brandKit: BrandKitSchema,
   animations: z.object({
     globalDuration: z.number().min(0).max(3000),
-    globalEasing: z.string().max(100),
+    globalEasing: z.string().max(100).regex(/^(linear|ease|ease-in|ease-out|ease-in-out|steps\(\d+(?:\,\s*(?:start|end))?\)|cubic-bezier\(\s*(?:0|1|0?\.\d+)\s*,\s*-?\d+(?:\.\d+)?\s*,\s*(?:0|1|0?\.\d+)\s*,\s*-?\d+(?:\.\d+)?\s*\))$/),
     scrollAnimations: z.boolean(),
     hoverEffects: z.boolean(),
     reduceMotion: z.boolean(),
@@ -311,8 +311,8 @@ export const GlobalSettingsSchema = z.object({
   integrations: z.object({
     googleAnalyticsId: z.string().max(30).optional(),
     metaPixelId: z.string().max(30).optional(),
-    customHead: safeHtml,
-    customFooter: safeHtml,
+    customHead: z.string().max(5000).optional().default(""),
+    customFooter: z.string().max(5000).optional().default(""),
   }),
 });
 
