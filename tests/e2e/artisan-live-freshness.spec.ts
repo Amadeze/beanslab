@@ -103,6 +103,14 @@ test("live telemetry only returns fresh source updates", async ({
       ),
     ).toBeFalsy();
 
+    // Only one ACTIVE session may exist per machine (partial unique index
+    // live_sessions_active_unique): close the stale one before opening a
+    // fresh session for the same machine.
+    await prisma.liveSession.updateMany({
+      where: { tenantId: user.tenantId, machineId, status: "ACTIVE" },
+      data: { status: "COMPLETED" },
+    });
+
     await prisma.liveSession.create({
       data: {
         tenantId: user.tenantId,
