@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/session";
+import { getValidatedCurrentUser } from "@/lib/auth";
 import {
   enforceRateLimit,
   RateLimitError,
@@ -23,7 +23,7 @@ const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   try {
-    const user = await getCurrentUser();
+    const user = await getValidatedCurrentUser();
     if (!user || !["OWNER", "MANAGER"].includes(user.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

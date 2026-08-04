@@ -21,7 +21,13 @@ export const getTenantAccessRecord = cache(async (tenantId: string) =>
   }),
 );
 
-const getValidatedCurrentUser = cache(async (): Promise<SessionUser | null> => {
+/**
+ * Returns the current user validated against the database.
+ * Checks: user exists, isActive=true, tenant matches session.
+ * Returns null if not found, inactive, or tenant mismatch.
+ * Does NOT redirect or throw � suitable for API routes that need custom JSON responses.
+ */
+export const getValidatedCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const sessionUser = await getCurrentUser();
   if (!sessionUser) return null;
 
@@ -88,7 +94,7 @@ export async function getCurrentTenantId(): Promise<string> {
 export async function requireRole(...allowedRoles: SessionUser["role"][]) {
   const user = await requireCurrentUser();
   if (!canAccessTenantRole(user.role, allowedRoles)) {
-    throw new Error(`FORBIDDEN: requires ${allowedRoles.join(" | ")}, got ${user.role}`);
+    throw new Error("FORBIDDEN: requires " + allowedRoles.join(" | ") + ", got " + user.role);
   }
   return user;
 }

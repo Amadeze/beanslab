@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { ArrowRight, Check, Coffee, Monitor, ShieldCheck } from "lucide-react";
-import { getCurrentUser } from "@/lib/session";
+import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hashStudioVerificationCode } from "@/lib/artisan/connector-auth";
 import { approveStudioDevice } from "./actions";
@@ -15,20 +15,12 @@ export default async function StudioAuthorizePage({
     return <AuthorizationMessage title="Tautan tidak valid" description="Mulai login kembali dari Roastd Studio." />;
   }
 
-  const user = await getCurrentUser();
-  if (!user) {
-    const destination = `/studio/authorize?code=${encodeURIComponent(code)}`;
-    redirect(`/login?from=${encodeURIComponent(destination)}`);
-  }
+  const user = await requireRole("OWNER");
 
-  const [authorization, currentUser, machines, tenant] = await Promise.all([
+  const [authorization, machines, tenant] = await Promise.all([
     prisma.studioDeviceAuthorization.findUnique({
       where: { verificationCodeHash: hashStudioVerificationCode(code) },
       select: { status: true, expiresAt: true, computerName: true, platform: true },
-    }),
-    prisma.user.findFirst({
-      where: { id: user.id, tenantId: user.tenantId, isActive: true },
-      select: { role: true },
     }),
     prisma.machine.findMany({
       where: { tenantId: user.tenantId, isActive: true },
@@ -40,9 +32,6 @@ export default async function StudioAuthorizePage({
 
   if (!authorization || authorization.status !== "PENDING" || authorization.expiresAt <= new Date()) {
     return <AuthorizationMessage title="Permintaan sudah berakhir" description="Kembali ke Roastd Studio dan tekan Masuk dengan Roastd sekali lagi." />;
-  }
-  if (currentUser?.role !== "OWNER") {
-    return <AuthorizationMessage title="Perlu izin owner" description="Minta owner workspace membuka tautan ini untuk memilih mesin." />;
   }
 
   return (
@@ -82,7 +71,7 @@ export default async function StudioAuthorizePage({
                 <span className="mb-2 block text-xs font-bold uppercase tracking-[.14em] text-[#809091]">Mesin roasting</span>
                 <select name="machineId" required defaultValue="" className="h-12 w-full rounded-[10px] border border-white/15 bg-[#0b0f10] px-4 text-sm text-[#f2e7d5] outline-none focus:border-[#5ad4dc] focus:ring-2 focus:ring-[#5ad4dc]/20">
                   <option value="" disabled>Pilih mesin…</option>
-                  {machines.map((machine) => <option key={machine.id} value={machine.id}>{machine.name}{machine.capacityKg ? ` · ${machine.capacityKg.toString()} kg` : ""}</option>)}
+                  {machines.map((machine) => <option key={machine.id} value={machine.id}>{machine.name}{machine.capacityKg ? " · " + machine.capacityKg.toString() + " kg" : ""}</option>)}
                 </select>
               </label>
               <button className="flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-[#f07a42] font-bold text-[#1b0e08] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[#5ad4dc]">

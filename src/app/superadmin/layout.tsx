@@ -1,12 +1,9 @@
-import { cookies } from "next/headers";
-import { getIronSession } from "iron-session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { SESSION_OPTIONS, type SessionUser } from "@/lib/session";
 import { LogOut, Coffee, ShieldCheck } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
 import { SuperadminNav } from "./SuperadminNav";
-
+import { requireRole } from "@/lib/auth";
 import { AppToastProvider } from "@/components/AppToastProvider";
 
 export default async function SuperadminLayout({
@@ -14,11 +11,7 @@ export default async function SuperadminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getIronSession<{ user?: SessionUser }>(await cookies(), SESSION_OPTIONS);
-  
-  if (!session.user || session.user.role !== "SUPERADMIN") {
-    redirect("/login");
-  }
+  const user = await requireRole("SUPERADMIN");
 
   return (
     <AppToastProvider>
@@ -52,7 +45,7 @@ export default async function SuperadminLayout({
             <ShieldCheck className="size-5 text-[#15B8C6]" />
             <div>
               <p className="text-xs font-bold">Akses terverifikasi</p>
-              <p className="mt-1 text-xs text-white/45">Superadmin · seluruh tenant</p>
+              <p className="mt-1 text-xs text-white/45">Superadmin � seluruh tenant</p>
             </div>
           </div>
         </div>
