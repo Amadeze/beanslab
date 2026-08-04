@@ -68,12 +68,18 @@ suite("appendFefoLedgerOut — real PostgreSQL (TEST_DATABASE_URL)", () => {
     if (client) {
       await client.$transaction(async (tx) => {
         await tx.inventoryLedger.deleteMany({
-          where: { refId: { in: cleanupIds } },
+          where: {
+            OR: [
+              { refId: { in: cleanupIds } },
+              { createdById: { in: cleanupIds } },
+              { lotId: { in: cleanupIds } },
+            ],
+          },
         });
         await tx.lot.deleteMany({ where: { id: { in: cleanupIds } } });
         await tx.product.deleteMany({ where: { id: { in: cleanupIds } } });
-        await tx.tenant.deleteMany({ where: { id: { in: cleanupIds } } });
         await tx.user.deleteMany({ where: { id: { in: cleanupIds } } });
+        await tx.tenant.deleteMany({ where: { id: { in: cleanupIds } } });
       });
       await client.$disconnect();
     }
