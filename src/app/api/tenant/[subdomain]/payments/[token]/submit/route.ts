@@ -5,7 +5,12 @@ import { getRequestId, internalErrorResponse, logServerError } from "@/lib/api-o
 import { canSubmitPaymentProof } from "@/lib/manual-payments";
 import { prisma } from "@/lib/prisma";
 import { dispatchPaymentProofSubmittedNotifications } from "@/lib/payment-notifications";
-import { enforceRateLimit, RateLimitError, requestIdentifier } from "@/lib/rate-limit";
+import {
+  digestIdentifier,
+  layeredIdentifiers,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { hasValidImageSignature, uploadPrivateImage } from "@/lib/storage";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -20,9 +25,13 @@ export async function POST(
   try {
     const { subdomain, token } = await params;
     subdomainForLog = subdomain;
+    const identity = resolveClientIdentity(request.headers);
     await enforceRateLimit({
-      scope: `payment-proof:${subdomain}`,
-      identifier: requestIdentifier(request.headers),
+      scope: "payment-proof",
+      identifiers: layeredIdentifiers(identity, [
+        digestIdentifier("tenant", subdomain),
+        digestIdentifier("submission", token),
+      ]),
       limit: 8,
       windowSeconds: 60 * 60,
     });

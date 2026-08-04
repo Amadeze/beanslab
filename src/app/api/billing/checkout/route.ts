@@ -8,8 +8,12 @@ import midtransClient from "midtrans-client";
 import {
   enforceRateLimit,
   RateLimitError,
-  requestIdentifier,
 } from "@/lib/rate-limit";
+import {
+  layeredIdentifiers,
+  resolveClientIdentity,
+  tenantIdentifier,
+} from "@/lib/client-identity";
 import { PLAN_CATALOG } from "@/lib/plans";
 import {
   getRequestId,
@@ -24,9 +28,10 @@ export async function POST(req: Request) {
     if (!session.user || session.user.role !== "OWNER") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    const identity = resolveClientIdentity(req.headers);
     await enforceRateLimit({
       scope: "subscription-checkout",
-      identifier: `${session.user.tenantId}:${requestIdentifier(req.headers)}`,
+      identifiers: layeredIdentifiers(identity, [tenantIdentifier(session.user.tenantId)]),
       limit: 10,
       windowSeconds: 60 * 60,
     });

@@ -3,7 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { authenticateConnector } from "@/lib/artisan/connector-auth";
 import { isAlogFile, parseAlog } from "@/lib/artisan/parser";
 import { reconcileLiveSession } from "@/lib/artisan/mqtt-bridge";
-import { enforceRateLimit, RateLimitError, requestIdentifier } from "@/lib/rate-limit";
+import {
+  connectorIdentifier,
+  layeredIdentifiers,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { uploadPrivateObject } from "@/lib/storage";
 import {
   getRequestId,
@@ -36,10 +41,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const ip = requestIdentifier(req.headers);
+    const identity = resolveClientIdentity(req.headers);
     await enforceRateLimit({
       scope: "artisan:upload",
-      identifier: `${auth.connectorId}:${ip}`,
+      identifiers: layeredIdentifiers(identity, [connectorIdentifier(auth.connectorId)]),
       limit: 30,
       windowSeconds: 60,
     });

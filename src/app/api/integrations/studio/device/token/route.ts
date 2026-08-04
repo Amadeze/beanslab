@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { enforceRateLimit, RateLimitError, requestIdentifier } from "@/lib/rate-limit";
+import {
+  digestIdentifier,
+  layeredIdentifiers,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import {
   generateConnectorToken,
   hashConnectorToken,
@@ -25,9 +30,12 @@ export async function POST(request: NextRequest) {
     }
 
     const deviceCodeHash = hashStudioDeviceCode(parsed.data.deviceCode);
+    const identity = resolveClientIdentity(request.headers);
     await enforceRateLimit({
       scope: "studio:device-token",
-      identifier: `${requestIdentifier(request.headers)}:${deviceCodeHash.slice(0, 16)}`,
+      identifiers: layeredIdentifiers(identity, [
+        digestIdentifier("device-code", deviceCodeHash.slice(0, 16)),
+      ]),
       limit: 40,
       windowSeconds: 60,
     });

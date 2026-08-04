@@ -3,8 +3,13 @@ import { getCurrentUser } from "@/lib/session";
 import {
   enforceRateLimit,
   RateLimitError,
-  requestIdentifier,
 } from "@/lib/rate-limit";
+import {
+  layeredIdentifiers,
+  resolveClientIdentity,
+  tenantIdentifier,
+  userIdentifier,
+} from "@/lib/client-identity";
 import { hasValidImageSignature, uploadImage } from "@/lib/storage";
 import {
   getRequestId,
@@ -22,9 +27,13 @@ export async function POST(req: NextRequest) {
     if (!user || !["OWNER", "MANAGER"].includes(user.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    const identity = resolveClientIdentity(req.headers);
     await enforceRateLimit({
       scope: "upload",
-      identifier: `${user.tenantId}:${requestIdentifier(req.headers)}`,
+      identifiers: layeredIdentifiers(identity, [
+        tenantIdentifier(user.tenantId),
+        userIdentifier(user.id),
+      ]),
       limit: 20,
       windowSeconds: 60 * 60,
     });

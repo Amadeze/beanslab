@@ -10,8 +10,13 @@ import { decryptCredential } from "@/lib/credentials";
 import {
   enforceRateLimit,
   RateLimitError,
-  requestIdentifier,
 } from "@/lib/rate-limit";
+import {
+  digestIdentifier,
+  layeredIdentifiers,
+  phoneIdentifier,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
 import { planHasFeature } from "@/lib/plans";
 import {
   getRequestId,
@@ -77,12 +82,6 @@ export async function POST(
   try {
     const { subdomain } = await params;
     tenantSubdomain = subdomain;
-    await enforceRateLimit({
-      scope: `tenant-checkout:${subdomain}`,
-      identifier: requestIdentifier(req.headers),
-      limit: 30,
-      windowSeconds: 10 * 60,
-    });
     const parsedBody = CheckoutSchema.safeParse(await req.json());
     if (!parsedBody.success) {
       return NextResponse.json(
@@ -90,6 +89,16 @@ export async function POST(
         { status: 400 },
       );
     }
+    const identity = resolveClientIdentity(req.headers);
+    await enforceRateLimit({
+      scope: "tenant-checkout",
+      identifiers: layeredIdentifiers(identity, [
+        digestIdentifier("tenant", subdomain),
+        phoneIdentifier(parsedBody.data.customerPhone),
+      ]),
+      limit: 30,
+      windowSeconds: 10 * 60,
+    });
     const {
       customerName,
       customerPhone,

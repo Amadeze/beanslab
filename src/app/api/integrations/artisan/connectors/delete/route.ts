@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
+import { tenantIdentifier } from "@/lib/client-identity";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { recordAudit } from "@/lib/audit";
 import { getRequestId, internalErrorResponse, logServerError } from "@/lib/api-observability";
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     await enforceRateLimit({
       scope: "artisan:delete",
-      identifier: user.tenantId,
+      identifiers: [tenantIdentifier(user.tenantId)],
       limit: 10,
       windowSeconds: 60,
     });

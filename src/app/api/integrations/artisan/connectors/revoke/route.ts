@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { tenantIdentifier } from "@/lib/client-identity";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import {
   getRequestId,
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
     // Rate limit: 10/minute per tenant
     await enforceRateLimit({
       scope: "artisan:revoke",
-      identifier: user.tenantId,
+      identifiers: [tenantIdentifier(user.tenantId)],
       limit: 10,
       windowSeconds: 60,
     });

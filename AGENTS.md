@@ -4,6 +4,24 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Client identity & rate limiting (safety)
+
+- Forwarded headers (`X-Forwarded-For`, `X-Real-IP`) are NEVER trusted implicitly —
+  a client can spoof them to reset rate-limit buckets. Trust is granted only by
+  `src/lib/client-identity.ts`:
+  - Vercel: `process.env.VERCEL === "1"` (platform-set, cannot be forged). The edge
+    proxy owns the source connection; first chain entry is the client.
+  - Self-hosted: only with explicit `TRUST_PROXY=1` + `TRUSTED_PROXY_HOPS=<n>`
+    (default 1). Required deployment conditions: app port not reachable from the
+    internet; proxy strips client-supplied forwarded headers; proxy rewrites headers
+    from the source connection; known fixed hop count.
+- Without a trusted identity the network layer is SKIPPED (never a random per-request
+  identifier, never a global "unknown"/"untrusted" bucket) — buckets are built from
+  account/tenant/resource identifiers instead.
+- `enforceRateLimit` takes `identifiers: string[]` (layered buckets, each enforced
+  independently). Never pass raw PII/tokens/subdomains into identifiers or logs;
+  use the builders from `src/lib/client-identity.ts`.
+
 # Prisma CLI & database targets (safety)
 
 - `prisma.config.ts` reads `.env.local` (dotenv) and can override shell environment:

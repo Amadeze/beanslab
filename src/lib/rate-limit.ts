@@ -12,22 +12,40 @@ export class RateLimitError extends Error {
   }
 }
 
+/**
+ * Thrown when a rate-limited endpoint resolves to no bucket identifiers at
+ * all (e.g. a public endpoint on a deployment without a trusted network
+ * identity). Fail closed: the request is rejected with a controlled
+ * configuration error instead of silently bypassing the rate limit.
+ */
+export class RateLimitMisconfigurationError extends Error {
+  constructor(scope: string) {
+    super(
+      `[rate-limit] Misconfiguration: scope "${scope}" resolved to zero identifiers. ` +
+        "Every endpoint needs at least one non-network layer (account/tenant/resource). " +
+        "For public endpoints that rely on a network layer, run on Vercel or configure a trusted reverse proxy (TRUST_PROXY + TRUSTED_PROXY_HOPS).",
+    );
+    this.name = "RateLimitMisconfigurationError";
+  }
+}
+
 type RateLimitInput = {
   scope: string;
-  identifier: string;
+  /**
+   * One or more layered bucket identifiers (e.g. network + account + tenant).
+   * Each identifier is enforced independently in the same window; a request
+   * is rejected when ANY layer is over its limit. Use the builders from
+   * `./client-identity` — never pass raw PII, tokens, or client-supplied IPs
+   * without a trusted identity.
+   */
+  identifiers: string[];
   limit: number;
   windowSeconds: number;
 };
 
-export function requestIdentifier(headers: Headers) {
-  const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const realIp = headers.get("x-real-ip")?.trim();
-  return forwarded || realIp || "unknown";
-}
-
 export async function enforceRateLimit({
   scope,
-  identifier,
+  identifiers,
   limit,
   windowSeconds,
 }: RateLimitInput) {
@@ -36,27 +54,33 @@ export async function enforceRateLimit({
   const windowStartMs = Math.floor(nowMs / windowMs) * windowMs;
   const windowStart = new Date(windowStartMs);
   const expiresAt = new Date(windowStartMs + windowMs);
-  const identifierHash = crypto
-    .createHash("sha256")
-    .update(identifier)
-    .digest("hex");
-  const key = `${scope}:${identifierHash}:${windowStartMs}`;
+  let remaining = limit;
 
-  const bucket = await prisma.rateLimitBucket.upsert({
-    where: { key },
-    create: { key, count: 1, windowStart, expiresAt },
-    update: { count: { increment: 1 } },
-    select: { count: true },
-  });
-
-  if (bucket.count > limit) {
-    throw new RateLimitError(
-      Math.max(1, Math.ceil((expiresAt.getTime() - nowMs) / 1000)),
-    );
+  if (identifiers.length === 0) {
+    throw new RateLimitMisconfigurationError(scope);
   }
 
-  return {
-    remaining: Math.max(0, limit - bucket.count),
-    resetAt: expiresAt,
-  };
+  for (const identifier of identifiers) {
+    const identifierHash = crypto
+      .createHash("sha256")
+      .update(identifier)
+      .digest("hex");
+    const key = `${scope}:${identifierHash}:${windowStartMs}`;
+
+    const bucket = await prisma.rateLimitBucket.upsert({
+      where: { key },
+      create: { key, count: 1, windowStart, expiresAt },
+      update: { count: { increment: 1 } },
+      select: { count: true },
+    });
+
+    if (bucket.count > limit) {
+      throw new RateLimitError(
+        Math.max(1, Math.ceil((expiresAt.getTime() - nowMs) / 1000)),
+      );
+    }
+    remaining = Math.min(remaining, Math.max(0, limit - bucket.count));
+  }
+
+  return { remaining, resetAt: expiresAt };
 }

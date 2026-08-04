@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateConnector } from "@/lib/artisan/connector-auth";
 import { CreateStudioRoastingBatchSchema } from "@/lib/artisan/types";
 import { createStudioRoastingBatch } from "@/lib/studio-roasting-batch";
-import { enforceRateLimit, RateLimitError, requestIdentifier } from "@/lib/rate-limit";
+import {
+  connectorIdentifier,
+  layeredIdentifiers,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import {
   getRequestId,
   internalErrorResponse,
@@ -31,9 +36,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const identity = resolveClientIdentity(request.headers);
     await enforceRateLimit({
       scope: "studio:create-roasting-batch",
-      identifier: `${auth.connectorId}:${requestIdentifier(request.headers)}`,
+      identifiers: layeredIdentifiers(identity, [connectorIdentifier(auth.connectorId)]),
       limit: 10,
       windowSeconds: 60,
     });

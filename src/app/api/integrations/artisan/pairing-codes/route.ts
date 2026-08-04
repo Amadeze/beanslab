@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
+import { tenantIdentifier } from "@/lib/client-identity";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import {
   generatePairingCode,
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     await enforceRateLimit({
       scope: "artisan:pairing",
-      identifier: user.tenantId,
+      identifiers: [tenantIdentifier(user.tenantId)],
       limit: 5,
       windowSeconds: 60,
     });

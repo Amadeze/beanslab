@@ -10,8 +10,12 @@ import {
 import {
   enforceRateLimit,
   RateLimitError,
-  requestIdentifier,
 } from "@/lib/rate-limit";
+import {
+  emailIdentifier,
+  layeredIdentifiers,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
 import { sendPasswordResetEmail } from "@/lib/notifications";
 
 const GENERIC_MESSAGE =
@@ -21,9 +25,10 @@ export async function requestPasswordReset(emailInput: string) {
   try {
     const email = emailInput.toLowerCase().trim();
     const requestHeaders = await headers();
+    const identity = resolveClientIdentity(requestHeaders);
     await enforceRateLimit({
       scope: "forgot-password",
-      identifier: `${requestIdentifier(requestHeaders)}:${email}`,
+      identifiers: layeredIdentifiers(identity, [emailIdentifier(email)]),
       limit: 5,
       windowSeconds: 60 * 60,
     });

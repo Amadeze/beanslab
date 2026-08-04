@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { enforceRateLimit, RateLimitError, requestIdentifier } from "@/lib/rate-limit";
+import {
+  layeredIdentifiers,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
+import {
+  enforceRateLimit,
+  RateLimitError,
+  RateLimitMisconfigurationError,
+} from "@/lib/rate-limit";
 import {
   generateStudioDeviceCode,
   generateStudioVerificationCode,
@@ -15,9 +23,10 @@ const AUTHORIZATION_TTL_MS = 10 * 60 * 1000;
 export async function POST(request: NextRequest) {
   const requestId = getRequestId(request.headers);
   try {
+    const identity = resolveClientIdentity(request.headers);
     await enforceRateLimit({
       scope: "studio:device-start",
-      identifier: requestIdentifier(request.headers),
+      identifiers: layeredIdentifiers(identity, []),
       limit: 8,
       windowSeconds: 60,
     });
@@ -57,6 +66,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: { code: "RATE_LIMITED", message: error.message } },
         { status: 429, headers: { "Retry-After": String(error.retryAfter) } },
+      );
+    }
+    if (error instanceof RateLimitMisconfigurationError) {
+      // Fail closed: this public endpoint has no non-network bucket and the
+      // deployment has no trusted network identity.
+      logServerError("studio.device-start.misconfiguration", error, { requestId });
+      return NextResponse.json(
+        { error: { code: "RATE_LIMIT_UNAVAILABLE", message: "Layanan sementara tidak tersedia." } },
+        { status: 503 },
       );
     }
     logServerError("studio.device-start", error, { requestId });

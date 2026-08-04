@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateConnector } from "@/lib/artisan/connector-auth";
 import { HeartbeatRequestSchema } from "@/lib/artisan/types";
-import { enforceRateLimit, RateLimitError, requestIdentifier } from "@/lib/rate-limit";
+import {
+  connectorIdentifier,
+  layeredIdentifiers,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import {
   getRequestId,
   internalErrorResponse,
@@ -21,10 +26,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Rate limit: 60/minute per connector (heartbeat every 60s)
-    const ip = requestIdentifier(req.headers);
+    const identity = resolveClientIdentity(req.headers);
     await enforceRateLimit({
       scope: "artisan:heartbeat",
-      identifier: `${auth.connectorId}:${ip}`,
+      identifiers: layeredIdentifiers(identity, [connectorIdentifier(auth.connectorId)]),
       limit: 60,
       windowSeconds: 60,
     });

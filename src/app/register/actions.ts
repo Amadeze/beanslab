@@ -9,9 +9,13 @@ import { getCurrentDate } from "@/lib/date-utils";
 import {
   enforceRateLimit,
   RateLimitError,
-  requestIdentifier,
 } from "@/lib/rate-limit";
 import { isReservedTenantSubdomain } from "@/lib/tenant-host";
+import {
+  emailIdentifier,
+  layeredIdentifiers,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
 
 export async function registerTenant(data: {
   roasteryName: string;
@@ -26,9 +30,10 @@ export async function registerTenant(data: {
     const email = data.email.toLowerCase().trim();
     const password = data.password;
     const requestHeaders = await headers();
+    const identity = resolveClientIdentity(requestHeaders);
     await enforceRateLimit({
       scope: "register",
-      identifier: requestIdentifier(requestHeaders),
+      identifiers: layeredIdentifiers(identity, [emailIdentifier(email)]),
       limit: 5,
       windowSeconds: 60 * 60,
     });
@@ -152,12 +157,7 @@ export async function registerTenantWithGoogle(data: {
     const roasteryName = data.roasteryName.trim();
     const subdomain = data.subdomain.toLowerCase().trim();
     const requestHeaders = await headers();
-    await enforceRateLimit({
-      scope: "register",
-      identifier: requestIdentifier(requestHeaders),
-      limit: 5,
-      windowSeconds: 60 * 60,
-    });
+    const identity = resolveClientIdentity(requestHeaders);
 
     if (!roasteryName || !subdomain) {
       return { success: false, error: "Nama Roastery and Subdomain are required" };
@@ -187,6 +187,13 @@ export async function registerTenantWithGoogle(data: {
     }
 
     const { sub: googleId, email, name } = signupSession.googleUser;
+
+    await enforceRateLimit({
+      scope: "register",
+      identifiers: layeredIdentifiers(identity, [emailIdentifier(email)]),
+      limit: 5,
+      windowSeconds: 60 * 60,
+    });
 
     const existingTenant = await prisma.tenant.findUnique({
       where: { subdomain },

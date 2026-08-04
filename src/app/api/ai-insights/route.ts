@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { queryReports } from "@/lib/ai-insights";
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
 import { getRequestId, logServerError } from "@/lib/api-observability";
-import { enforceRateLimit, RateLimitError, requestIdentifier } from "@/lib/rate-limit";
+import {
+  layeredIdentifiers,
+  resolveClientIdentity,
+  tenantIdentifier,
+  userIdentifier,
+} from "@/lib/client-identity";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +17,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const user = await requireRole("OWNER", "MANAGER");
+    const identity = resolveClientIdentity(req.headers);
     await enforceRateLimit({
       scope: "ai-insights",
-      identifier: `${user.tenantId}:${user.id}:${requestIdentifier(req.headers)}`,
+      identifiers: layeredIdentifiers(identity, [
+        tenantIdentifier(user.tenantId),
+        userIdentifier(user.id),
+      ]),
       limit: 30,
       windowSeconds: 60,
     });

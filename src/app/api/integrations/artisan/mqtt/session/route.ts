@@ -3,9 +3,13 @@ import { authenticateConnector } from "@/lib/artisan/connector-auth";
 import { processMqttLive } from "@/lib/artisan/mqtt-bridge";
 import { MqttSessionRequestSchema } from "@/lib/artisan/types";
 import {
+  connectorIdentifier,
+  layeredIdentifiers,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
+import {
   enforceRateLimit,
   RateLimitError,
-  requestIdentifier,
 } from "@/lib/rate-limit";
 import {
   getRequestId,
@@ -25,10 +29,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Rate limit: 120/minute per connector (MQTT updates are frequent)
-    const ip = requestIdentifier(req.headers);
+    const identity = resolveClientIdentity(req.headers);
     await enforceRateLimit({
       scope: "artisan:mqtt",
-      identifier: `${auth.connectorId}:${ip}`,
+      identifiers: layeredIdentifiers(identity, [connectorIdentifier(auth.connectorId)]),
       limit: 120,
       windowSeconds: 60,
     });

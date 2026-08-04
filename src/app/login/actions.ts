@@ -9,8 +9,12 @@ import { SESSION_OPTIONS, type SessionUser } from "@/lib/session";
 import {
   enforceRateLimit,
   RateLimitError,
-  requestIdentifier,
 } from "@/lib/rate-limit";
+import {
+  emailIdentifier,
+  layeredIdentifiers,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
 
 type AppSession = IronSession<{ user?: SessionUser }>;
 
@@ -23,9 +27,10 @@ export type LoginResult =
 export async function loginAction(email: string, password: string): Promise<LoginResult> {
   try {
     const requestHeaders = await headers();
+    const identity = resolveClientIdentity(requestHeaders);
     await enforceRateLimit({
       scope: "login",
-      identifier: `${requestIdentifier(requestHeaders)}:${email.toLowerCase().trim()}`,
+      identifiers: layeredIdentifiers(identity, [emailIdentifier(email)]),
       limit: 5,
       windowSeconds: 15 * 60,
     });

@@ -12,15 +12,20 @@ import {
 import {
   enforceRateLimit,
   RateLimitError,
-  requestIdentifier,
 } from "@/lib/rate-limit";
+import {
+  digestIdentifier,
+  layeredIdentifiers,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
 
 export async function resetPassword(token: string, password: string) {
   try {
     const requestHeaders = await headers();
+    const identity = resolveClientIdentity(requestHeaders);
     await enforceRateLimit({
       scope: "reset-password",
-      identifier: requestIdentifier(requestHeaders),
+      identifiers: layeredIdentifiers(identity, [digestIdentifier("reset-token", token)]),
       limit: 10,
       windowSeconds: 60 * 60,
     });

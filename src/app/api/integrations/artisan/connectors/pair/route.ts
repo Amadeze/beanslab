@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { enforceRateLimit, RateLimitError, requestIdentifier } from "@/lib/rate-limit";
+import {
+  digestIdentifier,
+  layeredIdentifiers,
+  resolveClientIdentity,
+} from "@/lib/client-identity";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import {
   hashPairingCode,
   generateConnectorToken,
@@ -16,14 +21,6 @@ import {
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   try {
-    const ip = requestIdentifier(req.headers);
-    await enforceRateLimit({
-      scope: "artisan:connector-pair",
-      identifier: ip,
-      limit: 5,
-      windowSeconds: 60,
-    });
-
     const body = await req.json();
     const parsed = PairConnectorRequestSchema.safeParse(body);
     if (!parsed.success) {
@@ -32,6 +29,16 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+
+    const identity = resolveClientIdentity(req.headers);
+    await enforceRateLimit({
+      scope: "artisan:connector-pair",
+      identifiers: layeredIdentifiers(identity, [
+        digestIdentifier("pairing-code", parsed.data.pairingCode),
+      ]),
+      limit: 5,
+      windowSeconds: 60,
+    });
 
     const { pairingCode, installationId, computerName, platform, appVersion } = parsed.data;
 
