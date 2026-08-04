@@ -48,9 +48,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Find or use first machine
+    // Find or use first machine. A client-supplied machineId is never trusted:
+    // the FK on the import/roast rows does not guarantee the machine belongs to
+    // the caller's tenant, so ownership (tenantId + isActive) is verified here.
     let targetMachineId = machineId;
-    if (!targetMachineId) {
+    if (targetMachineId) {
+      const machine = await prisma.machine.findFirst({
+        where: { id: targetMachineId, tenantId: user.tenantId, isActive: true },
+        select: { id: true },
+      });
+      if (!machine) {
+        return NextResponse.json(
+          { error: "Mesin tidak ditemukan." },
+          { status: 404 },
+        );
+      }
+    } else {
       const machine = await prisma.machine.findFirst({
         where: { tenantId: user.tenantId, isActive: true },
         select: { id: true },
