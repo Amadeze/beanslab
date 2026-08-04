@@ -33,7 +33,11 @@
     "maintenance:overdue-reminders": "tsx --env-file-if-exists=.env.local scripts/send-overdue-reminders.mts",
     "check:notifications": "tsx --env-file-if-exists=.env.local scripts/check-notification-providers.mts",
     "preflight:production": "tsx --env-file-if-exists=.env.local scripts/production-preflight.mts",
-    "verify": "prisma validate && npm run typecheck && npm run lint -- --quiet && npm run test && npm run build",
+    "prisma:migrate:dev": "node scripts/guard-prisma-target.mjs && prisma migrate dev",
+    "prisma:migrate:deploy": "node scripts/guard-prisma-target.mjs && prisma migrate deploy",
+    "prisma:migrate:reset": "node scripts/guard-prisma-target.mjs && prisma migrate reset",
+    "prisma:db:push": "node scripts/guard-prisma-target.mjs && prisma db push",
+    "verify": "prisma validate && pnpm run typecheck && pnpm run lint -- --quiet && pnpm run test && pnpm run build",
     "seed": "tsx --env-file-if-exists=.env.local prisma/seed.ts",
     "prepare": "husky",
     "preinstall": "npx only-allow pnpm"

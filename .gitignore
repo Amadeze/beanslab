@@ -33,6 +33,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 /server-fork-smoke*.log
+*.log
+*.diff
+dump*.sql
 
 # env files (can opt-in for committing if needed)
 .env*
@@ -64,8 +67,3 @@ next-env.d.ts
 /public/downloads/RoastdStudio-*.exe
 !/public/downloads/RoastdStudio-0.10.2-x64-setup.exe
 /public/downloads/ArtisanSync-*.exe
-
-.vercel
-
-.vercel
-.env*
