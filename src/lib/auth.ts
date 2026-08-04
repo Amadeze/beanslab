@@ -22,15 +22,15 @@ export const getTenantAccessRecord = cache(async (tenantId: string) =>
 );
 
 /**
- * Returns the current user validated against the database.
- * Checks: user exists, isActive=true, tenant matches session.
- * Returns null if not found, inactive, or tenant mismatch.
- * Does NOT redirect or throw � suitable for API routes that need custom JSON responses.
+ * Validates a session payload against the database.
+ * Checks: user exists, isActive=true, tenant matches session, and the session
+ * version equals the user's latest sessionVersion (password changes bump the
+ * version, invalidating every previously issued stateless session).
+ * Returns null when stale, inactive, or tenant mismatch.
  */
-export const getValidatedCurrentUser = cache(async (): Promise<SessionUser | null> => {
-  const sessionUser = await getCurrentUser();
-  if (!sessionUser) return null;
-
+export async function validateSessionUser(
+  sessionUser: SessionUser,
+): Promise<SessionUser | null> {
   const currentUser = await prisma.user.findFirst({
     where: {
       id: sessionUser.id,
@@ -43,9 +43,11 @@ export const getValidatedCurrentUser = cache(async (): Promise<SessionUser | nul
       email: true,
       role: true,
       tenantId: true,
+      sessionVersion: true,
     },
   });
   if (!currentUser) return null;
+  if (currentUser.sessionVersion !== sessionUser.sessionVersion) return null;
 
   return {
     id: currentUser.id,
@@ -53,7 +55,21 @@ export const getValidatedCurrentUser = cache(async (): Promise<SessionUser | nul
     email: currentUser.email,
     role: currentUser.role,
     tenantId: currentUser.tenantId,
+    sessionVersion: currentUser.sessionVersion,
   };
+}
+
+/**
+ * Returns the current user validated against the database.
+ * Checks: user exists, isActive=true, tenant matches session, session version
+ * is current. Returns null if not found, inactive, stale, or tenant mismatch.
+ * Does NOT redirect or throw — suitable for API routes that need custom JSON responses.
+ */
+export const getValidatedCurrentUser = cache(async (): Promise<SessionUser | null> => {
+  const sessionUser = await getCurrentUser();
+  if (!sessionUser) return null;
+
+  return validateSessionUser(sessionUser);
 });
 
 export async function requireCurrentUser() {

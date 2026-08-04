@@ -478,6 +478,10 @@ model User {
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
 
+  // Session epoch: every password change/reset bumps this, invalidating all
+  // previously issued iron-session cookies (stateless) without server-side storage.
+  sessionVersion Int @default(0)
+
   purchases                  Purchase[]
   purchaseOrders             PurchaseOrder[]
   parentRoastingBatches      ParentRoastingBatch[]

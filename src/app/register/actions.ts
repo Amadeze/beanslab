@@ -131,6 +131,7 @@ export async function registerTenant(data: {
       name: result.user.name,
       role: result.user.role,
       tenantId: result.tenant.id,
+      sessionVersion: result.user.sessionVersion,
     };
     await session.save();
 
@@ -247,6 +248,7 @@ export async function registerTenantWithGoogle(data: {
       name: result.user.name,
       role: result.user.role,
       tenantId: result.tenant.id,
+      sessionVersion: result.user.sessionVersion,
     };
     await session.save();
 

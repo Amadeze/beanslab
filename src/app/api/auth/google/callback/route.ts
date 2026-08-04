@@ -101,6 +101,7 @@ export async function GET(request: Request) {
       name: user.name,
       role: user.role,
       tenantId: user.tenantId,
+      sessionVersion: user.sessionVersion,
     };
     await session.save();
 

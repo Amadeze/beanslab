@@ -43,7 +43,7 @@ describe("withSerializableRetry", () => {
   });
 
   it("stops after maxAttempts when every attempt hits P2034", async () => {
-    const { client, invocations } = makeClient([
+    const { client } = makeClient([
       prismaError("P2034"),
       prismaError("P2034"),
       prismaError("P2034"),
@@ -56,21 +56,21 @@ describe("withSerializableRetry", () => {
   });
 
   it("does not retry non-P2034 errors", async () => {
-    const { client, invocations } = makeClient([new Error("boom")]);
+    const { client } = makeClient([new Error("boom")]);
 
     await expect(withSerializableRetry(client, async () => "x")).rejects.toThrow("boom");
     expect(client.invocations).toBe(1);
   });
 
   it("stops retrying when a non-P2034 error occurs after a P2034", async () => {
-    const { client, invocations } = makeClient([prismaError("P2034"), new Error("boom")]);
+    const { client } = makeClient([prismaError("P2034"), new Error("boom")]);
 
     await expect(withSerializableRetry(client, async () => "x")).rejects.toThrow("boom");
     expect(client.invocations).toBe(2);
   });
 
   it("respects a custom maxAttempts", async () => {
-    const { client, invocations } = makeClient([
+    const { client } = makeClient([
       prismaError("P2034"),
       prismaError("P2034"),
       prismaError("P2034"),

@@ -47,6 +47,7 @@ export async function loginAction(email: string, password: string): Promise<Logi
         tenantId: true,
         failedLoginAttempts: true,
         lockedUntil: true,
+        sessionVersion: true,
         tenant: { select: { isActive: true } },
       },
     });
@@ -89,6 +90,7 @@ export async function loginAction(email: string, password: string): Promise<Logi
       email: user.email,
       role:  user.role as SessionUser["role"],
       tenantId: user.tenantId,
+      sessionVersion: user.sessionVersion,
     };
 
     await session.save();

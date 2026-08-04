@@ -8,6 +8,8 @@ export interface SessionUser {
   email: string;
   role: "OWNER" | "MANAGER" | "OPERATOR" | "CASHIER" | "SUPERADMIN";
   tenantId: string;
+  /** Epoch captured at login; must match User.sessionVersion on revalidation. */
+  sessionVersion: number;
 }
 
 function getSessionPassword(): string {

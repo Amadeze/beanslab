@@ -36,7 +36,11 @@ export async function consumePasswordResetToken(
 
   const updatedUser = await tx.user.updateMany({
     where: { id: input.userId, isActive: true },
-    data: { password: input.passwordHash },
+    data: {
+      password: input.passwordHash,
+      // Invalidate every stateless session issued before this reset.
+      sessionVersion: { increment: 1 },
+    },
   });
   if (updatedUser.count !== 1) throw new Error("RESET_USER_INACTIVE");
 
