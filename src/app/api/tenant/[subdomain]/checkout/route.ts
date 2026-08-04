@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 import { revalidatePath } from "next/cache";
 import midtransClient from "midtrans-client";
 import { sendInvoiceEmail, sendInvoiceWhatsApp } from "@/lib/notifications";
@@ -288,8 +289,8 @@ export async function POST(
       }
     }
 
-    // 4. Buat customer, invoice, line item, dan ledger stok dalam satu transaksi
-    const invoice = await prisma.$transaction(async (tx) => {
+    // 4. Buat customer, invoice, line item, dan ledger stok dalam satu transaksi dengan retry untuk P2034
+    const invoice = await withSerializableRetry(prisma, async (tx) => {
       let customer = await tx.customer.findFirst({
         where: { tenantId: tenant.id, phone: customerPhone }
       });
@@ -391,7 +392,7 @@ export async function POST(
       });
 
       return inv;
-    }, { isolationLevel: "Serializable" });
+    });
 
     revalidatePath("/penjualan");
     revalidatePath("/inventory");

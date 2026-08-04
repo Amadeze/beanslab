@@ -9,8 +9,11 @@ import { canReviewPayment, validatePaymentReview } from "@/lib/manual-payments";
 import { postCustomerPayment } from "@/lib/posting";
 import { dispatchPaymentReviewNotifications } from "@/lib/payment-notifications";
 import { consumeInvoiceReservations } from "@/lib/storefront-commerce";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 
 export type ReviewPaymentResult = { success: true } | { success: false; error: string };
+
+class PaymentReviewError extends Error {}
 
 export async function verifyPaymentSubmission(
   id: string,
@@ -141,13 +144,31 @@ export async function rejectPaymentSubmission(id: string, reason: string): Promi
     const tp = await requireTenantPrisma();
     const cleanReason = reason.trim();
     if (cleanReason.length < 3 || cleanReason.length > 500) return { success: false, error: "Alasan penolakan wajib diisi." };
-    const submission = await tp.paymentSubmission.findUnique({ where: { id } });
-    if (!submission || !canReviewPayment(submission.status)) return { success: false, error: "Bukti sudah diproses." };
-    await tp.$transaction(async (tx) => {
-      await tx.paymentSubmission.update({
-        where: { id },
-        data: { status: "REJECTED", reviewedAmount: null, rejectionReason: cleanReason, reviewedAt: getCurrentDate(), reviewedById: user.id },
+    const now = getCurrentDate();
+
+    // Baca di dalam transaksi Serializable (bounded retry untuk P2034), cek
+    // kepemilikan tenant, dan lakukan CAS pada status terbaru sehingga hanya
+    // satu dari dua review paralel yang bisa berhasil.
+    await withSerializableRetry(tp, async (tx) => {
+      const submission = await tx.paymentSubmission.findUnique({
+        where: { id, tenantId: user.tenantId },
       });
+      if (!submission || !canReviewPayment(submission.status)) {
+        throw new PaymentReviewError("Bukti sudah diproses.");
+      }
+      const result = await tx.paymentSubmission.updateMany({
+        where: { id, tenantId: user.tenantId, status: "AWAITING_VERIFICATION" },
+        data: {
+          status: "REJECTED",
+          reviewedAmount: null,
+          rejectionReason: cleanReason,
+          reviewedAt: now,
+          reviewedById: user.id,
+        },
+      });
+      if (result.count !== 1) {
+        throw new PaymentReviewError("Bukti sudah diproses.");
+      }
       await recordAudit(tx, {
         tenantId: user.tenantId,
         userId: user.id,
@@ -157,12 +178,14 @@ export async function rejectPaymentSubmission(id: string, reason: string): Promi
         after: { status: "REJECTED", reason: cleanReason },
       });
     });
+
     revalidatePath("/penjualan/pembayaran");
     await dispatchPaymentReviewNotifications(id).catch((error) => {
       console.error("[rejectPaymentSubmission.notification]", error);
     });
     return { success: true };
-  } catch {
+  } catch (error) {
+    if (error instanceof PaymentReviewError) return { success: false, error: error.message };
     return { success: false, error: "Bukti pembayaran gagal ditolak." };
   }
 }
