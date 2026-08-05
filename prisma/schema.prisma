@@ -1863,7 +1863,8 @@ model ArtisanRoastImport {
   id               String              @id @default(cuid())
   tenantId         String
   machineId        String
-  connectorId      String
+  // Null for manual web uploads (no connector); connector imports always set it.
+  connectorId      String?
   originalFilename String
   fileHash         String
   fileSize         Int
@@ -1876,9 +1877,9 @@ model ArtisanRoastImport {
   uploadedAt       DateTime            @default(now())
   importedAt       DateTime?
 
-  tenant    Tenant       @relation(fields: [tenantId], references: [id])
-  machine   Machine      @relation(fields: [machineId], references: [id])
-  connector RoastdStudio @relation(fields: [connectorId], references: [id])
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  machine   Machine       @relation(fields: [machineId], references: [id])
+  connector RoastdStudio? @relation(fields: [connectorId], references: [id])
 
   @@unique([tenantId, machineId, fileHash])
   @@index([tenantId, uploadedAt])

@@ -99,12 +99,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Create import record (using a dummy connectorId for manual upload)
+    // Create import record (manual uploads have no Artisan/Studio connector,
+    // so connectorId is left null — never a hardcoded connector id).
     const importRecord = await prisma.artisanRoastImport.create({
       data: {
         tenantId: user.tenantId,
         machineId: targetMachineId,
-        connectorId: "manual-upload",
+        connectorId: null,
         originalFilename: filename,
         fileHash: actualHash,
         fileSize: buffer.length,

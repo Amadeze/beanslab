@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { NextRequest } from "next/server";
 import { getIronSession } from "iron-session";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { SESSION_OPTIONS, type SessionUser } from "@/lib/session";
 import { POST } from "./route";
@@ -54,7 +55,7 @@ const USER_A_DISABLED = "user-manual-a-disabled";
 const MACHINE_A_ACTIVE = "machine-manual-a-active";
 const MACHINE_A_INACTIVE = "machine-manual-a-inactive";
 const MACHINE_B = "machine-manual-b";
-const CONNECTOR_MANUAL = "manual-upload";
+const CONNECTOR_A = "connector-manual-a-real";
 
 const fixturesDir = join(process.cwd(), "src/lib/artisan/__tests__/fixtures");
 
@@ -92,19 +93,21 @@ suite("manual roasting upload machine ownership (integration)", () => {
       ],
     });
 
-    // The route writes imports with connectorId "manual-upload", which is an
-    // FK to roastd_studios.id; provide the fixture row the route expects.
+    // A real Artisan/Studio connector of tenant A, used to prove connector
+    // imports keep a valid connector while manual uploads store null. No
+    // hidden "manual-upload" connector row is created anywhere.
     await prisma.roastdStudio.create({
       data: {
-        id: CONNECTOR_MANUAL,
+        id: CONNECTOR_A,
         tenantId: TENANT_A,
         machineId: MACHINE_A_ACTIVE,
-        installationId: "00000000-0000-0000-0000-000000000000",
-        computerName: "manual",
-        platform: "web",
+        installationId: "11111111-1111-4111-8111-111111111111",
+        computerName: "Connector A",
+        platform: "windows",
         appVersion: "1.0.0",
-        credentialHash: "manual-upload",
+        credentialHash: "connector-manual-a-real",
         status: "ONLINE",
+        authorizedByUserId: USER_A,
       },
     });
   });
@@ -117,7 +120,7 @@ suite("manual roasting upload machine ownership (integration)", () => {
       where: { tenantId: { in: [TENANT_A, TENANT_B] } },
     });
     await prisma.roastdStudio.deleteMany({
-      where: { id: CONNECTOR_MANUAL },
+      where: { tenantId: { in: [TENANT_A, TENANT_B] } },
     });
     await prisma.machine.deleteMany({
       where: { tenantId: { in: [TENANT_A, TENANT_B] } },
@@ -182,6 +185,7 @@ suite("manual roasting upload machine ownership (integration)", () => {
     });
     expect(importRow).not.toBeNull();
     expect(importRow?.tenantId).toBe(TENANT_A);
+    expect(importRow?.connectorId).toBeNull();
     expect(await importCount(TENANT_A)).toBe(before + 1);
 
     const roast = await prisma.roast.findUnique({
@@ -307,6 +311,65 @@ suite("manual roasting upload machine ownership (integration)", () => {
     expect(importRow).not.toBeNull();
     expect(importRow?.machineId).toBe(MACHINE_A_ACTIVE);
     expect(importRow?.tenantId).toBe(TENANT_A);
+    expect(importRow?.connectorId).toBeNull();
     expect(await importCount(TENANT_A)).toBe(before + 1);
+  });
+
+  it("keeps connector imports bound to their real connector", async () => {
+    const importRow = await prisma.artisanRoastImport.create({
+      data: {
+        tenantId: TENANT_A,
+        machineId: MACHINE_A_ACTIVE,
+        connectorId: CONNECTOR_A,
+        originalFilename: "connector-a.alog",
+        fileHash: "hash-connector-a",
+        fileSize: 10,
+        storageKey: `artisan/${TENANT_A}/connector-a.alog`,
+        status: "UPLOADED",
+      },
+    });
+
+    const withConnector = await prisma.artisanRoastImport.findUnique({
+      where: { id: importRow.id },
+      include: { connector: true },
+    });
+    expect(withConnector?.connector).not.toBeNull();
+    expect(withConnector?.connector?.id).toBe(CONNECTOR_A);
+    expect(withConnector?.connector?.tenantId).toBe(TENANT_A);
+  });
+
+  it("never creates a global hidden connector and preserves isolation", async () => {
+    authEnv.store.clear();
+    await loginAs({ id: USER_A, tenantId: TENANT_A, email: "manual-a@example.com", name: "Manual A" });
+
+    await upload(MACHINE_A_ACTIVE, "sweet-marias-real.alog");
+
+    // No hidden "manual-upload" row anywhere.
+    expect(await prisma.roastdStudio.count({ where: { id: "manual-upload" } })).toBe(0);
+
+    // Manual imports carry no connector, so they cannot reach another
+    // tenant's connector; connector imports resolve within their own tenant.
+    const manualRow = await prisma.artisanRoastImport.findFirst({
+      where: { tenantId: TENANT_A, connectorId: null },
+      include: { connector: true },
+    });
+    expect(manualRow).not.toBeNull();
+    const connectorRows = await prisma.artisanRoastImport.findMany({
+      where: { tenantId: TENANT_A, connectorId: { not: null } },
+      include: { connector: { select: { tenantId: true } } },
+    });
+    expect(connectorRows.every((row) => row.connector?.tenantId === TENANT_A)).toBe(true);
+  });
+
+  it("leaves no orphaned connector foreign keys", async () => {
+    const rows = await prisma.$queryRaw<Array<{ c: number }>>(Prisma.sql`
+      SELECT COUNT(*)::int AS c
+      FROM "artisan_roast_imports" i
+      LEFT JOIN "roastd_studios" c ON c.id = i."connectorId"
+      WHERE i."tenantId" IN (${TENANT_A}, ${TENANT_B})
+        AND i."connectorId" IS NOT NULL
+        AND c.id IS NULL
+    `);
+    expect(rows[0]?.c).toBe(0);
   });
 });
