@@ -214,46 +214,59 @@ export async function createDraftPO(
     throw new Error("Estimasi ongkir tidak boleh negatif.");
   }
 
-  // Generate code
-  const code = await generatePOCode(prisma);
-
   // Calculate total estimate
   const totalEstimate = calculateTotalEstimate(input.items, estimatedShippingCost);
 
-  // Create PO + items in transaction
-  const result = await prisma.$transaction(async (tx) => {
-    const po = await tx.purchaseOrder.create({
-      data: {
-        tenantId,
-        code,
-        status: "DRAFT",
-        supplierId: input.supplierId,
-        expectedDate: input.expectedDate ? new Date(input.expectedDate) : null,
-        notes: input.notes?.trim() || null,
-        estimatedShippingCost,
-        totalEstimate,
-        createdById: userId,
-      },
-    });
+  // Create PO + items in transaction. The sequential code may collide under
+  // concurrency; retry on the unique constraint with a fresh candidate.
+  const MAX_CODE_ATTEMPTS = 5;
+  for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt += 1) {
+    const code = await generatePOCode(prisma);
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const po = await tx.purchaseOrder.create({
+          data: {
+            tenantId,
+            code,
+            status: "DRAFT",
+            supplierId: input.supplierId,
+            expectedDate: input.expectedDate ? new Date(input.expectedDate) : null,
+            notes: input.notes?.trim() || null,
+            estimatedShippingCost,
+            totalEstimate,
+            createdById: userId,
+          },
+        });
 
-    await tx.purchaseOrderItem.createMany({
-      data: input.items.map((item) => ({
-        tenantId,
-        purchaseOrderId: po.id,
-        productId: item.productId || null,
-        packagingId: item.packagingId || null,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        totalPrice: item.quantity * item.unitPrice,
-        reorderPoint: item.reorderPoint ?? null,
-        currentStock: item.currentStock ?? null,
-      })),
-    });
+        await tx.purchaseOrderItem.createMany({
+          data: input.items.map((item) => ({
+            tenantId,
+            purchaseOrderId: po.id,
+            productId: item.productId || null,
+            packagingId: item.packagingId || null,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.quantity * item.unitPrice,
+            reorderPoint: item.reorderPoint ?? null,
+            currentStock: item.currentStock ?? null,
+          })),
+        });
 
-    return { id: po.id, code: po.code };
-  });
+        return { id: po.id, code: po.code };
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002" &&
+        attempt + 1 < MAX_CODE_ATTEMPTS
+      ) {
+        continue;
+      }
+      throw error;
+    }
+  }
 
-  return result;
+  throw new Error("PO code allocation failed after retries");
 }
 
 /**
@@ -464,8 +477,15 @@ export async function receivePO(
     throw new Error("Tanggal jatuh tempo tidak valid.");
   }
 
-  await prisma.$transaction(async (tx) => {
-    // Load all previously received quantities per item (matched by productId/packagingId)
+  // The sequential PUR code may collide when two receipts land concurrently;
+  // retry the whole transaction (atomic, rolls back) on the unique constraint
+  // with a fresh candidate per attempt.
+  const MAX_CODE_ATTEMPTS = 5;
+  for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt += 1) {
+    purchaseCodes.length = 0;
+    try {
+      await prisma.$transaction(async (tx) => {
+        // Load all previously received quantities per item (matched by productId/packagingId)
     const prevPurchases = await tx.purchase.findMany({
       where: { purchaseOrderId: poId },
       select: { productId: true, packagingId: true, weightKg: true, quantityUnits: true },
@@ -632,7 +652,19 @@ export async function receivePO(
         receivedAt: newStatus === "RECEIVED" ? receivedAt : undefined,
       },
     });
-  }, { maxWait: 15000, timeout: 30000 });
+      }, { maxWait: 15000, timeout: 30000 });
+      break;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002" &&
+        attempt + 1 < MAX_CODE_ATTEMPTS
+      ) {
+        continue;
+      }
+      throw error;
+    }
+  }
 
   return { purchaseCodes };
 }

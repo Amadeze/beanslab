@@ -821,7 +821,7 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
           if (input.type === "FINISHED_GOODS" && input.recipe && input.recipe.items.length > 0) {
             const r = input.recipe;
             const rCount  = await tx.recipe.count();
-            const rCode   = `RCP-${String(rCount + 1).padStart(3, "0")}`;
+            const rCode   = `RCP-${String(rCount + attempts).padStart(3, "0")}`;
             const outputG = r.outputGrams;
 
             const recipe = await tx.recipe.create({

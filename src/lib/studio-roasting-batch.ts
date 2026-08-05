@@ -20,7 +20,7 @@ function roastedBeanCode(name: string) {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 12);
-  return `RB-${slug || "BARU"}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+  return `RB-${slug || "BARU"}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
 }
 
 export type CreateStudioRoastingBatchInput = {

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { Prisma } from "@prisma/client";
 import { postPurchase } from "./posting";
 import {
   allocateShippingCost,
@@ -14,6 +15,13 @@ import {
 } from "./po-lite";
 
 vi.mock("./posting", () => ({ postPurchase: vi.fn().mockResolvedValue("JE-TEST") }));
+
+function duplicateError() {
+  return new Prisma.PrismaClientKnownRequestError("duplicate", {
+    code: "P2002",
+    clientVersion: "test",
+  });
+}
 
 // =============================================================================
 // MOCK PRISMA
@@ -197,6 +205,63 @@ describe("createDraftPO", () => {
         "user-1",
       ),
     ).rejects.toThrow("Quantity harus lebih dari 0.");
+  });
+
+  it("regenerates the code and succeeds when the first create hits a unique collision", async () => {
+    const prisma = createMockPrisma();
+    prisma.supplier.findUnique.mockResolvedValue({ id: "sup-1", isActive: true, tenantId: "tenant-1" });
+    prisma.purchaseOrder.count
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(1);
+    prisma.purchaseOrder.create
+      .mockRejectedValueOnce(duplicateError())
+      .mockResolvedValueOnce({ id: "po-2", code: "PO-202607-002" });
+    prisma.purchaseOrderItem.createMany.mockResolvedValue({ count: 1 });
+
+    const result = await createDraftPO(
+      prisma,
+      { supplierId: "sup-1", items: [{ productId: "gb-1", quantity: 10, unitPrice: 50000 }] },
+      "user-1",
+    );
+
+    expect(result.code).toMatch(/^PO-\d{6}-002$/);
+    expect(prisma.purchaseOrder.create).toHaveBeenCalledTimes(2);
+    expect(prisma.purchaseOrder.create.mock.calls[0][0].data.code).toMatch(/^PO-\d{6}-001$/);
+    expect(prisma.purchaseOrder.create.mock.calls[1][0].data.code).toMatch(/^PO-\d{6}-002$/);
+  });
+
+  it("rethrows after the retry limit when the collision persists", async () => {
+    const prisma = createMockPrisma();
+    prisma.supplier.findUnique.mockResolvedValue({ id: "sup-1", isActive: true, tenantId: "tenant-1" });
+    prisma.purchaseOrder.count.mockResolvedValue(0);
+    prisma.purchaseOrder.create.mockRejectedValue(duplicateError());
+
+    await expect(
+      createDraftPO(
+        prisma,
+        { supplierId: "sup-1", items: [{ productId: "gb-1", quantity: 10, unitPrice: 50000 }] },
+        "user-1",
+      ),
+    ).rejects.toMatchObject({ code: "P2002" });
+
+    expect(prisma.purchaseOrder.create).toHaveBeenCalledTimes(5);
+  });
+
+  it("does not retry non-unique errors", async () => {
+    const prisma = createMockPrisma();
+    prisma.supplier.findUnique.mockResolvedValue({ id: "sup-1", isActive: true, tenantId: "tenant-1" });
+    prisma.purchaseOrder.count.mockResolvedValue(0);
+    prisma.purchaseOrder.create.mockRejectedValue(new Error("disk full"));
+
+    await expect(
+      createDraftPO(
+        prisma,
+        { supplierId: "sup-1", items: [{ productId: "gb-1", quantity: 10, unitPrice: 50000 }] },
+        "user-1",
+      ),
+    ).rejects.toThrow("disk full");
+
+    expect(prisma.purchaseOrder.create).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -420,6 +485,46 @@ describe("receivePO", () => {
       "PT Kopi",
       expect.objectContaining({ tenantId: "tenant-1", userId: "user-1" }),
     );
+  });
+
+  it("retries the whole transaction when the purchase code collides", async () => {
+    const prisma = createMockPrisma();
+    prisma.purchaseOrder.findUnique.mockResolvedValue({
+      id: "po-1",
+      code: "PO-202607-001",
+      tenantId: "tenant-1",
+      status: "SENT",
+      supplierId: "sup-1",
+      supplier: { name: "PT Kopi" },
+      items: [
+        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000 },
+      ],
+    });
+    prisma.purchase.count.mockResolvedValue(0);
+    prisma.purchase.create
+      .mockRejectedValueOnce(duplicateError())
+      .mockResolvedValueOnce({ id: "pur-1", code: "PUR-202607-001" });
+    prisma.inventoryLedger.create.mockResolvedValue({});
+    prisma.product.updateMany.mockResolvedValue({ count: 1 });
+    prisma.purchase.findMany.mockResolvedValue([]);
+    prisma.purchaseOrder.update.mockResolvedValue({});
+
+    const result = await receivePO(
+      prisma,
+      "po-1",
+      {
+        receivedAt: "2026-07-18",
+        shippingCost: 50_000,
+        items: [{ poItemId: "item-1", receivedQuantity: 10 }],
+      },
+      "user-1",
+    );
+
+    expect(prisma.purchase.create).toHaveBeenCalledTimes(2);
+    expect(result.purchaseCodes).toEqual(["PUR-202607-001"]);
+    expect(prisma.lot.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ batchCode: "PUR-202607-001" }),
+    });
   });
 
   it("throws error for non-Sent/Partial PO", async () => {

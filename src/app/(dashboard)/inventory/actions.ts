@@ -162,7 +162,7 @@ function generateProductCode(name: string): string {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 12);
-  return `GB-${slug || "BARU"}-${randomBytes(2).toString("hex").toUpperCase()}`;
+  return `GB-${slug || "BARU"}-${randomBytes(4).toString("hex").toUpperCase()}`;
 }
 
 // =============================================================================
