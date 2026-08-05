@@ -26,6 +26,7 @@
     "repair:hpp-cache": "tsx --env-file-if-exists=.env.local scripts/repair-hpp-cache.mts",
     "repair:lot-ledger": "tsx --env-file-if-exists=.env.local scripts/repair-lot-ledger.mts",
     "repair:journals": "tsx --env-file-if-exists=.env.local scripts/repair-missing-journals.mts",
+    "patch:supply-backfill": "tsx --env-file-if-exists=.env.local prisma/patches/006-backfill-inventory-supply-items.ts",
     "security:encrypt-credentials": "tsx --env-file-if-exists=.env.local scripts/encrypt-credentials.mts",
     "security:rotate-credential-key": "tsx --env-file-if-exists=.env.local scripts/rotate-credential-key.mts",
     "maintenance:cleanup": "tsx --env-file-if-exists=.env.local scripts/cleanup-operational-data.mts",
