@@ -7,6 +7,12 @@ import { recordPayment } from "../keuangan/actions";
 const integrationEnabled = process.env.RUN_INTEGRATION === "true";
 const suite = integrationEnabled ? describe : describe.skip;
 
+// revalidatePath is a Next.js cache-invalidation side effect that only works
+// inside a RSC request scope. The business logic under test (invoice creation,
+// payment posting, FEFO ledger + journal) must still run against the real DB,
+// so the mock stays at the next/cache boundary and the assertions are unchanged.
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+
 // Mock auth so server actions can bypass session checks 
 // but still use the real Prisma client pointing to the real DB.
 vi.mock("@/lib/auth", async (importOriginal) => {
@@ -74,7 +80,12 @@ suite("Penjualan End-to-End Integration", () => {
   });
 
   afterAll(async () => {
-    // Cleanup
+    // Cleanup in FK order: journal lines -> entries -> accounts -> audit log
+    // before the user/tenant rows they reference are removed.
+    await prisma.journalLine.deleteMany({ where: { journalEntry: { tenantId: "test-tenant-integration" } } });
+    await prisma.journalEntry.deleteMany({ where: { tenantId: "test-tenant-integration" } });
+    await prisma.account.deleteMany({ where: { tenantId: "test-tenant-integration" } });
+    await prisma.auditLog.deleteMany({ where: { tenantId: "test-tenant-integration" } });
     await prisma.inventoryLedger.deleteMany({ where: { tenantId: "test-tenant-integration" }});
     await prisma.invoiceItem.deleteMany({ where: { invoice: { tenantId: "test-tenant-integration" } }});
     await prisma.payment.deleteMany({ where: { tenantId: "test-tenant-integration" }});
