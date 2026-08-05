@@ -57,7 +57,30 @@ enum RoastLevel {
 
 enum PurchaseType {
   GREEN_BEAN // pembelian biji kopi mentah
-  PACKAGING // pembelian bahan kemasan
+  PACKAGING // pembelian bahan kemasan (legacy; write baru pakai SUPPLY)
+  SUPPLY // pembelian persediaan non-kopi (InventorySupplyItem)
+}
+
+enum InventorySupplyCategory {
+  PACKAGING // kemasan: pouch, valve, label, box
+  INGREDIENT // bahan baku non-kopi
+  CONSUMABLE // bahan operasional habis pakai
+  MERCHANDISE // barang jualan non-kopi
+  SPARE_PART // suku cadang
+  EQUIPMENT // alat (belum dikapitalisasi)
+  OTHER // kategori lain
+}
+
+enum SupplyBaseUnit {
+  KG // kilogram — kuantitas pecahan
+  GRAM // gram — kuantitas pecahan
+  LITER // liter — kuantitas pecahan
+  METER // meter — kuantitas pecahan
+  ROLL // roll — kuantitas pecahan
+  PCS // pieces — kuantitas pecahan
+  BOX // box — kuantitas pecahan
+  SET // set — kuantitas pecahan
+  OTHER // satuan lain — kuantitas pecahan
 }
 
 enum TransactionStatus {
@@ -255,6 +278,10 @@ enum LedgerRefType {
   VOID_REVERSAL // entri kebalikan saat VOID
   RETURN_FG_IN // Finished Goods masuk via retur penjualan
   RETURN_PKG_IN // Packaging masuk via retur pembelian
+  SUPPLY_PURCHASE_IN // Supply masuk via Purchase
+  SUPPLY_PRODUCTION_OUT // Supply keluar ke produksi
+  SUPPLY_ADJUSTMENT_IN // Penyesuaian stok supply masuk (Opname)
+  SUPPLY_ADJUSTMENT_OUT // Penyesuaian stok supply keluar (Opname)
 }
 
 // =============================================================================
@@ -347,6 +374,9 @@ model Tenant {
   supplierPayments              SupplierPayment[]
   lots                          Lot[]
   inventoryLedgers              InventoryLedger[]
+  inventorySupplyItems          InventorySupplyItem[]
+  recipeSupplyItems             RecipeSupplyItem[]
+  productionSupplyUsages        ProductionSupplyUsage[]
   expenses                      Expense[]
   notificationPreferences       NotificationPreference[]
   subscriptionPayments          SubscriptionPayment[]
@@ -626,6 +656,10 @@ model Product {
   // Shelf life (hari) — untuk FEFO / best-before tracking
   shelfLifeDays Int?
 
+  // Berat bersih untuk display katalog; form men-default dari capacityGrams
+  // supply item PACKAGING yang dipilih sehingga tidak perlu diisi dua kali.
+  netWeightGrams Decimal? @db.Decimal(8, 2)
+
   // Relasi transaksi hulu
   purchases          Purchase[]
   purchaseOrderItems PurchaseOrderItem[]
@@ -694,12 +728,78 @@ model Packaging {
   ledgerEntries         InventoryLedger[]
   sampleUsageComponents SampleUsageComponent[]
   lots                  Lot[]
-  tenantId              String
-  tenant                Tenant                 @relation(fields: [tenantId], references: [id])
+
+  // Mapping 1:1 ke InventorySupplyItem (category PACKAGING).
+  // Pasca-cutover: write baru memakai InventorySupplyItem; tabel ini
+  // compatibility/read-only. Hanya satu sisi yang mengisi referensi ini.
+  supplyItemId String?              @unique
+  supplyItem   InventorySupplyItem? @relation("PackagingSupplyMapping", fields: [supplyItemId], references: [id])
+  tenantId     String
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, code])
   @@index([tenantId, isActive])
   @@map("packagings")
+}
+
+// =============================================================================
+// TABLE 5B · InventorySupplyItem
+// Master persediaan non-kopi: kemasan, bahan baku, consumable, merchandise,
+// spare part, equipment, dan lainnya. Canonical write path pasca-cutover.
+// Stok dihitung dari InventoryLedger (SUM IN-OUT), BUKAN disimpan di kolom lain.
+// Perilaku (konsumsi produksi, HPP, jual, lot) ditentukan FIELD, bukan kategori.
+// Semua kuantitas pecahan (Decimal) dalam satuan baseUnit.
+// =============================================================================
+
+model InventorySupplyItem {
+  id       String                  @id @default(cuid())
+  code     String // e.g., "SUP-POUCH-250", "SUP-LABEL-60", "SUP-BEAN-GAYO"
+  name     String
+  category InventorySupplyCategory
+  baseUnit SupplyBaseUnit // satuan kuantitas item
+
+  // Perilaku — penentu perilaku (kategori hanya klasifikasi)
+  trackLot               Boolean @default(true) // ikut FEFO (Lot.consumedAt lifecycle)
+  shelfLifeDays          Int? // hari kedaluwarsa (best before)
+  consumableInProduction Boolean @default(false) // dapat dikonsumsi saat produksi
+  includeInProductHpp    Boolean @default(false) // biaya masuk HPP produk jadi
+  isSellable             Boolean @default(false) // dapat dijual (flow penjualan fase tersendiri)
+
+  // Metadata kemasan (hanya relevan untuk category PACKAGING)
+  capacityGrams   Decimal? @db.Decimal(8, 2) // kapasitas isi bersih (gram)
+  tareWeightGrams Decimal? @db.Decimal(8, 2) // berat kemasan kosong (gram)
+
+  // Biaya — per baseUnit; avgCostPerUnit adalah moving average dari ledger IN
+  costPerUnit    Decimal  @db.Decimal(12, 2)
+  avgCostPerUnit Decimal? @default(0) @db.Decimal(12, 2)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Caching Field untuk Performa — hanya turunan InventoryLedger (SUM IN-OUT)
+  stockQuantity Decimal @default(0) @db.Decimal(12, 3)
+
+  // Reorder alert configuration
+  reorderAlertEnabled Boolean @default(false)
+  leadTimeDays        Int     @default(7)
+  safetyStockQuantity Decimal @default(0) @db.Decimal(12, 3)
+  reorderLookbackDays Int     @default(30)
+
+  // Relasi
+  packaging          Packaging?              @relation("PackagingSupplyMapping")
+  purchases          Purchase[]
+  purchaseOrderItems PurchaseOrderItem[]
+  lots               Lot[]
+  ledgerEntries      InventoryLedger[]
+  recipeItems        RecipeSupplyItem[]
+  productionUsages   ProductionSupplyUsage[]
+  tenantId           String
+  tenant             Tenant                  @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId, category, isActive])
+  @@map("inventory_supply_items")
 }
 
 // =============================================================================
@@ -712,19 +812,20 @@ model Recipe {
   code        String // e.g., "RCP-HOUSE-BLEND-250"
   name        String // "House Blend 250g"
   productId   String // FK → Product (type = FINISHED_GOODS)
-  packagingId String // FK → Packaging default untuk resep ini
+  packagingId String // LEGACY: FK → Packaging (compatibility). Write baru memakai RecipeSupplyItem (multi: pouch, valve, label, box)
   outputGrams Decimal  @db.Decimal(8, 2) // gram kopi bersih per unit output
   notes       String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  product           Product           @relation(fields: [productId], references: [id])
-  packaging         Packaging         @relation(fields: [packagingId], references: [id])
+  product           Product            @relation(fields: [productId], references: [id])
+  packaging         Packaging          @relation(fields: [packagingId], references: [id])
   items             RecipeItem[]
+  supplyItems       RecipeSupplyItem[]
   productionBatches ProductionBatch[]
   tenantId          String
-  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, code])
   @@index([tenantId, isActive])
@@ -757,10 +858,36 @@ model RecipeItem {
 }
 
 // =============================================================================
+// TABLE 7B · RecipeSupplyItem
+// Komponen non-kopi dalam resep: PACKAGING (pouch, valve, label, box),
+// INGREDIENT, dan lainnya. Write path baru untuk komponen supply;
+// Recipe.packagingId hanya compatibility lama (satu kemasan default).
+// quantityPerUnit dalam baseUnit item (mis. 1 PCS pouch per 1 unit output).
+// =============================================================================
+
+model RecipeSupplyItem {
+  id              String  @id @default(cuid())
+  recipeId        String
+  supplyItemId    String
+  quantityPerUnit Decimal @db.Decimal(12, 3) // kuantitas per 1 unit output
+
+  recipe     Recipe              @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  supplyItem InventorySupplyItem @relation(fields: [supplyItemId], references: [id])
+  tenantId   String
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+
+  // Satu supply item hanya boleh muncul sekali per resep
+  @@unique([recipeId, supplyItemId])
+  @@index([tenantId])
+  @@map("recipe_supply_items")
+}
+
+// =============================================================================
 // TABLE 8 · Purchase (Barang Datang)
-// Mencatat penerimaan Green Bean ATAU Packaging dari supplier.
-// type = GREEN_BEAN → productId wajib, packagingId null.
-// type = PACKAGING  → packagingId wajib, productId null.
+// Mencatat penerimaan Green Bean, Packaging (legacy), ATAU Supply (non-kopi).
+// type = GREEN_BEAN → productId wajib, packagingId/supplyItemId null.
+// type = PACKAGING  → packagingId wajib (legacy; write baru pakai SUPPLY).
+// type = SUPPLY     → supplyItemId wajib, productId/packagingId null.
 // Saat status → COMPLETED: InventoryLedger IN di-insert otomatis oleh server.
 // Saat VOID: InventoryLedger OUT (reversal) di-insert otomatis.
 // =============================================================================
@@ -771,12 +898,14 @@ model Purchase {
   operationKey String? // Idempotency key supplied by the receiving command
   type         PurchaseType
 
-  supplierId  String
-  productId   String? // wajib jika type = GREEN_BEAN
-  packagingId String? // wajib jika type = PACKAGING
+  supplierId   String
+  productId    String? // wajib jika type = GREEN_BEAN
+  packagingId  String? // wajib jika type = PACKAGING (legacy)
+  supplyItemId String? // wajib jika type = SUPPLY
 
-  weightKg      Decimal? @db.Decimal(10, 3) // GREEN_BEAN: berat masuk (kg)
-  quantityUnits Int? // PACKAGING: jumlah unit masuk
+  weightKg       Decimal? @db.Decimal(10, 3) // GREEN_BEAN: berat masuk (kg)
+  quantityUnits  Int? // PACKAGING (legacy): jumlah unit masuk
+  supplyQuantity Decimal? @db.Decimal(12, 3) // SUPPLY: kuantitas masuk (baseUnit item)
 
   pricePerUnit Decimal @db.Decimal(12, 2) // per kg (GB) atau per unit (PKG)
   shippingCost Decimal @default(0) @db.Decimal(12, 2) // ongkos kirim total
@@ -798,14 +927,15 @@ model Purchase {
   purchaseOrderId String?
   purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
 
-  supplier  Supplier          @relation(fields: [supplierId], references: [id])
-  product   Product?          @relation(fields: [productId], references: [id])
-  packaging Packaging?        @relation(fields: [packagingId], references: [id])
-  createdBy User              @relation(fields: [createdById], references: [id])
-  payments  SupplierPayment[]
-  lots      Lot[]
-  tenantId  String
-  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  supplier   Supplier             @relation(fields: [supplierId], references: [id])
+  product    Product?             @relation(fields: [productId], references: [id])
+  packaging  Packaging?           @relation(fields: [packagingId], references: [id])
+  supplyItem InventorySupplyItem? @relation(fields: [supplyItemId], references: [id])
+  createdBy  User                 @relation(fields: [createdById], references: [id])
+  payments   SupplierPayment[]
+  lots       Lot[]
+  tenantId   String
+  tenant     Tenant               @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, code])
   @@unique([tenantId, operationKey])
@@ -927,17 +1057,45 @@ model ProductionBatch {
   createdById String
   createdAt   DateTime @default(now())
 
-  recipe        Recipe?   @relation(fields: [recipeId], references: [id])
-  outputProduct Product   @relation(fields: [outputProductId], references: [id])
-  packaging     Packaging @relation(fields: [packagingId], references: [id])
-  createdBy     User      @relation(fields: [createdById], references: [id])
+  recipe        Recipe?                 @relation(fields: [recipeId], references: [id])
+  outputProduct Product                 @relation(fields: [outputProductId], references: [id])
+  packaging     Packaging               @relation(fields: [packagingId], references: [id])
+  createdBy     User                    @relation(fields: [createdById], references: [id])
+  supplyUsages  ProductionSupplyUsage[]
   tenantId      String
-  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  tenant        Tenant                  @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, code])
   @@unique([tenantId, operationKey])
   @@index([tenantId, status, producedAt])
   @@map("production_batches")
+}
+
+// =============================================================================
+// TABLE 10B · ProductionSupplyUsage
+// Pemakaian aktual supply (PACKAGING/INGREDIENT/dll) per batch produksi +
+// snapshot biaya. quantity dalam baseUnit item; unitCostSnapshot diambil
+// saat batch dibuat (tidak berubah oleh pembelian berikutnya).
+// =============================================================================
+
+model ProductionSupplyUsage {
+  id                String  @id @default(cuid())
+  productionBatchId String
+  supplyItemId      String
+  quantity          Decimal @db.Decimal(12, 3) // kuantitas terpakai (baseUnit item)
+  unitCostSnapshot  Decimal @db.Decimal(12, 2) // HPP per baseUnit saat produksi
+  totalCostSnapshot Decimal @db.Decimal(14, 2) // = quantity × unitCostSnapshot
+
+  productionBatch ProductionBatch     @relation(fields: [productionBatchId], references: [id], onDelete: Cascade)
+  supplyItem      InventorySupplyItem @relation(fields: [supplyItemId], references: [id])
+  tenantId        String
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+
+  // Satu supply item hanya boleh muncul sekali per batch
+  @@unique([productionBatchId, supplyItemId])
+  @@index([tenantId])
+  @@index([supplyItemId])
+  @@map("production_supply_usages")
 }
 
 // =============================================================================
@@ -1349,26 +1507,29 @@ model OnboardingSnapshot {
 // =============================================================================
 
 model Lot {
-  id           String    @id @default(cuid())
-  tenantId     String
-  productId    String? // FK → Product (nullable, karena bisa untuk packaging juga)
-  packagingId  String? // FK → Packaging (nullable)
-  supplierId   String? // FK → Supplier (nullable)
-  batchCode    String // nomor batch/lot dari supplier
-  purchaseId   String? // FK → Purchase (nullable)
-  quantityKg   Decimal   @default(0) @db.Decimal(12, 2)
-  quantityUnit Decimal   @default(0) @db.Decimal(12, 2)
-  expiryDate   DateTime?
-  createdAt    DateTime  @default(now())
-  receivedAt   DateTime  @default(now())
-  consumedAt   DateTime?
-  notes        String?
+  id             String    @id @default(cuid())
+  tenantId       String
+  productId      String? // FK → Product (nullable, karena bisa untuk packaging/supply juga)
+  packagingId    String? // FK → Packaging (legacy)
+  supplyItemId   String? // FK → InventorySupplyItem (write baru pasca-cutover)
+  supplierId     String? // FK → Supplier (nullable)
+  batchCode      String // nomor batch/lot dari supplier
+  purchaseId     String? // FK → Purchase (nullable)
+  quantityKg     Decimal   @default(0) @db.Decimal(12, 2)
+  quantityUnit   Decimal   @default(0) @db.Decimal(12, 2)
+  supplyQuantity Decimal   @default(0) @db.Decimal(12, 3) // SUPPLY: kuantitas lot (baseUnit item)
+  expiryDate     DateTime?
+  createdAt      DateTime  @default(now())
+  receivedAt     DateTime  @default(now())
+  consumedAt     DateTime?
+  notes          String?
 
-  product          Product?          @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  packaging        Packaging?        @relation(fields: [packagingId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  supplier         Supplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  purchase         Purchase?         @relation(fields: [purchaseId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product          Product?             @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  packaging        Packaging?           @relation(fields: [packagingId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  supplyItem       InventorySupplyItem? @relation(fields: [supplyItemId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  supplier         Supplier?            @relation(fields: [supplierId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  purchase         Purchase?            @relation(fields: [purchaseId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   inventoryLedgers InventoryLedger[]
 
   @@unique([tenantId, batchCode], map: "lots_tenantId_batchCode_unique")
@@ -1378,6 +1539,7 @@ model Lot {
   @@index([tenantId, supplierId], map: "lots_supplierId_idx")
   @@index([tenantId, purchaseId], map: "lots_purchaseId_idx")
   @@index([tenantId, expiryDate], map: "lots_expiryDate_idx")
+  @@index([tenantId, supplyItemId], map: "lots_supplyItemId_idx")
   @@map("lots")
 }
 
@@ -1386,11 +1548,13 @@ model Lot {
 // Satu baris = satu event perubahan stok. Append-only. TIDAK PERNAH diedit.
 // Koreksi via VOID_REVERSAL (entri baru dengan nilai negatif/berlawanan).
 //
-// Aturan pengisian:
-//   • Entri kopi (GB/RB/FG) → productId diisi, packagingId null
-//   • Entri kemasan (PKG)   → packagingId diisi, productId null
+// Aturan pengisian (XOR-3 untuk semua write baru):
+//   • Entri kopi (GB/RB/FG) → productId diisi, packagingId/supplyItemId null
+//   • Entri kemasan legacy  → packagingId diisi, productId/supplyItemId null
+//   • Entri supply (baru)   → supplyItemId diisi, productId/packagingId null
 //   • quantityKg  → untuk GB dan RB (satuan kilogram)
 //   • quantityUnit → untuk FG dan Packaging (satuan unit/pcs)
+//   • supplyQuantity → untuk InventorySupplyItem (baseUnit item, pecahan)
 // =============================================================================
 
 model CoffeeSpecies {
@@ -1408,15 +1572,17 @@ enum SalesChannel {
 model InventoryLedger {
   id String @id @default(cuid())
 
-  productId   String? // FK → Product (GB / RB / FG)
-  packagingId String? // FK → Packaging
+  productId    String? // FK → Product (GB / RB / FG)
+  packagingId  String? // FK → Packaging (legacy)
+  supplyItemId String? // FK → InventorySupplyItem (write baru pasca-cutover)
 
   entryType LedgerEntryType // IN | OUT
   refType   LedgerRefType // jenis transaksi asal
   refId     String // ID transaksi asal (Purchase.id, RoastingBatch.id, dsb.)
 
-  quantityKg   Decimal? @db.Decimal(10, 3) // diisi untuk GB & RB
-  quantityUnit Int? // diisi untuk FG & Packaging
+  quantityKg     Decimal? @db.Decimal(10, 3) // diisi untuk GB & RB
+  quantityUnit   Int? // diisi untuk FG & Packaging
+  supplyQuantity Decimal? @db.Decimal(12, 3) // diisi untuk Supply (baseUnit item, pecahan)
 
   // ── Lot / Traceability ──
   lotNumber  String? // nomor lot / batch dari supplier
@@ -1428,17 +1594,19 @@ model InventoryLedger {
   createdById String
   createdAt   DateTime @default(now())
 
-  product   Product?   @relation(fields: [productId], references: [id])
-  packaging Packaging? @relation(fields: [packagingId], references: [id])
-  lot       Lot?       @relation(fields: [lotId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  createdBy User       @relation(fields: [createdById], references: [id])
+  product    Product?             @relation(fields: [productId], references: [id])
+  packaging  Packaging?           @relation(fields: [packagingId], references: [id])
+  supplyItem InventorySupplyItem? @relation(fields: [supplyItemId], references: [id])
+  lot        Lot?                 @relation(fields: [lotId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  createdBy  User                 @relation(fields: [createdById], references: [id])
 
-  // Index untuk kalkulasi stok realtime per produk/packaging
+  // Index untuk kalkulasi stok realtime per produk/packaging/supply
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, productId, createdAt])
   @@index([tenantId, packagingId, createdAt])
+  @@index([tenantId, supplyItemId, createdAt])
   @@index([lotId])
   // Index untuk audit trail per transaksi
   @@index([tenantId, refType, refId])
@@ -1754,15 +1922,18 @@ model PurchaseOrderItem {
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
 
   // Produk
-  productId   String?
-  product     Product?   @relation(fields: [productId], references: [id])
-  packagingId String?
-  packaging   Packaging? @relation(fields: [packagingId], references: [id])
+  productId    String?
+  product      Product?             @relation(fields: [productId], references: [id])
+  packagingId  String?
+  packaging    Packaging?           @relation(fields: [packagingId], references: [id])
+  supplyItemId String?
+  supplyItem   InventorySupplyItem? @relation(fields: [supplyItemId], references: [id])
 
   // Quantity & Harga
-  quantity   Decimal @db.Decimal(10, 3) // kg atau unit
-  unitPrice  Decimal @db.Decimal(12, 2) // Harga per kg/unit
-  totalPrice Decimal @db.Decimal(12, 2) // quantity × unitPrice
+  quantity       Decimal  @db.Decimal(10, 3) // kg atau unit
+  unitPrice      Decimal  @db.Decimal(12, 2) // Harga per kg/unit
+  totalPrice     Decimal  @db.Decimal(12, 2) // quantity × unitPrice
+  supplyQuantity Decimal? @db.Decimal(12, 3) // SUPPLY: kuantitas (baseUnit item, pecahan)
 
   // Reorder reference (dari mana data ini)
   reorderPoint Decimal? @db.Decimal(10, 3) // Snapshot reorder point saat PO dibuat
