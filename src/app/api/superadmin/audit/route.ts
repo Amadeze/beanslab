@@ -49,6 +49,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ logs });
   } catch (error: any) {
     console.error("[superadmin/audit]", error);
-    return NextResponse.json({ error: error.message }, { status: error.message === "FORBIDDEN" ? 403 : 500 });
+    const forbidden = error instanceof Error && error.message.startsWith("FORBIDDEN");
+    return NextResponse.json(
+      { error: forbidden ? "FORBIDDEN" : "Terjadi kesalahan sistem." },
+      { status: forbidden ? 403 : 500 },
+    );
   }
 }

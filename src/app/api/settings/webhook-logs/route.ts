@@ -26,6 +26,10 @@ export async function GET() {
     return NextResponse.json({ logs });
   } catch (error: any) {
     console.error("Failed to fetch webhook logs:", error);
-    return NextResponse.json({ error: error.message }, { status: error.message === "FORBIDDEN" ? 403 : 500 });
+    const forbidden = error instanceof Error && error.message.startsWith("FORBIDDEN");
+    return NextResponse.json(
+      { error: forbidden ? "FORBIDDEN" : "Terjadi kesalahan sistem." },
+      { status: forbidden ? 403 : 500 },
+    );
   }
 }

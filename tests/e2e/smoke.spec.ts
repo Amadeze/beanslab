@@ -8,6 +8,7 @@ import path from "node:path";
 
 import { SESSION_OPTIONS } from "../../src/lib/session";
 import { getTenantAccessState } from "../../src/lib/subscription";
+import { hashWebhookToken } from "../../src/lib/artisan/connector-auth";
 
 const DASHBOARD_ROUTES = [
   "/dashboard",
@@ -532,6 +533,7 @@ test("Artisan DROP attaches telemetry exactly once", async ({ request }) => {
         subscriptionStatus: "ACTIVE",
         isArtisanEnabled: true,
         artisanWebhookToken: token,
+        artisanWebhookTokenHash: hashWebhookToken(token),
       },
     });
     const user = await prisma.user.create({

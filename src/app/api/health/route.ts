@@ -7,6 +7,7 @@ import {
 } from "@/lib/credentials";
 import { getRequestId, logServerError, logWarn } from "@/lib/api-observability";
 import { getCurrentDate } from "@/lib/date-utils";
+import { getValidatedCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -117,18 +118,30 @@ export async function GET(req: Request) {
         lastFinishedAt: latest?.finishedAt?.toISOString() ?? null,
       };
     });
-    
+
+    // Public probes only get a generic status. Version, commit SHA, configuration
+    // state, credential health, and job diagnostics are operational detail and
+    // are only serialized for an authenticated SUPERADMIN session.
+    const currentUser = await getValidatedCurrentUser();
+    const isSuperAdmin = currentUser?.role === "SUPERADMIN";
+    const publicHealth = {
+      status: ready ? "ok" : "degraded",
+      database: "reachable",
+      timestamp: now.toISOString(),
+    };
+
     return NextResponse.json(
-      {
-        status: ready ? "ok" : "degraded",
-        database: "reachable",
-        configuration: ready ? "ready" : "incomplete",
-        timestamp: getCurrentDate().toISOString(),
-        latencyMs: Math.round(performance.now() - startedAt),
-        version: process.env.npm_package_version || "unknown",
-        release: process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || null,
-        operationalJobs,
-      },
+      isSuperAdmin
+        ? {
+            ...publicHealth,
+            configuration: ready ? "ready" : "incomplete",
+            latencyMs: Math.round(performance.now() - startedAt),
+            version: process.env.npm_package_version || "unknown",
+            release: process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || null,
+            credentialHealth: { credentialDecryptFailures, plaintextCredentials },
+            operationalJobs,
+          }
+        : publicHealth,
       {
         status: ready ? 200 : 503,
         headers: {

@@ -118,3 +118,15 @@ export function generateConnectorToken(): string {
 export function hashConnectorToken(token: string): string {
   return hashToken(token);
 }
+
+/**
+ * Hash an Artisan webhook token for storage. Namespaced so the same pepper
+ * never produces the same digest across token classes (connector, webhook).
+ */
+export function hashWebhookToken(token: string): string {
+  const pepper = process.env.ARTISAN_CONNECTOR_TOKEN_PEPPER || "";
+  return crypto
+    .createHash("sha256")
+    .update(`${pepper}:webhook:${token}`)
+    .digest("hex");
+}

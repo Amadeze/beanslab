@@ -262,46 +262,47 @@ enum LedgerRefType {
 // =============================================================================
 
 model Tenant {
-  id                   String  @id @default(cuid())
-  code                 String  @unique
-  name                 String
-  subdomain            String? @unique
-  themeColor           String  @default("amber")
-  logoUrl              String?
-  heroImageUrl         String?
-  heroText             String?
-  backgroundImageUrl   String?
-  whatsappNumber       String?
-  contactEmail         String?
-  instagramHandle      String?
-  aboutText            String?
-  catalogTitle         String?
-  catalogSubtitle      String?
-  footerText           String?
-  problemStatement     String?
-  solutionStatement    String?
-  uspText              String?
-  features             Json?
-  testimonials         Json?
-  faqs                 Json?
-  midtransClientKey    String?
-  midtransServerKey    String?
-  midtransIsProduction Boolean @default(false)
-  xenditSubAccountId   String?
-  xenditEnabled        Boolean @default(false)
-  isArtisanEnabled     Boolean @default(false)
-  artisanWebhookToken  String? @unique
-  layoutStyle          String  @default("modern")
-  fontFamily           String  @default("sans")
-  themeMode            String  @default("light")
-  borderRadius         String  @default("md")
-  animationStyle       String  @default("subtle")
-  animationDirection   String  @default("up")
-  iconStyle            String  @default("regular")
-  isActive             Boolean @default(true)
-  themeConfig          Json?
-  timezone             String  @default("Asia/Jakarta")
-  locale               String  @default("id-ID")
+  id                      String  @id @default(cuid())
+  code                    String  @unique
+  name                    String
+  subdomain               String? @unique
+  themeColor              String  @default("amber")
+  logoUrl                 String?
+  heroImageUrl            String?
+  heroText                String?
+  backgroundImageUrl      String?
+  whatsappNumber          String?
+  contactEmail            String?
+  instagramHandle         String?
+  aboutText               String?
+  catalogTitle            String?
+  catalogSubtitle         String?
+  footerText              String?
+  problemStatement        String?
+  solutionStatement       String?
+  uspText                 String?
+  features                Json?
+  testimonials            Json?
+  faqs                    Json?
+  midtransClientKey       String?
+  midtransServerKey       String?
+  midtransIsProduction    Boolean @default(false)
+  xenditSubAccountId      String?
+  xenditEnabled           Boolean @default(false)
+  isArtisanEnabled        Boolean @default(false)
+  artisanWebhookToken     String? @unique
+  artisanWebhookTokenHash String? @unique
+  layoutStyle             String  @default("modern")
+  fontFamily              String  @default("sans")
+  themeMode               String  @default("light")
+  borderRadius            String  @default("md")
+  animationStyle          String  @default("subtle")
+  animationDirection      String  @default("up")
+  iconStyle               String  @default("regular")
+  isActive                Boolean @default(true)
+  themeConfig             Json?
+  timezone                String  @default("Asia/Jakarta")
+  locale                  String  @default("id-ID")
 
   // Storefront commerce rules. Kept on Tenant so one-owner SMEs can configure
   // checkout without maintaining a separate shipping-rule hierarchy.

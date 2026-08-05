@@ -52,9 +52,10 @@ export async function createMidtransSnapTransaction(
   });
 
   if (!res.ok) {
-    const errText = await res.text();
-    console.error("Midtrans API Error:", errText);
-    throw new Error(`Midtrans API failed with status ${res.status}: ${errText}`);
+    // Never log or forward the raw gateway response: it may carry
+    // transaction details. Only the sanitized HTTP status travels.
+    await res.text().catch(() => undefined);
+    throw new Error(`Midtrans API failed with status ${res.status}`);
   }
 
   return await res.json();

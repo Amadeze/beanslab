@@ -12,6 +12,7 @@ import {
   internalErrorResponse,
   logServerError,
 } from "@/lib/api-observability";
+import { findTenantByArtisanWebhookToken } from "@/lib/artisan/webhook-auth";
 
 const ArtisanPayloadSchema = z.object({
   event: z.string().min(1),
@@ -48,18 +49,7 @@ export async function POST(req: Request) {
     }
     const token = bearerToken;
 
-    const tenant = await prisma.tenant.findUnique({
-      where: { artisanWebhookToken: token },
-      select: {
-        id: true,
-        isActive: true,
-        isArtisanEnabled: true,
-        subscriptionTier: true,
-        subscriptionStatus: true,
-        trialEndsAt: true,
-        nextBillingDate: true,
-      },
-    });
+    const tenant = await findTenantByArtisanWebhookToken(prisma, token);
 
     if (!tenant || !tenant.isActive) {
       return NextResponse.json({ error: "Invalid token or tenant" }, { status: 401 });
