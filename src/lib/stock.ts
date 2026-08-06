@@ -8,13 +8,15 @@ type TransactionClient = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FlexibleNumber = number | string | { toNumber(): number } | null | undefined;
 
-interface LedgerEntryData {
+export interface LedgerEntryData {
   tenantId?: string;
   productId?: string | null;
   packagingId?: string | null;
+  supplyItemId?: string | null;
   entryType: "IN" | "OUT";
   quantityUnit?: FlexibleNumber;
   quantityKg?: FlexibleNumber;
+  supplyQuantity?: FlexibleNumber;
   incomingPrice?: FlexibleNumber;
   lotNumber?: string | null;
   expiryDate?: Date | string | null;
@@ -69,18 +71,36 @@ export async function computeFGUnitStock(productId: string): Promise<number> {
 }
 
 /**
- * Buat entri InventoryLedger baru dan otomatis update cache stock di Product/Packaging.
- * Harus dijalankan di dalam transaksi (tx).
+ * Buat entri InventoryLedger baru dan otomatis update cache stock di Product/
+ * Packaging/InventorySupplyItem. Harus dijalankan di dalam transaksi (tx).
+ *
+ * Invariant write baru (XOR-3): tepat satu dari productId | packagingId | supplyItemId.
+ * Subject supply memakai supplyQuantity (baseUnit item, pecahan); quantityKg dan
+ * quantityUnit harus null. Cache supply (stockQuantity + avgCostPerUnit) hanya
+ * di-update di sini; Packaging.stockUnit/avgCostPerUnit tidak disentuh oleh
+ * flow supply baru.
  */
 export async function appendLedger(tx: TransactionClient, data: LedgerEntryData | { data: LedgerEntryData }) {
   const payload = ("data" in data ? data.data : data) as LedgerEntryData;
   const quantityUnit = Number(payload.quantityUnit ?? 0);
   const quantityKg = Number(payload.quantityKg ?? 0);
+  const supplyQuantity = Number(payload.supplyQuantity ?? 0);
 
-  if (Boolean(payload.productId) === Boolean(payload.packagingId)) {
-    throw new Error("Ledger entry must target exactly one product or packaging item.");
+  const subjectCount = [payload.productId, payload.packagingId, payload.supplyItemId]
+    .filter((v) => v != null && v !== "").length;
+  if (subjectCount !== 1) {
+    throw new Error("Ledger entry must target exactly one product, packaging, or supply item.");
   }
-  if (quantityUnit < 0 || quantityKg < 0 || (quantityUnit === 0 && quantityKg === 0)) {
+  const isSupply = payload.supplyItemId != null && payload.supplyItemId !== "";
+
+  if (isSupply) {
+    if (!Number.isFinite(supplyQuantity) || supplyQuantity <= 0) {
+      throw new Error("Supply quantity must be a positive number.");
+    }
+    if (quantityKg !== 0 || quantityUnit !== 0) {
+      throw new Error("Supply ledger entries must not use quantityKg or quantityUnit.");
+    }
+  } else if (quantityUnit < 0 || quantityKg < 0 || (quantityUnit === 0 && quantityKg === 0)) {
     throw new Error("Ledger quantity must be greater than zero.");
   }
 
@@ -92,6 +112,7 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
   // Calculate moving average cost if incomingPrice is provided
   let newAvgCostKg: number | undefined;
   let newAvgCostUnit: number | undefined;
+  let newAvgCostSupply: number | undefined;
   if (isInbound && payload.incomingPrice !== undefined) {
     const incPrice = Number(payload.incomingPrice);
     if (payload.productId) {
@@ -116,6 +137,16 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
         const oldStock = Number(pkg.stockUnit);
         const oldAvg = Number(pkg.avgCostPerUnit ?? 0);
         newAvgCostUnit = (oldStock * oldAvg + quantityUnit * incPrice) / (oldStock + quantityUnit);
+      }
+    } else if (isSupply) {
+      const item = await tx.inventorySupplyItem.findUnique({
+        where: { id: payload.supplyItemId },
+        select: { tenantId: true, stockQuantity: true, avgCostPerUnit: true },
+      });
+      if (item && supplyQuantity > 0) {
+        const oldStock = Number(item.stockQuantity);
+        const oldAvg = Number(item.avgCostPerUnit ?? 0);
+        newAvgCostSupply = (oldStock * oldAvg + supplyQuantity * incPrice) / (oldStock + supplyQuantity);
       }
     }
   }
@@ -156,7 +187,7 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
         throw new Error("Stok kopi tidak cukup untuk menyelesaikan transaksi.");
       }
     }
-  } else {
+  } else if (payload.packagingId) {
     const result = await tx.packaging.updateMany({
       where: {
         id: payload.packagingId,
@@ -171,6 +202,23 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
     });
     if (result.count !== 1) {
       throw new Error("Stok kemasan tidak cukup untuk menyelesaikan transaksi.");
+    }
+  } else {
+    const result = await tx.inventorySupplyItem.updateMany({
+      where: {
+        id: payload.supplyItemId,
+        tenantId: payload.tenantId,
+        ...(isInbound ? {} : { stockQuantity: { gte: supplyQuantity } }),
+      },
+      data: {
+        stockQuantity: isInbound
+          ? { increment: supplyQuantity }
+          : { decrement: supplyQuantity },
+        ...(newAvgCostSupply !== undefined ? { avgCostPerUnit: newAvgCostSupply } : {}),
+      },
+    });
+    if (result.count !== 1) {
+      throw new Error("Stok supply tidak cukup untuk menyelesaikan transaksi.");
     }
   }
 
@@ -192,18 +240,22 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
  * dua transaksi paralel mengalokasikan quantity dari lot yang sama.
  */
 export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedgerEntryData) {
-  const quantityKg = Number(data.quantityKg ?? 0);
+    const quantityKg = Number(data.quantityKg ?? 0);
     const quantityUnit = Number(data.quantityUnit ?? 0);
-    const requestedQuantity = quantityKg > 0 ? quantityKg : quantityUnit;
-    const quantityField = quantityKg > 0 ? "quantityKg" : "quantityUnit";
+    const supplyQuantity = Number(data.supplyQuantity ?? 0);
+    const isSupply = data.supplyItemId != null && data.supplyItemId !== "";
+    const requestedQuantity = isSupply ? supplyQuantity : (quantityKg > 0 ? quantityKg : quantityUnit);
+    const quantityField = isSupply ? "supplyQuantity" : (quantityKg > 0 ? "quantityKg" : "quantityUnit");
 
     if (!data.tenantId) {
       throw new Error("Tenant wajib diisi untuk alokasi FEFO.");
     }
-    if (Boolean(data.productId) === Boolean(data.packagingId)) {
-      throw new Error("FEFO entry must target exactly one product or packaging item.");
+    const subjectCount = [data.productId, data.packagingId, data.supplyItemId]
+      .filter((v) => v != null && v !== "").length;
+    if (subjectCount !== 1) {
+      throw new Error("FEFO entry must target exactly one product, packaging, or supply item.");
     }
-    if (requestedQuantity <= 0 || (quantityKg > 0 && quantityUnit > 0)) {
+    if (requestedQuantity <= 0 || (isSupply ? (quantityKg > 0 || quantityUnit > 0) : (quantityKg > 0 && quantityUnit > 0))) {
       throw new Error("FEFO quantity must use exactly one positive unit.");
     }
 
@@ -212,6 +264,7 @@ export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedge
       WHERE l."tenantId" = ${data.tenantId}
         AND l."productId" IS NOT DISTINCT FROM ${data.productId}
         AND l."packagingId" IS NOT DISTINCT FROM ${data.packagingId}
+        AND l."supplyItemId" IS NOT DISTINCT FROM ${data.supplyItemId}
         AND l."consumedAt" IS NULL
       ORDER BY l."expiryDate" ASC NULLS LAST, l."receivedAt" ASC, l."createdAt" ASC
       FOR UPDATE
@@ -225,6 +278,7 @@ export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedge
           tenantId: data.tenantId,
           productId: data.productId ?? undefined,
           packagingId: data.packagingId ?? undefined,
+          supplyItemId: data.supplyItemId ?? undefined,
           consumedAt: null,
         },
         orderBy: [
@@ -238,11 +292,13 @@ export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedge
           expiryDate: true,
           quantityKg: true,
           quantityUnit: true,
+          supplyQuantity: true,
           inventoryLedgers: {
             select: {
               entryType: true,
               quantityKg: true,
               quantityUnit: true,
+              supplyQuantity: true,
             },
           },
         },
@@ -253,7 +309,7 @@ export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedge
 
     let remaining = requestedQuantity;
     const entries = [];
-    const epsilon = quantityField === "quantityKg" ? 0.000001 : 0;
+    const epsilon = quantityField === "quantityUnit" ? 0 : 0.000001;
 
     for (const lot of lots) {
       if (remaining <= epsilon) break;
@@ -264,6 +320,7 @@ export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedge
           entryType: "IN" | "OUT";
           quantityKg: FlexibleNumber;
           quantityUnit: FlexibleNumber;
+          supplyQuantity: FlexibleNumber;
         }) => {
           const amount = Number(entry[quantityField] ?? 0);
           return balance + (entry.entryType === "IN" ? amount : -amount);

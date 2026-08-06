@@ -64,6 +64,9 @@ function createMockPrisma() {
     packaging: {
       updateMany: vi.fn(),
     },
+    inventorySupplyItem: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     supplier: {
       findUnique: vi.fn(),
     },
@@ -383,6 +386,9 @@ describe("receivePO", () => {
       tenantId: "tenant-1",
       status: "SENT",
       supplierId: "sup-1",
+      inventorySupplyItem: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
       supplier: { name: "PT Kopi" },
       items: [
         { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000 },
@@ -430,6 +436,7 @@ describe("receivePO", () => {
       0,
       "PT Kopi",
       expect.objectContaining({ tenantId: "tenant-1", userId: "user-1" }),
+      undefined,
     );
   });
 
@@ -441,9 +448,12 @@ describe("receivePO", () => {
       tenantId: "tenant-1",
       status: "SENT",
       supplierId: "sup-1",
+      inventorySupplyItem: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
       supplier: { name: "PT Kopi" },
       items: [
-        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50_000 },
+        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000 },
       ],
     });
     prisma.purchase.count.mockResolvedValue(0);
@@ -484,6 +494,7 @@ describe("receivePO", () => {
       500_000,
       "PT Kopi",
       expect.objectContaining({ tenantId: "tenant-1", userId: "user-1" }),
+      undefined,
     );
   });
 
@@ -495,6 +506,9 @@ describe("receivePO", () => {
       tenantId: "tenant-1",
       status: "SENT",
       supplierId: "sup-1",
+      inventorySupplyItem: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
       supplier: { name: "PT Kopi" },
       items: [
         { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000 },
@@ -559,6 +573,9 @@ describe("getPOList", () => {
         id: "po-1",
         code: "PO-202607-001",
         status: "DRAFT",
+        inventorySupplyItem: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
         supplier: { name: "PT Kopi" },
         expectedDate: null,
         totalEstimate: 500000,

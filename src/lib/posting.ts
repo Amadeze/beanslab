@@ -1,7 +1,11 @@
 import { requireTenantPrisma, getCurrentTenantId, getSystemUserId } from "@/lib/auth";
 import { getCurrentDate } from "@/lib/date-utils";
 import { ensureDefaultChartOfAccounts } from "@/lib/coa-templates";
-import { Prisma, ProductType, type JournalRefType } from "@prisma/client";
+import {
+  getSupplyInventoryAccount,
+  getSupplyIssueExpenseAccount,
+} from "@/lib/supply-accounts";
+import { Prisma, ProductType, type InventorySupplyCategory, type JournalRefType } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 
 type PostingLine = {
@@ -443,14 +447,19 @@ export async function postRoastingBatch(
 
 export async function postPurchase(
   purchaseId: string,
-  type: "GREEN_BEAN" | "PACKAGING",
+  type: "GREEN_BEAN" | "PACKAGING" | "SUPPLY",
   totalCost: number,
   paidAmount: number,
   supplierName: string,
   options: PostingOptions = {},
+  supplyCategory?: InventorySupplyCategory,
 ): Promise<string> {
   const inventoryAccount =
-    type === "GREEN_BEAN" ? "1-1200" : "1-1230";
+    type === "GREEN_BEAN"
+      ? "1-1200"
+      : type === "SUPPLY"
+        ? getSupplyInventoryAccount(supplyCategory ?? "OTHER")
+        : "1-1230";
 
   const lines: PostingLine[] = [
     { accountCode: inventoryAccount, debit: totalCost, credit: 0 },
@@ -464,40 +473,57 @@ export async function postPurchase(
     lines.push({ accountCode: "2-1000", debit: 0, credit: remaining });
   }
 
+  const typeLabel =
+    type === "GREEN_BEAN" ? "Green Bean" : type === "SUPPLY" ? "Supply" : "Kemasan";
   return postJournalEntry({
     date: getCurrentDate(),
-    description: `Pembelian ${type === "GREEN_BEAN" ? "Green Bean" : "Kemasan"} dari ${supplierName} — ${purchaseId}`,
+    description: `Pembelian ${typeLabel} dari ${supplierName} — ${purchaseId}`,
     reference: purchaseId,
     refType: "PURCHASE",
     lines,
   }, options);
 }
 
+export type StockAdjustmentTarget =
+  | ProductType
+  | "PACKAGING"
+  | "SUPPLY";
+
+export type SupplyAdjustmentContext = {
+  category: InventorySupplyCategory;
+  includeInProductHpp: boolean;
+};
+
 export async function postStockAdjustment(
   adjustmentId: string,
-  productType: ProductType | "PACKAGING",
+  productType: StockAdjustmentTarget,
   entryType: "IN" | "OUT",
   quantity: number,
   unitCost: number,
   options: PostingOptions = {},
+  supplyContext?: SupplyAdjustmentContext,
 ): Promise<string> {
   const value = quantity * unitCost;
-  const inventoryAccount =
-    productType === "GREEN_BEAN"
+  const inventoryAccount = supplyContext
+    ? getSupplyInventoryAccount(supplyContext.category)
+    : productType === "GREEN_BEAN"
       ? "1-1200"
       : productType === "ROASTED_BEAN"
         ? "1-1210"
         : productType === "FINISHED_GOODS"
           ? "1-1220"
           : "1-1230";
+  const expenseAccount = supplyContext
+    ? getSupplyIssueExpenseAccount(supplyContext.category, supplyContext.includeInProductHpp)
+    : "5-1040";
 
   const lines: PostingLine[] = [];
 
   if (entryType === "IN") {
     lines.push({ accountCode: inventoryAccount, debit: value, credit: 0 });
-    lines.push({ accountCode: "5-1040", debit: 0, credit: value });
+    lines.push({ accountCode: expenseAccount, debit: 0, credit: value });
   } else {
-    lines.push({ accountCode: "5-1040", debit: value, credit: 0 });
+    lines.push({ accountCode: expenseAccount, debit: value, credit: 0 });
     lines.push({ accountCode: inventoryAccount, debit: 0, credit: value });
   }
 

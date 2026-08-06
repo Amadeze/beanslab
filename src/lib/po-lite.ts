@@ -16,6 +16,7 @@ export type CreatePOInput = {
   items: Array<{
     productId?: string;
     packagingId?: string;
+    supplyItemId?: string;
     quantity: number;
     unitPrice: number;
     reorderPoint?: number;
@@ -33,6 +34,7 @@ export type UpdatePOInput = {
     id?: string; // existing item ID untuk update
     productId?: string;
     packagingId?: string;
+    supplyItemId?: string;
     quantity: number;
     unitPrice: number;
     reorderPoint?: number;
@@ -74,6 +76,7 @@ export type POListItem = {
   items: Array<{
     productName: string | null;
     packagingName: string | null;
+    supplyItemName: string | null;
     quantity: number;
   }>;
 };
@@ -86,6 +89,7 @@ export type PODetail = POListItem & {
     id: string;
     productName: string | null;
     packagingName: string | null;
+    supplyItemName: string | null;
     quantity: number;
     receivedQuantity: number;
     remainingQuantity: number;
@@ -199,14 +203,32 @@ export async function createDraftPO(
   }
 
   for (const item of input.items) {
-    if (!item.productId && !item.packagingId) {
-      throw new Error("Setiap item harus memiliki produk atau kemasan.");
+    const subjects = [item.productId, item.packagingId, item.supplyItemId]
+      .filter((v) => v != null && v !== "").length;
+    if (subjects !== 1) {
+      throw new Error("Setiap item harus memiliki tepat satu: produk, kemasan, atau supply item.");
     }
     if (item.quantity <= 0) {
       throw new Error("Quantity harus lebih dari 0.");
     }
     if (item.unitPrice < 0) {
       throw new Error("Harga tidak boleh negatif.");
+    }
+  }
+  const supplyItemIds = input.items
+    .map((item) => item.supplyItemId)
+    .filter((id): id is string => id != null && id !== "");
+  if (supplyItemIds.length > 0) {
+    const supplyItems = await prisma.inventorySupplyItem.findMany({
+      where: { id: { in: supplyItemIds }, tenantId },
+      select: { id: true, isActive: true },
+    });
+    const found = new Set(supplyItems.map((s) => s.id));
+    for (const id of supplyItemIds) {
+      const item = supplyItems.find((s) => s.id === id);
+      if (!item || !item.isActive) {
+        throw new Error(`Supply item ${id} tidak ditemukan, tidak aktif, atau bukan milik tenant supplier.`);
+      }
     }
   }
   const estimatedShippingCost = Number(input.estimatedShippingCost ?? 0);
@@ -244,9 +266,11 @@ export async function createDraftPO(
             purchaseOrderId: po.id,
             productId: item.productId || null,
             packagingId: item.packagingId || null,
+            supplyItemId: item.supplyItemId || null,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             totalPrice: item.quantity * item.unitPrice,
+            supplyQuantity: item.supplyItemId ? item.quantity : null,
             reorderPoint: item.reorderPoint ?? null,
             currentStock: item.currentStock ?? null,
           })),
@@ -312,6 +336,34 @@ export async function updateDraftPO(
     }
 
     if (input.items) {
+      for (const item of input.items) {
+        const subjects = [item.productId, item.packagingId, item.supplyItemId]
+          .filter((v) => v != null && v !== "").length;
+        if (subjects !== 1) {
+          throw new Error("Setiap item harus memiliki tepat satu: produk, kemasan, atau supply item.");
+        }
+        if (item.quantity <= 0) {
+          throw new Error("Quantity harus lebih dari 0.");
+        }
+        if (item.unitPrice < 0) {
+          throw new Error("Harga tidak boleh negatif.");
+        }
+      }
+      const supplyItemIds = input.items
+        .map((item) => item.supplyItemId)
+        .filter((id): id is string => id != null && id !== "");
+      if (supplyItemIds.length > 0) {
+        const supplyItems = await tx.inventorySupplyItem.findMany({
+          where: { id: { in: supplyItemIds }, tenantId },
+          select: { id: true, isActive: true },
+        });
+        for (const id of supplyItemIds) {
+          const item = supplyItems.find((s) => s.id === id);
+          if (!item || !item.isActive) {
+            throw new Error(`Supply item ${id} tidak ditemukan, tidak aktif, atau bukan milik tenant supplier.`);
+          }
+        }
+      }
       // Calculate new total
       updateData.totalEstimate = calculateTotalEstimate(input.items, estimatedShippingCost);
 
@@ -327,9 +379,11 @@ export async function updateDraftPO(
           purchaseOrderId: input.id,
           productId: item.productId || null,
           packagingId: item.packagingId || null,
+          supplyItemId: item.supplyItemId || null,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           totalPrice: item.quantity * item.unitPrice,
+          supplyQuantity: item.supplyItemId ? item.quantity : null,
           reorderPoint: item.reorderPoint ?? null,
           currentStock: item.currentStock ?? null,
         })),
@@ -406,6 +460,7 @@ export async function receivePO(
           id: true,
           productId: true,
           packagingId: true,
+          supplyItemId: true,
           quantity: true,
           unitPrice: true,
         },
@@ -427,6 +482,16 @@ export async function receivePO(
     throw new Error("Ongkir aktual tidak boleh negatif.");
   }
 
+  // Resolve supply item categories (untuk posting & over-receipt guard) sekaligus diverifikasi tenant
+  const supplyItemIdsInPO = po.items
+    .map((item) => item.supplyItemId)
+    .filter((id): id is string => id != null);
+  const supplyItemsInPO = await prisma.inventorySupplyItem.findMany({
+    where: { id: { in: supplyItemIdsInPO }, tenantId },
+    select: { id: true, category: true, isActive: true },
+  });
+  const supplyItemMeta = new Map(supplyItemsInPO.map((s) => [s.id, s]));
+
   // Validate received items
   const poItemMap = new Map(po.items.map((item) => [item.id, item]));
   const seenItemIds = new Set<string>();
@@ -440,6 +505,12 @@ export async function receivePO(
     }
     if (poItem.packagingId && received.receivedQuantity > 0 && !Number.isInteger(received.receivedQuantity)) {
       throw new Error("Quantity kemasan yang diterima harus berupa unit bulat.");
+    }
+    if (poItem.supplyItemId) {
+      const meta = supplyItemMeta.get(poItem.supplyItemId);
+      if (!meta || !meta.isActive) {
+        throw new Error("Supply item pada PO tidak aktif atau bukan milik tenant supplier.");
+      }
     }
     if (seenItemIds.has(received.poItemId)) {
       throw new Error("Item PO tidak boleh dikirim dua kali dalam satu penerimaan.");
@@ -485,22 +556,28 @@ export async function receivePO(
     purchaseCodes.length = 0;
     try {
       await prisma.$transaction(async (tx) => {
-        // Load all previously received quantities per item (matched by productId/packagingId)
+        // Load all previously received quantities per item (matched by productId/packagingId/supplyItemId)
     const prevPurchases = await tx.purchase.findMany({
       where: { purchaseOrderId: poId },
-      select: { productId: true, packagingId: true, weightKg: true, quantityUnits: true },
+      select: { productId: true, packagingId: true, supplyItemId: true, weightKg: true, quantityUnits: true, supplyQuantity: true },
     });
 
     for (const [receiptIndex, received] of positiveReceipts.entries()) {
       const poItem = poItemMap.get(received.poItemId)!;
       const isProduct = !!poItem.productId;
+      const isSupply = !!poItem.supplyItemId;
 
       // H12: Prevent over-receipt per item
       const previousForItem = prevPurchases
         .filter((p) =>
-          isProduct ? p.productId === poItem.productId : p.packagingId === poItem.packagingId
+          isSupply
+            ? p.supplyItemId === poItem.supplyItemId
+            : isProduct
+              ? p.productId === poItem.productId
+              : p.packagingId === poItem.packagingId
         )
-        .reduce((sum, p) => sum + Number(p.weightKg ?? 0) + (p.quantityUnits ?? 0), 0);
+        .reduce((sum, p) =>
+          sum + (isSupply ? Number(p.supplyQuantity ?? 0) : Number(p.weightKg ?? 0) + (p.quantityUnits ?? 0)), 0);
       const remainingForItem = Number(poItem.quantity) - previousForItem;
       if (received.receivedQuantity > remainingForItem) {
         throw new Error(
@@ -525,12 +602,14 @@ export async function receivePO(
         data: {
           tenantId,
           code: purchaseCode,
-          type: isProduct ? "GREEN_BEAN" : "PACKAGING",
+          type: isSupply ? "SUPPLY" : isProduct ? "GREEN_BEAN" : "PACKAGING",
           supplierId: po.supplierId,
-          productId: poItem.productId,
-          packagingId: poItem.packagingId,
+          productId: isSupply ? null : poItem.productId,
+          packagingId: isSupply ? null : poItem.packagingId,
+          supplyItemId: isSupply ? poItem.supplyItemId : null,
           weightKg: isProduct ? received.receivedQuantity : null,
-          quantityUnits: isProduct ? null : Math.round(received.receivedQuantity),
+          quantityUnits: isProduct ? null : isSupply ? null : Math.round(received.receivedQuantity),
+          supplyQuantity: isSupply ? received.receivedQuantity : null,
           pricePerUnit: poItem.unitPrice,
           shippingCost: allocatedShippingCost,
           totalCost,
@@ -568,20 +647,38 @@ export async function receivePO(
       const lot = await tx.lot.create({
         data: {
           tenantId,
-          productId: poItem.productId,
-          packagingId: poItem.packagingId,
+          productId: isSupply ? null : poItem.productId,
+          packagingId: isSupply ? null : poItem.packagingId,
+          supplyItemId: isSupply ? poItem.supplyItemId : null,
           supplierId: po.supplierId,
           purchaseId: purchase.id,
           batchCode: purchaseCode,
           quantityKg: isProduct ? received.receivedQuantity : 0,
-          quantityUnit: isProduct ? 0 : Math.round(received.receivedQuantity),
+          quantityUnit: isProduct ? 0 : isSupply ? 0 : Math.round(received.receivedQuantity),
+          supplyQuantity: isSupply ? received.receivedQuantity : 0,
           receivedAt,
           notes: `Penerimaan ${purchaseCode} dari PO ${poId}`,
         },
       });
 
-      // Create ledger entry + update cached stock + avgCostPerKg via appendLedger
-      if (isProduct && poItem.productId) {
+      // Create ledger entry + update cached stock + moving average via appendLedger
+      if (isSupply && poItem.supplyItemId) {
+        await appendLedger(tx, {
+          data: {
+            tenantId,
+            supplyItemId: poItem.supplyItemId,
+            entryType: "IN",
+            refType: "SUPPLY_PURCHASE_IN",
+            refId: purchase.id,
+            supplyQuantity: received.receivedQuantity,
+            incomingPrice: totalCost / received.receivedQuantity,
+            lotId: lot.id,
+            lotNumber: lot.batchCode,
+            notes: `PO ${poId} - ${purchaseCode}`,
+            createdById: userId,
+          },
+        });
+      } else if (isProduct && poItem.productId) {
         await appendLedger(tx, {
           data: {
             tenantId,
@@ -617,11 +714,12 @@ export async function receivePO(
 
       await postPurchase(
         purchase.id,
-        isProduct ? "GREEN_BEAN" : "PACKAGING",
+        isSupply ? "SUPPLY" : isProduct ? "GREEN_BEAN" : "PACKAGING",
         totalCost,
         isPaid ? totalCost : 0,
         po.supplier.name,
         { tx, tenantId, userId },
+        isSupply ? supplyItemMeta.get(poItem.supplyItemId!)?.category : undefined,
       );
     }
 
@@ -629,9 +727,14 @@ export async function receivePO(
     const allItemsFullyReceived = po.items.every((item) => {
       const prevForItem = prevPurchases
         .filter((p) =>
-          item.productId ? p.productId === item.productId : p.packagingId === item.packagingId
+          item.supplyItemId
+            ? p.supplyItemId === item.supplyItemId
+            : item.productId
+              ? p.productId === item.productId
+              : p.packagingId === item.packagingId
         )
-        .reduce((sum, p) => sum + Number(p.weightKg ?? 0) + (p.quantityUnits ?? 0), 0);
+        .reduce((sum, p) =>
+          sum + (item.supplyItemId ? Number(p.supplyQuantity ?? 0) : Number(p.weightKg ?? 0) + (p.quantityUnits ?? 0)), 0);
       const receivedNow = input.items
         .filter((r) => r.poItemId === item.id)
         .reduce((sum, r) => sum + r.receivedQuantity, 0);
@@ -729,6 +832,7 @@ export async function getPOList(
             quantity: true,
             product: { select: { name: true } },
             packaging: { select: { name: true } },
+            supplyItem: { select: { name: true } },
           },
         },
       },
@@ -755,6 +859,7 @@ export async function getPOList(
       items: po.items.map((item) => ({
         productName: item.product?.name ?? null,
         packagingName: item.packaging?.name ?? null,
+        supplyItemName: item.supplyItem?.name ?? null,
         quantity: Number(item.quantity),
       })),
     })),
@@ -777,6 +882,7 @@ export async function getPODetail(
         include: {
           product: { select: { name: true } },
           packaging: { select: { name: true } },
+          supplyItem: { select: { name: true } },
         },
       },
       purchases: {
@@ -786,8 +892,10 @@ export async function getPODetail(
           receivedAt: true,
           productId: true,
           packagingId: true,
+          supplyItemId: true,
           weightKg: true,
           quantityUnits: true,
+          supplyQuantity: true,
           shippingCost: true,
           totalCost: true,
         },
@@ -823,11 +931,17 @@ export async function getPODetail(
     ),
     items: po.items.map((item) => {
       const receivedQuantity = po.purchases
-        .filter((purchase) => item.productId
-          ? purchase.productId === item.productId
-          : purchase.packagingId === item.packagingId)
+        .filter((purchase) => item.supplyItemId
+          ? purchase.supplyItemId === item.supplyItemId
+          : item.productId
+            ? purchase.productId === item.productId
+            : purchase.packagingId === item.packagingId)
         .reduce(
-          (sum, purchase) => sum + Number(item.productId ? purchase.weightKg ?? 0 : purchase.quantityUnits ?? 0),
+          (sum, purchase) => sum + (item.supplyItemId
+            ? Number(purchase.supplyQuantity ?? 0)
+            : item.productId
+              ? Number(purchase.weightKg ?? 0)
+              : Number(purchase.quantityUnits ?? 0)),
           0,
         );
       const quantity = Number(item.quantity);
@@ -835,6 +949,7 @@ export async function getPODetail(
         id: item.id,
         productName: item.product?.name ?? null,
         packagingName: item.packaging?.name ?? null,
+        supplyItemName: item.supplyItem?.name ?? null,
         quantity,
         receivedQuantity,
         remainingQuantity: Math.max(0, quantity - receivedQuantity),

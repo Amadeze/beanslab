@@ -19,6 +19,10 @@ function transaction(updateCount = 1) {
       findMany: vi.fn().mockResolvedValue([]),
       update: vi.fn().mockResolvedValue({}),
     },
+    inventorySupplyItem: {
+      findUnique: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+    },
     $queryRaw: vi.fn().mockResolvedValue([]),
   };
 }
@@ -202,9 +206,171 @@ describe("appendLedger", () => {
     expect(updateCall[0].data.stockUnit).toEqual({ increment: 50 });
     expect(updateCall[0].data.avgCostPerKg).toBeUndefined();
   });
+
+  it("supply IN: updates supply cache with moving average and writes supplyQuantity only", async () => {
+    const tx = transaction();
+    tx.inventorySupplyItem.findUnique = vi.fn().mockResolvedValue({
+      tenantId: "tenant-1",
+      stockQuantity: "40",
+      avgCostPerUnit: "5000",
+    });
+
+    await appendLedger(tx, {
+      data: {
+        tenantId: "tenant-1",
+        supplyItemId: "supply-1",
+        entryType: "IN",
+        refType: "SUPPLY_PURCHASE_IN",
+        refId: "purchase-1",
+        supplyQuantity: 10,
+        incomingPrice: 5500,
+        createdById: "user-1",
+      },
+    });
+
+    const expectedAvg = (40 * 5000 + 10 * 5500) / (40 + 10);
+    expect(tx.inventorySupplyItem.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "supply-1", tenantId: "tenant-1" },
+        data: {
+          stockQuantity: { increment: 10 },
+          avgCostPerUnit: expectedAvg,
+        },
+      }),
+    );
+    expect(tx.inventoryLedger.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        supplyItemId: "supply-1",
+        supplyQuantity: 10,
+      }),
+    });
+    expect(tx.packaging.updateMany).not.toHaveBeenCalled();
+    expect(tx.product.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("supply entry must not use quantityKg/quantityUnit and quantity must be positive", async () => {
+    const tx = transaction();
+
+    await expect(
+      appendLedger(tx, {
+        data: {
+          tenantId: "tenant-1",
+          supplyItemId: "supply-1",
+          entryType: "IN",
+          refType: "SUPPLY_PURCHASE_IN",
+          refId: "purchase-1",
+          quantityKg: 5,
+          createdById: "user-1",
+        },
+      }),
+    ).rejects.toThrow("Supply quantity must be a positive number.");
+
+    await expect(
+      appendLedger(tx, {
+        data: {
+          tenantId: "tenant-1",
+          supplyItemId: "supply-1",
+          entryType: "IN",
+          refType: "SUPPLY_PURCHASE_IN",
+          refId: "purchase-1",
+          supplyQuantity: 0,
+          createdById: "user-1",
+        },
+      }),
+    ).rejects.toThrow("positive");
+
+    await expect(
+      appendLedger(tx, {
+        data: {
+          tenantId: "tenant-1",
+          supplyItemId: "supply-1",
+          packagingId: "packaging-1",
+          entryType: "IN",
+          refType: "SUPPLY_PURCHASE_IN",
+          refId: "purchase-1",
+          supplyQuantity: 1,
+          createdById: "user-1",
+        },
+      }),
+    ).rejects.toThrow("exactly one");
+  });
+
+  it("supply OUT: rejects with controlled error when cache stock is insufficient", async () => {
+    const tx = transaction();
+    tx.inventorySupplyItem.updateMany = vi.fn().mockResolvedValue({ count: 0 });
+
+    await expect(
+      appendLedger(tx, {
+        data: {
+          tenantId: "tenant-1",
+          supplyItemId: "supply-1",
+          entryType: "OUT",
+          refType: "SUPPLY_ADJUSTMENT_OUT",
+          refId: "opname-1",
+          supplyQuantity: 6,
+          createdById: "user-1",
+        },
+      }),
+    ).rejects.toThrow("Stok supply tidak cukup");
+
+    expect(tx.inventoryLedger.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("appendFefoLedgerOut", () => {
+  it("supply FEFO: allocates supplyQuantity from earliest expiry lot first", async () => {
+    const tx = transaction();
+    tx.$queryRaw.mockResolvedValue([
+      { id: "lot-early" },
+      { id: "lot-later" },
+    ]);
+    tx.lot.findMany.mockResolvedValue([
+      {
+        id: "lot-early",
+        batchCode: "LOT-EARLY",
+        expiryDate: new Date("2026-08-01"),
+        quantityKg: 0,
+        quantityUnit: 0,
+        supplyQuantity: 5,
+        inventoryLedgers: [{ entryType: "IN", quantityKg: null, quantityUnit: null, supplyQuantity: 5 }],
+      },
+      {
+        id: "lot-later",
+        batchCode: "LOT-LATER",
+        expiryDate: new Date("2026-12-01"),
+        quantityKg: 0,
+        quantityUnit: 0,
+        supplyQuantity: 10,
+        inventoryLedgers: [{ entryType: "IN", quantityKg: null, quantityUnit: null, supplyQuantity: 10 }],
+      },
+    ]);
+
+    await appendFefoLedgerOut(tx, {
+      tenantId: "tenant-1",
+      supplyItemId: "supply-1",
+      supplyQuantity: 8,
+      refType: "SUPPLY_ADJUSTMENT_OUT",
+      refId: "opname-1",
+      createdById: "user-1",
+    });
+
+    expect(tx.inventoryLedger.create).toHaveBeenNthCalledWith(1, {
+      data: expect.objectContaining({
+        lotId: "lot-early",
+        supplyQuantity: 5,
+        supplyItemId: "supply-1",
+      }),
+    });
+    expect(tx.inventoryLedger.create).toHaveBeenNthCalledWith(2, {
+      data: expect.objectContaining({ lotId: "lot-later", supplyQuantity: 3 }),
+    });
+    expect(tx.lot.update).toHaveBeenCalledWith({
+      where: { id: "lot-early" },
+      data: { consumedAt: expect.any(Date) },
+    });
+    expect(tx.$queryRaw).toHaveBeenCalled();
+  });
+
   it("allocates from the earliest expiry first and closes exhausted lots", async () => {
     const tx = transaction();
     tx.$queryRaw.mockResolvedValue([

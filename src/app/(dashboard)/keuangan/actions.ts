@@ -10,6 +10,7 @@ import { getPurchasePaymentStatus, getReceivableAgingBucket, type ReceivableAgin
 export type ReceivableAgingBucket = _ReceivableAgingBucket;
 import { getCurrentDate, getZonedMonthRange } from "@/lib/date-utils";
 import { postCapitalInjection, postOwnerWithdrawal, postCustomerPayment, postExpense, postSupplierPayment, postVoidReversal } from "@/lib/posting";
+import { voidPurchaseCore } from "@/lib/purchase-void";
 import { calculateSalesPerformance } from "@/lib/financial-reporting";
 import { computeSampleCostByType, computeCogsComponentBreakdown } from "@/lib/financial-helpers";
 import { prisma } from "@/lib/prisma";
@@ -1239,88 +1240,11 @@ export async function voidPayment(paymentId: string, reason: string) {
 export async function voidPurchase(purchaseId: string, reason: string) {
   try {
     await requireRole("OWNER", "MANAGER");
-    if (!reason.trim()) return { success: false, error: "Alasan void wajib diisi." };
     const tenantId = await getCurrentTenantId();
     const userId = await getSystemUserId();
     const tenantPrisma = await requireTenantPrisma();
 
-    await tenantPrisma.$transaction(async (tx) => {
-      const purchase = await tx.purchase.findUnique({ where: { id: purchaseId } });
-      if (!purchase) throw new Error("Pembelian tidak ditemukan.");
-      if (purchase.status === "VOID") throw new Error("Pembelian sudah di-void.");
-      if (purchase.status !== "COMPLETED") {
-        throw new Error("Hanya pembelian selesai yang dapat di-void.");
-      }
-      const activePayments = await tx.supplierPayment.count({
-        where: { purchaseId: purchase.id, voidAt: null },
-      });
-      if (activePayments > 0) {
-        throw new Error("Void semua pembayaran supplier pada pembelian ini terlebih dahulu.");
-      }
-
-      const sourceEntries = await tx.inventoryLedger.findMany({
-        where: {
-          refId: purchase.id,
-          refType: { in: ["PURCHASE_GB", "PURCHASE_PKG"] },
-          entryType: "IN",
-        },
-      });
-      if (sourceEntries.length !== 1) {
-        throw new Error("Ledger pembelian tidak lengkap; void dibatalkan.");
-      }
-
-      const source = sourceEntries[0];
-      if (source.lotId) {
-        const downstreamCount = await tx.inventoryLedger.count({
-          where: {
-            lotId: source.lotId,
-            entryType: "OUT",
-            refType: { not: "VOID_REVERSAL" },
-          },
-        });
-        if (downstreamCount > 0) {
-          throw new Error("Lot pembelian sudah dipakai. Batalkan transaksi turunannya terlebih dahulu.");
-        }
-      }
-      await appendLedger(tx, {
-        data: {
-          tenantId,
-          productId: source.productId,
-          packagingId: source.packagingId,
-          entryType: "OUT",
-          refType: "VOID_REVERSAL",
-          refId: purchase.id,
-          quantityKg: source.quantityKg,
-          quantityUnit: source.quantityUnit,
-          lotId: source.lotId,
-          lotNumber: source.lotNumber,
-          expiryDate: source.expiryDate,
-          notes: `VOID pembelian: ${purchase.code}`,
-          createdById: userId,
-        },
-      });
-      await tx.purchase.update({
-        where: { id: purchase.id },
-        data: {
-          status: "VOID",
-          voidReason: reason.trim(),
-          voidAt: getCurrentDate(),
-        },
-      });
-      if (source.lotId) {
-        await tx.lot.update({ where: { id: source.lotId }, data: { consumedAt: getCurrentDate() } });
-      }
-      await postVoidReversal("PURCHASE", purchase.id, reason, { tx, tenantId, userId });
-      await recordAudit(tx, {
-        tenantId,
-        userId,
-        action: "VOID",
-        entityType: "Purchase",
-        entityId: purchase.id,
-        before: { status: purchase.status, totalCost: Number(purchase.totalCost) },
-        after: { status: "VOID", reason: reason.trim() },
-      });
-    }, { isolationLevel: "Serializable" });
+    await voidPurchaseCore(tenantPrisma, tenantId, userId, purchaseId, reason);
 
     revalidatePath("/keuangan");
     revalidatePath("/inventory");

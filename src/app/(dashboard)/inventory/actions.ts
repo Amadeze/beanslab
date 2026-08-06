@@ -1,6 +1,7 @@
 "use server";
 
 import { appendLedger } from "@/lib/stock";
+import { adjustSupplyStock } from "@/lib/supply-adjustment";
 import { getCurrentTenantId, getSystemUserId, requireRole, requireTenantPrisma } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { recordAudit } from "@/lib/audit";
@@ -13,6 +14,7 @@ import {
 import { getBatchReorderSummaries } from "@/lib/reorder";
 import { postPurchase, postStockAdjustment } from "@/lib/posting";
 import { summarizeLotInventory, type LotOperationalStatus } from "@/lib/lot";
+import { createSupplyPurchase, type CreateSupplyPurchaseInput } from "@/lib/supply-purchase";
 
 // =============================================================================
 // TYPES — semua Decimal dikonversi ke number agar bisa di-serialize ke client
@@ -804,9 +806,57 @@ export async function createPackagingPurchase(
   }
 }
 // =============================================================================
-// CREATE PACKAGING (QUICK ADD)
+// CREATE SUPPLY PURCHASE (DIRECT, NON-PO)
 // =============================================================================
 
+export async function createSupplyPurchaseAction(
+  input: CreateSupplyPurchaseInput,
+): Promise<ActionResult> {
+  try {
+    await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const userId = await getSystemUserId();
+    const tenantId = await getCurrentTenantId();
+    if (!input.operationKey || !/^[0-9a-f-]{36}$/i.test(input.operationKey)) {
+      return { success: false, error: "Identitas transaksi tidak valid. Buka ulang form lalu coba lagi." };
+    }
+    if (!Number.isFinite(input.supplyQuantity) || input.supplyQuantity <= 0) {
+      return { success: false, error: "Kuantitas supply harus lebih dari 0." };
+    }
+    if (!Number.isFinite(input.totalCost) || input.totalCost <= 0) {
+      return { success: false, error: "Total pembelian harus lebih dari 0." };
+    }
+    const shippingCost = Number(input.shippingCost ?? 0);
+    if (!Number.isFinite(shippingCost) || shippingCost < 0 || shippingCost >= input.totalCost) {
+      return { success: false, error: "Ongkos kirim harus lebih kecil dari total pembelian." };
+    }
+
+    const tenantPrisma = await requireTenantPrisma();
+    const result = await createSupplyPurchase(tenantPrisma, tenantId, userId, {
+      ...input,
+      shippingCost,
+    });
+
+    revalidatePath("/inventory");
+    revalidatePath("/dashboard");
+    revalidatePath("/keuangan");
+    revalidatePath("/laporan");
+
+    return { success: true, purchaseCode: result.purchaseCode };
+  } catch (err) {
+    console.error("[createSupplyPurchaseAction]", err);
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" && input.operationKey) {
+      const existing = await (await requireTenantPrisma()).purchase.findFirst({
+        where: { operationKey: input.operationKey },
+        select: { code: true },
+      });
+      if (existing) return { success: true, purchaseCode: existing.code };
+    }
+    return { success: false, error: err instanceof Error ? err.message : "Terjadi kesalahan." };
+  }
+}
+// =============================================================================
+// CREATE PACKAGING (QUICK ADD)
+// =============================================================================
 export async function createPackaging(data: {
   code?: string;
   name: string;
@@ -875,6 +925,7 @@ export async function adjustStock(input: {
   operationKey?: string;
   targetId: string;
   isPackaging: boolean;
+  isSupply?: boolean;
   type: "IN" | "OUT";
   quantity: number;
   notes: string;
@@ -883,10 +934,28 @@ export async function adjustStock(input: {
     await requireRole("OWNER", "MANAGER", "OPERATOR");
     const userId = await getSystemUserId();
     const tenantId = await getCurrentTenantId();
-    
+
     // Validasi input
     if (input.quantity <= 0) {
       throw new Error("Kuantitas penyesuaian harus lebih dari 0");
+    }
+
+    if (input.isSupply) {
+      const result = await adjustSupplyStock(
+        await requireTenantPrisma(),
+        tenantId,
+        userId,
+        {
+          operationKey: input.operationKey,
+          supplyItemId: input.targetId,
+          type: input.type,
+          quantity: input.quantity,
+          notes: input.notes,
+        },
+      );
+      if (!result.success) return { success: false, error: result.error ?? "Terjadi kesalahan." };
+      revalidatePath("/inventory");
+      return { success: true };
     }
 
     const refId = input.operationKey || "OPNAME-" + randomBytes(6).toString("hex").toUpperCase();
