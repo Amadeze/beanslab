@@ -243,7 +243,7 @@ describe("postCreditNote", () => {
 
 describe("postProductionBatch", () => {
   it("posts FG debit and credits RB, packaging, capitalizes labor and overhead", async () => {
-    await postProductionBatch("batch-1", 1_000_000, 200_000, 300_000, 100_000, "Kopi Tubruk 200g");
+    await postProductionBatch("batch-1", 1_000_000, 200_000, 0, 300_000, 100_000, "Kopi Tubruk 200g");
     const result = getCreatedLines();
     const totalDebit = result.lines.reduce((s: number, l: any) => s + l.debit, 0);
     const totalCredit = result.lines.reduce((s: number, l: any) => s + l.credit, 0);
@@ -256,7 +256,7 @@ describe("postProductionBatch", () => {
   });
 
   it("skips labor/overhead lines when zero", async () => {
-    await postProductionBatch("batch-2", 500_000, 100_000, 0, 0, "Kopi Sachet");
+    await postProductionBatch("batch-2", 500_000, 100_000, 0, 0, 0, "Kopi Sachet");
     const result = getCreatedLines();
     expect(result.lines).toHaveLength(3);
     expectLine(result, "1-1220", 600_000, 0);

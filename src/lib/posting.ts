@@ -4,6 +4,7 @@ import { ensureDefaultChartOfAccounts } from "@/lib/coa-templates";
 import {
   getSupplyInventoryAccount,
   getSupplyIssueExpenseAccount,
+  getSupplyProductionHppAccount,
 } from "@/lib/supply-accounts";
 import { Prisma, ProductType, type InventorySupplyCategory, type JournalRefType } from "@prisma/client";
 import { randomBytes } from "node:crypto";
@@ -392,17 +393,21 @@ export async function postProductionBatch(
   batchId: string,
   totalRbCost: number,
   packagingCost: number,
+  supplyCost: number,
   laborCost: number,
   overheadCost: number,
   fgProductName: string,
   options: PostingOptions = {},
 ): Promise<string> {
-  const totalCost = totalRbCost + packagingCost + laborCost + overheadCost;
+  const totalCost = totalRbCost + packagingCost + supplyCost + laborCost + overheadCost;
   const lines: PostingLine[] = [
     { accountCode: "1-1220", debit: totalCost, credit: 0 },
     { accountCode: "1-1210", debit: 0, credit: totalRbCost },
     { accountCode: "1-1230", debit: 0, credit: packagingCost },
   ];
+  if (supplyCost > 0) {
+    lines.push({ accountCode: getSupplyProductionHppAccount("PACKAGING"), debit: 0, credit: supplyCost });
+  }
   if (laborCost > 0) {
     lines.push({ accountCode: "5-1010", debit: 0, credit: laborCost });
   }

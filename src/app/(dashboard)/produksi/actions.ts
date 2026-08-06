@@ -9,6 +9,7 @@ import { randomBytes } from "crypto";
 import { normalizeProductionComponents } from "@/lib/operations";
 import { getCurrentDate } from "@/lib/date-utils";
 import { postProductionBatch, postVoidReversal } from "@/lib/posting";
+import { getSupplyProductionHppAccount } from "@/lib/supply-accounts";
 import { Prisma } from "@prisma/client";
 
 // =============================================================================
@@ -22,6 +23,12 @@ export type RBComponentInput = {
   actualGrams: number;   // total gram yang BENAR-BENAR dipakai dalam batch ini
 };
 
+/** Satu komponen supply dalam produksi (actual — bukan template resep). */
+export type SupplyComponentInput = {
+  supplyItemId: string;
+  quantity: number;       // total quantity baseUnit yang BENAR-BENAR dipakai dalam batch ini
+};
+
 export type CreateProductionBatchInput = {
   operationKey: string;
   outputProductId: string;
@@ -29,6 +36,7 @@ export type CreateProductionBatchInput = {
   packagingId: string;
   unitsProduced: number;
   rbComponents: RBComponentInput[];
+  supplyComponents?: SupplyComponentInput[];
   laborCost?: number;          // biaya tenaga kerja langsung batch ini
   overheadAllocated?: number;  // biaya overhead pabrik dialokasikan ke batch ini
   notes?: string;
@@ -365,6 +373,99 @@ export async function createProductionBatch(
         return { success: false, error: "Total berat Roasted Bean yang digunakan adalah 0." };
       }
 
+      // 3b. Validasi & hitung HPP setiap komponen supply
+      let totalSupplyCost = 0;
+      const supplyDetails: Array<{
+        supplyItemId: string;
+        quantity: number;
+        unitCostSnapshot: number;
+        totalCostSnapshot: number;
+        trackLot: boolean;
+        includeInProductHpp: boolean;
+      }> = [];
+
+      const supplyComponents = input.supplyComponents ?? [];
+      const supplyComponentIds = new Set<string>();
+
+      for (const sc of supplyComponents) {
+        if (!sc.supplyItemId) continue;
+        if (supplyComponentIds.has(sc.supplyItemId)) {
+          return { success: false, error: "Setiap supply item hanya boleh muncul sekali dalam batch." };
+        }
+        supplyComponentIds.add(sc.supplyItemId);
+
+        const qty = Number(sc.quantity);
+        if (!Number.isFinite(qty) || qty <= 0) {
+          return { success: false, error: "Quantity supply harus lebih besar dari 0." };
+        }
+
+        const supplyItem = await tx.inventorySupplyItem.findUnique({
+          where: { id: sc.supplyItemId },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            isActive: true,
+            consumableInProduction: true,
+            includeInProductHpp: true,
+            trackLot: true,
+            avgCostPerUnit: true,
+            stockQuantity: true,
+            tenantId: true,
+          },
+        });
+
+        if (!supplyItem || supplyItem.tenantId !== tenantId) {
+          return { success: false, error: "Supply item tidak ditemukan atau tidak termasuk dalam tenant ini." };
+        }
+        if (!supplyItem.isActive) {
+          return { success: false, error: `Supply item "${supplyItem.name}" sudah nonaktif.` };
+        }
+        if (!supplyItem.consumableInProduction) {
+          return { success: false, error: `Supply item "${supplyItem.name}" tidak diizinkan untuk produksi.` };
+        }
+
+        const currentStock = Number(supplyItem.stockQuantity ?? 0);
+        if (currentStock < qty) {
+          return {
+            success: false,
+            error: `Stok supply "${supplyItem.name}" tidak cukup. Tersedia: ${currentStock.toFixed(3)} ${supplyItem.code}, dibutuhkan: ${qty.toFixed(3)}.`,
+          };
+        }
+
+        const unitCost = Number(supplyItem.avgCostPerUnit ?? 0);
+        if (unitCost <= 0) {
+          return {
+            success: false,
+            error: `Biaya supply "${supplyItem.name}" belum tercatat (avgCostPerUnit = 0). Periksa data pembelian terlebih dahulu.`,
+          };
+        }
+
+        const totalCost = unitCost * qty;
+        if (supplyItem.includeInProductHpp) {
+          totalSupplyCost += totalCost;
+        }
+        supplyDetails.push({
+          supplyItemId: sc.supplyItemId,
+          quantity: qty,
+          unitCostSnapshot: unitCost,
+          totalCostSnapshot: totalCost,
+          trackLot: supplyItem.trackLot,
+          includeInProductHpp: supplyItem.includeInProductHpp,
+        });
+      }
+
+      // Sanity check: prevent unrealistic supply-to-FG ratio
+      const MAX_UNITS_PER_SUPPLY_UNIT = 10_000;
+      for (const sd of supplyDetails) {
+        if (input.unitsProduced > sd.quantity * MAX_UNITS_PER_SUPPLY_UNIT) {
+          return {
+            success: false,
+            error: `Jumlah produksi terlalu besar untuk qty supply ${sd.quantity.toFixed(3)}. Maksimal ${Math.floor(sd.quantity * MAX_UNITS_PER_SUPPLY_UNIT)} unit.`,
+          };
+        }
+      }
+
       // Sanity check: prevent unrealistic RB-to-FG ratio
       const MAX_UNITS_PER_KG_RB = 100;
       if (input.unitsProduced > totalRbUsedKg * MAX_UNITS_PER_KG_RB) {
@@ -374,11 +475,11 @@ export async function createProductionBatch(
         };
       }
 
-      // 4. Hitung HPP per unit (termasuk labor & overhead)
-      const pkgCostTotal = Number(packaging.avgCostPerUnit || packaging.costPerUnit) * input.unitsProduced;
+      // 4. Hitung HPP per unit (termasuk labor & overhead + supply)
+      const pkgCostTotal = Number(Number(packaging.avgCostPerUnit) || packaging.costPerUnit) * input.unitsProduced;
       const laborCost = Number(input.laborCost ?? 0);
       const overheadCost = Number(input.overheadAllocated ?? 0);
-      const totalCost = totalRbCost + pkgCostTotal + laborCost + overheadCost;
+      const totalCost = totalRbCost + pkgCostTotal + totalSupplyCost + laborCost + overheadCost;
       const hppPerUnit = totalCost / input.unitsProduced;
 
       // 5. Generate kode
@@ -426,6 +527,45 @@ export async function createProductionBatch(
           notes:        `Produksi: ${batch.code}`,
           createdById:  userId,
       });
+
+      // Supply keluar + snapshot
+      for (const sd of supplyDetails) {
+        if (sd.trackLot) {
+          await appendFefoLedgerOut(tx, {
+            tenantId,
+            supplyItemId:  sd.supplyItemId,
+            refType:       "SUPPLY_PRODUCTION_OUT",
+            refId:         batch.id,
+            supplyQuantity: sd.quantity,
+            notes:         `Produksi: ${batch.code}`,
+            createdById:   userId,
+          });
+        } else {
+          await appendLedger(tx, {
+            data: {
+              tenantId,
+              supplyItemId:  sd.supplyItemId,
+              entryType:     "OUT",
+              refType:       "SUPPLY_PRODUCTION_OUT",
+              refId:         batch.id,
+              supplyQuantity: sd.quantity,
+              notes:         `Produksi: ${batch.code}`,
+              createdById:   userId,
+            },
+          });
+        }
+
+        await tx.productionSupplyUsage.create({
+          data: {
+            tenantId,
+            productionBatchId: batch.id,
+            supplyItemId:      sd.supplyItemId,
+            quantity:          sd.quantity,
+            unitCostSnapshot:  sd.unitCostSnapshot,
+            totalCostSnapshot: sd.totalCostSnapshot,
+          },
+        });
+      }
 
       // Read current stock BEFORE incrementing (for weighted HPP calculation)
       const currentProduct = await tx.product.findUnique({
@@ -484,6 +624,7 @@ export async function createProductionBatch(
         batch.id,
         totalRbCost,
         pkgCostTotal,
+        totalSupplyCost,
         laborCost,
         overheadCost,
         outputProduct.name ?? batchCode,
@@ -505,11 +646,15 @@ export async function createProductionBatch(
         metadata: { operationKey: input.operationKey, componentCount: rbDetails.length },
       });
 
-      revalidatePath("/produksi");
-      revalidatePath("/inventory");
-      revalidatePath("/dashboard");
-      revalidatePath("/laporan");
-      revalidatePath("/penjualan");
+      try {
+        revalidatePath("/produksi");
+        revalidatePath("/inventory");
+        revalidatePath("/dashboard");
+        revalidatePath("/laporan");
+        revalidatePath("/penjualan");
+      } catch {
+        // revalidatePath requires a Next.js request context; ignore in tests/non-HTTP environments
+      }
       return { success: true, batchCode };
     }, { isolationLevel: "Serializable", maxWait: 5000, timeout: 30000 });
   } catch (err) {
@@ -556,7 +701,7 @@ export async function voidProductionBatch(
       const ledgerEntries = await tx.inventoryLedger.findMany({
         where: {
           refId: batchId,
-          refType: { in: ["PRODUCTION_RB_OUT", "PRODUCTION_PKG_OUT", "PRODUCTION_FG_IN"] },
+          refType: { in: ["PRODUCTION_RB_OUT", "PRODUCTION_PKG_OUT", "PRODUCTION_FG_IN", "SUPPLY_PRODUCTION_OUT"] },
         },
       });
       if (ledgerEntries.length === 0) {
@@ -576,21 +721,24 @@ export async function voidProductionBatch(
 
       // Balik setiap ledger entry
       for (const entry of ledgerEntries) {
+        const isSupply = entry.refType === "SUPPLY_PRODUCTION_OUT";
         await appendLedger(tx, {
           data: {
             tenantId,
-            productId:    entry.productId,
-            packagingId:  entry.packagingId,
-            entryType:    entry.entryType === "IN" ? "OUT" : "IN",
-            refType:      "VOID_REVERSAL",
-            refId:        batchId,
-            quantityKg:   entry.quantityKg,
-            quantityUnit: entry.quantityUnit,
+            productId:     isSupply ? undefined : entry.productId,
+            packagingId:   isSupply ? undefined : entry.packagingId,
+            supplyItemId:  isSupply ? entry.supplyItemId : undefined,
+            entryType:     entry.entryType === "IN" ? "OUT" : "IN",
+            refType:       "VOID_REVERSAL",
+            refId:         batchId,
+            quantityKg:    isSupply ? undefined : entry.quantityKg,
+            quantityUnit:  isSupply ? undefined : entry.quantityUnit,
+            supplyQuantity: isSupply ? entry.supplyQuantity : undefined,
             lotId:         entry.lotId,
             lotNumber:     entry.lotNumber,
             expiryDate:    entry.expiryDate,
-            notes:        `VOID reversal: ${batch.code}`,
-            createdById:  userId,
+            notes:         `VOID reversal: ${batch.code}`,
+            createdById:   userId,
           },
         });
         if (entry.lotId) {

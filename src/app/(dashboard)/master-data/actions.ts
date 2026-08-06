@@ -53,9 +53,15 @@ export type ProductRecipeItem = {
   id: string; rbProductId: string; gramsPerUnit: number; ratioPercent: number;
 };
 
+export type ProductRecipeSupplyItem = {
+  supplyItemId: string;
+  quantityPerUnit: number;
+};
+
 export type ProductRecipe = {
   id: string; packagingId: string; outputGrams: number; notes: string | null;
   items: ProductRecipeItem[];
+  supplyItems: ProductRecipeSupplyItem[];
 };
 
 export type ProductRow = {
@@ -129,25 +135,32 @@ export async function getMasterData(): Promise<MasterPageData> {
     leadTimeDays: true,
     safetyStockQuantity: true,
     reorderLookbackDays: true,
-    recipes: {
-      where: { isActive: true },
-      select: {
-        id: true,
-        packagingId: true,
-        outputGrams: true,
-        notes: true,
-        items: {
-          select: {
-            id: true,
-            productId: true,
-            gramsPerUnit: true,
-            ratioPercent: true,
+      recipes: {
+        where: { isActive: true },
+        select: {
+          id: true,
+          packagingId: true,
+          outputGrams: true,
+          notes: true,
+          items: {
+            select: {
+              id: true,
+              productId: true,
+              gramsPerUnit: true,
+              ratioPercent: true,
+            }
+          },
+          supplyItems: {
+            select: {
+              id: true,
+              supplyItemId: true,
+              quantityPerUnit: true,
+            }
           }
-        }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 1,
       },
-      orderBy: { createdAt: "desc" },
-      take: 1,
-    },
     // For FINISHED_GOODS HPP fallback
     productionBatches: {
       where: { status: "COMPLETED" },
@@ -228,6 +241,11 @@ export async function getMasterData(): Promise<MasterPageData> {
                 rbProductId: i.productId,
                 gramsPerUnit: Number(i.gramsPerUnit),
                 ratioPercent: Number(i.ratioPercent),
+              })),
+              supplyItems: r.supplyItems.map((si) => ({
+                id: si.id,
+                supplyItemId: si.supplyItemId,
+                quantityPerUnit: Number(si.quantityPerUnit),
               })),
             }
           : null,
@@ -733,6 +751,7 @@ export type RecipeInput = {
   outputGrams:  number;
   notes?:       string;
   items:        RecipeItemInput[];
+  supplyItems?: Array<{ supplyItemId: string; quantityPerUnit: number }>;
 };
 
 export type CreateProductInput = {
@@ -818,35 +837,45 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
             },
           });
 
-          if (input.type === "FINISHED_GOODS" && input.recipe && input.recipe.items.length > 0) {
-            const r = input.recipe;
-            const rCount  = await tx.recipe.count();
-            const rCode   = `RCP-${String(rCount + attempts).padStart(3, "0")}`;
-            const outputG = r.outputGrams;
+            if (input.type === "FINISHED_GOODS" && input.recipe && input.recipe.items.length > 0) {
+              const r = input.recipe;
+              const rCount  = await tx.recipe.count();
+              const rCode   = `RCP-${String(rCount + attempts).padStart(3, "0")}`;
+              const outputG = r.outputGrams;
 
-            const recipe = await tx.recipe.create({
-              data: {
-                tenantId,
-                code:        rCode,
-                name:        input.name.trim(),
-                productId:   product.id,
-                packagingId: r.packagingId,
-                outputGrams: outputG,
-                notes:       r.notes?.trim() || null,
-              },
-            });
-            if (r.items.length > 0) {
-              await tx.recipeItem.createMany({
-                data: r.items.map((item) => ({
+              const recipe = await tx.recipe.create({
+                data: {
                   tenantId,
-                  recipeId:     recipe.id,
-                  productId:    item.rbProductId,
-                  gramsPerUnit: item.gramsPerUnit,
-                  ratioPercent: outputG > 0 ? (item.gramsPerUnit / outputG) * 100 : 0,
-                })),
+                  code:        rCode,
+                  name:        input.name.trim(),
+                  productId:   product.id,
+                  packagingId: r.packagingId,
+                  outputGrams: outputG,
+                  notes:       r.notes?.trim() || null,
+                },
               });
+              if (r.items.length > 0) {
+                await tx.recipeItem.createMany({
+                  data: r.items.map((item) => ({
+                    tenantId,
+                    recipeId:     recipe.id,
+                    productId:    item.rbProductId,
+                    gramsPerUnit: item.gramsPerUnit,
+                    ratioPercent: outputG > 0 ? (item.gramsPerUnit / outputG) * 100 : 0,
+                  })),
+                });
+              }
+              if (r.supplyItems && r.supplyItems.length > 0) {
+                await tx.recipeSupplyItem.createMany({
+                  data: r.supplyItems.map((item) => ({
+                    tenantId,
+                    recipeId:     recipe.id,
+                    supplyItemId: item.supplyItemId,
+                    quantityPerUnit: item.quantityPerUnit,
+                  })),
+                });
+              }
             }
-          }
         });
         break;
       } catch (err) {
@@ -916,65 +945,90 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
         },
       });
 
-      if (existing.type === "FINISHED_GOODS" && input.recipe) {
-        const r       = input.recipe;
-        const outputG = r.outputGrams;
-        const existingRecipe = existing.recipes[0];
+        if (existing.type === "FINISHED_GOODS" && input.recipe) {
+          const r       = input.recipe;
+          const outputG = r.outputGrams;
+          const existingRecipe = existing.recipes[0];
 
-        if (existingRecipe) {
-          // Update existing recipe: delete old items, insert new ones
-          await tx.recipeItem.deleteMany({ where: { recipeId: existingRecipe.id } });
-          
-          if (r.items.length === 0) {
-            // If items is empty, we effectively delete the recipe since it's now inactive or empty
-            await tx.recipe.delete({ where: { id: existingRecipe.id } });
+          if (existingRecipe) {
+            // Update existing recipe: delete old items, insert new ones
+            await tx.recipeItem.deleteMany({ where: { recipeId: existingRecipe.id } });
+            await tx.recipeSupplyItem.deleteMany({ where: { recipeId: existingRecipe.id } });
+
+            if (r.items.length === 0 && (!r.supplyItems || r.supplyItems.length === 0)) {
+              // If items is empty, we effectively delete the recipe since it's now inactive or empty
+              await tx.recipe.delete({ where: { id: existingRecipe.id } });
+            } else {
+              await tx.recipe.update({
+                where: { id: existingRecipe.id },
+                data: {
+                  packagingId: r.packagingId,
+                  outputGrams: outputG,
+                  notes:       r.notes?.trim() || null,
+                },
+              });
+              if (r.items.length > 0) {
+                await tx.recipeItem.createMany({
+                  data: r.items.map((item) => ({
+                    tenantId,
+                    recipeId:     existingRecipe.id,
+                    productId:    item.rbProductId,
+                    gramsPerUnit: item.gramsPerUnit,
+                    ratioPercent: outputG > 0 ? (item.gramsPerUnit / outputG) * 100 : 0,
+                  })),
+                });
+              }
+              if (r.supplyItems && r.supplyItems.length > 0) {
+                await tx.recipeSupplyItem.createMany({
+                  data: r.supplyItems.map((item) => ({
+                    tenantId,
+                    recipeId:     existingRecipe.id,
+                    supplyItemId: item.supplyItemId,
+                    quantityPerUnit: item.quantityPerUnit,
+                  })),
+                });
+              }
+            }
           } else {
-            await tx.recipe.update({
-              where: { id: existingRecipe.id },
-              data: {
-                packagingId: r.packagingId,
-                outputGrams: outputG,
-                notes:       r.notes?.trim() || null,
-              },
-            });
-            await tx.recipeItem.createMany({
-              data: r.items.map((item) => ({
-                tenantId,
-                recipeId:     existingRecipe.id,
-                productId:    item.rbProductId,
-                gramsPerUnit: item.gramsPerUnit,
-                ratioPercent: outputG > 0 ? (item.gramsPerUnit / outputG) * 100 : 0,
-              })),
-            });
-          }
-        } else {
-          // Create brand-new recipe for this product
-          if (r.items.length > 0) {
-            const rCount = await tx.recipe.count();
-            const rCode  = `RCP-${String(rCount + 1).padStart(3, "0")}`;
-            const recipe = await tx.recipe.create({
-              data: {
-                tenantId,
-                code:        rCode,
-                name:        input.name!.trim(),
-                productId:   input.id,
-                packagingId: r.packagingId,
-                outputGrams: outputG,
-                notes:       r.notes?.trim() || null,
-              },
-            });
-            await tx.recipeItem.createMany({
-              data: r.items.map((item) => ({
-                tenantId,
-                recipeId:     recipe.id,
-                productId:    item.rbProductId,
-                gramsPerUnit: item.gramsPerUnit,
-                ratioPercent: outputG > 0 ? (item.gramsPerUnit / outputG) * 100 : 0,
-              })),
-            });
+            // Create brand-new recipe for this product
+            if (r.items.length > 0 || (r.supplyItems && r.supplyItems.length > 0)) {
+              const rCount = await tx.recipe.count();
+              const rCode  = `RCP-${String(rCount + 1).padStart(3, "0")}`;
+              const recipe = await tx.recipe.create({
+                data: {
+                  tenantId,
+                  code:        rCode,
+                  name:        input.name!.trim(),
+                  productId:   input.id,
+                  packagingId: r.packagingId,
+                  outputGrams: outputG,
+                  notes:       r.notes?.trim() || null,
+                },
+              });
+              if (r.items.length > 0) {
+                await tx.recipeItem.createMany({
+                  data: r.items.map((item) => ({
+                    tenantId,
+                    recipeId:     recipe.id,
+                    productId:    item.rbProductId,
+                    gramsPerUnit: item.gramsPerUnit,
+                    ratioPercent: outputG > 0 ? (item.gramsPerUnit / outputG) * 100 : 0,
+                  })),
+                });
+              }
+              if (r.supplyItems && r.supplyItems.length > 0) {
+                await tx.recipeSupplyItem.createMany({
+                  data: r.supplyItems.map((item) => ({
+                    tenantId,
+                    recipeId:     recipe.id,
+                    supplyItemId: item.supplyItemId,
+                    quantityPerUnit: item.quantityPerUnit,
+                  })),
+                });
+              }
+            }
           }
         }
-      }
     });
 
     revalidatePath("/master-data"); revalidatePath("/inventory");
