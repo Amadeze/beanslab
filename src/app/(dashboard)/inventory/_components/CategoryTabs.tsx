@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-export type CategoryId = "gb" | "rb" | "fg" | "pkg";
+export type CategoryId = "gb" | "rb" | "fg" | "pkg" | "supply";
 
 interface CategoryTab {
   id: CategoryId;

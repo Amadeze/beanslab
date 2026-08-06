@@ -24,5 +24,5 @@ export default async function LegacyMasterDataPage({
   if (tab === "pengguna") {
     redirect("/settings/team");
   }
-  redirect(tab === "kemasan" ? "/katalog?tab=kemasan" : "/katalog");
+  redirect(tab === "kemasan" ? "/katalog?tab=supply" : "/katalog");
 }

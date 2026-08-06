@@ -23,10 +23,10 @@ export default async function CatalogPage({
     <MasterDataClient
       data={data}
       userRole={session.user?.role || "OWNER"}
-      allowedTabs={["produk", "kemasan"]}
-      initialTab={requestedTab === "kemasan" ? "kemasan" : "produk"}
+      allowedTabs={["produk", "supply"]}
+      initialTab={requestedTab === "supply" ? "supply" : "produk"}
       title="Katalog"
-      description="Bahan baku, roasted bean, produk jual, resep, harga, dan kemasan"
+      description="Bahan baku, roasted bean, produk jual, resep, harga, dan persediaan non-kopi"
     />
   );
 }

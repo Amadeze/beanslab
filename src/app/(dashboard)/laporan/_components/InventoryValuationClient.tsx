@@ -18,6 +18,7 @@ const CATEGORY_MAP: Record<string, { label: string, icon: React.ReactNode }> = {
   ROASTED_BEAN: { label: "Roasted Bean", icon: <Coffee size={16} /> },
   FINISHED_GOODS: { label: "Produk Jadi", icon: <Package size={16} /> },
   PACKAGING: { label: "Kemasan", icon: <Boxes size={16} /> },
+  SUPPLY: { label: "Non-Kopi", icon: <Database size={16} /> },
 };
 
 function getExportConfig(report: InventoryValuationReport) {
@@ -41,6 +42,7 @@ function getExportConfig(report: InventoryValuationReport) {
       { label: "Total Roasted Bean", value: formatRupiah(report.totalRoastedBeanValue) },
       { label: "Total Produk Jadi", value: formatRupiah(report.totalFinishedGoodsValue) },
       { label: "Total Kemasan", value: formatRupiah(report.totalPackagingValue) },
+      { label: "Total Non-Kopi", value: formatRupiah(report.totalSupplyValue) },
       { label: "TOTAL VALUASI", value: formatRupiah(report.grandTotalValue) }
     ],
     generatedBy: "Roastd Studio",
@@ -74,12 +76,13 @@ export function InventoryValuationClient({ report, hideLayout }: InventoryValuat
     }
   };
 
-  const chartColors = ["#2B7567", "#A66F12", "#B65331", "#6F4A6A"];
+  const chartColors = ["#2B7567", "#A66F12", "#B65331", "#6F4A6A", "#7C6A9E"];
   const chartData = [
     { name: "Green Bean", value: report.totalGreenBeanValue },
     { name: "Roasted Bean", value: report.totalRoastedBeanValue },
     { name: "Produk Jadi", value: report.totalFinishedGoodsValue },
     { name: "Kemasan", value: report.totalPackagingValue },
+    { name: "Non-Kopi", value: report.totalSupplyValue },
   ].filter(d => d.value > 0);
 
   const content = (
@@ -115,6 +118,10 @@ export function InventoryValuationClient({ report, hideLayout }: InventoryValuat
         <div className="rounded-2xl border border-white/60 bg-violet-50 p-4 shadow-sm">
           <p className="text-xs font-medium text-violet-600">Kemasan</p>
           <p className="mt-1 font-mono text-lg font-black tabular-nums text-violet-700">{formatRupiah(report.totalPackagingValue)}</p>
+        </div>
+        <div className="rounded-2xl border border-white/60 bg-purple-50 p-4 shadow-sm">
+          <p className="text-xs font-medium text-purple-600">Persediaan Non-Kopi</p>
+          <p className="mt-1 font-mono text-lg font-black tabular-nums text-purple-700">{formatRupiah(report.totalSupplyValue)}</p>
         </div>
         {report.totalSampleWriteOff > 0 && (
           <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-4 shadow-sm">

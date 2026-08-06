@@ -22,6 +22,7 @@ import {
   type FGProductOption,
   type RBStockOption,
   type PackagingOption,
+  type SupplyConsumptionOption,
 } from "../actions";
 
 // =============================================================================
@@ -35,12 +36,19 @@ const rbComponentSchema = z.object({
   gramsPerUnit: z.number().positive("> 0"),
 });
 
+const supplyComponentSchema = z.object({
+  supplyItemId:   z.string().min(1, "Pilih item non-kopi"),
+  supplyItemName: z.string(),
+  quantityPerUnit: z.number().positive("> 0"),
+});
+
 const schema = z.object({
   outputProductId: z.string().min(1, "Wajib pilih produk"),
   recipeId:        z.string().optional(),
   packagingId:     z.string().min(1, "Wajib pilih kemasan"),
   unitsProduced:   z.number().int().positive("Minimal 1 unit"),
   rbComponents:    z.array(rbComponentSchema).min(1, "Minimal 1 komponen RB"),
+  supplyComponents: z.array(supplyComponentSchema).optional(),
   laborCost:       z.coerce.number().min(0).optional(),
   overheadAllocated: z.coerce.number().min(0).optional(),
   notes:           z.string().optional(),
@@ -72,6 +80,8 @@ function HppSummary({
   rbComponents,
   rbOptions,
   packagingOptions,
+  supplyOptions,
+  supplyComponents,
   packagingId,
   unitsProduced,
   laborCost,
@@ -80,6 +90,8 @@ function HppSummary({
   rbComponents: Array<{ productId: string; actualGrams?: number; gramsPerUnit: number }>;
   rbOptions: RBStockOption[];
   packagingOptions: PackagingOption[];
+  supplyOptions: SupplyConsumptionOption[];
+  supplyComponents?: Array<{ supplyItemId: string; quantityPerUnit: number }>;
   packagingId: string;
   unitsProduced: number;
   laborCost: number;
@@ -90,6 +102,11 @@ function HppSummary({
   const rbPerUnit = rbComponents.reduce((s, c) => s + (Number(c.gramsPerUnit) || 0), 0);
   const totalRbGrams = rbPerUnit * unitsProduced;
   const pkg = packagingOptions.find((p) => p.id === packagingId);
+
+  const supplyCostPerUnit = (supplyComponents ?? []).reduce((sum, comp) => {
+    const item = supplyOptions.find((o) => o.id === comp.supplyItemId);
+    return sum + (item ? item.costPerUnit * (Number(comp.quantityPerUnit) || 0) : 0);
+  }, 0);
 
   const { rbCostPerUnit, hasMissingCost } = rbComponents.reduce((summary, comp) => {
     const rb = rbOptions.find((r) => r.id === comp.productId);
@@ -103,7 +120,7 @@ function HppSummary({
     };
   }, { rbCostPerUnit: 0, hasMissingCost: false });
 
-  const estimatedHpp = rbCostPerUnit + (pkg?.costPerUnit || 0) + (laborCost || 0) + (overheadAllocated || 0);
+  const estimatedHpp = rbCostPerUnit + (pkg?.costPerUnit || 0) + supplyCostPerUnit + (laborCost || 0) + (overheadAllocated || 0);
   const isUnrealistic = rbPerUnit > 0 && rbPerUnit < 500; // < 500g RB per 1kg FG is suspicious
 
   return (
@@ -127,6 +144,14 @@ function HppSummary({
             <span className="text-slate-600">Kemasan digunakan</span>
             <span className="font-semibold text-slate-900 text-right text-xs mt-0.5">
               1 unit {pkg.name} / unit FG
+            </span>
+          </>
+        )}
+        {supplyCostPerUnit > 0 && (
+          <>
+            <span className="text-slate-600">Komponen non-kopi lain</span>
+            <span className="font-semibold text-slate-900 text-right text-xs mt-0.5">
+              {formatRupiah(supplyCostPerUnit)}/unit
             </span>
           </>
         )}
@@ -175,6 +200,7 @@ interface ProductionFormProps {
   fgOptions: FGProductOption[];
   rbOptions: RBStockOption[];
   packagingOptions: PackagingOption[];
+  supplyOptions: SupplyConsumptionOption[];
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
 }
@@ -188,6 +214,7 @@ export function ProductionForm({
   fgOptions,
   rbOptions,
   packagingOptions,
+  supplyOptions,
   onSuccess,
   onPendingChange,
 }: ProductionFormProps) {
@@ -211,6 +238,7 @@ export function ProductionForm({
       packagingId:     "",
       unitsProduced:   1,
       rbComponents:    [{ productId: "", productName: "", gramsPerUnit: 0 }],
+      supplyComponents: [],
       notes:           "",
     },
   });
@@ -220,11 +248,22 @@ export function ProductionForm({
     name: "rbComponents",
   });
 
-  const [outputProductId, unitsProduced, packagingId, rbComponents, laborCost, overheadAllocated] = watch([
+  const {
+    fields: supplyFields,
+    append: appendSupply,
+    remove: removeSupply,
+    replace: replaceSupply,
+  } = useFieldArray({
+    control,
+    name: "supplyComponents",
+  });
+
+  const [outputProductId, unitsProduced, packagingId, rbComponents, supplyComponents, laborCost, overheadAllocated] = watch([
     "outputProductId",
     "unitsProduced",
     "packagingId",
     "rbComponents",
+    "supplyComponents",
     "laborCost",
     "overheadAllocated",
   ]);
@@ -239,8 +278,8 @@ export function ProductionForm({
 
     const recipe = fg.recipe;
 
-    // Set packaging default dari resep
-    setValue("packagingId", recipe.packagingId);
+    // Set packaging default dari resep (canonical supply item bila tersedia)
+    setValue("packagingId", recipe.packagingSupplyItemId ?? recipe.packagingId);
     setValue("recipeId", recipe.id);
 
     // Set komponen RB dengan saran gramasi
@@ -252,6 +291,19 @@ export function ProductionForm({
           gramsPerUnit: Number(item.gramsPerUnit),
         }))
       );
+    }
+
+    // Set komponen non-kopi dengan saran dari resep
+    if (recipe.supplyItems.length > 0) {
+      replaceSupply(
+        recipe.supplyItems.map((item) => ({
+          supplyItemId:   item.supplyItemId,
+          supplyItemName: item.supplyItemName,
+          quantityPerUnit: Number(item.quantityPerUnit),
+        }))
+      );
+    } else {
+      replaceSupply([]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outputProductId]);
@@ -266,13 +318,26 @@ export function ProductionForm({
         operationKey,
         outputProductId: values.outputProductId,
         recipeId:        values.recipeId || undefined,
-        packagingId:     values.packagingId,
+        // Kemasan dipilih dari InventorySupplyItem (canonical). Bila nilainya
+        // bukan item supply (kemasan legacy dari resep lama), kirim packagingId.
+        packagingSupplyItemId: packagingOptions.some((p) => p.id === values.packagingId)
+          ? values.packagingId
+          : undefined,
+        packagingId: packagingOptions.some((p) => p.id === values.packagingId)
+          ? undefined
+          : values.packagingId,
         unitsProduced:   values.unitsProduced,
         rbComponents:    values.rbComponents.map((c) => ({
           productId:   c.productId,
           productName: c.productName,
           actualGrams: Math.round(c.gramsPerUnit * values.unitsProduced),
         })),
+        supplyComponents: (values.supplyComponents ?? [])
+          .filter((c) => c.supplyItemId)
+          .map((c) => ({
+            supplyItemId: c.supplyItemId,
+            quantity: Number(c.quantityPerUnit) * values.unitsProduced,
+          })),
         laborCost:         values.laborCost,
         overheadAllocated: values.overheadAllocated,
         notes: values.notes,
@@ -499,7 +564,7 @@ export function ProductionForm({
       {/* ── Kemasan ── */}
       <FieldGroup>
         <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-          Kemasan <span className="text-red-500">*</span>
+          Kemasan (Item Non-Kopi) <span className="text-red-500">*</span>
         </Label>
         <Controller
           control={control}
@@ -523,7 +588,7 @@ export function ProductionForm({
                       {p.name}
                       {" "}
                       <span className="text-slate-400 font-normal">
-                        ({formatUnit(p.stockUnit)} · {formatRupiah(p.costPerUnit)}/pcs)
+                        ({p.code} · {formatUnit(p.stockUnit)} {p.baseUnit} · {formatRupiah(p.costPerUnit)}/{p.baseUnit})
                       </span>
                     </SelectItem>
                   ))
@@ -534,6 +599,115 @@ export function ProductionForm({
         />
         <FieldError message={errors.packagingId?.message} />
       </FieldGroup>
+
+      {/* ── Komponen Non-Kopi (opsional) ── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+            Komponen Non-Kopi (opsional)
+          </Label>
+          <button
+            type="button"
+            onClick={() => appendSupply({ supplyItemId: "", supplyItemName: "", quantityPerUnit: 0 })}
+            className="flex items-center gap-1 rounded-lg border border-white/60 bg-white/30 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-white/50 transition-colors shadow-sm"
+          >
+            <Plus size={14} /> Tambah
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {supplyFields.map((field, index) => {
+            const comp = supplyComponents?.[index];
+            const selectedItem = supplyOptions.find((o) => o.id === comp?.supplyItemId);
+            const neededQty = (Number(comp?.quantityPerUnit) || 0) * (Number(unitsProduced) || 1);
+            const isOverStock = selectedItem ? neededQty > selectedItem.stockQuantity : false;
+
+            return (
+              <div
+                key={field.id}
+                className="relative flex flex-wrap sm:flex-nowrap items-start gap-4 rounded-xl border border-white/60 bg-white/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group"
+              >
+                {supplyFields.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeSupply(index)}
+                    className="absolute -top-3 -right-2 bg-white text-red-500 border border-white/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 shadow-sm z-10"
+                    title="Hapus Komponen"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+
+                <div className="flex-1 min-w-[200px] space-y-1">
+                  <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">Item Non-Kopi</Label>
+                  <Controller
+                    control={control}
+                    name={`supplyComponents.${index}.supplyItemId`}
+                    render={({ field: f }) => (
+                      <Select
+                        value={f.value}
+                        onValueChange={(val: string | null) => {
+                          const v = val ?? "";
+                          f.onChange(v);
+                          const item = supplyOptions.find((o) => o.id === v);
+                          setValue(`supplyComponents.${index}.supplyItemName`, item?.name ?? "");
+                        }}
+                      >
+                        <SelectTrigger className={cn("h-9 text-xs font-medium", glassInput)}>
+                          <SelectValue placeholder="Pilih item non-kopi...">
+                            {f.value ? supplyOptions.find((o) => o.id === f.value)?.name : null}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {supplyOptions.length === 0 ? (
+                            <SelectItem value="_empty" disabled>Tidak ada item tersedia</SelectItem>
+                          ) : (
+                            supplyOptions.map((o) => (
+                              <SelectItem key={o.id} value={o.id}>
+                                {o.name}
+                                {" "}
+                                <span className="text-slate-400 font-normal">
+                                  ({o.code} · {o.stockQuantity} {o.baseUnit})
+                                </span>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {selectedItem && (
+                    <p className={`text-[10px] font-medium pt-1 ${isOverStock ? "text-red-500" : "text-slate-500"}`}>
+                      Stok: {selectedItem.stockQuantity} {selectedItem.baseUnit} · {formatRupiah(selectedItem.costPerUnit)}/{selectedItem.baseUnit}
+                      {isOverStock && " — ⚠ melebihi stok"}
+                    </p>
+                  )}
+                </div>
+
+                <div className="w-36 shrink-0 space-y-1">
+                  <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">Qty per Unit</Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      placeholder="e.g. 1"
+                      className={cn("h-9 tabular-nums font-semibold pr-8 text-slate-900", glassInput,
+                        errors.supplyComponents?.[index]?.quantityPerUnit ? "border-red-400 bg-red-50/50 focus:border-red-500 focus:bg-white" : "")
+                      }
+                      {...register(`supplyComponents.${index}.quantityPerUnit`, { valueAsNumber: true })}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
+                      {selectedItem?.baseUnit ?? "unit"}
+                    </span>
+                  </div>
+                  <FieldError message={errors.supplyComponents?.[index]?.quantityPerUnit?.message} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
         </>
       )}
 
@@ -574,6 +748,8 @@ export function ProductionForm({
         rbComponents={rbComponents ?? []}
         rbOptions={rbOptions}
         packagingOptions={packagingOptions}
+        supplyOptions={supplyOptions}
+        supplyComponents={supplyComponents ?? []}
         packagingId={packagingId ?? ""}
         unitsProduced={Number(unitsProduced) || 0}
         laborCost={Number(laborCost) || 0}

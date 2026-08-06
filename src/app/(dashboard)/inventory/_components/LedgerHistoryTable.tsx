@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { InventoryEmptyState } from "./InventoryEmptyState";
-import type { LedgerHistoryRow } from "../actions";
+import type { LedgerHistoryRow } from "../types";
 
 const PAGE_SIZE = 25;
 

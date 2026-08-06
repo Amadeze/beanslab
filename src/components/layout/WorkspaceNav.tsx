@@ -16,6 +16,7 @@ import {
   Waves,
   PackageCheck,
   BadgeCheck,
+  PackageOpen,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -50,6 +51,7 @@ const WORKSPACES = {
     },
     { label: "Supplier", href: "/inventory/suppliers", icon: Users },
     { label: "Lot & FEFO", href: "/inventory/lots", icon: PackageCheck },
+    { label: "Persediaan Non-Kopi", href: "/katalog", query: "tab=supply", icon: PackageOpen },
   ],
   roastery: [
     { label: "Batch roasting", href: "/roasting", icon: Flame },
@@ -115,7 +117,9 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
                     ? currentView === "mutations"
                     : expectedQuery === "tab=profiles"
                       ? currentTab === "profiles"
-                      : !currentTab);
+                      : expectedQuery === "tab=supply"
+                        ? currentTab === "supply"
+                        : !currentTab);
           const href = expectedQuery
             ? `${item.href}?${expectedQuery}`
             : item.href;

@@ -5,7 +5,7 @@
  * MUST use these functions. Do not duplicate logic in components.
  */
 import type { ReorderSummary } from "./reorder";
-import type { ProductStockRow, PackagingStockRow, FGStockRow } from "@/app/(dashboard)/inventory/actions";
+import type { ProductStockRow, PackagingStockRow, FGStockRow } from "@/app/(dashboard)/inventory/types";
 import { formatRupiah } from "./format";
 
 // =============================================================================
@@ -181,6 +181,7 @@ export function calcInventoryMetrics(
   pkgStocks: PackagingStockRow[],
   productReorderSummaries?: ReorderSummary[],
   packagingReorderSummaries?: ReorderSummary[],
+  supplyReorderSummaries?: ReorderSummary[],
 ): InventoryMetrics {
   const allProducts = [...gbStocks, ...rbStocks];
   const totalSku = allProducts.length + fgStocks.length + pkgStocks.length;
@@ -226,6 +227,14 @@ export function calcInventoryMetrics(
     if (isNeedsOrder(stock, summary)) needsOrderCount++;
     if (isReorderConfigured(summary)) configuredCount++;
     else notConfiguredCount++;
+  }
+
+  // Check supply items (canonical non-coffee SKUs; dual-read safe because
+  // linked packagings are excluded from packagingReorderSummaries)
+  for (const summary of supplyReorderSummaries ?? []) {
+    const stock = summary.currentStock;
+    if (isHabis(stock, summary)) outOfStockCount++;
+    if (isNeedsOrder(stock, summary)) needsOrderCount++;
   }
 
   return {

@@ -13,137 +13,25 @@ import {
 } from "@/lib/purchase-payments";
 import { getBatchReorderSummaries } from "@/lib/reorder";
 import { postPurchase, postStockAdjustment } from "@/lib/posting";
-import { summarizeLotInventory, type LotOperationalStatus } from "@/lib/lot";
+import { summarizeLotInventory, summarizeSupplyLotInventory, type LotOperationalStatus } from "@/lib/lot";
 import { createSupplyPurchase, type CreateSupplyPurchaseInput } from "@/lib/supply-purchase";
-
-// =============================================================================
-// TYPES — semua Decimal dikonversi ke number agar bisa di-serialize ke client
-// =============================================================================
-
-export type ProductStockRow = {
-  id: string;
-  code: string;
-  name: string;
-  type: "GREEN_BEAN" | "ROASTED_BEAN";
-  origin: string | null;
-  roastLevel: string | null;
-  stockKg: number;
-  latestHppPerKg: number | null;
-};
-
-export type PackagingStockRow = {
-  id: string;
-  code: string;
-  name: string;
-  weightGrams: number;
-  costPerUnit: number;
-  stockUnit: number;
-};
-
-export type FGStockRow = {
-  id: string;
-  code: string;
-  name: string;
-  type: "FINISHED_GOODS";
-  stockUnit: number;
-  latestHppPerUnit: number | null;
-};
-
-export type ProductLotRow = {
-  id: string;
-  batchCode: string;
-  expiryDate: string | null;
-  receivedAt: string;
-  supplierName: string | null;
-  remainingKg: number;
-  remainingUnit: number;
-  status: LotOperationalStatus;
-};
-
-export type SupplierOption = {
-  id: string;
-  code: string;
-  name: string;
-};
-
-export type GBProductOption = {
-  id: string;
-  name: string;
-  origin: string | null;
-};
-
-export type InventoryPageData = {
-  gbStocks: ProductStockRow[];
-  rbStocks: ProductStockRow[];
-  pkgStocks: PackagingStockRow[];
-  fgStocks: FGStockRow[];
-  ledgerEntries: LedgerHistoryRow[];
-  suppliers: SupplierOption[];
-  gbProducts: GBProductOption[];
-  sampleConsumption: SampleConsumptionSummary;
-  lotsByProduct: Record<string, ProductLotRow[]>;
-};
-
-export type SampleConsumptionSummary = {
-  rbConsumedKg: number;
-  fgConsumedUnits: number;
-  pkgConsumedUnits: number;
-  totalCost: number;
-  sampleCount: number;
-};
-
-export type LedgerHistoryRow = {
-  id: string;
-  createdAt: string;
-  itemName: string;
-  itemCode: string;
-  itemType: "PRODUCT" | "PACKAGING";
-  entryType: "IN" | "OUT";
-  refType: string;
-  refId: string;
-  quantity: number;
-  unit: "kg" | "unit";
-  notes: string | null;
-  createdByName: string;
-};
-
-export type PurchaseActionInput = {
-  operationKey: string;
-  supplierId: string;
-  receivedAt: string;       // "YYYY-MM-DD"
-  productId?: string;       // ID produk GB existing
-  productName?: string;     // nama produk baru
-  productOrigin?: string;
-  weightKg: number;
-  totalCost: number;
-  shippingCost: number;
-  paidAmount?: number;
-  paymentMethod?: "CASH" | "TRANSFER" | "QRIS";
-  dueDate?: string;
-  notes?: string;
-  lotNumber?: string;       // nomor lot dari supplier
-  bestBeforeDate?: string;  // "YYYY-MM-DD"
-};
-
-export type PackagingPurchaseInput = {
-  operationKey: string;
-  supplierId: string;
-  receivedAt: string;
-  packagingId: string;
-  quantityUnits: number;
-  totalCost: number;
-  shippingCost: number;
-  paidAmount?: number;
-  paymentMethod?: "CASH" | "TRANSFER" | "QRIS";
-  dueDate?: string;
-  notes?: string;
-  lotNumber?: string;
-  bestBeforeDate?: string;
-};
-
-export type ActionResult =
-  | { success: true; purchaseCode: string }
-  | { success: false; error: string };
+import type {
+  ProductStockRow,
+  PackagingStockRow,
+  SupplyStockRow,
+  FGStockRow,
+  ProductLotRow,
+  SupplyLotRow,
+  SupplierOption,
+  GBProductOption,
+  InventoryPageData,
+  SampleConsumptionSummary,
+  LedgerHistoryRow,
+  PurchaseActionInput,
+  PackagingPurchaseInput,
+  ActionResult,
+  SUPPLY_CATEGORY_LABEL,
+} from "./types";
 
 // =============================================================================
 // HELPERS
@@ -201,20 +89,35 @@ async function fetchProductStocks(
   }));
 }
 
-async function fetchPackagingStocks(): Promise<PackagingStockRow[]> {
-  const packagings = await (await requireTenantPrisma()).packaging.findMany({
+async function fetchSupplyStocks(): Promise<SupplyStockRow[]> {
+  const items = await (await requireTenantPrisma()).inventorySupplyItem.findMany({
     where: { isActive: true },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      category: true,
+      baseUnit: true,
+      stockQuantity: true,
+      avgCostPerUnit: true,
+      costPerUnit: true,
+      trackLot: true,
+      packaging: { select: { weightGrams: true } },
+    },
     orderBy: { name: "asc" },
   });
 
-  return packagings.map((pkg) => ({
-      id: pkg.id,
-      code: pkg.code,
-      name: pkg.name,
-      weightGrams: Number(pkg.weightGrams),
-      costPerUnit: Number(pkg.costPerUnit),
-      stockUnit: pkg.stockUnit,
-    }));
+  return items.map((item) => ({
+    id: item.id,
+    code: item.code,
+    name: item.name,
+    category: item.category,
+    baseUnit: item.baseUnit.toLowerCase(),
+    stockUnit: Number(item.stockQuantity),
+    costPerUnit: Number(item.avgCostPerUnit ?? item.costPerUnit ?? 0),
+    trackLot: item.trackLot,
+    weightGrams: item.packaging ? Number(item.packaging.weightGrams) : null,
+  }));
 }
 
 function parsePurchaseDueDate(status: PurchasePaymentState, dueDate: string | undefined, receivedAt: Date) {
@@ -356,11 +259,11 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [gbStocks, rbStocks, pkgStocks, fgStocks, ledgerEntries, suppliers, gbProducts, sampleConsumption, lots] =
+  const [gbStocks, rbStocks, supplyStocks, fgStocks, ledgerEntries, suppliers, gbProducts, sampleConsumption, lots, supplyAdapterRows] =
     await Promise.all([
       fetchProductStocks("GREEN_BEAN"),
       fetchProductStocks("ROASTED_BEAN"),
-      fetchPackagingStocks(),
+      fetchSupplyStocks(),
       fetchFGStocks(),
       fetchLedgerHistory(),
       tp.supplier.findMany({
@@ -376,47 +279,88 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
       fetchSampleConsumption(monthStart, now),
       tp.lot.findMany({
         where: {
-          OR: [{ productId: { not: null } }, { packagingId: { not: null } }],
+          OR: [{ productId: { not: null } }, { packagingId: { not: null } }, { supplyItemId: { not: null } }],
         },
         select: {
           id: true,
           productId: true,
           packagingId: true,
+          supplyItemId: true,
           batchCode: true,
           expiryDate: true,
           receivedAt: true,
           quantityKg: true,
           quantityUnit: true,
+          supplyQuantity: true,
           consumedAt: true,
           supplier: { select: { name: true } },
           inventoryLedgers: {
-            select: { entryType: true, quantityKg: true, quantityUnit: true },
+            select: { entryType: true, quantityKg: true, quantityUnit: true, supplyQuantity: true },
           },
         },
       }),
+      tp.packaging.findMany({
+        where: { supplyItemId: { not: null } },
+        select: { id: true, supplyItemId: true },
+      }),
     ]);
 
+  // Compatibility path: lot legacy packagingId dibaca lewat mapping adapter
+  // Packaging.supplyItemId, sehingga tampil di bawah item supply yang sama
+  // tanpa double-count (sebuah lot hanya memiliki satu subject).
+  const supplyItemByPackagingId = new Map<string, string>();
+  for (const adapter of supplyAdapterRows) {
+    supplyItemByPackagingId.set(adapter.id, adapter.supplyItemId!);
+  }
+
   const lotsByProduct: Record<string, ProductLotRow[]> = {};
+  const supplyLotsByItem: Record<string, SupplyLotRow[]> = {};
   for (const lot of lots) {
-    const key = lot.productId ?? lot.packagingId;
-    if (!key) continue;
-    const inv = summarizeLotInventory({
-      originalKg: lot.quantityKg,
-      originalUnit: lot.quantityUnit,
+    if (lot.productId) {
+      const inv = summarizeLotInventory({
+        originalKg: lot.quantityKg,
+        originalUnit: lot.quantityUnit,
+        ledgers: lot.inventoryLedgers,
+        expiryDate: lot.expiryDate,
+        consumedAt: lot.consumedAt,
+        now,
+      });
+      if (inv.status === "consumed") continue;
+      (lotsByProduct[lot.productId] ??= []).push({
+        id: lot.id,
+        batchCode: lot.batchCode,
+        expiryDate: lot.expiryDate?.toISOString() ?? null,
+        receivedAt: lot.receivedAt.toISOString(),
+        supplierName: lot.supplier?.name ?? null,
+        remainingKg: inv.remainingKg,
+        remainingUnit: inv.remainingUnit,
+        status: inv.status,
+      });
+      continue;
+    }
+
+    // Subject supply: lot baru (supplyItemId) atau lot legacy packagingId
+    // yang dipetakan lewat adapter (compatibility path).
+    const supplyKey =
+      lot.supplyItemId ??
+      (lot.packagingId ? (supplyItemByPackagingId.get(lot.packagingId) ?? null) : null);
+    if (!supplyKey) continue;
+    const inv = summarizeSupplyLotInventory({
+      original: lot.supplyQuantity ?? lot.quantityUnit,
       ledgers: lot.inventoryLedgers,
+      statusField: lot.supplyItemId ? "supplyQuantity" : "quantityUnit",
       expiryDate: lot.expiryDate,
       consumedAt: lot.consumedAt,
       now,
     });
     if (inv.status === "consumed") continue;
-    (lotsByProduct[key] ??= []).push({
+    (supplyLotsByItem[supplyKey] ??= []).push({
       id: lot.id,
       batchCode: lot.batchCode,
       expiryDate: lot.expiryDate?.toISOString() ?? null,
       receivedAt: lot.receivedAt.toISOString(),
       supplierName: lot.supplier?.name ?? null,
-      remainingKg: inv.remainingKg,
-      remainingUnit: inv.remainingUnit,
+      remainingQty: inv.remainingQty,
       status: inv.status,
     });
   }
@@ -428,8 +372,16 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
       return a.expiryDate.localeCompare(b.expiryDate);
     });
   }
+  for (const key of Object.keys(supplyLotsByItem)) {
+    supplyLotsByItem[key].sort((a, b) => {
+      if (a.expiryDate === null && b.expiryDate === null) return a.batchCode.localeCompare(b.batchCode);
+      if (a.expiryDate === null) return 1;
+      if (b.expiryDate === null) return -1;
+      return a.expiryDate.localeCompare(b.expiryDate);
+    });
+  }
 
-  return { gbStocks, rbStocks, pkgStocks, fgStocks, ledgerEntries, suppliers, gbProducts, sampleConsumption, lotsByProduct };
+  return { gbStocks, rbStocks, supplyStocks, fgStocks, ledgerEntries, suppliers, gbProducts, sampleConsumption, lotsByProduct, supplyLotsByItem };
 }
 
 // Tambah packaging options ke page data helper
@@ -439,6 +391,35 @@ export async function getPackagingOptions() {
     select: { id: true, name: true, code: true, costPerUnit: true },
     orderBy: { name: "asc" },
   });
+}
+
+/**
+ * Opsi supply kanonik untuk purchase/PO (seluruh kategori, stok & biaya dari
+ * InventorySupplyItem). Kategori PACKAGING adalah sumber "Kemasan" yang benar —
+ * bukan model Packaging legacy.
+ */
+export async function getSupplyOptions() {
+  const items = await (await requireTenantPrisma()).inventorySupplyItem.findMany({
+    where: { isActive: true },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      category: true,
+      baseUnit: true,
+      avgCostPerUnit: true,
+      costPerUnit: true,
+    },
+    orderBy: { name: "asc" },
+  });
+  return items.map((item) => ({
+    id: item.id,
+    name: item.name,
+    code: item.code,
+    category: item.category,
+    baseUnit: item.baseUnit.toLowerCase(),
+    costPerUnit: Number(item.avgCostPerUnit ?? item.costPerUnit ?? 0),
+  }));
 }
 
 /**

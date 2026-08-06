@@ -9,6 +9,7 @@ import { StandardDrawer } from "@/components/StandardDrawer";
 import { StockTable } from "./StockTable";
 import { PurchaseForm } from "./PurchaseForm";
 import { PackagingPurchaseForm } from "./PackagingPurchaseForm";
+import { SupplyPurchaseForm } from "./SupplyPurchaseForm";
 import { StockAdjustmentDrawer } from "./StockAdjustmentDrawer";
 import { LedgerHistoryTable } from "./LedgerHistoryTable";
 import { POList } from "./POList";
@@ -28,26 +29,39 @@ import type {
   ProductLotRow,
   SupplierOption,
   SampleConsumptionSummary,
-} from "../actions";
+  SupplyLotRow,
+  SupplyStockRow,
+} from "../types";
 import type { ReorderSummary } from "@/lib/reorder";
 import { calcInventoryMetrics, isReorderConfigured } from "@/lib/inventory-utils";
 import { formatRupiah } from "@/lib/format";
 
 interface PackagingOption { id: string; name: string; code: string; costPerUnit: number; }
 
+export interface SupplyOption {
+  id: string;
+  name: string;
+  code: string;
+  category: "PACKAGING" | "INGREDIENT" | "CONSUMABLE" | "MERCHANDISE" | "SPARE_PART" | "EQUIPMENT" | "OTHER";
+  baseUnit: string;
+  costPerUnit: number;
+}
+
 interface InventoryClientProps {
   gbStocks:   ProductStockRow[];
   rbStocks:   ProductStockRow[];
   fgStocks:   FGStockRow[];
-  pkgStocks:  PackagingStockRow[];
+  supplyStocks: SupplyStockRow[];
   ledgerEntries: LedgerHistoryRow[];
   suppliers:  SupplierOption[];
   gbProducts: GBProductOption[];
   packagings: PackagingOption[];
+  supplyOptions: SupplyOption[];
   sampleConsumption: SampleConsumptionSummary;
   lotsByProduct?: Record<string, ProductLotRow[]>;
+  supplyLotsByItem?: Record<string, SupplyLotRow[]>;
   productReorderSummaries?: ReorderSummary[];
-  packagingReorderSummaries?: ReorderSummary[];
+  supplyReorderSummaries?: ReorderSummary[];
   poSummary?: {
     draft: number;
     sent: number;
@@ -187,7 +201,7 @@ function ActionsDropdown({ onStockOpname }: { onStockOpname: () => void }) {
 
 // ── Barang Datang Popup ──
 
-function BarangDatangPopup({ onGBDatang, onKemasanDatang }: { onGBDatang: () => void; onKemasanDatang: () => void }) {
+function BarangDatangPopup({ onGBDatang, onKemasanDatang, onSupplyDatang }: { onGBDatang: () => void; onKemasanDatang: () => void; onSupplyDatang: () => void }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -227,6 +241,19 @@ function BarangDatangPopup({ onGBDatang, onKemasanDatang }: { onGBDatang: () => 
               <div className="text-xs text-slate-500 mt-1">Gelas, box, plastik, dll</div>
             </div>
           </button>
+
+          <button
+            onClick={() => { setOpen(false); onSupplyDatang(); }}
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-slate-100 bg-white hover:border-emerald-500 hover:bg-emerald-50 hover:shadow-md transition-all group sm:col-span-2"
+          >
+            <div className="p-3 rounded-full bg-emerald-100 text-emerald-600 group-hover:scale-110 transition-transform">
+              <Boxes size={28} className="rotate-90" />
+            </div>
+            <div className="text-center">
+              <div className="font-bold text-slate-800">Persediaan Non-Kopi</div>
+              <div className="text-xs text-slate-500 mt-1">Bahan baku non-kopi, alat habis pakai, merchandise, suku cadang, dll</div>
+            </div>
+          </button>
         </div>
       </DialogContent>
     </Dialog>
@@ -240,15 +267,16 @@ type WorkspaceTab = "stock" | "po" | "receiving" | "mutations";
 // ── Main component ──
 
 export function InventoryClient({
-  gbStocks, rbStocks, fgStocks, pkgStocks, ledgerEntries, suppliers, gbProducts, packagings, sampleConsumption,
-  lotsByProduct,
-  productReorderSummaries, packagingReorderSummaries, poSummary,
+  gbStocks, rbStocks, fgStocks, supplyStocks, ledgerEntries, suppliers, gbProducts, packagings, supplyOptions, sampleConsumption,
+  lotsByProduct, supplyLotsByItem,
+  productReorderSummaries, supplyReorderSummaries, poSummary,
 }: InventoryClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [gbDrawerOpen,  setGbDrawerOpen]  = useState(false);
   const [pkgDrawerOpen, setPkgDrawerOpen] = useState(false);
+  const [supDrawerOpen, setSupDrawerOpen] = useState(false);
   const [adjDrawerOpen, setAdjDrawerOpen] = useState(false);
   const [poDrawerOpen, setPoDrawerOpen] = useState(false);
   const [poDetailOpen, setPoDetailOpen] = useState(false);
@@ -295,31 +323,67 @@ export function InventoryClient({
     router.push(`?${params.toString()}`, { scroll: false });
   }, [router, searchParams]);
 
+  // Kanonik: Kemasan = supply item kategori PACKAGING; Non-Kopi = sisanya.
+  const supplyPackagingItems = useMemo(
+    () => supplyStocks.filter((s) => s.category === "PACKAGING"),
+    [supplyStocks],
+  );
+  const supplyNonPackagingItems = useMemo(
+    () => supplyStocks.filter((s) => s.category !== "PACKAGING"),
+    [supplyStocks],
+  );
+  const packagingSupplyIdSet = useMemo(
+    () => new Set(supplyPackagingItems.map((s) => s.id)),
+    [supplyPackagingItems],
+  );
+  const supplyPkgSummaries = useMemo(
+    () => (supplyReorderSummaries ?? []).filter((s) => packagingSupplyIdSet.has(s.skuId)),
+    [supplyReorderSummaries, packagingSupplyIdSet],
+  );
+  const supplyOtherSummaries = useMemo(
+    () => (supplyReorderSummaries ?? []).filter((s) => !packagingSupplyIdSet.has(s.skuId)),
+    [supplyReorderSummaries, packagingSupplyIdSet],
+  );
+
+  // Stok kemasan dibaca dari supply item PACKAGING (stok kanonik, bukan model legacy)
+  const pkgStocksForMetrics: PackagingStockRow[] = useMemo(
+    () => supplyPackagingItems.map((s) => ({
+      id: s.id,
+      code: s.code,
+      name: s.name,
+      weightGrams: s.weightGrams ?? 0,
+      costPerUnit: s.costPerUnit,
+      stockUnit: s.stockUnit,
+    })),
+    [supplyPackagingItems],
+  );
+
   const adjustmentItems = [
     ...gbStocks.map(i => ({ id: i.id, label: i.name, type: "GREEN_BEAN" as const, currentStock: Number(i.stockKg) })),
     ...rbStocks.map(i => ({ id: i.id, label: i.name, type: "ROASTED_BEAN" as const, currentStock: Number(i.stockKg) })),
     ...fgStocks.map(i => ({ id: i.id, label: i.name, type: "FINISHED_GOODS" as const, currentStock: Number(i.stockUnit) })),
-    ...pkgStocks.map(i => ({ id: i.id, label: i.name, type: "PACKAGING" as const, currentStock: Number(i.stockUnit) })),
+    ...supplyStocks.map(i => ({ id: i.id, label: i.name, type: "SUPPLY" as const, currentStock: i.stockUnit, unitLabel: i.baseUnit })),
   ];
 
   const handlePORefresh = () => setPoRefreshKey((k) => k + 1);
 
   // ── Metrics per workspace ──
 
-  const stockMetrics = useMemo(() => calcInventoryMetrics(gbStocks, rbStocks, fgStocks, pkgStocks, productReorderSummaries, packagingReorderSummaries), [gbStocks, rbStocks, fgStocks, pkgStocks, productReorderSummaries, packagingReorderSummaries]);
+  const stockMetrics = useMemo(() => calcInventoryMetrics(gbStocks, rbStocks, fgStocks, pkgStocksForMetrics, productReorderSummaries, supplyPkgSummaries, supplyOtherSummaries), [gbStocks, rbStocks, fgStocks, pkgStocksForMetrics, productReorderSummaries, supplyPkgSummaries, supplyOtherSummaries]);
 
   const notConfiguredCount = useMemo(() => {
     let count = 0;
     const allProducts = [...gbStocks, ...rbStocks];
     const productMap = new Map<string, ReorderSummary>();
     for (const s of productReorderSummaries ?? []) productMap.set(s.skuId, s);
-    const pkgMap = new Map<string, ReorderSummary>();
-    for (const s of packagingReorderSummaries ?? []) pkgMap.set(s.skuId, s);
+    const supplyMap = new Map<string, ReorderSummary>();
+    for (const s of supplyReorderSummaries ?? []) supplyMap.set(s.skuId, s);
     for (const p of allProducts) { if (!isReorderConfigured(productMap.get(p.id))) count++; }
     for (const fg of fgStocks) { if (!isReorderConfigured(productMap.get(fg.id))) count++; }
-    for (const pkg of pkgStocks) { if (!isReorderConfigured(pkgMap.get(pkg.id))) count++; }
+    for (const pkg of supplyPackagingItems) { if (!isReorderConfigured(supplyMap.get(pkg.id))) count++; }
+    for (const sup of supplyNonPackagingItems) { if (!isReorderConfigured(supplyMap.get(sup.id))) count++; }
     return count;
-  }, [gbStocks, rbStocks, fgStocks, pkgStocks, productReorderSummaries, packagingReorderSummaries]);
+  }, [gbStocks, rbStocks, fgStocks, supplyPackagingItems, supplyNonPackagingItems, productReorderSummaries, supplyReorderSummaries]);
 
   const poMetrics = useMemo(() => {
     if (!poSummary) return { active: 0, waiting: 0, partial: 0 };
@@ -485,7 +549,7 @@ export function InventoryClient({
               {activeView === "stock" ? (
                 <>
                   <ActionsDropdown onStockOpname={() => setAdjDrawerOpen(true)} />
-                  <BarangDatangPopup onGBDatang={() => setGbDrawerOpen(true)} onKemasanDatang={() => setPkgDrawerOpen(true)} />
+                  <BarangDatangPopup onGBDatang={() => setGbDrawerOpen(true)} onKemasanDatang={() => setPkgDrawerOpen(true)} onSupplyDatang={() => setSupDrawerOpen(true)} />
                 </>
               ) : (
                 <>
@@ -553,11 +617,12 @@ export function InventoryClient({
               gbStocks={gbStocks}
               rbStocks={rbStocks}
               fgStocks={fgStocks}
-              pkgStocks={pkgStocks}
+              supplyStocks={supplyStocks}
               productReorderSummaries={productReorderSummaries}
-              packagingReorderSummaries={packagingReorderSummaries}
+              supplyReorderSummaries={supplyReorderSummaries}
               metricFilter={metricParam}
               lotsByProduct={lotsByProduct}
+              supplyLotsByItem={supplyLotsByItem}
             />
           )}
           {activeView === "po" && (
@@ -590,9 +655,28 @@ export function InventoryClient({
         <PurchaseForm id="purchase-form" suppliers={supplierOptions} gbProducts={gbProducts} onSuccess={() => { setGbDrawerOpen(false); finishSupplierFlow(); router.refresh(); }} onPendingChange={setIsSubmitting} onAddSupplier={() => openSupplierQuickAdd("purchase")} preferredSupplierId={supplierTarget === "purchase" ? preferredSupplierId : null} />
       </StandardDrawer>
 
-      <StandardDrawer open={pkgDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setPkgDrawerOpen(open); }} title="Catat Kemasan Datang" description="Stok Kemasan akan bertambah otomatis setelah disimpan." size="md"
+      <StandardDrawer open={supDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setSupDrawerOpen(open); }} title="Catat Barang Datang (Non-Kopi)" description="Stok persediaan non-kopi akan bertambah otomatis setelah disimpan." size="md"
+        submitButton={<Button type="submit" form="supply-purchase-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>}>
+        <SupplyPurchaseForm
+          suppliers={supplierOptions}
+          supplies={supplyOptions.filter((s) => s.category !== "PACKAGING").map((s) => ({ id: s.id, name: s.name, code: s.code, baseUnit: s.baseUnit }))}
+          onPendingChange={setIsSubmitting}
+          onAddSupplier={() => openSupplierQuickAdd("purchase")}
+          preferredSupplierId={supplierTarget === "purchase" ? preferredSupplierId : null}
+          onSuccess={() => { setSupDrawerOpen(false); setIsSubmitting(false); finishSupplierFlow(); router.refresh(); }}
+        />
+      </StandardDrawer>
+
+      <StandardDrawer open={pkgDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setPkgDrawerOpen(open); }} title="Catat Kemasan Datang" description="Stok Kemasan (InventorySupplyItem PACKAGING) akan bertambah otomatis setelah disimpan." size="md"
         submitButton={<Button type="submit" form="pkg-purchase-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>}>
-        <PackagingPurchaseForm suppliers={supplierOptions} packagings={packagings} onPendingChange={setIsSubmitting} onAddSupplier={() => openSupplierQuickAdd("packaging")} preferredSupplierId={supplierTarget === "packaging" ? preferredSupplierId : null} onSuccess={() => { setPkgDrawerOpen(false); setIsSubmitting(false); finishSupplierFlow(); router.refresh(); }} />
+        <PackagingPurchaseForm
+          suppliers={supplierOptions}
+          packagings={supplyOptions.filter((s) => s.category === "PACKAGING").map((s) => ({ id: s.id, name: s.name, code: s.code, baseUnit: s.baseUnit }))}
+          onPendingChange={setIsSubmitting}
+          onAddSupplier={() => openSupplierQuickAdd("packaging")}
+          preferredSupplierId={supplierTarget === "packaging" ? preferredSupplierId : null}
+          onSuccess={() => { setPkgDrawerOpen(false); setIsSubmitting(false); finishSupplierFlow(); router.refresh(); }}
+        />
       </StandardDrawer>
 
       <StandardDrawer open={adjDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setAdjDrawerOpen(open); }} title="Penyesuaian Stok (Opname)" description="Gunakan fitur ini untuk menyamakan stok digital dengan fisik." size="md"
@@ -601,7 +685,7 @@ export function InventoryClient({
       </StandardDrawer>
 
       <StandardDrawer open={poDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setPoDrawerOpen(open); }} title="Buat Purchase Order" description="Buat PO baru untuk supplier." size="lg" showFooter={false}>
-        <POForm suppliers={supplierOptions.map((s) => ({ id: s.id, name: s.name }))} products={gbStocks.map((p) => ({ id: p.id, name: p.name, type: p.type, stockKg: p.stockKg }))} packagings={packagings.map((p) => ({ id: p.id, name: p.name, stockUnit: 0 }))} onAddSupplier={() => openSupplierQuickAdd("po")} preferredSupplierId={supplierTarget === "po" ? preferredSupplierId : null} onSuccess={() => { setPoDrawerOpen(false); handlePORefresh(); finishSupplierFlow(); }} onCancel={() => { setPoDrawerOpen(false); finishSupplierFlow(); }} />
+        <POForm suppliers={supplierOptions.map((s) => ({ id: s.id, name: s.name }))} products={gbStocks.map((p) => ({ id: p.id, name: p.name, type: p.type, stockKg: p.stockKg }))} packagings={packagings.map((p) => ({ id: p.id, name: p.name, stockUnit: 0 }))} supplyItems={supplyOptions.map((s) => ({ id: s.id, name: s.name, category: s.category, baseUnit: s.baseUnit }))} onAddSupplier={() => openSupplierQuickAdd("po")} preferredSupplierId={supplierTarget === "po" ? preferredSupplierId : null} onSuccess={() => { setPoDrawerOpen(false); handlePORefresh(); finishSupplierFlow(); }} onCancel={() => { setPoDrawerOpen(false); finishSupplierFlow(); }} />
       </StandardDrawer>
 
       <StandardDrawer open={poDetailOpen} onOpenChange={setPoDetailOpen} title="Detail Purchase Order" size="lg" showFooter={false}>

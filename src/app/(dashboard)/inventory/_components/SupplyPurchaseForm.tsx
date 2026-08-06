@@ -17,20 +17,10 @@ import { createSupplyPurchaseAction } from "../actions";
 import { getTodayString } from "@/lib/date-utils";
 import { defaultDueDate } from "@/lib/sale-intent";
 
-// =============================================================================
-// CATAT DATANG KEMASAN — jalur KANONIKAL
-// =============================================================================
-// Opsi kemasan berasal dari InventorySupplyItem kategori PACKAGING (stok &
-// biaya kanonik). Submit memakai createSupplyPurchaseAction: ledger baru
-// supplyItemId + SUPPLY_PURCHASE_IN, lot/expiry lewat receiveSupply, dan
-// TIDAK pernah menulis Packaging.stockUnit / ledger packagingId baru.
-// Action legacy (createPackagingPurchase) tetap ada hanya untuk compatibility
-// historical dan tidak diekspos dari UI ini.
-
 const purchaseSchema = z.object({
   supplierId:    z.string().min(1, "Pilih supplier"),
   receivedAt:    z.string().min(1, "Tanggal wajib diisi"),
-  supplyItemId:  z.string().min(1, "Pilih kemasan"),
+  supplyItemId:  z.string().min(1, "Pilih item"),
   quantity:      z.number({ error: "Harus angka" }).positive("Qty harus > 0"),
   totalCost:     z.number({ error: "Harus angka" }).positive("Total harus lebih dari 0"),
   shippingCost:  z.number({ error: "Harus angka" }).min(0),
@@ -62,12 +52,13 @@ const purchaseSchema = z.object({
 
 type FormValues = z.infer<typeof purchaseSchema>;
 
-interface PackagingOption { id: string; name: string; code: string; baseUnit: string; }
-interface SupplierOption  { id: string; code: string; name: string; }
+export interface SupplyOption { id: string; name: string; code: string; baseUnit: string; }
 
-interface PackagingPurchaseFormProps {
+interface SupplierOption { id: string; code: string; name: string; }
+
+interface SupplyPurchaseFormProps {
   suppliers:  SupplierOption[];
-  packagings: PackagingOption[];
+  supplies:   SupplyOption[];
   onSuccess:  () => void;
   onPendingChange?: (isPending: boolean) => void;
   onAddSupplier?: () => void;
@@ -77,7 +68,9 @@ interface PackagingPurchaseFormProps {
 const glassInput = "h-9 bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 text-sm";
 const glassCard = "rounded-[1rem] border border-white/60 bg-white/30 backdrop-blur-xl p-4 shadow-sm";
 
-export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPendingChange, onAddSupplier, preferredSupplierId }: PackagingPurchaseFormProps) {
+export function SupplyPurchaseForm({
+  suppliers, supplies, onSuccess, onPendingChange, onAddSupplier, preferredSupplierId,
+}: SupplyPurchaseFormProps) {
   const today = getTodayString();
   const [submitting, setSubmitting] = useState(false);
   const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
@@ -116,7 +109,7 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
   const qty = watch("quantity") ?? 0;
   const total = watch("totalCost") ?? 0;
   const hppPerUnit = qty > 0 ? total / qty : 0;
-  const selectedUnit = packagings.find((p) => p.id === watch("supplyItemId"))?.baseUnit ?? "pcs";
+  const selectedUnit = supplies.find((s) => s.id === watch("supplyItemId"))?.baseUnit ?? "unit";
 
   const onSubmit = async (data: FormValues) => {
     if (submitting) return;
@@ -143,12 +136,12 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
         bestBeforeDate: data.bestBeforeDate || undefined,
       });
       if (!result.success) { toastSafe.error(result.error); return; }
-      toast.success(`Kemasan datang dicatat: ${result.purchaseCode}`);
+      toast.success(`Barang datang dicatat: ${result.purchaseCode}`);
       reset();
       setOperationKey(crypto.randomUUID());
       onSuccess();
     } catch (err) {
-      console.error("[PackagingPurchaseForm]", err);
+      console.error("[SupplyPurchaseForm]", err);
       toast.error("Terjadi kesalahan sistem.");
     } finally {
       setSubmitting(false);
@@ -157,7 +150,7 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
   };
 
   return (
-    <form id="pkg-purchase-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4 px-1">
+    <form id="supply-purchase-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4 px-1">
       {/* Supplier */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-3">
@@ -190,9 +183,9 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
         <Input type="date" className={glassInput} {...register("receivedAt")} />
       </div>
 
-      {/* Kemasan (InventorySupplyItem kategori PACKAGING) */}
+      {/* Item */}
       <div className="space-y-1.5">
-        <Label className="text-xs font-semibold text-slate-700">Kemasan <span className="text-red-500">*</span></Label>
+        <Label className="text-xs font-semibold text-slate-700">Persediaan Non-Kopi <span className="text-red-500">*</span></Label>
         <select
           className={cn(
             "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
@@ -201,9 +194,9 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
           )}
           {...register("supplyItemId")}
         >
-          <option value="" disabled>Pilih kemasan...</option>
-          {packagings.map((p) => (
-            <option key={p.id} value={p.id}>{p.name} ({p.baseUnit})</option>
+          <option value="" disabled>Pilih item...</option>
+          {supplies.map((s) => (
+            <option key={s.id} value={s.id}>{s.name} ({s.baseUnit})</option>
           ))}
         </select>
         {errors.supplyItemId && <p className="text-xs text-red-500 font-medium">{errors.supplyItemId.message}</p>}
@@ -231,7 +224,7 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
           </p>
         </div>
         <p className="mt-0.5 text-[11px] leading-4 text-emerald-700">
-          Stok & ledger supply · HPP rata-rata & jurnal · lot & kedaluwarsa (bila kemasan melacak lot)
+          Stok & ledger · HPP rata-rata & jurnal · lot & kedaluwarsa (bila item melacak lot)
         </p>
       </div>
 
@@ -253,7 +246,7 @@ export function PackagingPurchaseForm({ suppliers, packagings, onSuccess, onPend
               <Input placeholder="Kosongkan bila tidak ada" className={glassInput} {...register("lotNumber")} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Best Before / Review Mutu</Label>
+              <Label className="text-xs font-semibold text-slate-700">Best Before</Label>
               <Input type="date" className={glassInput} {...register("bestBeforeDate")} />
             </div>
             <div className="space-y-1.5">

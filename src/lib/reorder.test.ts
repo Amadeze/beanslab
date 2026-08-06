@@ -6,6 +6,7 @@ import {
   getProductUsageAggregate,
   getFGUsageAggregate,
   getPackagingUsageAggregate,
+  getSupplyUsageAggregate,
   getBatchReorderSummaries,
 } from "./reorder";
 
@@ -149,6 +150,9 @@ function createMockPrisma() {
     packaging: {
       findMany: vi.fn(),
     },
+    inventorySupplyItem: {
+      findMany: vi.fn(),
+    },
   } as any;
 }
 
@@ -225,6 +229,40 @@ describe("getPackagingUsageAggregate", () => {
   });
 });
 
+describe("getSupplyUsageAggregate", () => {
+  it("queries ledger with correct supply filters", async () => {
+    const prisma = createMockPrisma();
+    prisma.inventoryLedger.aggregate.mockResolvedValue({
+      _sum: { supplyQuantity: 150 },
+      _count: 6,
+    });
+
+    const result = await getSupplyUsageAggregate(prisma, "supply-1", 30);
+
+    expect(result.totalUsage).toBe(150);
+    expect(result.transactionCount).toBe(6);
+
+    const where = prisma.inventoryLedger.aggregate.mock.calls[0][0].where;
+    expect(where.supplyItemId).toBe("supply-1");
+    expect(where.entryType).toBe("OUT");
+    expect(where.refType.in).toContain("SUPPLY_PRODUCTION_OUT");
+    expect(where.refType.in).toContain("SUPPLY_ADJUSTMENT_OUT");
+  });
+
+  it("returns 0 when no usage found", async () => {
+    const prisma = createMockPrisma();
+    prisma.inventoryLedger.aggregate.mockResolvedValue({
+      _sum: { supplyQuantity: null },
+      _count: 0,
+    });
+
+    const result = await getSupplyUsageAggregate(prisma, "supply-1", 30);
+
+    expect(result.totalUsage).toBe(0);
+    expect(result.transactionCount).toBe(0);
+  });
+});
+
 // =============================================================================
 // BATCH FUNCTION TESTS
 // =============================================================================
@@ -249,6 +287,7 @@ describe("getBatchReorderSummaries", () => {
     ]);
 
     prisma.packaging.findMany.mockResolvedValue([]);
+    prisma.inventorySupplyItem.findMany.mockResolvedValue([]);
 
     prisma.inventoryLedger.groupBy
       .mockResolvedValueOnce([
@@ -258,6 +297,7 @@ describe("getBatchReorderSummaries", () => {
           _count: 5,
         },
       ])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
@@ -288,6 +328,7 @@ describe("getBatchReorderSummaries", () => {
     ]);
 
     prisma.packaging.findMany.mockResolvedValue([]);
+    prisma.inventorySupplyItem.findMany.mockResolvedValue([]);
     prisma.inventoryLedger.groupBy.mockResolvedValue([]);
 
     const result = await getBatchReorderSummaries(prisma);
@@ -315,6 +356,7 @@ describe("getBatchReorderSummaries", () => {
     ]);
 
     prisma.packaging.findMany.mockResolvedValue([]);
+    prisma.inventorySupplyItem.findMany.mockResolvedValue([]);
     prisma.inventoryLedger.groupBy.mockResolvedValue([]);
 
     const result = await getBatchReorderSummaries(prisma);
@@ -342,6 +384,7 @@ describe("getBatchReorderSummaries", () => {
     ]);
 
     prisma.packaging.findMany.mockResolvedValue([]);
+    prisma.inventorySupplyItem.findMany.mockResolvedValue([]);
     prisma.inventoryLedger.groupBy.mockResolvedValue([]);
 
     const result = await getBatchReorderSummaries(prisma);
@@ -369,6 +412,7 @@ describe("getBatchReorderSummaries", () => {
     ]);
 
     prisma.packaging.findMany.mockResolvedValue([]);
+    prisma.inventorySupplyItem.findMany.mockResolvedValue([]);
     prisma.inventoryLedger.groupBy
       .mockResolvedValueOnce([
         {
@@ -377,6 +421,7 @@ describe("getBatchReorderSummaries", () => {
           _count: 5,
         },
       ])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
@@ -392,7 +437,7 @@ describe("getBatchReorderSummaries", () => {
   it("includes packaging summaries", async () => {
     const prisma = createMockPrisma();
 
-    prisma.product.findMany.mockResolvedValue([]);
+prisma.product.findMany.mockResolvedValue([]);
     prisma.packaging.findMany.mockResolvedValue([
       {
         id: "pkg-1",
@@ -406,16 +451,19 @@ describe("getBatchReorderSummaries", () => {
       },
     ]);
 
+    prisma.inventorySupplyItem.findMany.mockResolvedValue([]);
     prisma.inventoryLedger.groupBy
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         {
           packagingId: "pkg-1",
+          refId: "batch-1",
           _sum: { quantityUnit: 300 },
           _count: 10,
         },
-      ]);
+      ])
+      .mockResolvedValueOnce([]);
 
     const result = await getBatchReorderSummaries(prisma);
 
@@ -424,6 +472,96 @@ describe("getBatchReorderSummaries", () => {
     expect(result.packagingSummaries[0].averageDailyUsage).toBe(10);
     expect(result.packagingSummaries[0].reorderPoint).toBe(190);
     expect(result.packagingSummaries[0].status).toBe("perlu_pesan");
+  });
+
+  it("reads a linked packaging as a SUPPLY summary (not duplicated as legacy)", async () => {
+    const prisma = createMockPrisma();
+
+    prisma.product.findMany.mockResolvedValue([]);
+    prisma.packaging.findMany.mockResolvedValue([
+      {
+        id: "pkg-1",
+        code: "PKG-ZIP",
+        name: "Zipper Bag",
+        stockUnit: 100,
+        reorderAlertEnabled: true,
+        leadTimeDays: 14,
+        safetyStockQuantity: 50,
+        reorderLookbackDays: 30,
+      },
+    ]);
+    prisma.inventorySupplyItem.findMany.mockResolvedValue([
+      {
+        id: "supply-1",
+        code: "SUP-POUCH-250",
+        name: "Pouch 250g",
+        baseUnit: "PCS",
+        stockQuantity: 120,
+        reorderAlertEnabled: true,
+        leadTimeDays: 14,
+        safetyStockQuantity: 50,
+        reorderLookbackDays: 30,
+        packaging: { id: "pkg-1" },
+      },
+    ]);
+
+    // Legacy stream: batch A + batch B wrote PRODUCTION_PKG_OUT
+    // Canonical stream: batch A also wrote SUPPLY_PRODUCTION_OUT
+    prisma.inventoryLedger.groupBy
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { packagingId: "pkg-1", refId: "batch-A", _sum: { quantityUnit: 100 }, _count: 1 },
+        { packagingId: "pkg-1", refId: "batch-B", _sum: { quantityUnit: 200 }, _count: 1 },
+      ])
+      .mockResolvedValueOnce([
+        { supplyItemId: "supply-1", refId: "batch-A", _sum: { supplyQuantity: 100 }, _count: 1 },
+      ]);
+
+    const result = await getBatchReorderSummaries(prisma);
+
+    // The linked packaging must NOT produce a legacy packaging summary
+    expect(result.packagingSummaries).toHaveLength(0);
+    // One supply summary, usage deduplicated by refId: 100 + 200 = 300 (not 400)
+    expect(result.supplySummaries).toHaveLength(1);
+    expect(result.supplySummaries[0].skuType).toBe("SUPPLY");
+    expect(result.supplySummaries[0].skuCode).toBe("SUP-POUCH-250");
+    expect(result.supplySummaries[0].currentStock).toBe(120);
+    expect(result.supplySummaries[0].averageDailyUsage).toBe(10); // 300/30
+    expect(result.supplySummaries[0].status).toBe("perlu_pesan");
+  });
+
+  it("supports stand-alone supply items without a legacy packaging", async () => {
+    const prisma = createMockPrisma();
+
+    prisma.product.findMany.mockResolvedValue([]);
+    prisma.packaging.findMany.mockResolvedValue([]);
+    prisma.inventorySupplyItem.findMany.mockResolvedValue([
+      {
+        id: "supply-1",
+        code: "SUP-LABEL-60",
+        name: "Label 60mm",
+        baseUnit: "ROLL",
+        stockQuantity: 2,
+        reorderAlertEnabled: true,
+        leadTimeDays: 7,
+        safetyStockQuantity: 1,
+        reorderLookbackDays: 30,
+        packaging: null,
+      },
+    ]);
+
+    prisma.inventoryLedger.groupBy
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await getBatchReorderSummaries(prisma);
+
+    expect(result.supplySummaries).toHaveLength(1);
+    expect(result.supplySummaries[0].status).toBe("data_belum_cukup");
+    expect(result.needsOrderCount).toBe(0);
   });
 
   it("does not include other tenants data", async () => {
@@ -445,6 +583,7 @@ describe("getBatchReorderSummaries", () => {
     ]);
 
     prisma.packaging.findMany.mockResolvedValue([]);
+    prisma.inventorySupplyItem.findMany.mockResolvedValue([]);
 
     // Only this product's usage, not another tenant's
     prisma.inventoryLedger.groupBy
@@ -455,6 +594,7 @@ describe("getBatchReorderSummaries", () => {
           _count: 5,
         },
       ])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 

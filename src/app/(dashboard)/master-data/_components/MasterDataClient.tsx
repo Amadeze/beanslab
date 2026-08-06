@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Plus, Building2, Users, Package, CheckCircle2, XCircle, Pencil, UserCog, Loader2 } from "lucide-react";
+import { Plus, Building2, Users, Package, CheckCircle2, XCircle, Pencil, UserCog, Loader2, PackageOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -17,7 +17,8 @@ import { CustomerForm } from "./CustomerForm";
 import { ProductForm } from "./ProductForm";
 import { PackagingForm } from "./PackagingForm";
 import { UserForm } from "./UserForm";
-import type { MasterPageData, SupplierRow, CustomerRow, ProductRow, UserRow, PackagingRow } from "../actions";
+import { SupplyItemForm } from "./SupplyItemForm";
+import type { MasterPageData, SupplierRow, CustomerRow, ProductRow, UserRow, PackagingRow, SupplyItemRow } from "../actions";
 
 interface MasterDataClientProps {
   data: MasterPageData;
@@ -29,13 +30,14 @@ interface MasterDataClientProps {
   workspace?: "supply" | "sales" | "settings";
 }
 
-type Tab = "supplier" | "pelanggan" | "produk" | "kemasan" | "pengguna";
+type Tab = "supplier" | "pelanggan" | "produk" | "kemasan" | "supply" | "pengguna";
 
 const ALL_TABS: { id: Tab; label: string; icon: React.ElementType; count: (d: MasterPageData) => number }[] = [
   { id: "supplier",  label: "Supplier",  icon: Building2, count: (d) => d.suppliers.length },
   { id: "pelanggan", label: "Pelanggan", icon: Users,     count: (d) => d.customers.length },
   { id: "produk",    label: "Produk",    icon: Package,   count: (d) => d.products.length  },
   { id: "kemasan",   label: "Kemasan",   icon: Package,   count: (d) => d.packagings.length },
+  { id: "supply",    label: "Non-Kopi",  icon: PackageOpen, count: (d) => d.supplyItems.length },
   { id: "pengguna",  label: "Pengguna",  icon: UserCog,   count: (d) => d.users.length     },
 ];
 
@@ -264,6 +266,80 @@ function PackagingTable({ rows, onEdit }: { rows: PackagingRow[]; onEdit: (r: Pa
   );
 }
 
+const SUPPLY_CATEGORY_LABEL: Record<SupplyItemRow["category"], string> = {
+  PACKAGING: "Kemasan",
+  INGREDIENT: "Bahan Baku",
+  CONSUMABLE: "Consumable",
+  MERCHANDISE: "Merchandise",
+  SPARE_PART: "Spare Part",
+  EQUIPMENT: "Alat",
+  OTHER: "Lainnya",
+};
+
+const SUPPLY_CATEGORY_COLOR: Record<SupplyItemRow["category"], string> = {
+  PACKAGING: "bg-orange-100 text-orange-700",
+  INGREDIENT: "bg-lime-100 text-lime-700",
+  CONSUMABLE: "bg-sky-100 text-sky-700",
+  MERCHANDISE: "bg-violet-100 text-violet-700",
+  SPARE_PART: "bg-slate-100 text-slate-700",
+  EQUIPMENT: "bg-cyan-100 text-cyan-700",
+  OTHER: "bg-zinc-100 text-zinc-700",
+};
+
+const SUPPLY_UNIT_LABEL: Record<SupplyItemRow["baseUnit"], string> = {
+  KG: "kg", GRAM: "g", LITER: "L", METER: "m", ROLL: "roll", PCS: "pcs", BOX: "box", SET: "set", OTHER: "unit",
+};
+
+function SupplyTable({ rows, onEdit }: { rows: SupplyItemRow[]; onEdit: (r: SupplyItemRow) => void }) {
+  if (rows.length === 0) return <EmptyState label="persediaan non-kopi" />;
+  return (
+    <EntityTable>
+      <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md">
+        <tr>
+          <Th>Kode</Th>
+          <Th>Nama</Th>
+          <Th>Kategori</Th>
+          <Th hide="hidden md:table-cell">Satuan</Th>
+          <Th className="text-right">Stok</Th>
+          <Th className="text-right">HPP (Rp)</Th>
+          <Th className="text-center">Status</Th>
+          <Th className="text-center">Aksi</Th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-[var(--glass-border)]">
+        {rows.map((row) => (
+          <tr key={row.id} className="hover:bg-[var(--glass-bg-hover)] transition-colors">
+            <td className="px-4 py-3 font-mono text-xs font-semibold text-zinc-700">{row.code}</td>
+            <td className="px-4 py-3">
+              <p className="font-medium text-zinc-800">{row.name}</p>
+              {(row.consumableInProduction || row.includeInProductHpp) && (
+                <p className="text-[11px] text-zinc-400">
+                  {[row.consumableInProduction ? "produksi" : null, row.includeInProductHpp ? "HPP" : null].filter(Boolean).join(" · ")}
+                </p>
+              )}
+            </td>
+            <td className="px-4 py-3">
+              <span className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase ${SUPPLY_CATEGORY_COLOR[row.category]}`}>
+                {SUPPLY_CATEGORY_LABEL[row.category]}
+              </span>
+            </td>
+            <td className="px-4 py-3 text-xs text-zinc-500 hidden md:table-cell">{SUPPLY_UNIT_LABEL[row.baseUnit]}</td>
+            <td className="px-4 py-3 text-right">
+              <span className={`font-mono text-xs font-bold ${row.stockQuantity <= 0 ? "text-red-600" : "text-zinc-700"}`}>
+                {row.stockQuantity.toLocaleString("id-ID")}
+              </span>
+              <span className="ml-1 text-[11px] text-zinc-400">{SUPPLY_UNIT_LABEL[row.baseUnit]}</span>
+            </td>
+            <td className="px-4 py-3 text-right text-xs text-zinc-600">{row.costPerUnit.toLocaleString("id-ID")}</td>
+            <td className="px-4 py-3 text-center"><ActiveBadge active={row.isActive} /></td>
+            <td className="px-4 py-3 text-center"><EditButton onClick={() => onEdit(row)} /></td>
+          </tr>
+        ))}
+      </tbody>
+    </EntityTable>
+  );
+}
+
 function UserTable({ rows, onEdit }: { rows: UserRow[]; onEdit: (r: UserRow) => void }) {
   if (rows.length === 0) return <EmptyState label="pengguna" />;
   return (
@@ -321,6 +397,7 @@ export function MasterDataClient({
   const [editCustomer, setEditCustomer] = useState<CustomerRow | null>(null);
   const [editProduct, setEditProduct] = useState<ProductRow | null>(null);
   const [editPackaging, setEditPackaging] = useState<PackagingRow | null>(null);
+  const [editSupplyItem, setEditSupplyItem] = useState<SupplyItemRow | null>(null);
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const rawMaterials = useMemo(() => data.products.filter((p) => p.type === "ROASTED_BEAN" || p.type === "GREEN_BEAN"), [data.products]);
@@ -331,19 +408,20 @@ export function MasterDataClient({
       customers: data.customers.filter(r => showInactive || r.isActive),
       products: data.products.filter(r => showInactive || r.isActive),
       packagings: data.packagings.filter(r => showInactive || r.isActive),
+      supplyItems: data.supplyItems.filter(r => showInactive || r.isActive),
       users: data.users.filter(r => showInactive || r.isActive),
     };
   }, [data, showInactive]);
 
   const handleTabChange = (tab: Tab) => {
     setDrawerOpen(false); setMode("create");
-    setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null);
+    setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null); setEditSupplyItem(null);
     setActiveTab(tab);
   };
 
   const openCreate = () => {
     setMode("create");
-    setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null);
+    setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null); setEditSupplyItem(null);
     setDrawerOpen(true);
   };
 
@@ -351,11 +429,12 @@ export function MasterDataClient({
   const openEditCustomer = (row: CustomerRow) => { setMode("edit"); setEditCustomer(row); setActiveTab("pelanggan"); setDrawerOpen(true); };
   const openEditProduct = (row: ProductRow) => { setMode("edit"); setEditProduct(row); setActiveTab("produk"); setDrawerOpen(true); };
   const openEditPackaging = (row: PackagingRow) => { setMode("edit"); setEditPackaging(row); setActiveTab("kemasan"); setDrawerOpen(true); };
+  const openEditSupplyItem = (row: SupplyItemRow) => { setMode("edit"); setEditSupplyItem(row); setActiveTab("supply"); setDrawerOpen(true); };
   const openEditUser = (row: UserRow) => { setMode("edit"); setEditUser(row); setActiveTab("pengguna"); setDrawerOpen(true); };
 
   const handleSuccess = () => {
     setDrawerOpen(false); setMode("create");
-    setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null);
+    setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null); setEditSupplyItem(null);
     router.refresh();
   };
 
@@ -367,11 +446,13 @@ export function MasterDataClient({
       : activeTab === "pelanggan" ? `Edit Pelanggan${editCustomer ? ` \u00b7 ${editCustomer.code}` : ""}`
       : activeTab === "produk"    ? `Edit Produk${editProduct     ? ` \u00b7 ${editProduct.code}`   : ""}`
       : activeTab === "kemasan"   ? `Edit Kemasan${editPackaging   ? ` \u00b7 ${editPackaging.code}`   : ""}`
+      : activeTab === "supply"    ? `Edit Persediaan${editSupplyItem ? ` \u00b7 ${editSupplyItem.code}` : ""}`
       :                             `Edit Pengguna${editUser      ? ` \u00b7 ${editUser.email}`      : ""}`
       : activeTab === "supplier"  ? "Tambah Supplier"
       : activeTab === "pelanggan" ? "Tambah Pelanggan"
       : activeTab === "produk"    ? "Tambah Produk"
       : activeTab === "kemasan"   ? "Tambah Kemasan"
+      : activeTab === "supply"    ? "Tambah Persediaan Non-Kopi"
       :                             "Tambah Pengguna";
 
   const submitFormId =
@@ -379,9 +460,10 @@ export function MasterDataClient({
     activeTab === "pelanggan" ? "customer-form"  :
     activeTab === "produk"    ? "product-form"   :
     activeTab === "kemasan"   ? "packaging-form" :
+    activeTab === "supply"    ? "supply-item-form" :
                                 "user-form";
 
-  const drawerSize = activeTab === "produk" ? "lg" : "md";
+  const drawerSize = activeTab === "produk" || activeTab === "supply" ? "lg" : "md";
 
   return (
     <>
@@ -461,6 +543,7 @@ export function MasterDataClient({
               {activeTab === "pelanggan" && <CustomerTable rows={filteredData.customers} onEdit={openEditCustomer} />}
               {activeTab === "produk"    && <ProductTable  rows={filteredData.products}  onEdit={openEditProduct}  />}
               {activeTab === "kemasan"   && <PackagingTable rows={filteredData.packagings} onEdit={openEditPackaging} />}
+              {activeTab === "supply"    && <SupplyTable   rows={filteredData.supplyItems} onEdit={openEditSupplyItem} />}
               {activeTab === "pengguna"  && <UserTable     rows={filteredData.users}     onEdit={openEditUser}     />}
             </div>
 
@@ -469,7 +552,7 @@ export function MasterDataClient({
       </div>
 
       <StandardDrawer open={drawerOpen}
-        onOpenChange={(v) => { if (!isSubmitting) { setDrawerOpen(v); if (!v) { setMode("create"); setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditPackaging(null); setEditUser(null); } } }}
+        onOpenChange={(v) => { if (!isSubmitting) { setDrawerOpen(v); if (!v) { setMode("create"); setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditPackaging(null); setEditSupplyItem(null); setEditUser(null); } } }}
         title={drawerTitle} size={drawerSize}
         submitButton={
           <Button type="submit" form={submitFormId} size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-bold shadow-md disabled:opacity-60">
@@ -481,6 +564,7 @@ export function MasterDataClient({
         {activeTab === "pelanggan" && <CustomerForm id="customer-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editCustomer ?? undefined : undefined} />}
         {activeTab === "produk" && <ProductForm id="product-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editProduct ?? undefined : undefined} rawMaterials={rawMaterials} packagings={data.packagings} />}
         {activeTab === "kemasan" && <PackagingForm id="packaging-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editPackaging ?? undefined : undefined} />}
+        {activeTab === "supply" && <SupplyItemForm id="supply-item-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editSupplyItem ?? undefined : undefined} />}
         {activeTab === "pengguna" && <UserForm id="user-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editUser ?? undefined : undefined} />}
       </StandardDrawer>
     </>

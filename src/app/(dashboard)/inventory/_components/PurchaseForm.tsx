@@ -18,9 +18,11 @@ import { getTodayString } from "@/lib/date-utils";
 import { defaultDueDate } from "@/lib/sale-intent";
 import {
   createGreenBeanPurchase,
+} from "../actions";
+import {
   type SupplierOption,
   type GBProductOption,
-} from "../actions";
+} from "../types";
 
 // =============================================================================
 // Zod schema

@@ -90,6 +90,7 @@ export default function StockReportClient() {
     { name: "Roasted Bean", value: data.totalRoastedBeanValue },
     { name: "Produk Jadi", value: data.totalFinishedGoodsValue },
     { name: "Kemasan", value: data.totalPackagingValue },
+    { name: "Non-Kopi", value: data.totalSupplyValue },
   ].filter((item) => item.value > 0);
 
   // Count low stock items (stock ≤ ambang per item: safety stock atau default per satuan)

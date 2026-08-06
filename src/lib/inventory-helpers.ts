@@ -2,7 +2,7 @@ export type ValuationRow = {
   id: string;
   code: string;
   name: string;
-  category: "GREEN_BEAN" | "ROASTED_BEAN" | "FINISHED_GOODS" | "PACKAGING";
+  category: "GREEN_BEAN" | "ROASTED_BEAN" | "FINISHED_GOODS" | "PACKAGING" | "SUPPLY";
   stock: number;
   unit: string;
   unitCost: number;
@@ -17,7 +17,8 @@ export function computeValuationMetrics(items: ValuationRow[]) {
   const totalRoastedBeanValue = items.filter((i) => i.category === "ROASTED_BEAN").reduce((s, i) => s + i.totalValue, 0);
   const totalFinishedGoodsValue = items.filter((i) => i.category === "FINISHED_GOODS").reduce((s, i) => s + i.totalValue, 0);
   const totalPackagingValue = items.filter((i) => i.category === "PACKAGING").reduce((s, i) => s + i.totalValue, 0);
-  const grandTotalValue = totalGreenBeanValue + totalRoastedBeanValue + totalFinishedGoodsValue + totalPackagingValue;
+  const totalSupplyValue = items.filter((i) => i.category === "SUPPLY").reduce((s, i) => s + i.totalValue, 0);
+  const grandTotalValue = totalGreenBeanValue + totalRoastedBeanValue + totalFinishedGoodsValue + totalPackagingValue + totalSupplyValue;
 
   const retailFgItems = items.filter((i) => i.category === "FINISHED_GOODS" && i.potentialRevenue && i.potentialRevenue > 0);
   const totalFinishedGoodsPotentialRevenue = retailFgItems.reduce((s, i) => s + (i.potentialRevenue || 0), 0);
@@ -40,6 +41,7 @@ export function computeValuationMetrics(items: ValuationRow[]) {
     totalRoastedBeanValue,
     totalFinishedGoodsValue,
     totalPackagingValue,
+    totalSupplyValue,
     grandTotalValue,
     totalFinishedGoodsPotentialRevenue,
     totalFinishedGoodsMarginHealth,

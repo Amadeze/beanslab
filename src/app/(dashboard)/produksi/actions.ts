@@ -33,12 +33,15 @@ export type CreateProductionBatchInput = {
   operationKey: string;
   outputProductId: string;
   recipeId?: string;           // template yang dipakai sebagai saran (boleh null)
-  packagingId: string;
+  /** Legacy: FK langsung ke Packaging (hanya untuk kemasan legacy non-supply). */
+  packagingId?: string;
+  /** Canonical: FK ke InventorySupplyItem kategori PACKAGING. packagingId di-resolve internal. */
+  packagingSupplyItemId?: string;
   unitsProduced: number;
   rbComponents: RBComponentInput[];
   supplyComponents?: SupplyComponentInput[];
   laborCost?: number;          // biaya tenaga kerja langsung batch ini
-  overheadAllocated?: number;  // biaya overhead pabrik dialokasikan ke batch ini
+  overheadAllocated?: number;  // biaya overhead kerja dialokasikan ke batch ini
   notes?: string;
 };
 
@@ -61,7 +64,16 @@ export type RecipeSuggestion = {
   outputGrams: number;
   packagingId: string;
   packagingName: string;
+  /** Canonical packaging supply item (nullable bila kemasan recipe belum dimapping). */
+  packagingSupplyItemId: string | null;
   items: RecipeItemSuggestion[];
+  supplyItems: RecipeSupplySuggestion[];
+};
+
+export type RecipeSupplySuggestion = {
+  supplyItemId: string;
+  supplyItemName: string;
+  quantityPerUnit: number; // kuantitas supply per 1 unit output (baseUnit item)
 };
 
 export type RecipeItemSuggestion = {
@@ -80,10 +92,23 @@ export type RBStockOption = {
 };
 
 export type PackagingOption = {
-  id: string;
+  id: string;               // InventorySupplyItem id (canonical selection)
+  code: string;
   name: string;
+  baseUnit: string;
   costPerUnit: number;
   stockUnit: number;
+  /** Legacy packaging adapter id (untuk resolve internal di server). */
+  packagingId: string;
+};
+
+export type SupplyConsumptionOption = {
+  id: string;
+  code: string;
+  name: string;
+  baseUnit: string;
+  costPerUnit: number;
+  stockQuantity: number;
 };
 
 export type ProductionBatchRow = {
@@ -107,6 +132,7 @@ export type ProductionPageData = {
   fgOptions: FGProductOption[];
   rbOptions: RBStockOption[];
   packagingOptions: PackagingOption[];
+  supplyOptions: SupplyConsumptionOption[];
 };
 
 // =============================================================================
@@ -133,10 +159,15 @@ async function fetchFGOptions(): Promise<FGProductOption[]> {
         where: { isActive: true },
         take: 1,
         include: {
-          packaging: { select: { id: true, name: true } },
+          packaging: { select: { id: true, name: true, supplyItemId: true } },
           items: {
             include: {
               product: { select: { id: true, name: true } },
+            },
+          },
+          supplyItems: {
+            include: {
+              supplyItem: { select: { id: true, name: true } },
             },
           },
         },
@@ -157,11 +188,17 @@ async function fetchFGOptions(): Promise<FGProductOption[]> {
             outputGrams: Number(recipe.outputGrams),
             packagingId: recipe.packagingId,
             packagingName: recipe.packaging.name,
+            packagingSupplyItemId: recipe.packaging.supplyItemId ?? null,
             items: recipe.items.map((item) => ({
               productId: item.productId,
               productName: item.product.name,
               ratioPercent: Number(item.ratioPercent),
               gramsPerUnit: Number(item.gramsPerUnit),
+            })),
+            supplyItems: recipe.supplyItems.map((item) => ({
+              supplyItemId: item.supplyItemId,
+              supplyItemName: item.supplyItem.name,
+              quantityPerUnit: Number(item.quantityPerUnit),
             })),
           }
         : null,
@@ -188,19 +225,57 @@ async function fetchRBOptions(): Promise<RBStockOption[]> {
 }
 
 async function fetchPackagingOptions(): Promise<PackagingOption[]> {
-  const pkgs = await (await requireTenantPrisma()).packaging.findMany({
-    where: { isActive: true },
-    select: { id: true, name: true, costPerUnit: true, stockUnit: true },
+  const items = await (await requireTenantPrisma()).inventorySupplyItem.findMany({
+    where: { category: "PACKAGING", isActive: true },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      baseUnit: true,
+      costPerUnit: true,
+      avgCostPerUnit: true,
+      stockQuantity: true,
+      packaging: { select: { id: true } },
+    },
     orderBy: { name: "asc" },
   });
-  return pkgs
-    .map((pkg) => ({
-      id: pkg.id,
-      name: pkg.name,
-      costPerUnit: Number(pkg.costPerUnit),
-      stockUnit: pkg.stockUnit,
-    }))
-    .filter((p) => p.stockUnit > 0);
+  return items
+    .filter((item) => item.packaging && Number(item.stockQuantity) > 0)
+    .map((item) => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      baseUnit: item.baseUnit,
+      costPerUnit: Number(item.avgCostPerUnit ?? item.costPerUnit),
+      stockUnit: Number(item.stockQuantity),
+      packagingId: item.packaging!.id,
+    }));
+}
+
+async function fetchSupplyOptions(): Promise<SupplyConsumptionOption[]> {
+  const items = await (await requireTenantPrisma()).inventorySupplyItem.findMany({
+    where: { isActive: true, consumableInProduction: true },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      baseUnit: true,
+      costPerUnit: true,
+      avgCostPerUnit: true,
+      stockQuantity: true,
+    },
+    orderBy: { name: "asc" },
+  });
+  return items
+    .filter((item) => Number(item.stockQuantity) > 0)
+    .map((item) => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      baseUnit: item.baseUnit,
+      costPerUnit: Number(item.avgCostPerUnit ?? item.costPerUnit),
+      stockQuantity: Number(item.stockQuantity),
+    }));
 }
 
 async function fetchBatchHistory(): Promise<ProductionBatchRow[]> {
@@ -237,13 +312,14 @@ async function fetchBatchHistory(): Promise<ProductionBatchRow[]> {
 
 export async function getProductionPageData(): Promise<ProductionPageData> {
   await requireRole("OWNER", "MANAGER", "OPERATOR");
-  const [batches, fgOptions, rbOptions, packagingOptions] = await Promise.all([
+  const [batches, fgOptions, rbOptions, packagingOptions, supplyOptions] = await Promise.all([
     fetchBatchHistory(),
     fetchFGOptions(),
     fetchRBOptions(),
     fetchPackagingOptions(),
+    fetchSupplyOptions(),
   ]);
-  return { batches, fgOptions, rbOptions, packagingOptions };
+  return { batches, fgOptions, rbOptions, packagingOptions, supplyOptions };
 }
 
 /**
@@ -285,10 +361,55 @@ export async function createProductionBatch(
 
     // 5. ACID transaction (includes validation + execution atomically)
     return await tenantPrisma.$transaction(async (tx) => {
-      // 1. Ambil data packaging untuk validasi stok & HPP
+      // 1a. Resolve kemasan: canonical InventorySupplyItem (kategori PACKAGING)
+      //     bila form memilih item non-kopi; packagingId legacy di-resolve di sini.
+      const supplyPackaging = input.packagingSupplyItemId
+        ? await tx.inventorySupplyItem.findUnique({
+            where: { id: input.packagingSupplyItemId },
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              category: true,
+              isActive: true,
+              trackLot: true,
+              costPerUnit: true,
+              avgCostPerUnit: true,
+              stockQuantity: true,
+              tenantId: true,
+              packaging: { select: { id: true } },
+            },
+          })
+        : null;
+
+      if (input.packagingSupplyItemId) {
+        if (!supplyPackaging || supplyPackaging.tenantId !== tenantId) {
+          return { success: false, error: "Kemasan (item non-kopi) tidak ditemukan atau tidak termasuk dalam tenant ini." };
+        }
+        if (!supplyPackaging.isActive) {
+          return { success: false, error: `Kemasan "${supplyPackaging.name}" sudah nonaktif.` };
+        }
+        if (supplyPackaging.category !== "PACKAGING") {
+          return { success: false, error: `Item "${supplyPackaging.name}" bukan kategori PACKAGING.` };
+        }
+        if (!supplyPackaging.packaging) {
+          return {
+            success: false,
+            error: `Kemasan "${supplyPackaging.name}" belum terhubung ke data legacy. Perbarui di Master Data → Persediaan Non-Kopi.`,
+          };
+        }
+      }
+
+      if (!supplyPackaging && !input.packagingId) {
+        return { success: false, error: "Kemasan wajib dipilih." };
+      }
+
+      const resolvedPackagingId: string = supplyPackaging?.packaging!.id ?? input.packagingId!;
+
+      // 1. Ambil data packaging (legacy adapter) untuk referensi & HPP
       const [packaging, outputProduct, recipe] = await Promise.all([
         tx.packaging.findUnique({
-          where: { id: input.packagingId },
+          where: { id: resolvedPackagingId },
           select: { id: true, name: true, costPerUnit: true, avgCostPerUnit: true, isActive: true, stockUnit: true },
         }),
         tx.product.findUnique({
@@ -311,12 +432,12 @@ export async function createProductionBatch(
         return { success: false, error: "Resep tidak valid untuk produk output yang dipilih." };
       }
 
-      // 2. Validasi stok packaging
-      const pkgStock = packaging.stockUnit;
+      // 2. Validasi stok kemasan (canonical dari supply item bila ter-mapping)
+      const pkgStock = supplyPackaging ? Number(supplyPackaging.stockQuantity) : packaging.stockUnit;
       if (pkgStock < input.unitsProduced) {
         return {
           success: false,
-          error: `Stok packaging tidak cukup. Tersedia: ${pkgStock} pcs, dibutuhkan: ${input.unitsProduced} pcs.`,
+          error: `Stok kemasan "${supplyPackaging?.name ?? packaging.name}" tidak cukup. Tersedia: ${pkgStock} pcs, dibutuhkan: ${input.unitsProduced} pcs.`,
         };
       }
 
@@ -476,7 +597,10 @@ export async function createProductionBatch(
       }
 
       // 4. Hitung HPP per unit (termasuk labor & overhead + supply)
-      const pkgCostTotal = Number(Number(packaging.avgCostPerUnit) || packaging.costPerUnit) * input.unitsProduced;
+      const pkgCostPerUnit = supplyPackaging
+        ? Number(supplyPackaging.avgCostPerUnit ?? 0) || Number(supplyPackaging.costPerUnit ?? 0)
+        : Number(packaging.avgCostPerUnit) || Number(packaging.costPerUnit);
+      const pkgCostTotal = pkgCostPerUnit * input.unitsProduced;
       const laborCost = Number(input.laborCost ?? 0);
       const overheadCost = Number(input.overheadAllocated ?? 0);
       const totalCost = totalRbCost + pkgCostTotal + totalSupplyCost + laborCost + overheadCost;
@@ -492,7 +616,7 @@ export async function createProductionBatch(
           operationKey:      input.operationKey,
           recipeId:          input.recipeId ?? null,
           outputProductId:   input.outputProductId,
-          packagingId:       input.packagingId,
+          packagingId:       resolvedPackagingId,
           unitsProduced:     input.unitsProduced,
           totalRbUsedKg:     totalRbUsedKg,
           hppPerUnit:        hppPerUnit,
@@ -517,16 +641,44 @@ export async function createProductionBatch(
         });
       }
 
-      // Packaging keluar
-      await appendFefoLedgerOut(tx, {
-          tenantId,
-          packagingId:  input.packagingId,
-          refType:      "PRODUCTION_PKG_OUT",
-          refId:        batch.id,
-          quantityUnit: input.unitsProduced,
-          notes:        `Produksi: ${batch.code}`,
-          createdById:  userId,
-      });
+      // Packaging keluar — canonical via supply stream bila item ter-mapping
+      // (stok hanya di-update di InventorySupplyItem, tidak dua model)
+      if (supplyPackaging) {
+        if (supplyPackaging.trackLot) {
+          await appendFefoLedgerOut(tx, {
+            tenantId,
+            supplyItemId:  supplyPackaging.id,
+            refType:       "SUPPLY_PRODUCTION_OUT",
+            refId:         batch.id,
+            supplyQuantity: input.unitsProduced,
+            notes:         `Produksi: ${batch.code}`,
+            createdById:   userId,
+          });
+        } else {
+          await appendLedger(tx, {
+            data: {
+              tenantId,
+              supplyItemId:  supplyPackaging.id,
+              entryType:     "OUT",
+              refType:       "SUPPLY_PRODUCTION_OUT",
+              refId:         batch.id,
+              supplyQuantity: input.unitsProduced,
+              notes:         `Produksi: ${batch.code}`,
+              createdById:   userId,
+            },
+          });
+        }
+      } else {
+        await appendFefoLedgerOut(tx, {
+            tenantId,
+            packagingId:  input.packagingId!,
+            refType:      "PRODUCTION_PKG_OUT",
+            refId:        batch.id,
+            quantityUnit: input.unitsProduced,
+            notes:        `Produksi: ${batch.code}`,
+            createdById:  userId,
+        });
+      }
 
       // Supply keluar + snapshot
       for (const sd of supplyDetails) {

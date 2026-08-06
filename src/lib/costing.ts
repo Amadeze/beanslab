@@ -72,17 +72,36 @@ export function getFgHppPrioritizingCache(
   packagingCostMap: Map<string, number>,
   packagingMasterCost: number,
   laborOverheadPerUnit?: number,
+  recipeSupplyItems?: RecipeSupplyItem[],
+  supplyCostMap?: Map<string, number>,
+  packagingSupplyItemId?: string | null,
 ): number {
   if (lastHpp && lastHpp > 0) return Number(lastHpp);
   if (productionBatchHpp && productionBatchHpp > 0) return Number(productionBatchHpp);
-  return fgHppFromRecipe(recipeItems, recipePackagingId, rbCostMap, packagingCostMap, packagingMasterCost, laborOverheadPerUnit);
+  return fgHppFromRecipe(
+    recipeItems,
+    recipePackagingId,
+    rbCostMap,
+    packagingCostMap,
+    packagingMasterCost,
+    laborOverheadPerUnit,
+    recipeSupplyItems,
+    supplyCostMap,
+    packagingSupplyItemId,
+  );
 }
 
 type RecipeItem = { productId: string; gramsPerUnit: DecimalLike };
 
+type RecipeSupplyItem = { supplyItemId: string; quantityPerUnit: DecimalLike };
+
 /**
  * Hitung HPP per unit finished goods dari recipe + RB cost + packaging cost.
  * Dipakai bersama oleh Valuasi Aset dan Coffee Flow.
+ *
+ * Komponen non-kopi (RecipeSupplyItem) dihitung dari supplyCostMap.
+ * packagingSupplyItemId: canonical supply item dari packaging legacy recipe —
+ * bila ia juga muncul di recipeSupplyItems, jangan dihitung dua kali.
  */
 export function fgHppFromRecipe(
   items: RecipeItem[],
@@ -91,6 +110,9 @@ export function fgHppFromRecipe(
   packagingCostMap: Map<string, number>,
   packagingMasterCost: number,
   laborOverheadPerUnit?: number,
+  recipeSupplyItems: RecipeSupplyItem[] = [],
+  supplyCostMap: Map<string, number> = new Map(),
+  packagingSupplyItemId?: string | null,
 ): number {
   let cost = 0;
   for (const item of items) {
@@ -99,6 +121,10 @@ export function fgHppFromRecipe(
   }
   if (packagingId) {
     cost += packagingCostMap.get(packagingId) ?? packagingMasterCost;
+  }
+  for (const supplyItem of recipeSupplyItems) {
+    if (supplyItem.supplyItemId === packagingSupplyItemId) continue;
+    cost += (supplyCostMap.get(supplyItem.supplyItemId) ?? 0) * Number(supplyItem.quantityPerUnit);
   }
   if (laborOverheadPerUnit && laborOverheadPerUnit > 0) {
     cost += laborOverheadPerUnit;

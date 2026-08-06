@@ -29,8 +29,9 @@ export interface StockAdjustmentDrawerProps {
   items: Array<{
     id: string;
     label: string;
-    type: "GREEN_BEAN" | "ROASTED_BEAN" | "FINISHED_GOODS" | "PACKAGING";
+    type: "GREEN_BEAN" | "ROASTED_BEAN" | "FINISHED_GOODS" | "PACKAGING" | "SUPPLY";
     currentStock: number;
+    unitLabel?: string;
   }>;
 }
 
@@ -60,6 +61,7 @@ export function StockAdjustmentDrawer({
 
   const selectedItem = items.find((i) => i.id === watch("targetId"));
   const isUnit = selectedItem?.type === "FINISHED_GOODS" || selectedItem?.type === "PACKAGING";
+  const unitSuffix = selectedItem?.unitLabel ?? (isUnit ? "Unit" : "Kg");
 
   async function onSubmit(data: FormValues) {
     setIsSubmitting(true);
@@ -72,6 +74,7 @@ export function StockAdjustmentDrawer({
       const res = await adjustStock({
         targetId: data.targetId,
         isPackaging: item.type === "PACKAGING",
+        isSupply: item.type === "SUPPLY",
         type: data.type,
         quantity: data.quantity,
         notes: data.notes,
@@ -121,7 +124,7 @@ export function StockAdjustmentDrawer({
             <option value="">-- Pilih barang... --</option>
             {items.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.label} (Stok: {item.currentStock} {item.type === "FINISHED_GOODS" || item.type === "PACKAGING" ? "Unit" : "Kg"})
+                {item.label} (Stok: {item.currentStock} {item.unitLabel ?? (item.type === "FINISHED_GOODS" || item.type === "PACKAGING" ? "Unit" : "Kg")})
               </option>
             ))}
           </select>
@@ -130,7 +133,7 @@ export function StockAdjustmentDrawer({
 
         {/* Quantity */}
         <div className="space-y-2">
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Kuantitas ({isUnit ? "Unit" : "Kg"})</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Kuantitas ({unitSuffix})</Label>
           <Input 
             type="number" 
             step="any" 

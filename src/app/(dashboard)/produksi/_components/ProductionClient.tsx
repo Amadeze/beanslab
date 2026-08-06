@@ -15,6 +15,7 @@ import type {
   PackagingOption,
   ProductionBatchRow,
   RBStockOption,
+  SupplyConsumptionOption,
 } from "../actions";
 
 interface ProductionClientProps {
@@ -22,6 +23,7 @@ interface ProductionClientProps {
   fgOptions: FGProductOption[];
   rbOptions: RBStockOption[];
   packagingOptions: PackagingOption[];
+  supplyOptions: SupplyConsumptionOption[];
 }
 
 export function ProductionClient({
@@ -29,6 +31,7 @@ export function ProductionClient({
   fgOptions,
   rbOptions,
   packagingOptions,
+  supplyOptions,
 }: ProductionClientProps) {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -144,6 +147,7 @@ export function ProductionClient({
             fgOptions={fgOptions}
             rbOptions={rbOptions}
             packagingOptions={packagingOptions}
+            supplyOptions={supplyOptions}
             onSuccess={() => {
               setDrawerOpen(false);
               router.refresh();

@@ -14,7 +14,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Search, ArrowUpDown, ChevronDown, ChevronRight } from "lucide-react";
 import { formatKg, formatRupiah, formatUnit } from "@/lib/format";
-import type { PackagingStockRow, ProductStockRow, FGStockRow, ProductLotRow } from "../actions";
+import type { ProductStockRow, FGStockRow, ProductLotRow, SupplyLotRow, SupplyStockRow } from "../types";
+import { SUPPLY_CATEGORY_LABEL } from "../types";
 import type { ReorderSummary } from "@/lib/reorder";
 import { CategoryTabs, type CategoryId } from "./CategoryTabs";
 import { InventoryStatusBadge } from "./InventoryStatusBadge";
@@ -33,8 +34,9 @@ type UnifiedRow = {
   id: string;
   code: string;
   name: string;
-  _type: "GREEN_BEAN" | "ROASTED_BEAN" | "FINISHED_GOODS" | "PACKAGING";
+  _type: "GREEN_BEAN" | "ROASTED_BEAN" | "FINISHED_GOODS" | "PACKAGING" | "SUPPLY";
   _unit: "kg" | "unit";
+  _supplyUnit: string | null;
   _stockValue: number;
   _hpp: number | null;
   _meta: string | null;
@@ -59,11 +61,12 @@ interface StockTableProps {
   gbStocks: ProductStockRow[];
   rbStocks: ProductStockRow[];
   fgStocks: FGStockRow[];
-  pkgStocks: PackagingStockRow[];
+  supplyStocks: SupplyStockRow[];
   productReorderSummaries?: ReorderSummary[];
-  packagingReorderSummaries?: ReorderSummary[];
+  supplyReorderSummaries?: ReorderSummary[];
   metricFilter?: string | null;
   lotsByProduct?: Record<string, ProductLotRow[]>;
+  supplyLotsByItem?: Record<string, SupplyLotRow[]>;
 }
 
 const LOT_STATUS_META: Record<LotOperationalStatus, { label: string; className: string }> = {
@@ -72,6 +75,40 @@ const LOT_STATUS_META: Record<LotOperationalStatus, { label: string; className: 
   expired: { label: "Kadaluarsa", className: "bg-red-50 text-red-700 border-red-200" },
   consumed: { label: "Habis", className: "bg-slate-100 text-slate-500 border-slate-200" },
 };
+
+type LotDisplayRow = {
+  id: string;
+  batchCode: string;
+  expiryDate: string | null;
+  supplierName: string | null;
+  remainingText: string;
+  status: LotOperationalStatus;
+};
+
+function toLotDisplayRows(
+  row: UnifiedRow,
+  lotsByProduct?: Record<string, ProductLotRow[]>,
+  supplyLotsByItem?: Record<string, SupplyLotRow[]>,
+): LotDisplayRow[] {
+  if (row._type === "PACKAGING" || row._type === "SUPPLY") {
+    return (supplyLotsByItem?.[row.id] ?? []).map((lot) => ({
+      id: lot.id,
+      batchCode: lot.batchCode,
+      expiryDate: lot.expiryDate,
+      supplierName: lot.supplierName,
+      remainingText: `${lot.remainingQty.toLocaleString("id-ID", { maximumFractionDigits: 2 })} ${row._supplyUnit ?? "unit"}`,
+      status: lot.status,
+    }));
+  }
+  return (lotsByProduct?.[row.id] ?? []).map((lot) => ({
+    id: lot.id,
+    batchCode: lot.batchCode,
+    expiryDate: lot.expiryDate,
+    supplierName: lot.supplierName,
+    remainingText: row._unit === "kg" ? formatKg(lot.remainingKg) : formatUnit(lot.remainingUnit),
+    status: lot.status,
+  }));
+}
 
 function LotStatusBadge({ status }: { status: LotOperationalStatus }) {
   const meta = LOT_STATUS_META[status];
@@ -82,7 +119,7 @@ function LotStatusBadge({ status }: { status: LotOperationalStatus }) {
   );
 }
 
-function LotBreakdown({ lots, unit }: { lots: ProductLotRow[]; unit: "kg" | "unit" }) {
+function LotBreakdown({ lots, unit }: { lots: LotDisplayRow[]; unit: string | null }) {
   if (lots.length === 0) {
     return <p className="pl-6 text-xs text-slate-500">Tidak ada lot aktif untuk item ini.</p>;
   }
@@ -108,7 +145,7 @@ function LotBreakdown({ lots, unit }: { lots: ProductLotRow[]; unit: "kg" | "uni
             {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "—"}
           </span>
           <span className="w-24 text-right text-xs font-semibold tabular-nums text-slate-900">
-            {unit === "kg" ? formatKg(lot.remainingKg) : formatUnit(lot.remainingUnit)}
+            {lot.remainingText}
           </span>
         </div>
       ))}
@@ -122,11 +159,12 @@ export function StockTable({
   gbStocks,
   rbStocks,
   fgStocks,
-  pkgStocks,
+  supplyStocks,
   productReorderSummaries,
-  packagingReorderSummaries,
+  supplyReorderSummaries,
   metricFilter,
   lotsByProduct,
+  supplyLotsByItem,
 }: StockTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -135,7 +173,7 @@ export function StockTable({
   const categoryParam = searchParams.get("category");
   const statusParam = searchParams.get("status");
   const initialTab: CategoryId =
-    categoryParam === "rb" || categoryParam === "fg" || categoryParam === "pkg" ? categoryParam : "gb";
+    categoryParam === "rb" || categoryParam === "fg" || categoryParam === "pkg" || categoryParam === "supply" ? categoryParam : "gb";
   const initialStatus: "all" | DisplayStatus =
     statusParam === "aman" || statusParam === "rendah" || statusParam === "habis" || statusParam === "belum_dikonfigurasi"
       ? statusParam : "all";
@@ -150,7 +188,7 @@ export function StockTable({
   // Sync URL → state on param change (e.g. browser back/forward)
   useEffect(() => {
     const cat = searchParams.get("category");
-    if (cat === "gb" || cat === "rb" || cat === "fg" || cat === "pkg") setActiveTab(cat);
+    if (cat === "gb" || cat === "rb" || cat === "fg" || cat === "pkg" || cat === "supply") setActiveTab(cat);
     const st = searchParams.get("status");
     if (st === "aman" || st === "rendah" || st === "habis" || st === "belum_dikonfigurasi") setStatusFilter(st);
     else if (!st) setStatusFilter("all");
@@ -172,25 +210,34 @@ export function StockTable({
     return map;
   }, [productReorderSummaries]);
 
-  const packagingReorderMap = useMemo(() => {
+  const supplyReorderMap = useMemo(() => {
     const map = new Map<string, ReorderSummary>();
-    for (const s of packagingReorderSummaries ?? []) map.set(s.skuId, s);
+    for (const s of supplyReorderSummaries ?? []) map.set(s.skuId, s);
     return map;
-  }, [packagingReorderSummaries]);
+  }, [supplyReorderSummaries]);
+
+  const packagingSupplyItems = useMemo(
+    () => supplyStocks.filter((s) => s.category === "PACKAGING"),
+    [supplyStocks],
+  );
+  const nonPackagingSupplyItems = useMemo(
+    () => supplyStocks.filter((s) => s.category !== "PACKAGING"),
+    [supplyStocks],
+  );
 
   // Build unified rows with status — uses shared getDisplayStatus
   const allRows = useMemo(() => {
-    const reorderMap = activeTab === "pkg" ? packagingReorderMap : productReorderMap;
+    const reorderMap = activeTab === "pkg" || activeTab === "supply" ? supplyReorderMap : productReorderMap;
     const rows: UnifiedRow[] = [];
 
     function makeRow(
       id: string, code: string, name: string,
       _type: UnifiedRow["_type"], _unit: UnifiedRow["_unit"],
-      _stockValue: number, _hpp: number | null, _meta: string | null
+      _stockValue: number, _hpp: number | null, _meta: string | null, _supplyUnit: string | null = null
     ): UnifiedRow {
       const summary = reorderMap.get(id);
       const status = getDisplayStatus(_stockValue, _type, summary);
-      return { id, code, name, _type, _unit, _stockValue, _hpp, _meta, _status: status, _reorderPoint: summary?.reorderPoint };
+      return { id, code, name, _type, _unit, _supplyUnit, _stockValue, _hpp, _meta, _status: status, _reorderPoint: summary?.reorderPoint };
     }
 
     if (activeTab === "gb") {
@@ -199,12 +246,18 @@ export function StockTable({
       for (const s of rbStocks) rows.push(makeRow(s.id, s.code, s.name, "ROASTED_BEAN", "kg", Number(s.stockKg), s.latestHppPerKg, s.roastLevel?.replace("_", " ") ?? null));
     } else if (activeTab === "fg") {
       for (const s of fgStocks) rows.push(makeRow(s.id, s.code, s.name, "FINISHED_GOODS", "unit", Number(s.stockUnit), s.latestHppPerUnit, null));
+    } else if (activeTab === "pkg") {
+      for (const s of packagingSupplyItems) {
+        rows.push(makeRow(s.id, s.code, s.name, "PACKAGING", "unit", s.stockUnit, s.costPerUnit, s.weightGrams != null ? `${s.weightGrams}g` : null, s.baseUnit));
+      }
     } else {
-      for (const s of pkgStocks) rows.push(makeRow(s.id, s.code, s.name, "PACKAGING", "unit", Number(s.stockUnit), s.costPerUnit, `${s.weightGrams}g`));
+      for (const s of nonPackagingSupplyItems) {
+        rows.push(makeRow(s.id, s.code, s.name, "SUPPLY", "unit", s.stockUnit, s.costPerUnit, SUPPLY_CATEGORY_LABEL[s.category], s.baseUnit));
+      }
     }
 
     return rows;
-  }, [activeTab, gbStocks, rbStocks, fgStocks, pkgStocks, productReorderMap, packagingReorderMap]);
+  }, [activeTab, gbStocks, rbStocks, fgStocks, packagingSupplyItems, nonPackagingSupplyItems, productReorderMap, supplyReorderMap]);
 
   // Filter + sort
   const rows = useMemo(() => {
@@ -254,9 +307,10 @@ export function StockTable({
       { id: "gb" as const, label: "Green Bean", count: gbStocks.length, hasIssues: gbStocks.some((s) => hasIssue(getDisplayStatus(Number(s.stockKg), s.type, productReorderMap.get(s.id)))) },
       { id: "rb" as const, label: "Roasted Bean", count: rbStocks.length, hasIssues: rbStocks.some((s) => hasIssue(getDisplayStatus(Number(s.stockKg), s.type, productReorderMap.get(s.id)))) },
       { id: "fg" as const, label: "Produk Jadi", count: fgStocks.length, hasIssues: fgStocks.some((s) => hasIssue(getDisplayStatus(Number(s.stockUnit), s.type, productReorderMap.get(s.id)))) },
-      { id: "pkg" as const, label: "Kemasan", count: pkgStocks.length, hasIssues: pkgStocks.some((s) => hasIssue(getDisplayStatus(Number(s.stockUnit), "PACKAGING", packagingReorderMap.get(s.id)))) },
+      { id: "pkg" as const, label: "Kemasan", count: packagingSupplyItems.length, hasIssues: packagingSupplyItems.some((s) => hasIssue(getDisplayStatus(s.stockUnit, "PACKAGING", supplyReorderMap.get(s.id)))) },
+      { id: "supply" as const, label: "Non-Kopi", count: nonPackagingSupplyItems.length, hasIssues: nonPackagingSupplyItems.some((s) => hasIssue(getDisplayStatus(s.stockUnit, "SUPPLY", supplyReorderMap.get(s.id)))) },
     ];
-  }, [gbStocks, rbStocks, fgStocks, pkgStocks, productReorderMap, packagingReorderMap]);
+  }, [gbStocks, rbStocks, fgStocks, packagingSupplyItems, nonPackagingSupplyItems, productReorderMap, supplyReorderMap]);
 
   const isKg = activeTab === "gb" || activeTab === "rb";
 
@@ -346,7 +400,7 @@ export function StockTable({
             ) : (
               rows.map((row) => {
                 const valueInfo = formatInventoryValue(row._stockValue, row._hpp);
-                const lotList = lotsByProduct?.[row.id] ?? [];
+                const lotList = toLotDisplayRows(row, lotsByProduct, supplyLotsByItem);
                 const expanded = expandedId === row.id;
                 return (
                   <Fragment key={row.id}>
@@ -378,7 +432,7 @@ export function StockTable({
                       </TableCell>
                       <TableCell className="text-right">
                         <span className={cn("text-sm font-semibold tabular-nums", row._stockValue <= 0 ? "text-slate-400" : "text-slate-900")}>
-                          {isKg ? formatKg(row._stockValue) : formatUnit(row._stockValue)}
+                          {row._supplyUnit ? `${row._stockValue.toLocaleString("id-ID", { maximumFractionDigits: 2 })} ${row._supplyUnit}` : (isKg ? formatKg(row._stockValue) : formatUnit(row._stockValue))}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -396,7 +450,7 @@ export function StockTable({
                     {expanded && (
                       <TableRow className="bg-slate-50/60">
                         <TableCell colSpan={5} className="px-4 py-3">
-                          <LotBreakdown lots={lotList} unit={row._unit} />
+                          <LotBreakdown lots={lotList} unit={row._supplyUnit} />
                         </TableCell>
                       </TableRow>
                     )}
@@ -419,7 +473,7 @@ export function StockTable({
         ) : (
           rows.map((row) => {
             const valueInfo = formatInventoryValue(row._stockValue, row._hpp);
-            const lotList = lotsByProduct?.[row.id] ?? [];
+            const lotList = toLotDisplayRows(row, lotsByProduct, supplyLotsByItem);
             const expanded = expandedId === row.id;
             return (
               <div
@@ -447,7 +501,7 @@ export function StockTable({
                     </div>
                   </div>
                   <span className={cn("text-sm font-semibold tabular-nums shrink-0", row._stockValue <= 0 ? "text-slate-400" : "text-slate-900")}>
-                    {isKg ? formatKg(row._stockValue) : formatUnit(row._stockValue)}
+                    {row._supplyUnit ? `${row._stockValue.toLocaleString("id-ID", { maximumFractionDigits: 2 })} ${row._supplyUnit}` : (isKg ? formatKg(row._stockValue) : formatUnit(row._stockValue))}
                   </span>
                   {lotList.length > 0 && (
                     <ChevronRight
@@ -476,7 +530,7 @@ export function StockTable({
                           <div className="flex shrink-0 items-center gap-2">
                             <LotStatusBadge status={lot.status} />
                             <span className="text-xs font-semibold tabular-nums text-slate-900">
-                              {row._unit === "kg" ? formatKg(lot.remainingKg) : formatUnit(lot.remainingUnit)}
+                              {lot.remainingText}
                             </span>
                           </div>
                         </div>

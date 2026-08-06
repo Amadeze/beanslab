@@ -84,11 +84,54 @@ export type ProductRow = {
   reorderLookbackDays: number;
 };
 
+export type SupplyItemCategory =
+  | "PACKAGING"
+  | "INGREDIENT"
+  | "CONSUMABLE"
+  | "MERCHANDISE"
+  | "SPARE_PART"
+  | "EQUIPMENT"
+  | "OTHER";
+
+export type SupplyBaseUnitValue =
+  | "KG"
+  | "GRAM"
+  | "LITER"
+  | "METER"
+  | "ROLL"
+  | "PCS"
+  | "BOX"
+  | "SET"
+  | "OTHER";
+
+export type SupplyItemRow = {
+  id: string;
+  code: string;
+  name: string;
+  category: SupplyItemCategory;
+  baseUnit: SupplyBaseUnitValue;
+  trackLot: boolean;
+  shelfLifeDays: number | null;
+  consumableInProduction: boolean;
+  includeInProductHpp: boolean;
+  capacityGrams: number | null;
+  tareWeightGrams: number | null;
+  costPerUnit: number;
+  avgCostPerUnit: number;
+  stockQuantity: number;
+  isActive: boolean;
+  reorderAlertEnabled: boolean;
+  leadTimeDays: number;
+  safetyStockQuantity: number;
+  reorderLookbackDays: number;
+};
+
 export type MasterPageData = {
   suppliers:  SupplierRow[];
   customers:  CustomerRow[];
   products:   ProductRow[];
   packagings: PackagingRow[];
+  supplyItems: SupplyItemRow[];
   users:      UserRow[];
 };
 
@@ -99,7 +142,7 @@ export type MasterPageData = {
 export async function getMasterData(): Promise<MasterPageData> {
   await requireRole("OWNER", "MANAGER", "OPERATOR");
   const tp = await requireTenantPrisma();
-  const [suppliers, customers, products, packagings, users] = await Promise.all([
+  const [suppliers, customers, products, packagings, supplyItems, users] = await Promise.all([
     tp.supplier.findMany({
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { purchases: true } } },
@@ -172,6 +215,10 @@ export async function getMasterData(): Promise<MasterPageData> {
 }),
 
     tp.packaging.findMany({
+      orderBy: { name: "asc" },
+    }),
+
+    tp.inventorySupplyItem.findMany({
       orderBy: { name: "asc" },
     }),
 
@@ -269,6 +316,28 @@ export async function getMasterData(): Promise<MasterPageData> {
       reorderLookbackDays: pkg.reorderLookbackDays,
     })),
 
+    supplyItems: supplyItems.map((item) => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      category: item.category as SupplyItemRow["category"],
+      baseUnit: item.baseUnit as SupplyItemRow["baseUnit"],
+      trackLot: item.trackLot,
+      shelfLifeDays: item.shelfLifeDays,
+      consumableInProduction: item.consumableInProduction,
+      includeInProductHpp: item.includeInProductHpp,
+      capacityGrams: item.capacityGrams ? Number(item.capacityGrams) : null,
+      tareWeightGrams: item.tareWeightGrams ? Number(item.tareWeightGrams) : null,
+      costPerUnit: Number(item.costPerUnit),
+      avgCostPerUnit: Number(item.avgCostPerUnit ?? 0),
+      stockQuantity: Number(item.stockQuantity),
+      isActive: item.isActive,
+      reorderAlertEnabled: item.reorderAlertEnabled,
+      leadTimeDays: item.leadTimeDays,
+      safetyStockQuantity: Number(item.safetyStockQuantity),
+      reorderLookbackDays: item.reorderLookbackDays,
+    })),
+
     users: users.map((user) => ({
       id: user.id,
       name: user.name,
@@ -292,6 +361,7 @@ export async function getCustomerDirectoryData(): Promise<MasterPageData> {
     suppliers: [],
     products: [],
     packagings: [],
+    supplyItems: [],
     users: [],
     customers: customers.map((customer) => ({
       id: customer.id,
@@ -1117,6 +1187,188 @@ export async function updatePackaging(input: UpdatePackagingInput): Promise<Acti
   } catch (err) {
     console.error("[updatePackaging]", err);
     return { success: false, error: "Gagal memperbarui kemasan." };
+  }
+}
+
+// =============================================================================
+// SUPPLY ITEM — CREATE & UPDATE
+// Persediaan non-kopi (kemasan, bahan baku, consumable, merchandise, spare
+// part, equipment). Stok dihitung dari InventoryLedger, bukan di kolom ini.
+// =============================================================================
+
+const supplyItemSchema = z.object({
+  name: z.string().trim().min(2, "Nama minimal 2 karakter").max(120),
+  category: z.enum([
+    "PACKAGING",
+    "INGREDIENT",
+    "CONSUMABLE",
+    "MERCHANDISE",
+    "SPARE_PART",
+    "EQUIPMENT",
+    "OTHER",
+  ]),
+  baseUnit: z.enum([
+    "KG",
+    "GRAM",
+    "LITER",
+    "METER",
+    "ROLL",
+    "PCS",
+    "BOX",
+    "SET",
+    "OTHER",
+  ]),
+  trackLot: z.boolean(),
+  shelfLifeDays: z.number().int().min(1, "Umur simpan minimal 1 hari").max(36_500).nullable(),
+  consumableInProduction: z.boolean(),
+  includeInProductHpp: z.boolean(),
+  capacityGrams: z.number().finite().min(0, "Kapasitas tidak boleh negatif").max(1_000_000).nullable(),
+  tareWeightGrams: z.number().finite().min(0, "Berat tidak boleh negatif").max(1_000_000).nullable(),
+  costPerUnit: z.number().finite().min(0, "Harga tidak boleh negatif").max(1_000_000_000),
+  isActive: z.boolean(),
+  reorderAlertEnabled: z.boolean(),
+  leadTimeDays: z.number().int().min(1, "Lead time minimal 1 hari").max(365),
+  safetyStockQuantity: z.number().finite().min(0, "Safety stock tidak boleh negatif").max(1_000_000),
+  reorderLookbackDays: z.number().int().min(7, "Periode analisis minimal 7 hari").max(365),
+});
+type CreateSupplyItemInput = z.infer<typeof supplyItemSchema>;
+type UpdateSupplyItemInput = CreateSupplyItemInput & { id: string };
+
+async function nextSupplyItemCode(tp: TenantPrisma): Promise<string> {
+  const rows = await tp.inventorySupplyItem.findMany({
+    where: { code: { startsWith: "SUP-" } },
+    select: { code: true },
+  });
+  return `SUP-${String(nextSequence(rows.map((row) => row.code), "SUP")).padStart(3, "0")}`;
+}
+
+// Legacy Packaging is a compatibility adapter: recipe/product/production lama
+// masih memakai packagingId. Ketika supply item PACKAGING dibuat/diperbarui,
+// linked Packaging row ikut dibuat/diperbarui dalam transaksi yang sama.
+// Stok TIDAK pernah ditulis di kedua model — hanya via InventoryLedger.
+function packagingWeightFrom(supply: { tareWeightGrams: number | null; capacityGrams: number | null }): number {
+  return supply.tareWeightGrams ?? supply.capacityGrams ?? 0;
+}
+
+export async function createSupplyItem(input: CreateSupplyItemInput): Promise<ActionResult> {
+  try {
+    await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const tenantId = await getCurrentTenantId();
+    const parsed = supplyItemSchema.safeParse(input);
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data persediaan tidak valid." };
+    const tp = await requireTenantPrisma();
+    const duplicate = await tp.inventorySupplyItem.findFirst({
+      where: { name: { equals: parsed.data.name, mode: "insensitive" } },
+      select: { code: true, name: true },
+    });
+    if (duplicate) return { success: false, error: `${duplicate.code} · ${duplicate.name} sudah terdaftar.` };
+
+    let supplyItem: Awaited<ReturnType<typeof tp.inventorySupplyItem.create>> | null = null;
+    for (let attempt = 0; attempt < 4 && !supplyItem; attempt += 1) {
+      const code = await nextSupplyItemCode(tp);
+      const packagingCode = parsed.data.category === "PACKAGING" ? await nextPackagingCode(tp) : null;
+      try {
+        supplyItem = await tp.$transaction(async (tx) => {
+          const created = await tx.inventorySupplyItem.create({ data: { tenantId, code, ...parsed.data } });
+          if (parsed.data.category === "PACKAGING" && packagingCode) {
+            await tx.packaging.create({
+              data: {
+                tenantId,
+                code: packagingCode,
+                name: parsed.data.name,
+                weightGrams: packagingWeightFrom(parsed.data),
+                costPerUnit: parsed.data.costPerUnit,
+                isActive: parsed.data.isActive,
+                supplyItemId: created.id,
+              },
+            });
+          }
+          return created;
+        });
+      } catch (error) {
+        if (!isUniqueConstraintError(error) || attempt === 3) throw error;
+      }
+    }
+    if (!supplyItem) throw new Error("Supply item code allocation failed");
+
+    revalidatePath("/master-data");
+    revalidatePath("/katalog");
+    revalidatePath("/inventory");
+    return { success: true, code: supplyItem.code };
+  } catch (err) {
+    console.error("[createSupplyItem]", err);
+    return { success: false, error: "Gagal menyimpan persediaan non-kopi." };
+  }
+}
+
+export async function updateSupplyItem(input: UpdateSupplyItemInput): Promise<ActionResult> {
+  try {
+    await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const { id, ...data } = input;
+    const parsed = supplyItemSchema.safeParse(data);
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data persediaan tidak valid." };
+    const tp = await requireTenantPrisma();
+    const existing = await tp.inventorySupplyItem.findUnique({
+      where: { id },
+      select: { code: true, tenantId: true, packaging: { select: { id: true } } },
+    });
+    if (!existing) return { success: false, error: "Persediaan tidak ditemukan." };
+    const duplicate = await tp.inventorySupplyItem.findFirst({
+      where: { id: { not: id }, name: { equals: parsed.data.name, mode: "insensitive" } },
+      select: { code: true, name: true },
+    });
+    if (duplicate) return { success: false, error: `${duplicate.code} · ${duplicate.name} sudah terdaftar.` };
+
+    const linkPackaging = parsed.data.category === "PACKAGING";
+    if (linkPackaging && !existing.packaging) {
+      // Item berubah menjadi PACKAGING: buat adapter Packaging (code retry aman
+      // karena create gagal akan me-rollback seluruh transaksi).
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const packagingCode = await nextPackagingCode(tp);
+        try {
+          await tp.$transaction(async (tx) => {
+            await tx.inventorySupplyItem.update({ where: { id }, data: parsed.data });
+            await tx.packaging.create({
+              data: {
+                tenantId: existing.tenantId,
+                code: packagingCode,
+                name: parsed.data.name,
+                weightGrams: packagingWeightFrom(parsed.data),
+                costPerUnit: parsed.data.costPerUnit,
+                isActive: parsed.data.isActive,
+                supplyItemId: id,
+              },
+            });
+          });
+          break;
+        } catch (error) {
+          if (!isUniqueConstraintError(error) || attempt === 3) throw error;
+        }
+      }
+    } else {
+      await tp.$transaction(async (tx) => {
+        await tx.inventorySupplyItem.update({ where: { id }, data: parsed.data });
+        if (linkPackaging && existing.packaging) {
+          await tx.packaging.update({
+            where: { id: existing.packaging.id },
+            data: {
+              name: parsed.data.name,
+              weightGrams: packagingWeightFrom(parsed.data),
+              costPerUnit: parsed.data.costPerUnit,
+              isActive: parsed.data.isActive,
+            },
+          });
+        }
+      });
+    }
+
+    revalidatePath("/master-data");
+    revalidatePath("/katalog");
+    revalidatePath("/inventory");
+    return { success: true, code: existing.code };
+  } catch (err) {
+    console.error("[updateSupplyItem]", err);
+    return { success: false, error: "Gagal memperbarui persediaan non-kopi." };
   }
 }
 

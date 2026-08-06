@@ -25,6 +25,7 @@ const glassCard = "rounded-[1.25rem] border border-white/60 bg-white/30 backdrop
 const itemSchema = z.object({
   productId: z.string().optional(),
   packagingId: z.string().optional(),
+  supplyItemId: z.string().optional(),
   quantity: z.number().min(0, "Quantity harus lebih dari 0"),
   unitPrice: z.number().min(0, "Harga tidak boleh negatif"),
   reorderPoint: z.number().optional(),
@@ -58,6 +59,7 @@ interface POFormProps {
       id?: string;
       productId: string | null;
       packagingId: string | null;
+      supplyItemId: string | null;
       quantity: number;
       unitPrice: number;
       reorderPoint: number | null;
@@ -67,6 +69,7 @@ interface POFormProps {
   suppliers: Array<{ id: string; name: string }>;
   products: Array<{ id: string; name: string; type: string; stockKg: number }>;
   packagings: Array<{ id: string; name: string; stockUnit: number }>;
+  supplyItems?: Array<{ id: string; name: string; category: string; baseUnit: string }>;
   isReadOnly?: boolean;
   onAddSupplier?: () => void;
   preferredSupplierId?: string | null;
@@ -86,6 +89,7 @@ export function POForm({
   isReadOnly = false,
   onAddSupplier,
   preferredSupplierId,
+  supplyItems = [],
 }: POFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditMode = !!initialData;
@@ -101,6 +105,7 @@ export function POForm({
           items: initialData.items.map((item) => ({
             productId: item.productId ?? "",
             packagingId: item.packagingId ?? "",
+            supplyItemId: item.supplyItemId ?? "",
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             reorderPoint: item.reorderPoint ?? undefined,
@@ -112,7 +117,7 @@ export function POForm({
           expectedDate: "",
           estimatedShippingCost: 0,
           notes: "",
-          items: [{ productId: "", packagingId: "", quantity: 0, unitPrice: 0 }],
+          items: [{ productId: "", packagingId: "", supplyItemId: "", quantity: 0, unitPrice: 0 }],
         },
   });
 
@@ -130,7 +135,8 @@ export function POForm({
   const supplierNameMap = new Map(suppliers.map((s) => [s.id, s.name] as const));
   const productNameMap = new Map<string, string>([
     ...products.map((p) => [p.id, `${p.name} (${p.type === "GREEN_BEAN" ? "GB" : "RB"})`] as const),
-    ...packagings.map((p) => [p.id, `${p.name} (PKG)`] as const),
+    ...supplyItems.map((s) => [s.id, `${s.name} (${s.category === "PACKAGING" ? "PKG" : "SUP"})`] as const),
+    ...packagings.map((p) => [p.id, `${p.name} (PKG LAMA)`] as const),
   ]);
 
   // Calculate total
@@ -145,7 +151,7 @@ export function POForm({
     try {
       // Filter out empty items
       const validItems = data.items.filter(
-        (item) => (item.productId || item.packagingId) && item.quantity > 0,
+        (item) => (item.productId || item.packagingId || item.supplyItemId) && item.quantity > 0,
       );
 
       if (validItems.length === 0) {
@@ -272,7 +278,7 @@ export function POForm({
           {!isReadOnly && (
             <button
               type="button"
-              onClick={() => append({ productId: "", packagingId: "", quantity: 0, unitPrice: 0 })}
+              onClick={() => append({ productId: "", packagingId: "", supplyItemId: "", quantity: 0, unitPrice: 0 })}
               className="flex items-center gap-1 text-xs font-bold text-domain-production hover:text-domain-roasting"
             >
               <Plus size={14} /> Tambah Item
@@ -303,19 +309,22 @@ export function POForm({
                   control={control}
                   render={({ field: f }) => (
                     <Select
-                      value={String(f.value || items[index]?.packagingId || "")}
+                      value={String(f.value || items[index]?.supplyItemId || items[index]?.packagingId || "")}
                       onValueChange={(value) => {
                         const selectedValue = value ?? "";
-                        const isPackaging = packagings.some((packaging) => packaging.id === selectedValue);
-                        setValue(`items.${index}.productId`, isPackaging ? "" : selectedValue, { shouldDirty: true, shouldValidate: true });
-                        setValue(`items.${index}.packagingId`, isPackaging ? selectedValue : "", { shouldDirty: true, shouldValidate: true });
+                        const isProduct = products.some((p) => p.id === selectedValue);
+                        const isSupply = supplyItems.some((s) => s.id === selectedValue);
+                        const isLegacyPackaging = packagings.some((p) => p.id === selectedValue);
+                        setValue(`items.${index}.productId`, isProduct ? selectedValue : "", { shouldDirty: true, shouldValidate: true });
+                        setValue(`items.${index}.supplyItemId`, isSupply ? selectedValue : "", { shouldDirty: true, shouldValidate: true });
+                        setValue(`items.${index}.packagingId`, isLegacyPackaging ? selectedValue : "", { shouldDirty: true, shouldValidate: true });
                       }}
                       disabled={isReadOnly}
                     >
                       <SelectTrigger className={cn("h-9 text-xs", glassInput)}>
                         <SelectValue placeholder="Pilih Produk">
-                          {(f.value || items[index]?.packagingId)
-                            ? productNameMap.get(String(f.value || items[index]?.packagingId || "")) || "Pilih Produk"
+                          {(f.value || items[index]?.supplyItemId || items[index]?.packagingId)
+                            ? productNameMap.get(String(f.value || items[index]?.supplyItemId || items[index]?.packagingId || "")) || "Pilih Produk"
                             : "Pilih Produk"}
                         </SelectValue>
                       </SelectTrigger>
@@ -325,9 +334,14 @@ export function POForm({
                             {p.name} ({p.type === "GREEN_BEAN" ? "GB" : "RB"})
                           </SelectItem>
                         ))}
-                        {packagings.map((p) => (
+                        {supplyItems.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name} ({s.category === "PACKAGING" ? "PKG" : "SUP"} · {s.baseUnit})
+                          </SelectItem>
+                        ))}
+                        {isEditMode && packagings.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.name} (PKG)
+                            {p.name} (PKG LAMA)
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -117,7 +117,7 @@ export type ValuationRow = {
   id: string;
   code: string;
   name: string;
-  category: "GREEN_BEAN" | "ROASTED_BEAN" | "FINISHED_GOODS" | "PACKAGING";
+  category: "GREEN_BEAN" | "ROASTED_BEAN" | "FINISHED_GOODS" | "PACKAGING" | "SUPPLY";
   stock: number;
   unit: string;
   unitCost: number;
@@ -146,6 +146,7 @@ export type InventoryValuationReport = {
   totalRoastedBeanValue: number;
   totalFinishedGoodsValue: number;
   totalPackagingValue: number;
+  totalSupplyValue: number;
   grandTotalValue: number;
   totalFinishedGoodsPotentialRevenue: number;
   totalFinishedGoodsMarginHealth: number;
@@ -194,6 +195,12 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
               gramsPerUnit: true,
             },
           },
+          supplyItems: {
+            select: {
+              supplyItemId: true,
+              quantityPerUnit: true,
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -240,12 +247,33 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
     roastedBeanCost.set(product.id, getRbCostPrioritizingCache(avgCostDb, batchesForThisRb, greenBeanCost));
   }
 
-  // Fetch packaging data for recipe-based HPP calculation
+  // Fetch packaging data for recipe-based HPP calculation.
+  // Package yang sudah dimapping ke InventorySupplyItem memakai biaya
+  // canonical (avgCostPerUnit); kemasan legacy tetap memakai costPerUnit.
   const packagingMap = new Map<string, number>();
+  const supplyCostMap = new Map<string, number>();
+  const packagingSupplyItemByPackagingId = new Map<string, string>();
+  const supplyItems = await tp.inventorySupplyItem.findMany({
+    select: {
+      id: true,
+      avgCostPerUnit: true,
+      costPerUnit: true,
+      packaging: { select: { id: true } },
+    },
+  });
+  for (const item of supplyItems) {
+    const cost = Number(item.avgCostPerUnit ?? 0) || Number(item.costPerUnit ?? 0);
+    supplyCostMap.set(item.id, cost);
+    if (item.packaging) {
+      packagingSupplyItemByPackagingId.set(item.packaging.id, item.id);
+      packagingMap.set(item.packaging.id, cost);
+    }
+  }
   const allPackaging = await tp.packaging.findMany({
-    select: { id: true, costPerUnit: true },
+    select: { id: true, costPerUnit: true, supplyItemId: true },
   });
   for (const pkg of allPackaging) {
+    if (pkg.supplyItemId) continue; // mapped → cost canonical sudah masuk via supply item
     packagingMap.set(pkg.id, Number(pkg.costPerUnit));
   }
 
@@ -318,7 +346,14 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
         recipe?.packagingId,
         roastedBeanCost,
         packagingMap,
-        0
+        0,
+        undefined,
+        recipe?.supplyItems as Array<{
+          supplyItemId: string;
+          quantityPerUnit: { toNumber(): number } | number | string;
+        }>,
+        supplyCostMap,
+        recipe?.packagingId ? packagingSupplyItemByPackagingId.get(recipe.packagingId) : undefined,
       );
       const retailPrice = Number(p.price || 0);
       const potentialRevenue = stockUnit * retailPrice;
@@ -343,7 +378,7 @@ export async function getInventoryValuationReport(asOf = getCurrentDate()): Prom
   }
 
   const packagings = await tp.packaging.findMany({
-    where: { isActive: true },
+    where: { isActive: true, supplyItemId: null }, // dual-read: mapped → dinilai via InventorySupplyItem
     include: {
       purchases: {
         where: {
@@ -385,6 +420,55 @@ items.push({
 
         sampleWriteOff: sampleWriteOffMap.get(pkg.id) ?? 0,
         lowStockThreshold: lowStockThresholdFor("pcs", pkg.safetyStockQuantity, pkg.reorderAlertEnabled),
+      });
+    }
+  }
+
+  // Supply items (canonical non-kopi: kemasan, bahan, merchandise, dll.)
+  const supplyStockRows = await tp.inventorySupplyItem.findMany({
+    where: { isActive: true },
+    include: {
+      purchases: {
+        where: {
+          status: { in: ["COMPLETED", "VOID"] },
+          receivedAt: { lte: asOf },
+          OR: [{ voidAt: null }, { voidAt: { gt: asOf } }],
+        },
+        select: { supplyQuantity: true, totalCost: true },
+      },
+      ledgerEntries: {
+        where: { createdAt: { lte: asOf } },
+        select: { entryType: true, supplyQuantity: true },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  for (const item of supplyStockRows) {
+    const stock = item.ledgerEntries.reduce((stockSum, entry) => {
+      const quantity = Number(entry.supplyQuantity ?? 0);
+      return stockSum + (entry.entryType === "IN" ? quantity : -quantity);
+    }, 0);
+
+    if (stock > 0.0005) {
+      const calculatedWac = weightedAverageCost(item.purchases.map((purchase) => ({
+        quantity: Number(purchase.supplyQuantity ?? 0),
+        totalCost: Number(purchase.totalCost),
+      })));
+      // Biaya canonical: moving average dari ledger (appendLedger); WAC pembelian
+      // sebagai fallback bila avgCost belum tersedia.
+      const unitCost = Number(item.avgCostPerUnit ?? 0) || calculatedWac || Number(item.costPerUnit ?? 0);
+      items.push({
+        id: item.id,
+        code: item.code,
+        name: item.name,
+        category: "SUPPLY",
+        stock,
+        unit: item.baseUnit,
+        unitCost,
+        totalValue: stock * unitCost,
+        sampleWriteOff: 0,
+        lowStockThreshold: lowStockThresholdFor("pcs", item.safetyStockQuantity, item.reorderAlertEnabled),
       });
     }
   }
@@ -633,6 +717,10 @@ export async function getCoffeeFlowReport(
       recipes: {
         orderBy: { createdAt: "desc" },
         take: 1,
+        include: {
+          items: true,
+          supplyItems: { include: { supplyItem: true } },
+        },
       },
       purchases: { 
         where: { 
@@ -677,9 +765,24 @@ export async function getCoffeeFlowReport(
     select: { outputProductId: true, inputProductId: true, targetWeightKg: true, actualOutputKg: true },
   });
 
-  const allPackaging = await tp.packaging.findMany({ select: { id: true, costPerUnit: true } });
+  const allPackaging = await tp.packaging.findMany({ select: { id: true, costPerUnit: true, supplyItemId: true } });
   const packagingCostMap = new Map<string, number>();
-  for (const pkg of allPackaging) packagingCostMap.set(pkg.id, Number(pkg.costPerUnit));
+  const supplyCostMap = new Map<string, number>();
+  const packagingSupplyItemByPackagingId = new Map<string, string>();
+  for (const item of await tp.inventorySupplyItem.findMany({
+    select: { id: true, avgCostPerUnit: true, costPerUnit: true, packaging: { select: { id: true } } },
+  })) {
+    const cost = Number(item.avgCostPerUnit ?? 0) || Number(item.costPerUnit ?? 0);
+    supplyCostMap.set(item.id, cost);
+    if (item.packaging) {
+      packagingSupplyItemByPackagingId.set(item.packaging.id, item.id);
+      packagingCostMap.set(item.packaging.id, cost);
+    }
+  }
+  for (const pkg of allPackaging) {
+    if (pkg.supplyItemId) continue; // mapped → cost canonical via supply item
+    packagingCostMap.set(pkg.id, Number(pkg.costPerUnit));
+  }
 
   // Compute greenBeanCostMap
   const greenBeanCostMap = new Map<string, number>();
@@ -721,11 +824,18 @@ export async function getCoffeeFlowReport(
       const cost = getFgHppPrioritizingCache(
         lastHpp,
         lastProductionHpp,
-        (recipe as any).items ?? [],
+        recipe.items ?? [],
         recipe.packagingId,
         roastedBeanCostMap,
         packagingCostMap,
-        0
+        0,
+        undefined,
+        recipe.supplyItems.map((item) => ({
+          supplyItemId: item.supplyItemId,
+          quantityPerUnit: Number(item.quantityPerUnit),
+        })),
+        supplyCostMap,
+        recipe.packagingId ? packagingSupplyItemByPackagingId.get(recipe.packagingId) : undefined,
       );
       if (cost > 0) recipeHppMap.set(p.id, cost);
     }

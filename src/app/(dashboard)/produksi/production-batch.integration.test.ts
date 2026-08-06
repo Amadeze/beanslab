@@ -158,9 +158,9 @@ suite("createProductionBatch — supply items (Commit 4)", () => {
     });
   }
 
-  async function createPackaging(tx: any, packagingId: string, tenantId: string) {
+  async function createPackaging(tx: any, packagingId: string, tenantId: string, opts: { supplyItemId?: string } = {}) {
     await tx.packaging.create({
-      data: { id: packagingId, tenantId, code: packagingId, name: `Packaging ${packagingId}`, weightGrams: 250, costPerUnit: 500, stockUnit: 100, isActive: true },
+      data: { id: packagingId, tenantId, code: packagingId, name: `Packaging ${packagingId}`, weightGrams: 250, costPerUnit: 500, stockUnit: 100, isActive: true, supplyItemId: opts.supplyItemId },
     });
   }
 
@@ -555,5 +555,52 @@ suite("createProductionBatch — supply items (Commit 4)", () => {
     const batch = await client.productionBatch.findFirst({ where: { code: result1.batchCode } });
     const ledgerCount = await client.inventoryLedger.count({ where: { refId: batch!.id, refType: "SUPPLY_PRODUCTION_OUT" } });
     expect(ledgerCount).toBe(1);
+  });
+
+  it("packagingSupplyItemId meresolve kemasan ke adapter legacy tanpa menulis stok dua model", async () => {
+    const tenantId = "test-tenant";
+    const userId = `user-canonical-pkg-${Date.now()}`;
+    const productId = `prod-canonical-pkg-${Date.now()}`;
+    const packagingId = `pkg-canonical-pkg-${Date.now()}`;
+    const supplyId = `sup-canonical-pkg-${Date.now()}`;
+    const rbProductId = `rb-canonical-pkg-${Date.now()}`;
+    cleanupIds.push(userId, productId, packagingId, supplyId, rbProductId);
+
+    await client.$transaction(async (tx) => {
+      await createUser(tx, userId, tenantId);
+      await createProduct(tx, productId, tenantId);
+      await createSupplyItem(tx, supplyId, tenantId, { category: "PACKAGING", avgCostPerUnit: 1000, stockQuantity: 100 });
+      await createPackaging(tx, packagingId, tenantId, { supplyItemId: supplyId });
+      await createProduct(tx, rbProductId, tenantId, "ROASTED_BEAN", 10);
+    });
+
+    const result = await createProductionBatch({
+      operationKey: randomUUID(),
+      outputProductId: productId,
+      packagingSupplyItemId: supplyId,
+      unitsProduced: 4,
+      rbComponents: [{ productId: rbProductId, productName: "Test RB", actualGrams: 400 }],
+    });
+
+    if (!result.success) {
+      throw new Error(`canonical packaging resolution failed: ${result.error}`);
+    }
+
+    const batch = await client.productionBatch.findFirst({ where: { code: result.batchCode } });
+    // Legacy FK resolves to the linked adapter packaging
+    expect(batch!.packagingId).toBe(packagingId);
+
+    // Canonical: stok supply berkurang, stok cache packaging legacy TIDAK disentuh
+    const supply = await client.inventorySupplyItem.findUnique({ where: { id: supplyId } });
+    expect(Number(supply!.stockQuantity)).toBe(96); // 100 - 4
+    const adapter = await client.packaging.findUnique({ where: { id: packagingId } });
+    expect(adapter!.stockUnit).toBe(100);
+
+    // Ledger: satu SUPPLY_PRODUCTION_OUT, tanpa PRODUCTION_PKG_OUT untuk adapter
+    const supplyLedger = await client.inventoryLedger.findFirst({ where: { refId: batch!.id, refType: "SUPPLY_PRODUCTION_OUT", supplyItemId: supplyId } });
+    expect(supplyLedger).toBeTruthy();
+    expect(Number(supplyLedger!.supplyQuantity)).toBe(4);
+    const pkgLedger = await client.inventoryLedger.count({ where: { refId: batch!.id, refType: "PRODUCTION_PKG_OUT" } });
+    expect(pkgLedger).toBe(0);
   });
 });

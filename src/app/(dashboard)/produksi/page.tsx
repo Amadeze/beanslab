@@ -11,6 +11,7 @@ export default async function ProduksiPage() {
       fgOptions={data.fgOptions}
       rbOptions={data.rbOptions}
       packagingOptions={data.packagingOptions}
+      supplyOptions={data.supplyOptions}
     />
   );
 }
