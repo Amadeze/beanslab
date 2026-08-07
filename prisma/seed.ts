@@ -427,6 +427,10 @@ async function main() {
       createdAt:    daysAgo(5),
     },
   });
+  await prisma.packaging.update({
+    where: { id: pkgPouch1KG.id },
+    data: { stockUnit: 50 },
+  });
   console.log("✓  Purchase PKG Pouch 1KG 50pcs — PUR-202507-003");
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -589,6 +593,10 @@ async function main() {
       },
     }),
   ]);
+  await prisma.packaging.update({
+    where: { id: pkgPouch1KG.id },
+    data: { stockUnit: 45 },
+  });
   console.log("✓  Produksi Full Arabica 5 unit — PRD-202507-001");
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -671,6 +679,10 @@ async function main() {
       },
     }),
   ]);
+  await prisma.packaging.update({
+    where: { id: pkgPouch1KG.id },
+    data: { stockUnit: 40 },
+  });
   console.log("✓  Produksi Blend A 5 unit — PRD-202507-002");
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -903,6 +915,62 @@ async function main() {
   console.log("    • Kafe C  INV-202507-003  Rp 360.000  jatuh tempo +14h");
   console.log("─".repeat(60));
   console.log("\n✅  Seed selesai!\n");
+
+  // Sync stock caches from ledger (audit:stock requires stock caches match ledger)
+  const productsToUpdate = await prisma.product.findMany({
+    where: { tenantId: tenant.id },
+    select: { id: true, code: true },
+  });
+  for (const product of productsToUpdate) {
+    const rows = await prisma.inventoryLedger.findMany({
+      where: { tenantId: tenant.id, productId: product.id },
+      select: { entryType: true, quantityKg: true, quantityUnit: true },
+    });
+    let netKg = 0;
+    let netUnit = 0;
+    for (const r of rows) {
+      const kg = Number(r.quantityKg ?? 0);
+      const unit = Number(r.quantityUnit ?? 0);
+      if (r.entryType === "IN") {
+        netKg += kg;
+        netUnit += unit;
+      } else {
+        netKg -= kg;
+        netUnit -= unit;
+      }
+    }
+    await prisma.product.update({
+      where: { id: product.id },
+      data: {
+        stockKg: netKg,
+        stockUnit: netUnit,
+      },
+    });
+  }
+
+  const packagingsToUpdate = await prisma.packaging.findMany({
+    where: { tenantId: tenant.id },
+    select: { id: true, code: true },
+  });
+  for (const pkg of packagingsToUpdate) {
+    const rows = await prisma.inventoryLedger.findMany({
+      where: { tenantId: tenant.id, packagingId: pkg.id },
+      select: { entryType: true, quantityUnit: true },
+    });
+    let netUnit = 0;
+    for (const r of rows) {
+      const unit = Number(r.quantityUnit ?? 0);
+      if (r.entryType === "IN") {
+        netUnit += unit;
+      } else {
+        netUnit -= unit;
+      }
+    }
+    await prisma.packaging.update({
+      where: { id: pkg.id },
+      data: { stockUnit: netUnit },
+    });
+  }
 }
 
 // =============================================================================
