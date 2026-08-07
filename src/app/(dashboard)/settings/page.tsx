@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, Building2, ChevronRight, CircleDollarSign, Cpu, CreditCard, Monitor, Paintbrush, ScrollText, Users } from "lucide-react";
+import { Bell, Building2, ChevronRight, CircleDollarSign, Cpu, CreditCard, Monitor, Paintbrush, ScrollText, Upload, Users } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SettingsNav } from "./_components/SettingsNav";
@@ -61,6 +61,13 @@ const settingsGroups = [
     href: "/billing",
     icon: CreditCard,
     roles: ["OWNER"],
+  },
+  {
+    title: "Import Data Lama",
+    description: "Impor stok awal dari CSV/Excel ke dalam sistem persediaan secara transactional dan idempotent.",
+    href: "/settings/_import",
+    icon: Upload,
+    roles: ["OWNER", "MANAGER"],
   },
   {
     title: "Portal Theme Customizer",
