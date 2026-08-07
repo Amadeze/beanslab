@@ -28,13 +28,15 @@ function addWarning(row: LegacyStockValidatedRow, field: string, message: string
 export function validateLegacyStockRows(
   normalizedRows: LegacyStockNormalizedRow[]
 ): LegacyStockValidatedRow[] {
-  // Track duplicate codes within the file
-  const codeCounts = new Map<string, number[]>();
+  // Track duplicate (code, lotNumber) pairs within the file.
+  // Same code with different lotNumber is allowed (multiple lots per SKU).
+  const rowKeyCounts = new Map<string, number[]>();
   for (const row of normalizedRows) {
     if (row.code) {
-      const arr = codeCounts.get(row.code) ?? [];
+      const key = `${row.code}::${row.lotNumber ?? ""}`;
+      const arr = rowKeyCounts.get(key) ?? [];
       arr.push(row.rowNumber);
-      codeCounts.set(row.code, arr);
+      rowKeyCounts.set(key, arr);
     }
   }
 
@@ -136,11 +138,12 @@ export function validateLegacyStockRows(
       addError(validated, "expiryDate", "Invalid date format. Use YYYY-MM-DD or DD/MM/YYYY.");
     }
 
-    // ── Duplicate code within file ──
-    const dupRows = codeCounts.get(row.code) ?? [];
-    if (dupRows.length > 1) {
-      addError(validated, "code", `Duplicate code in file (rows: ${dupRows.join(", ")}).`);
-    }
+     // ── Duplicate (code, lotNumber) within file ──
+     const rowKey = `${row.code}::${row.lotNumber ?? ""}`;
+     const dupRows = rowKeyCounts.get(rowKey) ?? [];
+     if (dupRows.length > 1) {
+       addError(validated, "code", `Duplicate code/lotNumber combination in file (rows: ${dupRows.join(", ")}).`);
+     }
 
     // ── Warnings ──
     if (row.unitCost === 0) {

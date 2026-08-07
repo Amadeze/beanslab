@@ -97,13 +97,21 @@ describe("validateLegacyStockRows", () => {
     expect(results[0].errors.some((e) => e.field === "unitCost" && e.message === "Unit cost must be ≥ 0.")).toBe(true);
   });
 
-  it("detects duplicate codes within the same file", () => {
+  it("detects duplicate codes without lotNumber in the same file", () => {
     const row1 = validSupplyRow({ code: "DUP-001", rowNumber: 2 });
     const row2 = validSupplyRow({ code: "DUP-001", rowNumber: 3 });
     const results = validateLegacyStockRows([row1, row2]);
     expect(results[0].isValid).toBe(false);
     expect(results[1].isValid).toBe(false);
     expect(results[0].errors.some((e) => e.field === "code" && e.message?.includes("Duplicate"))).toBe(true);
+  });
+
+  it("allows same code with different lotNumber (multiple lots per SKU)", () => {
+    const row1 = validSupplyRow({ code: "MULTI-001", lotNumber: "LOT-A", rowNumber: 2 });
+    const row2 = validSupplyRow({ code: "MULTI-001", lotNumber: "LOT-B", rowNumber: 3 });
+    const results = validateLegacyStockRows([row1, row2]);
+    expect(results[0].isValid).toBe(true);
+    expect(results[1].isValid).toBe(true);
   });
 
   it("detects empty (blank) rows — name too long", () => {
@@ -122,8 +130,10 @@ describe("validateLegacyStockRows", () => {
   });
 
   it("warns when ROASTED_BEAN has no roastLevel", () => {
-    const row = validGreenBeanRow({ type: "ROASTED_BEAN" });
-    delete (row as Record<string, unknown>).roastLevel;
+    const row: LegacyStockNormalizedRow = {
+      ...validGreenBeanRow({ type: "ROASTED_BEAN" }),
+      roastLevel: undefined,
+    };
     const results = validateLegacyStockRows([row]);
     expect(results[0].warnings.some((w) => w.field === "roastLevel")).toBe(true);
   });

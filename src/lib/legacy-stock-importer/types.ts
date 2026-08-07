@@ -133,6 +133,36 @@ export interface LegacyStockDryRunResult {
   rows: LegacyStockDryRunRow[];
 }
 
+// ─── Opening Stock Apply Result ───
+export type OpeningStockAction = "CREATE" | "MATCH";
+
+export interface OpeningStockRowResult {
+  rowNumber: number;
+  entityId: string;
+  entityType: "PRODUCT" | "SUPPLY";
+  code: string;
+  action: OpeningStockAction;
+  lotId?: string;
+  ledgerRefId: string;
+  quantity: number;
+  unitCost: number;
+  openingValue: number;
+  error?: string;
+}
+
+export interface OpeningStockResult {
+  importId: string;
+  operationKey: string;
+  totalRows: number;
+  createdMasters: number;
+  matchedMasters: number;
+  lotsCreated: number;
+  ledgerEntriesCreated: number;
+  totalOpeningValue: number;
+  rows: OpeningStockRowResult[];
+  errors: string[];
+}
+
 // ─── File Parsing Options ───
 export interface ParseOptions {
   maxRows?: number; // default 5000
