@@ -65,7 +65,7 @@ const settingsGroups = [
   {
     title: "Import Data Lama",
     description: "Impor stok awal dari CSV/Excel ke dalam sistem persediaan secara transactional dan idempotent.",
-    href: "/settings/_import",
+    href: "/settings/import",
     icon: Upload,
     roles: ["OWNER", "MANAGER"],
   },

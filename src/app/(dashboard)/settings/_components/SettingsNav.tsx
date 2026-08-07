@@ -16,7 +16,7 @@ const items = [
   { label: "Roastd Studio", href: "/settings/studio", icon: Monitor, roles: ["OWNER"] },
   { label: "Notifikasi", href: "/settings/notifications", icon: Bell, roles: ["OWNER", "MANAGER"] },
   { label: "Aktivitas & Audit", href: "/audit", icon: ScrollText, roles: ["OWNER", "MANAGER"] },
-  { label: "Import Data Lama", href: "/settings/_import", icon: Upload, roles: ["OWNER", "MANAGER"] },
+  { label: "Import Data Lama", href: "/settings/import", icon: Upload, roles: ["OWNER", "MANAGER"] },
   { label: "Paket & Tagihan", href: "/billing", icon: CreditCard, roles: ["OWNER"] },
 ] as const;
 
