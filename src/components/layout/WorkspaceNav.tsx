@@ -64,6 +64,7 @@ const WORKSPACES = {
     },
     { label: "Penggilingan", href: "/grinding", icon: Coffee },
     { label: "Produksi & packing", href: "/produksi", icon: Factory },
+    { label: "Eksperimen", href: "/eksperimen", icon: FlaskConical },
     { label: "Cupping", href: "/cupping", icon: FlaskConical },
   ],
   sales: [

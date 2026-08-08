@@ -224,6 +224,7 @@ enum JournalRefType {
   PRODUCTION
   ROASTING
   GRINDING
+  EXPERIMENTAL
   SALE
   PURCHASE
   VOID_REVERSAL
@@ -296,6 +297,8 @@ enum LedgerRefType {
   SUPPLY_ADJUSTMENT_OUT // Penyesuaian stok supply keluar (Opname)
   GRINDING_RB_OUT // Roasted Bean keluar ke grinding
   GRINDING_FG_IN // Ground Coffee masuk dari grinding
+  EXPERIMENTAL_COMPONENT_OUT // Komponen keluar ke produksi eksperimental
+  EXPERIMENTAL_FG_IN // Hasil eksperimental masuk
 }
 
 // =============================================================================
@@ -372,62 +375,64 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users                         User[]
-  customers                     Customer[]
-  suppliers                     Supplier[]
-  products                      Product[]
-  packagings                    Packaging[]
-  recipes                       Recipe[]
-  purchases                     Purchase[]
-  purchaseOrders                PurchaseOrder[]
-  purchaseOrderItems            PurchaseOrderItem[]
-  parentRoastingBatches         ParentRoastingBatch[]
-  productionBatches             ProductionBatch[]
-  invoices                      Invoice[]
-  payments                      Payment[]
-  supplierPayments              SupplierPayment[]
-  lots                          Lot[]
-  inventoryLedgers              InventoryLedger[]
-  inventorySupplyItems          InventorySupplyItem[]
-  recipeSupplyItems             RecipeSupplyItem[]
-  productionSupplyUsages        ProductionSupplyUsage[]
-  expenses                      Expense[]
-  notificationPreferences       NotificationPreference[]
-  subscriptionPayments          SubscriptionPayment[]
-  auditLogs                     AuditLog[]
-  webhookEvents                 WebhookEvent[]
-  reminderDeliveries            ReminderDelivery[]
-  recipeItems                   RecipeItem[]
-  onboardingSnapshots           OnboardingSnapshot[]
-  childRoastingBatches          ChildRoastingBatch[]
-  invoiceItems                  InvoiceItem[]
-  jobRuns                       JobRun[]
-  dailyBriefSnapshots           DailyBriefSnapshot[]
-  sampleUsages                  SampleUsage[]
-  sampleUsageComponents         SampleUsageComponent[]
-  capitalTransactions           CapitalTransaction[]
-  accounts                      Account[]
-  journalEntries                JournalEntry[]
-  creditNotes                   CreditNote[]
-  creditNoteItems               CreditNoteItem[]
-  machines                      Machine[]
-  artisanPairingCodes           ArtisanPairingCode[]
-  studioDeviceAuthorizations    StudioDeviceAuthorization[]
-  roastdStudios                 RoastdStudio[]
-  artisanImports                ArtisanRoastImport[]
-  roasts                        Roast[]
-  liveSessions                  LiveSession[]
-  portalTheme                   PortalTheme?
-  budgets                       Budget[]
-  cuppingSessions               CuppingSession[]
-  grindingBatches               GrindingBatch[]
-  contracts                     Contract[]
-  contractPrices                ContractPrice[]
-  tenantPaymentMethods          TenantPaymentMethod[]
-  paymentSubmissions            PaymentSubmission[]
-  paymentNotificationDeliveries PaymentNotificationDelivery[]
-  stockReservations             StockReservation[]
-  fulfillmentTasks              FulfillmentTask[]
+  users                            User[]
+  customers                        Customer[]
+  suppliers                        Supplier[]
+  products                         Product[]
+  packagings                       Packaging[]
+  recipes                          Recipe[]
+  purchases                        Purchase[]
+  purchaseOrders                   PurchaseOrder[]
+  purchaseOrderItems               PurchaseOrderItem[]
+  parentRoastingBatches            ParentRoastingBatch[]
+  productionBatches                ProductionBatch[]
+  invoices                         Invoice[]
+  payments                         Payment[]
+  supplierPayments                 SupplierPayment[]
+  lots                             Lot[]
+  inventoryLedgers                 InventoryLedger[]
+  inventorySupplyItems             InventorySupplyItem[]
+  recipeSupplyItems                RecipeSupplyItem[]
+  productionSupplyUsages           ProductionSupplyUsage[]
+  expenses                         Expense[]
+  notificationPreferences          NotificationPreference[]
+  subscriptionPayments             SubscriptionPayment[]
+  auditLogs                        AuditLog[]
+  webhookEvents                    WebhookEvent[]
+  reminderDeliveries               ReminderDelivery[]
+  recipeItems                      RecipeItem[]
+  onboardingSnapshots              OnboardingSnapshot[]
+  childRoastingBatches             ChildRoastingBatch[]
+  invoiceItems                     InvoiceItem[]
+  jobRuns                          JobRun[]
+  dailyBriefSnapshots              DailyBriefSnapshot[]
+  sampleUsages                     SampleUsage[]
+  sampleUsageComponents            SampleUsageComponent[]
+  capitalTransactions              CapitalTransaction[]
+  accounts                         Account[]
+  journalEntries                   JournalEntry[]
+  creditNotes                      CreditNote[]
+  creditNoteItems                  CreditNoteItem[]
+  machines                         Machine[]
+  artisanPairingCodes              ArtisanPairingCode[]
+  studioDeviceAuthorizations       StudioDeviceAuthorization[]
+  roastdStudios                    RoastdStudio[]
+  artisanImports                   ArtisanRoastImport[]
+  roasts                           Roast[]
+  liveSessions                     LiveSession[]
+  portalTheme                      PortalTheme?
+  budgets                          Budget[]
+  cuppingSessions                  CuppingSession[]
+  grindingBatches                  GrindingBatch[]
+  experimentalProductions          ExperimentalProduction[]
+  experimentalProductionComponents ExperimentalProductionComponent[]
+  contracts                        Contract[]
+  contractPrices                   ContractPrice[]
+  tenantPaymentMethods             TenantPaymentMethod[]
+  paymentSubmissions               PaymentSubmission[]
+  paymentNotificationDeliveries    PaymentNotificationDelivery[]
+  stockReservations                StockReservation[]
+  fulfillmentTasks                 FulfillmentTask[]
 
   @@map("tenants")
 }
@@ -546,6 +551,7 @@ model User {
   authorizedRoastdStudios    RoastdStudio[]              @relation("RoastdStudioAuthorizer")
   sampleUsages               SampleUsage[]
   grindingBatches            GrindingBatch[]
+  experimentalProductions    ExperimentalProduction[]
   reviewedPaymentSubmissions PaymentSubmission[]         @relation("PaymentSubmissionReviewer")
   tenantId                   String
   tenant                     Tenant                      @relation(fields: [tenantId], references: [id])
@@ -689,8 +695,6 @@ model Product {
   recipeItems       RecipeItem[]
   recipes           Recipe[]
   productionBatches ProductionBatch[]
-  grindingSources   GrindingBatch[]   @relation("GrindingSource")
-  grindingOutputs   GrindingBatch[]   @relation("GrindingOutput")
 
   // Relasi hilir
   invoiceItems      InvoiceItem[]
@@ -702,10 +706,14 @@ model Product {
   fulfillmentTasks  FulfillmentTask[]
 
   // Ledger
-  ledgerEntries         InventoryLedger[]
-  sampleUsageComponents SampleUsageComponent[]
-  tenantId              String
-  tenant                Tenant                 @relation(fields: [tenantId], references: [id])
+  ledgerEntries          InventoryLedger[]
+  sampleUsageComponents  SampleUsageComponent[]
+  grindingSources        GrindingBatch[]                   @relation("GrindingSource")
+  grindingOutputs        GrindingBatch[]                   @relation("GrindingOutput")
+  experimentalOutputs    ExperimentalProduction[]
+  experimentalComponents ExperimentalProductionComponent[]
+  tenantId               String
+  tenant                 Tenant                            @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, code])
   @@unique([tenantId, sourceGreenBeanId, roastLevel])
@@ -806,15 +814,16 @@ model InventorySupplyItem {
   reorderLookbackDays Int     @default(30)
 
   // Relasi
-  packaging          Packaging?              @relation("PackagingSupplyMapping")
-  purchases          Purchase[]
-  purchaseOrderItems PurchaseOrderItem[]
-  lots               Lot[]
-  ledgerEntries      InventoryLedger[]
-  recipeItems        RecipeSupplyItem[]
-  productionUsages   ProductionSupplyUsage[]
-  tenantId           String
-  tenant             Tenant                  @relation(fields: [tenantId], references: [id])
+  packaging              Packaging?                        @relation("PackagingSupplyMapping")
+  purchases              Purchase[]
+  purchaseOrderItems     PurchaseOrderItem[]
+  lots                   Lot[]
+  ledgerEntries          InventoryLedger[]
+  recipeItems            RecipeSupplyItem[]
+  productionUsages       ProductionSupplyUsage[]
+  experimentalComponents ExperimentalProductionComponent[]
+  tenantId               String
+  tenant                 Tenant                            @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, code])
   @@index([tenantId, category, isActive])
@@ -1129,6 +1138,73 @@ model GrindingBatch {
   @@unique([tenantId, operationKey])
   @@index([tenantId, createdAt])
   @@map("grinding_batches")
+}
+
+// =============================================================================
+// TABLE 10D · ExperimentalProduction (Produksi Eksperimental)
+// Produksi bebas tanpa template resep. Tidak otomatis menjadi katalog.
+// =============================================================================
+
+model ExperimentalProduction {
+  id           String  @id @default(cuid())
+  code         String
+  operationKey String?
+  tenantId     String
+
+  name   String // e.g., "Blend Trial #04"
+  status TransactionStatus @default(COMPLETED)
+
+  outputProductId String // FK → Product (auto-created output)
+
+  inputKg    Decimal @db.Decimal(10, 3)
+  outputKg   Decimal @db.Decimal(10, 3)
+  lossKg     Decimal @db.Decimal(10, 3)
+  hppPerUnit Decimal @db.Decimal(12, 2)
+
+  notes       String?
+  createdAt   DateTime @default(now())
+  createdById String
+
+  outputProduct Product                           @relation(fields: [outputProductId], references: [id])
+  components    ExperimentalProductionComponent[]
+  operator      User                              @relation(fields: [createdById], references: [id])
+  tenant        Tenant                            @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, createdAt])
+  @@map("experimental_productions")
+}
+
+model ExperimentalProductionComponent {
+  id                       String @id @default(cuid())
+  experimentalProductionId String
+  tenantId                 String
+
+  componentType String // GREEN_BEAN | ROASTED_BEAN | SUPPLY | PACKAGING
+  productId     String?
+  supplyItemId  String?
+
+  quantityKg     Decimal? @db.Decimal(10, 3)
+  quantityUnit   Decimal?
+  supplyQuantity Decimal? @db.Decimal(12, 3)
+
+  unitCostSnapshot  Decimal @db.Decimal(12, 2)
+  totalCostSnapshot Decimal @db.Decimal(14, 2)
+
+  lotId     String?
+  lotNumber String?
+
+  notes String?
+
+  experimentalProduction ExperimentalProduction @relation(fields: [experimentalProductionId], references: [id], onDelete: Cascade)
+  product                Product?               @relation(fields: [productId], references: [id])
+  supplyItem             InventorySupplyItem?   @relation(fields: [supplyItemId], references: [id])
+  tenant                 Tenant                 @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([experimentalProductionId])
+  @@map("experimental_production_components")
 }
 
 // =============================================================================

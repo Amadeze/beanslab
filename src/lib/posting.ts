@@ -602,3 +602,29 @@ export async function postGrindingBatch(
     lines,
   }, options);
 }
+
+export async function postExperimentalProduction(
+  batchId: string,
+  totalCost: number,
+  grindingCost: number,
+  outputProductName: string,
+  options: PostingOptions = {},
+): Promise<string> {
+  const rbCost = totalCost - grindingCost;
+  const lines: PostingLine[] = [
+    { accountCode: "1-1220", debit: totalCost, credit: 0 },
+  ];
+  if (rbCost > 0) {
+    lines.push({ accountCode: "1-1210", debit: 0, credit: rbCost });
+  }
+  if (grindingCost > 0) {
+    lines.push({ accountCode: "5-1010", debit: 0, credit: grindingCost });
+  }
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Experimental: ${outputProductName}`,
+    reference: batchId,
+    refType: "EXPERIMENTAL",
+    lines,
+  }, options);
+}
