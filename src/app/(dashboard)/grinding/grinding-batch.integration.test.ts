@@ -29,7 +29,7 @@ vi.mock("@/lib/auth", async () => {
   };
 });
 
-vi.mock("next/navigation", () => ({
+vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
 }));
@@ -85,7 +85,22 @@ suite("createGrindingBatch", () => {
     await tx.inventoryLedger.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.lot.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.grindingBatch.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.productionBatch.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.productionSupplyUsage.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.experimentalProduction.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.experimentalProductionComponent.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.sampleUsageComponent.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.stockReservation.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.fulfillmentTask.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.invoiceItem.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.contractPrice.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.purchaseOrderItem.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.recipeSupplyItem.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.recipeItem.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.recipe.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.product.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.packaging.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.inventorySupplyItem.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.machine.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.user.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.user.deleteMany({ where: { id: TEST_USER_ID } });
@@ -191,9 +206,9 @@ suite("createGrindingBatch", () => {
       where: { tenantId: TEST_TENANT_ID, operationKey },
     });
     expect(batch).toBeTruthy();
-    expect(batch!.inputKg).toBe(5);
-    expect(batch!.outputKg).toBe(4.5);
-    expect(batch!.lossKg).toBe(0.5);
+    expect(Number(batch!.inputKg)).toBe(5);
+    expect(Number(batch!.outputKg)).toBe(4.5);
+    expect(Number(batch!.lossKg)).toBe(0.5);
     expect(batch!.grindSize).toBe("MEDIUM");
 
     const ledgerEntries = await client.inventoryLedger.findMany({

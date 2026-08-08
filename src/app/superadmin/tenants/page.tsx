@@ -6,6 +6,8 @@ import { EditTenantDialog } from "./_components/EditTenantDialog";
 import { Coffee, ExternalLink } from "lucide-react";
 import { tenantStorefrontUrl } from "@/lib/tenant-host";
 
+export const dynamic = "force-dynamic";
+
 export default async function TenantsPage() {
   const tenants = await prisma.tenant.findMany({
     where: { id: { not: "default" } },
