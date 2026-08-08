@@ -177,6 +177,10 @@ const ownedRelations: Record<string, OwnedRelation[]> = {
   ChildRoastingBatch: [
     { foreignKey: "parentId", relation: "parent", delegate: "parentRoastingBatch" },
   ],
+  Location: [
+    { foreignKey: "warehouseId", relation: "warehouse", delegate: "warehouse" },
+  ],
+  Warehouse: [],
 };
 
 const nestedOwnedRelations: Record<

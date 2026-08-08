@@ -21,6 +21,7 @@ import {
   ShoppingCart,
   Sparkles,
   Target,
+  Warehouse,
   WalletCards,
 } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
@@ -131,6 +132,13 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         icon: Factory,
         tone: "production",
       },
+      {
+        label: "Gudang & Lokasi",
+        shortLabel: "Gudang",
+        href: "/gudang",
+        icon: Warehouse,
+        tone: "inventory",
+      },
     ],
   },
   {
@@ -230,6 +238,7 @@ export function canAccessNavigation(
       "/inventory",
       "/roasting",
       "/produksi",
+      "/gudang",
       "/katalog",
     ].includes(href);
   }
