@@ -8,6 +8,7 @@ import { GlassPanel } from "@/components/ui/glass-panel";
 import { StandardDrawer } from "@/components/StandardDrawer";
 import { ExperimentalHistoryTable } from "./ExperimentalHistoryTable";
 import { ExperimentalForm } from "./ExperimentalForm";
+import { PromoteForm } from "./PromoteForm";
 import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import type {
@@ -33,6 +34,7 @@ export function ExperimentalClient({
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [promoteBatch, setPromoteBatch] = useState<ExperimentalProductionRow | null>(null);
 
   const canProduce = rbOptions.length > 0 || supplyOptions.length > 0;
 
@@ -96,7 +98,10 @@ export function ExperimentalClient({
 
           <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8">
             <GlassPanel padding="md">
-              <ExperimentalHistoryTable batches={batches} />
+              <ExperimentalHistoryTable
+                batches={batches}
+                onPromote={(batch) => setPromoteBatch(batch)}
+              />
             </GlassPanel>
           </div>
         </div>
@@ -144,6 +149,39 @@ export function ExperimentalClient({
               router.refresh();
             }}
             onPendingChange={setIsSubmitting}
+          />
+        )}
+      </StandardDrawer>
+
+      <StandardDrawer
+        open={!!promoteBatch}
+        onOpenChange={(open) => {
+          if (!open && !isSubmitting) setPromoteBatch(null);
+        }}
+        title="Jadikan Produk Katalog"
+        description="Lengkapi detail produk agar dapat dijual/dilihat di katalog."
+        size="lg"
+        submitButton={
+          <Button
+            type="submit"
+            form="promote-form"
+            size="sm"
+            disabled={isSubmitting}
+            className="gap-1.5 rounded-[8px] font-bold shadow-md disabled:opacity-60"
+          >
+            {isSubmitting && <Loader2 size={13} className="animate-spin" />}
+            {isSubmitting ? "Menyimpan..." : "Promosikan"}
+          </Button>
+        }
+      >
+        {promoteBatch && (
+          <PromoteForm
+            batch={promoteBatch}
+            onSuccess={() => {
+              setPromoteBatch(null);
+              router.refresh();
+            }}
+            onCancel={() => setPromoteBatch(null)}
           />
         )}
       </StandardDrawer>

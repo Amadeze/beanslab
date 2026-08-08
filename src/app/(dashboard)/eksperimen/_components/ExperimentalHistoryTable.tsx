@@ -1,9 +1,10 @@
 "use client";
 
+import { PackageSearch } from "lucide-react";
 import { ExperimentalProductionRow } from "../actions";
 import { formatKg, formatRupiah, formatDate } from "@/lib/format";
 
-export function ExperimentalHistoryTable({ batches }: { batches: ExperimentalProductionRow[] }) {
+export function ExperimentalHistoryTable({ batches, onPromote }: { batches: ExperimentalProductionRow[]; onPromote?: (batch: ExperimentalProductionRow) => void }) {
   if (batches.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -47,6 +48,17 @@ export function ExperimentalHistoryTable({ batches }: { batches: ExperimentalPro
                 }`}>
                   {batch.status}
                 </span>
+                {batch.status === "COMPLETED" && onPromote && (
+                  <button
+                    type="button"
+                    onClick={() => onPromote(batch)}
+                    className="ml-2 inline-flex items-center gap-1 rounded-lg border border-white/60 bg-white/30 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-white/50 transition-colors shadow-sm"
+                    title="Jadikan Produk Katalog"
+                  >
+                    <PackageSearch size={12} />
+                    Katalog
+                  </button>
+                )}
               </td>
               <td className="py-2.5 text-xs text-slate-500">{formatDate(batch.createdAt)}</td>
             </tr>
