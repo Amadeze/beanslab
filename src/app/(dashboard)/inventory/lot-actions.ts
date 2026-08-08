@@ -28,6 +28,33 @@ export type LotRow = {
   notes: string | null;
   status: LotOperationalStatus;
   createdAt: string;
+  placedKg: number;
+  unplacedKg: number;
+  isFullyPlaced: boolean;
+};
+
+export type LotPlacementInfo = {
+  locationId: string;
+  locationName: string;
+  warehouseName: string;
+  quantityKg: number;
+  quantityUnit: number;
+  supplyQty: number;
+};
+
+export type LotPlacementView = {
+  lotId: string;
+  batchCode: string;
+  productName: string | null;
+  placedKg: number;
+  placedUnit: number;
+  placedSupplyQty: number;
+  remainingKg: number;
+  remainingUnit: number;
+  unplacedKg: number;
+  unplacedUnit: number;
+  isFullyPlaced: boolean;
+  placements: LotPlacementInfo[];
 };
 
 export type TraceStep = {
@@ -259,6 +286,9 @@ export async function getLots(filters: LotFilters = {}): Promise<{ lots: LotRow[
           inventoryLedgers: {
             select: { entryType: true, quantityKg: true, quantityUnit: true },
           },
+          placements: {
+            select: { quantityKg: true },
+          },
         },
         orderBy: { receivedAt: "desc" },
         skip,
@@ -275,6 +305,9 @@ export async function getLots(filters: LotFilters = {}): Promise<{ lots: LotRow[
         expiryDate: lot.expiryDate,
         consumedAt: lot.consumedAt,
       });
+
+      const placedKg = lot.placements.reduce((s, p) => s + Number(p.quantityKg), 0);
+
       return {
         id: lot.id,
         batchCode: lot.batchCode,
@@ -293,6 +326,9 @@ export async function getLots(filters: LotFilters = {}): Promise<{ lots: LotRow[
         notes: lot.notes,
         status: inventory.status,
         createdAt: lot.createdAt.toISOString(),
+        placedKg,
+        unplacedKg: Math.max(0, inventory.remainingKg - placedKg),
+        isFullyPlaced: placedKg >= inventory.remainingKg,
       };
     });
 
@@ -404,6 +440,9 @@ export async function traceLot(lotId: string): Promise<TraceResult | { success: 
       notes: lot.notes,
       status: lotInventory.status,
       createdAt: lot.createdAt.toISOString(),
+      placedKg: 0,
+      unplacedKg: lotInventory.remainingKg,
+      isFullyPlaced: false,
     };
 
     const steps: TraceStep[] = [];
@@ -566,5 +605,70 @@ export async function getExpiryAlerts(daysAhead: number = 30): Promise<ExpiryAle
   } catch (err) {
     console.error("[getExpiryAlerts]", err);
     return [];
+  }
+}
+
+export async function getLotPlacement(lotId: string): Promise<LotPlacementView | null> {
+  try {
+    await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const tenantId = await getCurrentTenantId();
+    const tp = await requireTenantPrisma();
+
+    const lot = await tp.lot.findUnique({
+      where: { id: lotId, tenantId },
+      include: {
+        product: { select: { name: true } },
+        packaging: { select: { name: true } },
+        inventoryLedgers: { select: { entryType: true, quantityKg: true, quantityUnit: true } },
+        placements: {
+          include: {
+            location: {
+              include: { warehouse: { select: { name: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    if (!lot) return null;
+
+    const inventory = summarizeLotInventory({
+      originalKg: lot.quantityKg,
+      originalUnit: lot.quantityUnit,
+      ledgers: lot.inventoryLedgers,
+      expiryDate: lot.expiryDate,
+      consumedAt: lot.consumedAt,
+    });
+
+    const placementInfos: LotPlacementInfo[] = lot.placements.map((p) => ({
+      locationId: p.locationId,
+      locationName: p.location.name,
+      warehouseName: p.location.warehouse.name,
+      quantityKg: Number(p.quantityKg),
+      quantityUnit: p.quantityUnit,
+      supplyQty: Number(p.supplyQty),
+    }));
+
+    const placedKg = placementInfos.reduce((s, p) => s + p.quantityKg, 0);
+    const placedUnit = placementInfos.reduce((s, p) => s + p.quantityUnit, 0);
+    const placedSupplyQty = placementInfos.reduce((s, p) => s + p.supplyQty, 0);
+
+    return {
+      lotId: lot.id,
+      batchCode: lot.batchCode,
+      productName: lot.product?.name ?? lot.packaging?.name ?? null,
+      placedKg,
+      placedUnit,
+      placedSupplyQty,
+      remainingKg: inventory.remainingKg,
+      remainingUnit: inventory.remainingUnit,
+      unplacedKg: Math.max(0, inventory.remainingKg - placedKg),
+      unplacedUnit: Math.max(0, inventory.remainingUnit - placedUnit),
+      isFullyPlaced: placedKg >= inventory.remainingKg && placedUnit >= inventory.remainingUnit,
+      placements: placementInfos,
+    };
+  } catch (err) {
+    console.error("[getLotPlacement]", err);
+    return null;
   }
 }

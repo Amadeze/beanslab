@@ -180,6 +180,10 @@ const ownedRelations: Record<string, OwnedRelation[]> = {
   Location: [
     { foreignKey: "warehouseId", relation: "warehouse", delegate: "warehouse" },
   ],
+  LotPlacement: [
+    { foreignKey: "lotId", relation: "lot", delegate: "lot" },
+    { foreignKey: "locationId", relation: "location", delegate: "location" },
+  ],
   Warehouse: [],
 };
 

@@ -1,15 +1,34 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Printer, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { CompactHeader } from "@/components/layout/CompactHeader";
-import { traceLot } from "../../lot-actions";
+import { traceLot, getLotPlacement } from "../../lot-actions";
+import { getCurrentTenantId } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { PlacementForm } from "./_components/PlacementForm";
 
 export default async function LotTracePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const result = await traceLot(id);
   if (!("lot" in result)) notFound();
+
+  const placement = await getLotPlacement(id);
+  if (!placement) notFound();
+
+  const tenantId = await getCurrentTenantId();
+  const locations = await prisma.location.findMany({
+    where: { tenantId, isActive: true },
+    select: { id: true, code: true, name: true, warehouse: { select: { name: true } } },
+  });
+
+  const availableLocations = locations.map((loc) => ({
+    id: loc.id,
+    code: loc.code,
+    name: loc.name,
+    warehouseName: loc.warehouse.name,
+  }));
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6 lg:p-8">
@@ -45,6 +64,50 @@ export default async function LotTracePage({ params }: { params: Promise<{ id: s
             </li>
           ))}
         </ol>
+      </GlassPanel>
+
+      <PlacementForm
+        lotId={id}
+        availableLocations={availableLocations}
+        existingPlacements={placement.placements}
+        remainingKg={placement.remainingKg}
+      />
+
+      <GlassPanel padding="lg">
+        <h2 className="mb-4 text-base font-bold">Penempatan Lokasi</h2>
+        {placement.placements.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Lot ini belum ditempatkan di lokasi manapun (Belum Ditempatkan).
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {placement.placements.map((p) => (
+              <div key={p.locationId} className="flex items-center justify-between rounded-md border bg-white/5 p-3">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <span className="font-medium text-sm">{p.locationName}</span>
+                    <span className="text-xs text-muted-foreground"> — {p.warehouseName}</span>
+                  </div>
+                </div>
+                <span className="font-mono text-sm">
+                  {p.quantityKg > 0
+                    ? `${p.quantityKg.toLocaleString("id-ID")} kg`
+                    : p.quantityUnit > 0
+                      ? `${p.quantityUnit} unit`
+                      : `${p.supplyQty.toLocaleString("id-ID")} pcs`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {placement.unplacedKg > 0 && (
+          <div className="mt-4 rounded-md border border-amber-200 bg-amber-50/30 p-3">
+            <p className="text-xs text-amber-800">
+              Belum ditempatkan: {placement.unplacedKg.toLocaleString("id-ID")} kg
+            </p>
+          </div>
+        )}
       </GlassPanel>
     </div>
   );

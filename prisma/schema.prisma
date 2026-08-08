@@ -437,6 +437,7 @@ model Tenant {
   roastProfiles                    RoastProfile[]
   warehouses                       Warehouse[]
   locations                        Location[]
+  lotPlacements                    LotPlacement[]
 
   @@map("tenants")
 }
@@ -1738,6 +1739,7 @@ model Lot {
   purchase         Purchase?            @relation(fields: [purchaseId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   inventoryLedgers InventoryLedger[]
+  placements       LotPlacement[]
 
   @@unique([tenantId, batchCode], map: "lots_tenantId_batchCode_unique")
   @@index([tenantId])
@@ -2614,10 +2616,41 @@ model Location {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  warehouse  Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  placements LotPlacement[]
 
   @@unique([tenantId, warehouseId, code])
   @@index([tenantId, warehouseId, isDefault])
   @@map("locations")
+}
+
+// =============================================================================
+// TABLE S3 · LotPlacement  — SMART STORAGE EPIC
+// Records how much of a canonical Lot is physically positioned in a Location.
+// Sum of quantityKg across placements for a lot MUST NOT exceed the lot's
+// remaining (ledger-adjusted) balance. Historical lots without placement
+// remain "Belum Ditempatkan".
+// =============================================================================
+
+model LotPlacement {
+  id           String  @id @default(cuid())
+  tenantId     String
+  lotId        String
+  locationId   String
+  quantityKg   Decimal @db.Decimal(12, 3) // berat yang ditempatkan di lokasi ini
+  quantityUnit Int     @default(0) // unit yang ditempatkan (FG / packaging)
+  supplyQty    Decimal @default(0) @db.Decimal(12, 3) // supply baseUnit yang ditempatkan
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lot      Lot      @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, lotId, locationId])
+  @@index([tenantId, locationId])
+  @@index([tenantId, lotId])
+  @@map("lot_placements")
 }

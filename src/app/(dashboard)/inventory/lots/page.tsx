@@ -44,6 +44,7 @@ function LotsTable({ lots }: { lots: LotRow[] }) {
             <TableHead>Supplier</TableHead>
             <TableHead className="text-right">Sisa (kg)</TableHead>
             <TableHead className="text-right">Sisa (unit)</TableHead>
+            <TableHead className="text-right">Penempatan</TableHead>
             <TableHead>Review Mutu</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-[116px]"></TableHead>
@@ -64,8 +65,18 @@ function LotsTable({ lots }: { lots: LotRow[] }) {
                 </div>
               </TableCell>
               <TableCell className="text-right font-mono">{lot.quantityKg.toLocaleString("id-ID")}</TableCell>
-              <TableCell className="text-right font-mono">{lot.quantityUnit.toLocaleString("id-ID")}</TableCell>
-              <TableCell className="text-xs">
+               <TableCell className="text-right font-mono">{lot.quantityUnit.toLocaleString("id-ID")}</TableCell>
+              <TableCell className="text-right">
+                {lot.quantityKg > 0 ? (
+                  <>
+                    <span className="font-mono">{lot.placedKg.toLocaleString("id-ID")} kg</span>
+                    <span className="text-xs text-muted-foreground"> / {lot.quantityKg.toLocaleString("id-ID")} kg</span>
+                  </>
+                ) : lot.quantityUnit > 0 ? (
+                  <span className="font-mono">{lot.quantityUnit.toLocaleString("id-ID")} unit</span>
+                ) : "-"}
+              </TableCell>
+               <TableCell className="text-xs">
                 {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "-"}
               </TableCell>
               <TableCell><ExpiryBadge status={lot.status} /></TableCell>
