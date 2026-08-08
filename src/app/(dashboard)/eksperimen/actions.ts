@@ -59,6 +59,8 @@ export type ExperimentalProductionRow = {
   createdAt: string;
   notes: string | null;
   componentCount: number;
+  parentRoastBatchId: string | null;
+  parentRoastBatchCode: string | null;
 };
 
 export type ExperimentalPageData = {
@@ -185,6 +187,7 @@ async function fetchBatchHistory(): Promise<ExperimentalProductionRow[]> {
     include: {
       outputProduct: { select: { name: true } },
       components: true,
+      parentRoastBatch: { select: { id: true, code: true } },
     },
   });
 
@@ -201,6 +204,8 @@ async function fetchBatchHistory(): Promise<ExperimentalProductionRow[]> {
     createdAt: b.createdAt.toISOString(),
     notes: b.notes,
     componentCount: b.components.length,
+    parentRoastBatchId: b.parentRoastBatch?.id ?? null,
+    parentRoastBatchCode: b.parentRoastBatch?.code ?? null,
   }));
 }
 

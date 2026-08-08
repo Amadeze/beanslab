@@ -125,6 +125,8 @@ export type ProductionBatchRow = {
   status: string;
   notes: string | null;
   recipeUsed: string | null;
+  parentRoastBatchId: string | null;
+  parentRoastBatchCode: string | null;
 };
 
 export type ProductionPageData = {
@@ -286,6 +288,7 @@ async function fetchBatchHistory(): Promise<ProductionBatchRow[]> {
       outputProduct: { select: { name: true } },
       packaging:     { select: { name: true } },
       recipe:        { select: { name: true } },
+      parentRoastBatch: { select: { id: true, code: true } },
     },
   });
 
@@ -303,6 +306,8 @@ async function fetchBatchHistory(): Promise<ProductionBatchRow[]> {
     status:            b.status,
     notes:             b.notes,
     recipeUsed:        b.recipe?.name ?? null,
+    parentRoastBatchId: b.parentRoastBatch?.id ?? null,
+    parentRoastBatchCode: b.parentRoastBatch?.code ?? null,
   }));
 }
 

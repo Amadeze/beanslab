@@ -59,6 +59,7 @@ export type ParentRoastingBatchRow = {
   machineName: string | null;
   referenceProfile: { id: string; title: string } | null;
   childBatches: ChildBatchRow[];
+  downstreamBatches: Array<{ type: string; code: string; id: string }>;
 };
 
 export type MachineOption = {
@@ -264,6 +265,40 @@ async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
     : [];
   const childRoastMap = new Map(childRoasts.map((r) => [r.id, r]));
 
+  // Fetch downstream batches (production, grinding, experimental)
+  const batchIds = batches.map((b) => b.id);
+  const [productionChildren, grindingChildren, experimentalChildren] = await Promise.all([
+    (await requireTenantPrisma()).productionBatch.findMany({
+      where: { parentRoastBatchId: { in: batchIds } },
+      select: { id: true, code: true, parentRoastBatchId: true },
+    }),
+    (await requireTenantPrisma()).grindingBatch.findMany({
+      where: { parentRoastBatchId: { in: batchIds } },
+      select: { id: true, code: true, parentRoastBatchId: true },
+    }),
+    (await requireTenantPrisma()).experimentalProduction.findMany({
+      where: { parentRoastBatchId: { in: batchIds } },
+      select: { id: true, code: true, parentRoastBatchId: true },
+    }),
+  ]);
+
+  const downstreamMap = new Map<string, Array<{ type: string; code: string; id: string }>>();
+  for (const p of productionChildren) {
+    const arr = downstreamMap.get(p.parentRoastBatchId!) ?? [];
+    arr.push({ type: "PRD", code: p.code, id: p.id });
+    downstreamMap.set(p.parentRoastBatchId!, arr);
+  }
+  for (const g of grindingChildren) {
+    const arr = downstreamMap.get(g.parentRoastBatchId!) ?? [];
+    arr.push({ type: "GRD", code: g.code, id: g.id });
+    downstreamMap.set(g.parentRoastBatchId!, arr);
+  }
+  for (const e of experimentalChildren) {
+    const arr = downstreamMap.get(e.parentRoastBatchId!) ?? [];
+    arr.push({ type: "EXP", code: e.code, id: e.id });
+    downstreamMap.set(e.parentRoastBatchId!, arr);
+  }
+
   return batches.map((b) => ({
     id: b.id,
     code: b.code,
@@ -290,6 +325,7 @@ async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
       roastTitle: c.roastId ? childRoastMap.get(c.roastId)?.title ?? null : null,
       roastedWeightGrams: c.roastId ? childRoastMap.get(c.roastId)?.roastedWeightGrams ? Number(childRoastMap.get(c.roastId)!.roastedWeightGrams) : null : null,
     })),
+    downstreamBatches: downstreamMap.get(b.id) ?? [],
   }));
 }
 

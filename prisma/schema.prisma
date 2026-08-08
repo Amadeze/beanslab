@@ -653,7 +653,7 @@ model Product {
   coffeeSpecies     String? // "ARABICA", "ROBUSTA", "LIBERICA", "EXCELSA", "HIBRIDA", "LAINNYA"
   category          String? // e.g. "Espresso Base", "Specialty"
   origin            String? // asal kopi: "Gayo", "Ethiopia Yirgacheffe", dsb.
-  roastLevel        RoastLevel? // hanya relevan untuk ROASTED_BEAN
+  roastLevel        String? // hanya relevan untuk ROASTED_BEAN — bisa nilai enum default atau custom tenant
   sourceGreenBeanId String? // exact GREEN_BEAN identity used to create this ROASTED_BEAN
   description       String?
   imageUrl          String? // URL gambar produk
@@ -1016,8 +1016,11 @@ model ParentRoastingBatch {
   createdBy     User    @relation(fields: [createdById], references: [id])
   tenant        Tenant  @relation(fields: [tenantId], references: [id])
 
-  childBatches    ChildRoastingBatch[]
-  cuppingSessions CuppingSession[]
+  childBatches            ChildRoastingBatch[]
+  productionBatches       ProductionBatch[]
+  grindingBatches         GrindingBatch[]
+  experimentalProductions ExperimentalProduction[]
+  cuppingSessions         CuppingSession[]
 
   @@unique([tenantId, code])
   @@unique([tenantId, operationKey])
@@ -1064,9 +1067,10 @@ model ProductionBatch {
   code         String // e.g., "PRD-2024-001"
   operationKey String? // Idempotency key supplied by the production command
 
-  recipeId        String? // FK → Recipe (opsional: null jika produksi bebas tanpa template resep)
-  outputProductId String // FK → Product (type = FINISHED_GOODS)
-  packagingId     String // bisa berbeda dari default resep (misal: kehabisan stok)
+  recipeId           String? // FK → Recipe (opsional: null jika produksi bebas tanpa template resep)
+  outputProductId    String // FK → Product (type = FINISHED_GOODS)
+  packagingId        String // bisa berbeda dari default resep (misal: kehabisan stok)
+  parentRoastBatchId String? // FK → ParentRoastingBatch (sumber RB jika berasal dari roasting)
 
   unitsProduced Int // jumlah unit yang diproduksi
   totalRbUsedKg Decimal @db.Decimal(10, 3) // total RB terpakai (kg), dihitung server
@@ -1085,13 +1089,14 @@ model ProductionBatch {
   createdById String
   createdAt   DateTime @default(now())
 
-  recipe        Recipe?                 @relation(fields: [recipeId], references: [id])
-  outputProduct Product                 @relation(fields: [outputProductId], references: [id])
-  packaging     Packaging               @relation(fields: [packagingId], references: [id])
-  createdBy     User                    @relation(fields: [createdById], references: [id])
-  supplyUsages  ProductionSupplyUsage[]
-  tenantId      String
-  tenant        Tenant                  @relation(fields: [tenantId], references: [id])
+  recipe           Recipe?                 @relation(fields: [recipeId], references: [id])
+  outputProduct    Product                 @relation(fields: [outputProductId], references: [id])
+  packaging        Packaging               @relation(fields: [packagingId], references: [id])
+  parentRoastBatch ParentRoastingBatch?    @relation(fields: [parentRoastBatchId], references: [id])
+  createdBy        User                    @relation(fields: [createdById], references: [id])
+  supplyUsages     ProductionSupplyUsage[]
+  tenantId         String
+  tenant           Tenant                  @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, code])
   @@unique([tenantId, operationKey])
@@ -1110,8 +1115,9 @@ model GrindingBatch {
   operationKey String? // Idempotency key supplied by the grinding command
   tenantId     String
 
-  sourceProductId String // FK → Product (type = ROASTED_BEAN)
-  outputProductId String // FK → Product (output ground coffee)
+  sourceProductId    String // FK → Product (type = ROASTED_BEAN)
+  outputProductId    String // FK → Product (output ground coffee)
+  parentRoastBatchId String? // FK → ParentRoastingBatch (sumber RB jika berasal dari roasting)
 
   grindSize        GrindSize
   customGrindLabel String? // diisi jika grindSize = CUSTOM
@@ -1128,11 +1134,12 @@ model GrindingBatch {
   status         TransactionStatus @default(COMPLETED)
   createdAt      DateTime          @default(now())
 
-  sourceProduct Product  @relation("GrindingSource", fields: [sourceProductId], references: [id])
-  outputProduct Product  @relation("GrindingOutput", fields: [outputProductId], references: [id])
-  grinder       Machine? @relation(fields: [grinderId], references: [id])
-  operator      User     @relation(fields: [operatorId], references: [id])
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  sourceProduct    Product              @relation("GrindingSource", fields: [sourceProductId], references: [id])
+  outputProduct    Product              @relation("GrindingOutput", fields: [outputProductId], references: [id])
+  parentRoastBatch ParentRoastingBatch? @relation(fields: [parentRoastBatchId], references: [id])
+  grinder          Machine?             @relation(fields: [grinderId], references: [id])
+  operator         User                 @relation(fields: [operatorId], references: [id])
+  tenant           Tenant               @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, code])
   @@unique([tenantId, operationKey])
@@ -1154,7 +1161,8 @@ model ExperimentalProduction {
   name   String // e.g., "Blend Trial #04"
   status TransactionStatus @default(COMPLETED)
 
-  outputProductId String // FK → Product (auto-created output)
+  outputProductId    String // FK → Product (auto-created output)
+  parentRoastBatchId String? // FK → ParentRoastingBatch (sumber RB jika berasal dari roasting)
 
   inputKg    Decimal @db.Decimal(10, 3)
   outputKg   Decimal @db.Decimal(10, 3)
@@ -1165,10 +1173,11 @@ model ExperimentalProduction {
   createdAt   DateTime @default(now())
   createdById String
 
-  outputProduct Product                           @relation(fields: [outputProductId], references: [id])
-  components    ExperimentalProductionComponent[]
-  operator      User                              @relation(fields: [createdById], references: [id])
-  tenant        Tenant                            @relation(fields: [tenantId], references: [id])
+  outputProduct    Product                           @relation(fields: [outputProductId], references: [id])
+  parentRoastBatch ParentRoastingBatch?              @relation(fields: [parentRoastBatchId], references: [id])
+  components       ExperimentalProductionComponent[]
+  operator         User                              @relation(fields: [createdById], references: [id])
+  tenant           Tenant                            @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, code])
   @@unique([tenantId, operationKey])

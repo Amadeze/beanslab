@@ -52,6 +52,8 @@ export type GrindingBatchRow = {
   createdAt: string;
   notes: string | null;
   batchReference: string | null;
+  parentRoastBatchId: string | null;
+  parentRoastBatchCode: string | null;
 };
 
 export type GrindingPageData = {
@@ -172,6 +174,7 @@ async function fetchBatchHistory(): Promise<GrindingBatchRow[]> {
       outputProduct: { select: { name: true } },
       grinder: { select: { name: true } },
       operator: { select: { name: true } },
+      parentRoastBatch: { select: { id: true, code: true } },
     },
   });
 
@@ -192,6 +195,8 @@ async function fetchBatchHistory(): Promise<GrindingBatchRow[]> {
     createdAt: b.createdAt.toISOString(),
     notes: b.notes,
     batchReference: b.batchReference,
+    parentRoastBatchId: b.parentRoastBatch?.id ?? null,
+    parentRoastBatchCode: b.parentRoastBatch?.code ?? null,
   }));
 }
 
