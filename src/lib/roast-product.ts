@@ -7,6 +7,10 @@ export const ROAST_LEVEL_LABELS = {
 
 export type RoastLevelValue = keyof typeof ROAST_LEVEL_LABELS;
 
+export function getRoastLevelLabel(level: string): string {
+  return ROAST_LEVEL_LABELS[level as RoastLevelValue] ?? level;
+}
+
 /**
  * Removes inventory-state words without guessing the coffee species or origin.
  * "Robusta Malang GB" therefore remains "Robusta Malang".

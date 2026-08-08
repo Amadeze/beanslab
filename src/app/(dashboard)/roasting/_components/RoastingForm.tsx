@@ -22,13 +22,15 @@ import {
 } from "@/components/ui/select";
 import { formatKg } from "@/lib/format";
 import { analyzeRoastOutcome } from "@/lib/roast-intent";
-import { roastedBeanName, type RoastLevelValue } from "@/lib/roast-product";
+import { roastedBeanName, greenBeanIdentity, getRoastLevelLabel, type RoastLevelValue } from "@/lib/roast-product";
 import {
   createParentRoastingBatch,
   type GBStockOption,
   type ParentRoastingBatchRow,
   type RBProductOption,
   type MachineOption,
+  type ReusableRoastProfileRow,
+  type TenantRoastLevelRow,
 } from "../actions";
 
 // =============================================================================
@@ -43,6 +45,12 @@ const ROAST_LEVEL_LABELS: Record<string, string> = {
   DARK:        "Dark",
 };
 
+function buildRoastLevelOptions(customLevels: TenantRoastLevelRow[]) {
+  const defaults = ROAST_LEVELS.map((level) => ({ value: level, label: ROAST_LEVEL_LABELS[level] }));
+  const customs = customLevels.map((l) => ({ value: l.label, label: l.label }));
+  return [...defaults, ...customs];
+}
+
 const schema = z
   .object({
     mode: z.enum(["ARTISAN", "MANUAL"]),
@@ -56,6 +64,7 @@ const schema = z
     actualOutputKg: z.number().optional(),
     notes: z.string().optional(),
     machineId: z.string().optional(),
+    referenceProfileId: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (!data.outputRoastLevel) {
@@ -156,6 +165,8 @@ interface RoastingFormProps {
   rbOptions: RBProductOption[];
   machineOptions: MachineOption[];
   batches: ParentRoastingBatchRow[];
+  reusableProfiles: ReusableRoastProfileRow[];
+  customRoastLevels: TenantRoastLevelRow[];
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
 }
@@ -170,6 +181,8 @@ export function RoastingForm({
   rbOptions,
   machineOptions,
   batches,
+  reusableProfiles,
+  customRoastLevels,
   onSuccess,
   onPendingChange,
 }: RoastingFormProps) {
@@ -200,10 +213,11 @@ export function RoastingForm({
       actualOutputKg: 0,
       notes: "",
       machineId: "",
+      referenceProfileId: "",
     },
   });
 
-  const [mode, inputProductId, targetWeightKg, actualOutputKg, outputMode, outputProductId, outputRoastLevel] = watch([
+  const [mode, inputProductId, targetWeightKg, actualOutputKg, outputMode, outputProductId, outputRoastLevel, referenceProfileId] = watch([
     "mode",
     "inputProductId",
     "targetWeightKg",
@@ -211,6 +225,7 @@ export function RoastingForm({
     "outputMode",
     "outputProductId",
     "outputRoastLevel",
+    "referenceProfileId",
   ]);
 
   const selectedGB = gbOptions.find((g) => g.id === inputProductId);
@@ -274,6 +289,7 @@ export function RoastingForm({
         actualOutputKg: values.actualOutputKg,
         notes: values.notes,
         machineId: values.machineId && values.machineId !== "none" ? values.machineId : undefined,
+        referenceProfileId: values.referenceProfileId || undefined,
       });
 
       if (!result.success) {
@@ -385,6 +401,35 @@ export function RoastingForm({
         <FieldError message={errors.machineId?.message} />
       </FieldGroup>
 
+      {/* ── Profil Roasting ── */}
+      <FieldGroup>
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+          Profil Roasting (Opsional)
+        </Label>
+        <Controller
+          control={control}
+          name="referenceProfileId"
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={(val: string | null) => field.onChange(val ?? "")}>
+              <SelectTrigger className={cn("w-full h-9", glassInput)}>
+                <SelectValue placeholder="Pilih profil target...">
+                  {field.value ? reusableProfiles.find((p) => p.id === field.value)?.name : null}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Tanpa profil</SelectItem>
+                {reusableProfiles.filter((p) => p.isActive).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name} — {p.roastLevel}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        <FieldError message={errors.referenceProfileId?.message} />
+      </FieldGroup>
+
       {/* ── Berat Masuk ── */}
       <FieldGroup>
         <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
@@ -419,13 +464,13 @@ export function RoastingForm({
           render={({ field }) => (
             <Select value={field.value} onValueChange={(val: string | null) => field.onChange(val ?? "")}>
               <SelectTrigger className={cn("w-full h-9", glassInput)}>
-                <SelectValue placeholder="Pilih Light, Medium, atau Dark...">
-                  {field.value ? ROAST_LEVEL_LABELS[field.value] : null}
+                <SelectValue placeholder="Pilih level roasting...">
+                  {field.value ? (ROAST_LEVEL_LABELS[field.value] ?? field.value) : null}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {ROAST_LEVELS.map((level) => (
-                  <SelectItem key={level} value={level}>{ROAST_LEVEL_LABELS[level]}</SelectItem>
+                {buildRoastLevelOptions(customRoastLevels).map((level) => (
+                  <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -435,7 +480,9 @@ export function RoastingForm({
         {selectedGB && outputRoastLevel && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs text-emerald-700">
             <span className="font-semibold">
-              {roastedBeanName(selectedGB.name, outputRoastLevel as RoastLevelValue)}
+              {outputRoastLevel in ROAST_LEVEL_LABELS
+                ? roastedBeanName(selectedGB.name, outputRoastLevel as RoastLevelValue)
+                : `${greenBeanIdentity(selectedGB.name)} · ${outputRoastLevel}`}
             </span>
             <span className="ml-1 text-emerald-600">
               {automaticRb ? "dipakai otomatis" : "akan dibuat otomatis"}
@@ -516,13 +563,13 @@ export function RoastingForm({
                   >
                     <SelectTrigger className={cn("w-full h-9", glassInput)}>
                       <SelectValue placeholder="Pilih level...">
-                        {field.value ? ROAST_LEVEL_LABELS[field.value as keyof typeof ROAST_LEVEL_LABELS] : null}
+                        {field.value ? (ROAST_LEVEL_LABELS[field.value] ?? field.value) : null}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {ROAST_LEVELS.map((rl) => (
-                        <SelectItem key={rl} value={rl}>
-                          {ROAST_LEVEL_LABELS[rl]}
+                      {buildRoastLevelOptions(customRoastLevels).map((level) => (
+                        <SelectItem key={level.value} value={level.value}>
+                          {level.label}
                         </SelectItem>
                       ))}
                     </SelectContent>

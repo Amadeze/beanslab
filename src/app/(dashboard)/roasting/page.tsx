@@ -23,6 +23,8 @@ export default async function RoastingPage({
       rbOptions={data.rbOptions}
       machineOptions={data.machineOptions}
       roastProfiles={roastProfiles}
+      reusableProfiles={data.reusableProfiles}
+      customRoastLevels={data.customRoastLevels}
     />
   );
 }

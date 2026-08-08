@@ -433,6 +433,8 @@ model Tenant {
   paymentNotificationDeliveries    PaymentNotificationDelivery[]
   stockReservations                StockReservation[]
   fulfillmentTasks                 FulfillmentTask[]
+  tenantRoastLevels                TenantRoastLevel[]
+  roastProfiles                    RoastProfile[]
 
   @@map("tenants")
 }
@@ -461,6 +463,27 @@ model PortalTheme {
 }
 
 // =============================================================================
+// TABLE 0.7 · TenantRoastLevel (Custom Roast Level Labels)
+// Tenant-scoped custom roast levels instead of hardcoded enum.
+// =============================================================================
+
+model TenantRoastLevel {
+  id        String   @id @default(cuid())
+  tenantId  String
+  label     String // e.g., "Omni", "Filter", "Espresso", "Nordic", "City+", "Full City"
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, label])
+  @@index([tenantId, isActive])
+  @@map("tenant_roast_levels")
+}
+
+// =============================================================================
 // TABLE 0.8 · Machine (Roaster Machine)
 // =============================================================================
 
@@ -484,10 +507,42 @@ model Machine {
   liveSessions               LiveSession[]
   parentRoastingBatches      ParentRoastingBatch[]
   grindingBatches            GrindingBatch[]
+  roastProfiles              RoastProfile[]
 
   @@unique([tenantId, name])
   @@index([tenantId, isActive])
   @@map("machines")
+}
+
+// =============================================================================
+// TABLE 0.6 · RoastProfile (Reusable Roast Target Profiles)
+// Tenant-scoped configuration for target roast parameters.
+// Actual roast data is stored in Roast (from Artisan/manual).
+// =============================================================================
+
+model RoastProfile {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  name                  String
+  machineId             String?
+  roastLevel            String
+  beanOrigin            String?
+  chargeTemp            Decimal? @db.Decimal(5, 2)
+  targetFirstCrackStart Int?
+  targetFirstCrackEnd   Int?
+  developmentTarget     Decimal? @db.Decimal(5, 2)
+  dropTemp              Decimal? @db.Decimal(5, 2)
+  notes                 String?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  tenant              Tenant                @relation(fields: [tenantId], references: [id])
+  machine             Machine?              @relation(fields: [machineId], references: [id])
+  referenceForBatches ParentRoastingBatch[] @relation("ProfileReferenceRoast")
+
+  @@index([tenantId, isActive])
+  @@map("roast_profiles")
 }
 
 // =============================================================================
@@ -1011,6 +1066,10 @@ model ParentRoastingBatch {
   referenceRoastId String?
   referenceRoast   Roast?  @relation("ParentReferenceRoast", fields: [referenceRoastId], references: [id], onDelete: SetNull)
 
+  referenceProfileId String?
+  referenceProfile   RoastProfile? @relation("ProfileReferenceRoast", fields: [referenceProfileId], references: [id], onDelete: SetNull)
+  profileSnapshot    Json?
+
   inputProduct  Product @relation("RoastingInput", fields: [inputProductId], references: [id])
   outputProduct Product @relation("RoastingOutput", fields: [outputProductId], references: [id])
   createdBy     User    @relation(fields: [createdById], references: [id])
@@ -1026,6 +1085,7 @@ model ParentRoastingBatch {
   @@unique([tenantId, operationKey])
   @@index([tenantId, status, createdAt])
   @@index([referenceRoastId])
+  @@index([referenceProfileId])
   @@map("parent_roasting_batches")
 }
 

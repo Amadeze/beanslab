@@ -73,7 +73,74 @@ export type RoastingPageData = {
   gbOptions: GBStockOption[];
   rbOptions: RBProductOption[];
   machineOptions: MachineOption[];
+  reusableProfiles: ReusableRoastProfileRow[];
+  customRoastLevels: TenantRoastLevelRow[];
 };
+
+export type ReusableRoastProfileRow = {
+  id: string;
+  name: string;
+  machineName: string | null;
+  roastLevel: string;
+  beanOrigin: string | null;
+  chargeTemp: number | null;
+  targetFirstCrackStart: number | null;
+  targetFirstCrackEnd: number | null;
+  developmentTarget: number | null;
+  dropTemp: number | null;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type TenantRoastLevelRow = {
+  id: string;
+  label: string;
+  sortOrder: number;
+  isActive: boolean;
+};
+
+export type CreateRoastProfileInput = {
+  name: string;
+  machineId?: string;
+  roastLevel: string;
+  beanOrigin?: string;
+  chargeTemp?: number;
+  targetFirstCrackStart?: number;
+  targetFirstCrackEnd?: number;
+  developmentTarget?: number;
+  dropTemp?: number;
+  notes?: string;
+};
+
+export type CreateTenantRoastLevelInput = {
+  label: string;
+};
+
+const CreateRoastProfileSchema = z.object({
+  name: z.string().min(2, "Nama profil minimal 2 karakter"),
+  machineId: z.string().optional(),
+  roastLevel: z.string().min(1, "Level roasting wajib diisi"),
+  beanOrigin: z.string().optional(),
+  chargeTemp: z.number().nonnegative().optional(),
+  targetFirstCrackStart: z.number().nonnegative().optional(),
+  targetFirstCrackEnd: z.number().nonnegative().optional(),
+  developmentTarget: z.number().nonnegative().optional(),
+  dropTemp: z.number().nonnegative().optional(),
+  notes: z.string().optional(),
+});
+
+const CreateTenantRoastLevelSchema = z.object({
+  label: z.string().min(2, "Label minimal 2 karakter"),
+});
+
+export type ProfileActionResult =
+  | { success: true; profile: ReusableRoastProfileRow }
+  | { success: false; error: string };
+
+export type RoastLevelActionResult =
+  | { success: true; level: TenantRoastLevelRow }
+  | { success: false; error: string };
 
 export type RoastProfileRow = {
   id: string;
@@ -120,6 +187,7 @@ export type CreateParentRoastingBatchInput = {
   notes?: string;
   lotNumber?: string;
   machineId?: string;
+  referenceProfileId?: string;
 };
 
 const CreateParentRoastingBatchSchema = z.object({
@@ -136,6 +204,7 @@ const CreateParentRoastingBatchSchema = z.object({
   notes: z.string().optional(),
   lotNumber: z.string().optional(),
   machineId: z.string().optional(),
+  referenceProfileId: z.string().optional(),
 });
 
 export type RoastingActionResult =
@@ -329,7 +398,7 @@ async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
   }));
 }
 
-async function fetchMachineOptions(): Promise<MachineOption[]> {
+export async function fetchMachineOptions(): Promise<MachineOption[]> {
   const tp = await requireTenantPrisma();
   const machines = await tp.machine.findMany({
     where: { isActive: true },
@@ -343,19 +412,26 @@ async function fetchMachineOptions(): Promise<MachineOption[]> {
   }));
 }
 
+export async function getMachineOptions(): Promise<MachineOption[]> {
+  await requireRole("OWNER", "MANAGER", "OPERATOR");
+  return fetchMachineOptions();
+}
+
 // =============================================================================
 // PUBLIC SERVER ACTIONS
 // =============================================================================
 
 export async function getRoastingPageData(): Promise<RoastingPageData> {
   await requireRole("OWNER", "MANAGER", "OPERATOR");
-  const [batches, gbOptions, rbOptions, machineOptions] = await Promise.all([
+  const [batches, gbOptions, rbOptions, machineOptions, reusableProfiles, customRoastLevels] = await Promise.all([
     fetchBatchHistory(),
     fetchGBOptions(),
     fetchRBOptions(),
     fetchMachineOptions(),
+    fetchReusableRoastProfiles(),
+    fetchTenantRoastLevels(),
   ]);
-  return { batches, gbOptions, rbOptions, machineOptions };
+  return { batches, gbOptions, rbOptions, machineOptions, reusableProfiles, customRoastLevels };
 }
 
 export async function getRoastProfiles(): Promise<RoastProfileRow[]> {
@@ -641,6 +717,42 @@ export async function createParentRoastingBatch(
         });
       }
 
+      let profileSnapshot: Record<string, unknown> | null = null;
+      if (parsed.referenceProfileId) {
+        const profile = await tx.roastProfile.findFirst({
+          where: { id: parsed.referenceProfileId, tenantId },
+          select: {
+            id: true,
+            name: true,
+            roastLevel: true,
+            machineId: true,
+            beanOrigin: true,
+            chargeTemp: true,
+            targetFirstCrackStart: true,
+            targetFirstCrackEnd: true,
+            developmentTarget: true,
+            dropTemp: true,
+            notes: true,
+          },
+        });
+        if (profile) {
+          profileSnapshot = {
+            id: profile.id,
+            name: profile.name,
+            roastLevel: profile.roastLevel,
+            machineId: profile.machineId,
+            beanOrigin: profile.beanOrigin,
+            chargeTemp: profile.chargeTemp ? Number(profile.chargeTemp) : null,
+            targetFirstCrackStart: profile.targetFirstCrackStart ? Number(profile.targetFirstCrackStart) : null,
+            targetFirstCrackEnd: profile.targetFirstCrackEnd ? Number(profile.targetFirstCrackEnd) : null,
+            developmentTarget: profile.developmentTarget ? Number(profile.developmentTarget) : null,
+            dropTemp: profile.dropTemp ? Number(profile.dropTemp) : null,
+            notes: profile.notes,
+            snapshotAt: new Date().toISOString(),
+          };
+        }
+      }
+
       let outcome: RoastOutcome | undefined;
       if (parsed.mode === "MANUAL") {
         const comparableBatches = await tx.parentRoastingBatch.findMany({
@@ -676,6 +788,8 @@ export async function createParentRoastingBatch(
           completedAt:      parsed.mode === "MANUAL" ? getCurrentDate() : null,
           createdById:      userId,
           machineId:        parsed.machineId || null,
+          referenceProfileId: parsed.referenceProfileId || null,
+          ...(profileSnapshot ? { profileSnapshot } : {}),
         },
       });
 
@@ -1232,6 +1346,396 @@ export async function splitBatchByCapacity(
     return {
       success: false,
       error: err instanceof Error ? err.message : "Gagal split batch.",
+    };
+  }
+}
+
+// =============================================================================
+// REUSABLE ROAST PROFILES
+// =============================================================================
+
+async function fetchReusableRoastProfiles(): Promise<ReusableRoastProfileRow[]> {
+  const tp = await requireTenantPrisma();
+  const profiles = await tp.roastProfile.findMany({
+    orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+    include: { machine: { select: { name: true } } },
+  });
+  return profiles.map((p) => ({
+    id: p.id,
+    name: p.name,
+    machineName: p.machine?.name ?? null,
+    roastLevel: p.roastLevel,
+    beanOrigin: p.beanOrigin,
+    chargeTemp: p.chargeTemp ? Number(p.chargeTemp) : null,
+    targetFirstCrackStart: p.targetFirstCrackStart ? Number(p.targetFirstCrackStart) : null,
+    targetFirstCrackEnd: p.targetFirstCrackEnd ? Number(p.targetFirstCrackEnd) : null,
+    developmentTarget: p.developmentTarget ? Number(p.developmentTarget) : null,
+    dropTemp: p.dropTemp ? Number(p.dropTemp) : null,
+    notes: p.notes,
+    isActive: p.isActive,
+    createdAt: p.createdAt.toISOString(),
+  }));
+}
+
+async function fetchTenantRoastLevels(): Promise<TenantRoastLevelRow[]> {
+  const tp = await requireTenantPrisma();
+  const tenantId = await getCurrentTenantId();
+  const levels = await tp.tenantRoastLevel.findMany({
+    where: { tenantId, isActive: true },
+    orderBy: { sortOrder: "asc" },
+  });
+  return levels.map((l) => ({
+    id: l.id,
+    label: l.label,
+    sortOrder: l.sortOrder,
+    isActive: l.isActive,
+  }));
+}
+
+export async function getReusableRoastProfiles(): Promise<ReusableRoastProfileRow[]> {
+  await requireRole("OWNER", "MANAGER", "OPERATOR");
+  return fetchReusableRoastProfiles();
+}
+
+export async function getTenantRoastLevels(): Promise<TenantRoastLevelRow[]> {
+  await requireRole("OWNER", "MANAGER", "OPERATOR");
+  return fetchTenantRoastLevels();
+}
+
+export async function createRoastProfile(
+  input: CreateRoastProfileInput
+): Promise<ProfileActionResult> {
+  try {
+    await requireRole("OWNER", "MANAGER");
+    const parsed = CreateRoastProfileSchema.parse(input);
+    const userId = await getSystemUserId();
+    const tenantId = await getCurrentTenantId();
+    const tenantPrisma = await requireTenantPrisma();
+
+    if (parsed.machineId) {
+      const machine = await tenantPrisma.machine.findFirst({
+        where: { id: parsed.machineId, tenantId },
+        select: { id: true },
+      });
+      if (!machine) return { success: false, error: "Mesin tidak ditemukan." };
+    }
+
+    const profile = await tenantPrisma.roastProfile.create({
+      data: {
+        tenantId,
+        name: parsed.name,
+        machineId: parsed.machineId ?? null,
+        roastLevel: parsed.roastLevel,
+        beanOrigin: parsed.beanOrigin ?? null,
+        chargeTemp: parsed.chargeTemp ?? null,
+        targetFirstCrackStart: parsed.targetFirstCrackStart ?? null,
+        targetFirstCrackEnd: parsed.targetFirstCrackEnd ?? null,
+        developmentTarget: parsed.developmentTarget ?? null,
+        dropTemp: parsed.dropTemp ?? null,
+        notes: parsed.notes?.trim() || null,
+      },
+    });
+
+    const result: ReusableRoastProfileRow = {
+      id: profile.id,
+      name: profile.name,
+      machineName: null,
+      roastLevel: profile.roastLevel,
+      beanOrigin: profile.beanOrigin,
+      chargeTemp: profile.chargeTemp ? Number(profile.chargeTemp) : null,
+      targetFirstCrackStart: profile.targetFirstCrackStart ? Number(profile.targetFirstCrackStart) : null,
+      targetFirstCrackEnd: profile.targetFirstCrackEnd ? Number(profile.targetFirstCrackEnd) : null,
+      developmentTarget: profile.developmentTarget ? Number(profile.developmentTarget) : null,
+      dropTemp: profile.dropTemp ? Number(profile.dropTemp) : null,
+      notes: profile.notes,
+      isActive: profile.isActive,
+      createdAt: profile.createdAt.toISOString(),
+    };
+
+    await recordAudit(tenantPrisma, {
+      tenantId,
+      userId,
+      action: "CREATE",
+      entityType: "RoastProfile",
+      entityId: profile.id,
+      after: { name: profile.name, roastLevel: profile.roastLevel },
+    });
+
+    revalidatePath("/roasting");
+    return { success: true, profile: result };
+  } catch (err) {
+    console.error("[createRoastProfile]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Gagal membuat profil roasting.",
+    };
+  }
+}
+
+export async function updateRoastProfile(
+  profileId: string,
+  input: CreateRoastProfileInput
+): Promise<ProfileActionResult> {
+  try {
+    await requireRole("OWNER", "MANAGER");
+    const parsed = CreateRoastProfileSchema.parse(input);
+    const userId = await getSystemUserId();
+    const tenantId = await getCurrentTenantId();
+    const tenantPrisma = await requireTenantPrisma();
+
+    const existing = await tenantPrisma.roastProfile.findFirst({
+      where: { id: profileId, tenantId },
+      select: { id: true },
+    });
+    if (!existing) return { success: false, error: "Profil roasting tidak ditemukan." };
+
+    if (parsed.machineId) {
+      const machine = await tenantPrisma.machine.findFirst({
+        where: { id: parsed.machineId, tenantId },
+        select: { id: true },
+      });
+      if (!machine) return { success: false, error: "Mesin tidak ditemukan." };
+    }
+
+    const profile = await tenantPrisma.roastProfile.update({
+      where: { id: profileId },
+      data: {
+        name: parsed.name,
+        machineId: parsed.machineId ?? null,
+        roastLevel: parsed.roastLevel,
+        beanOrigin: parsed.beanOrigin ?? null,
+        chargeTemp: parsed.chargeTemp ?? null,
+        targetFirstCrackStart: parsed.targetFirstCrackStart ?? null,
+        targetFirstCrackEnd: parsed.targetFirstCrackEnd ?? null,
+        developmentTarget: parsed.developmentTarget ?? null,
+        dropTemp: parsed.dropTemp ?? null,
+        notes: parsed.notes?.trim() || null,
+      },
+    });
+
+    const result: ReusableRoastProfileRow = {
+      id: profile.id,
+      name: profile.name,
+      machineName: null,
+      roastLevel: profile.roastLevel,
+      beanOrigin: profile.beanOrigin,
+      chargeTemp: profile.chargeTemp ? Number(profile.chargeTemp) : null,
+      targetFirstCrackStart: profile.targetFirstCrackStart ? Number(profile.targetFirstCrackStart) : null,
+      targetFirstCrackEnd: profile.targetFirstCrackEnd ? Number(profile.targetFirstCrackEnd) : null,
+      developmentTarget: profile.developmentTarget ? Number(profile.developmentTarget) : null,
+      dropTemp: profile.dropTemp ? Number(profile.dropTemp) : null,
+      notes: profile.notes,
+      isActive: profile.isActive,
+      createdAt: profile.createdAt.toISOString(),
+    };
+
+    await recordAudit(tenantPrisma, {
+      tenantId,
+      userId,
+      action: "UPDATE",
+      entityType: "RoastProfile",
+      entityId: profile.id,
+      after: { name: profile.name, roastLevel: profile.roastLevel },
+    });
+
+    revalidatePath("/roasting");
+    return { success: true, profile: result };
+  } catch (err) {
+    console.error("[updateRoastProfile]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Gagal memperbarui profil roasting.",
+    };
+  }
+}
+
+export async function duplicateRoastProfile(
+  profileId: string
+): Promise<ProfileActionResult> {
+  try {
+    await requireRole("OWNER", "MANAGER");
+    const userId = await getSystemUserId();
+    const tenantId = await getCurrentTenantId();
+    const tenantPrisma = await requireTenantPrisma();
+
+    const source = await tenantPrisma.roastProfile.findFirst({
+      where: { id: profileId, tenantId },
+    });
+    if (!source) return { success: false, error: "Profil roasting tidak ditemukan." };
+
+    const profile = await tenantPrisma.roastProfile.create({
+      data: {
+        tenantId,
+        name: `${source.name} (Salinan)`,
+        machineId: source.machineId,
+        roastLevel: source.roastLevel,
+        beanOrigin: source.beanOrigin,
+        chargeTemp: source.chargeTemp,
+        targetFirstCrackStart: source.targetFirstCrackStart,
+        targetFirstCrackEnd: source.targetFirstCrackEnd,
+        developmentTarget: source.developmentTarget,
+        dropTemp: source.dropTemp,
+        notes: source.notes,
+      },
+    });
+
+    const result: ReusableRoastProfileRow = {
+      id: profile.id,
+      name: profile.name,
+      machineName: null,
+      roastLevel: profile.roastLevel,
+      beanOrigin: profile.beanOrigin,
+      chargeTemp: profile.chargeTemp ? Number(profile.chargeTemp) : null,
+      targetFirstCrackStart: profile.targetFirstCrackStart ? Number(profile.targetFirstCrackStart) : null,
+      targetFirstCrackEnd: profile.targetFirstCrackEnd ? Number(profile.targetFirstCrackEnd) : null,
+      developmentTarget: profile.developmentTarget ? Number(profile.developmentTarget) : null,
+      dropTemp: profile.dropTemp ? Number(profile.dropTemp) : null,
+      notes: profile.notes,
+      isActive: profile.isActive,
+      createdAt: profile.createdAt.toISOString(),
+    };
+
+    await recordAudit(tenantPrisma, {
+      tenantId,
+      userId,
+      action: "CREATE",
+      entityType: "RoastProfile",
+      entityId: profile.id,
+      metadata: { duplicatedFrom: profileId },
+    });
+
+    revalidatePath("/roasting");
+    return { success: true, profile: result };
+  } catch (err) {
+    console.error("[duplicateRoastProfile]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Gagal menduplikasi profil roasting.",
+    };
+  }
+}
+
+export async function archiveRoastProfile(
+  profileId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    await requireRole("OWNER", "MANAGER");
+    const userId = await getSystemUserId();
+    const tenantId = await getCurrentTenantId();
+    const tenantPrisma = await requireTenantPrisma();
+
+    const existing = await tenantPrisma.roastProfile.findFirst({
+      where: { id: profileId, tenantId },
+      select: { id: true, isActive: true },
+    });
+    if (!existing) return { success: false, error: "Profil roasting tidak ditemukan." };
+
+    await tenantPrisma.roastProfile.update({
+      where: { id: profileId },
+      data: { isActive: !existing.isActive },
+    });
+
+    await recordAudit(tenantPrisma, {
+      tenantId,
+      userId,
+      action: "UPDATE",
+      entityType: "RoastProfile",
+      entityId: profileId,
+      after: { isActive: !existing.isActive },
+    });
+
+    revalidatePath("/roasting");
+    return { success: true };
+  } catch (err) {
+    console.error("[archiveRoastProfile]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Gagal mengarsipkan profil roasting.",
+    };
+  }
+}
+
+export async function createTenantRoastLevel(
+  input: CreateTenantRoastLevelInput
+): Promise<RoastLevelActionResult> {
+  try {
+    await requireRole("OWNER", "MANAGER");
+    const parsed = CreateTenantRoastLevelSchema.parse(input);
+    const userId = await getSystemUserId();
+    const tenantId = await getCurrentTenantId();
+    const tenantPrisma = await requireTenantPrisma();
+
+    const level = await tenantPrisma.tenantRoastLevel.create({
+      data: {
+        tenantId,
+        label: parsed.label.trim(),
+      },
+    });
+
+    const result: TenantRoastLevelRow = {
+      id: level.id,
+      label: level.label,
+      sortOrder: level.sortOrder,
+      isActive: level.isActive,
+    };
+
+    await recordAudit(tenantPrisma, {
+      tenantId,
+      userId,
+      action: "CREATE",
+      entityType: "TenantRoastLevel",
+      entityId: level.id,
+      after: { label: level.label },
+    });
+
+    revalidatePath("/roasting");
+    return { success: true, level: result };
+  } catch (err) {
+    console.error("[createTenantRoastLevel]", err);
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return { success: false, error: "Level roasting ini sudah ada." };
+    }
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Gagal menambahkan level roasting.",
+    };
+  }
+}
+
+export async function deleteTenantRoastLevel(
+  levelId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    await requireRole("OWNER", "MANAGER");
+    const userId = await getSystemUserId();
+    const tenantId = await getCurrentTenantId();
+    const tenantPrisma = await requireTenantPrisma();
+
+    const existing = await tenantPrisma.tenantRoastLevel.findFirst({
+      where: { id: levelId, tenantId },
+      select: { id: true },
+    });
+    if (!existing) return { success: false, error: "Level roasting tidak ditemukan." };
+
+    await tenantPrisma.tenantRoastLevel.delete({
+      where: { id: levelId },
+    });
+
+    await recordAudit(tenantPrisma, {
+      tenantId,
+      userId,
+      action: "DELETE",
+      entityType: "TenantRoastLevel",
+      entityId: levelId,
+    });
+
+    revalidatePath("/roasting");
+    return { success: true };
+  } catch (err) {
+    console.error("[deleteTenantRoastLevel]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Gagal menghapus level roasting.",
     };
   }
 }

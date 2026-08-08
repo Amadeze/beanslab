@@ -20,6 +20,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Sparkles,
+  Target,
   WalletCards,
 } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
@@ -114,6 +115,13 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         shortLabel: "Roast",
         href: "/roasting",
         icon: Flame,
+        tone: "roasting",
+      },
+      {
+        label: "Profil Roasting",
+        shortLabel: "Profil",
+        href: "/roasting/profiles",
+        icon: Target,
         tone: "roasting",
       },
       {
