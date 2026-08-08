@@ -578,3 +578,27 @@ export async function postSampleUsage(
     lines,
   }, options);
 }
+
+export async function postGrindingBatch(
+  batchId: string,
+  totalRbCost: number,
+  grindingCost: number,
+  outputProductName: string,
+  options: PostingOptions = {},
+): Promise<string> {
+  const totalCost = totalRbCost + grindingCost;
+  const lines: PostingLine[] = [
+    { accountCode: "1-1220", debit: totalCost, credit: 0 },
+    { accountCode: "1-1210", debit: 0, credit: totalRbCost },
+  ];
+  if (grindingCost > 0) {
+    lines.push({ accountCode: "5-1010", debit: 0, credit: grindingCost });
+  }
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Grinding: ${outputProductName}`,
+    reference: batchId,
+    refType: "GRINDING",
+    lines,
+  }, options);
+}

@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import {
   Boxes,
   ClipboardList,
+  Coffee,
   Factory,
   Flame,
   FlaskConical,
@@ -61,6 +62,7 @@ const WORKSPACES = {
       query: "tab=profiles",
       icon: Waves,
     },
+    { label: "Penggilingan", href: "/grinding", icon: Coffee },
     { label: "Produksi & packing", href: "/produksi", icon: Factory },
     { label: "Cupping", href: "/cupping", icon: FlaskConical },
   ],

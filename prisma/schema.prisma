@@ -55,6 +55,17 @@ enum RoastLevel {
   DARK
 }
 
+enum GrindSize {
+  WHOLE_BEAN
+  COARSE
+  MEDIUM_COARSE
+  MEDIUM
+  MEDIUM_FINE
+  FINE
+  ESPRESSO
+  CUSTOM
+}
+
 enum PurchaseType {
   GREEN_BEAN // pembelian biji kopi mentah
   PACKAGING // pembelian bahan kemasan (legacy; write baru pakai SUPPLY)
@@ -212,6 +223,7 @@ enum JournalRefType {
   ADJUSTMENT
   PRODUCTION
   ROASTING
+  GRINDING
   SALE
   PURCHASE
   VOID_REVERSAL
@@ -282,6 +294,8 @@ enum LedgerRefType {
   SUPPLY_PRODUCTION_OUT // Supply keluar ke produksi
   SUPPLY_ADJUSTMENT_IN // Penyesuaian stok supply masuk (Opname)
   SUPPLY_ADJUSTMENT_OUT // Penyesuaian stok supply keluar (Opname)
+  GRINDING_RB_OUT // Roasted Bean keluar ke grinding
+  GRINDING_FG_IN // Ground Coffee masuk dari grinding
 }
 
 // =============================================================================
@@ -406,6 +420,7 @@ model Tenant {
   portalTheme                   PortalTheme?
   budgets                       Budget[]
   cuppingSessions               CuppingSession[]
+  grindingBatches               GrindingBatch[]
   contracts                     Contract[]
   contractPrices                ContractPrice[]
   tenantPaymentMethods          TenantPaymentMethod[]
@@ -463,6 +478,7 @@ model Machine {
   roasts                     Roast[]
   liveSessions               LiveSession[]
   parentRoastingBatches      ParentRoastingBatch[]
+  grindingBatches            GrindingBatch[]
 
   @@unique([tenantId, name])
   @@index([tenantId, isActive])
@@ -529,6 +545,7 @@ model User {
   studioDeviceAuthorizations StudioDeviceAuthorization[] @relation("StudioDeviceAuthorizationApprover")
   authorizedRoastdStudios    RoastdStudio[]              @relation("RoastdStudioAuthorizer")
   sampleUsages               SampleUsage[]
+  grindingBatches            GrindingBatch[]
   reviewedPaymentSubmissions PaymentSubmission[]         @relation("PaymentSubmissionReviewer")
   tenantId                   String
   tenant                     Tenant                      @relation(fields: [tenantId], references: [id])
@@ -672,6 +689,8 @@ model Product {
   recipeItems       RecipeItem[]
   recipes           Recipe[]
   productionBatches ProductionBatch[]
+  grindingSources   GrindingBatch[]   @relation("GrindingSource")
+  grindingOutputs   GrindingBatch[]   @relation("GrindingOutput")
 
   // Relasi hilir
   invoiceItems      InvoiceItem[]
@@ -1069,6 +1088,47 @@ model ProductionBatch {
   @@unique([tenantId, operationKey])
   @@index([tenantId, status, producedAt])
   @@map("production_batches")
+}
+
+// =============================================================================
+// TABLE 10C · GrindingBatch (Penggilingan)
+// Transformasi Roasted Bean → Ground Coffee. Bukan roasting kedua.
+// =============================================================================
+
+model GrindingBatch {
+  id           String  @id @default(cuid())
+  code         String // e.g., "GRD-2024-001"
+  operationKey String? // Idempotency key supplied by the grinding command
+  tenantId     String
+
+  sourceProductId String // FK → Product (type = ROASTED_BEAN)
+  outputProductId String // FK → Product (output ground coffee)
+
+  grindSize        GrindSize
+  customGrindLabel String? // diisi jika grindSize = CUSTOM
+  grinderId        String? // FK → Machine (opsional)
+  operatorId       String // FK → User
+
+  inputKg      Decimal  @db.Decimal(10, 3) // berat RB masuk
+  outputKg     Decimal  @db.Decimal(10, 3) // berat ground coffee hasil
+  lossKg       Decimal  @db.Decimal(10, 3) // susut (input - output)
+  grindingCost Decimal? @default(0) @db.Decimal(14, 2) // biaya tenaga/operasional grinding
+
+  batchReference String? // referensi batch/roast
+  notes          String?
+  status         TransactionStatus @default(COMPLETED)
+  createdAt      DateTime          @default(now())
+
+  sourceProduct Product  @relation("GrindingSource", fields: [sourceProductId], references: [id])
+  outputProduct Product  @relation("GrindingOutput", fields: [outputProductId], references: [id])
+  grinder       Machine? @relation(fields: [grinderId], references: [id])
+  operator      User     @relation(fields: [operatorId], references: [id])
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, createdAt])
+  @@map("grinding_batches")
 }
 
 // =============================================================================
