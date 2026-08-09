@@ -2,8 +2,8 @@
 CREATE TYPE "LocationOpnameStatus" AS ENUM ('DRAFT', 'CONFIRMED', 'CANCELLED');
 
 -- Add LOCATION_OPNAME refTypes to LedgerRefType enum (additive)
-ALTER TYPE "LedgerRefType" ADD VALUE "LOCATION_OPNAME_IN";
-ALTER TYPE "LedgerRefType" ADD VALUE "LOCATION_OPNAME_OUT";
+ALTER TYPE "LedgerRefType" ADD VALUE IF NOT EXISTS 'LOCATION_OPNAME_IN';
+ALTER TYPE "LedgerRefType" ADD VALUE IF NOT EXISTS 'LOCATION_OPNAME_OUT';
 
 -- CreateTable
 CREATE TABLE "location_opnames" (
@@ -18,7 +18,7 @@ CREATE TABLE "location_opnames" (
     "countedQuantityUnit" INTEGER,
     "countedSupplyQty" DECIMAL(12,3),
     "notes" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "status" "LocationOpnameStatus" NOT NULL DEFAULT 'DRAFT',
     "confirmedAt" TIMESTAMP(3),
     "confirmedById" TEXT,
     "cancelledAt" TIMESTAMP(3),
@@ -49,7 +49,7 @@ ALTER TABLE "location_opnames" ADD CONSTRAINT "location_opnames_locationId_fkey"
 ALTER TABLE "location_opnames" ADD CONSTRAINT "location_opnames_lotId_fkey" FOREIGN KEY ("lotId") REFERENCES "lots"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "location_opnames" ADD CONSTRAINT "location_opnames_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "location_opnames" ADD CONSTRAINT "location_opnames_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "location_opnames" ADD CONSTRAINT "location_opnames_confirmedById_fkey" FOREIGN KEY ("confirmedById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

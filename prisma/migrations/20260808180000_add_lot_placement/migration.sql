@@ -4,7 +4,7 @@ CREATE TABLE "lot_placements" (
     "tenantId" TEXT NOT NULL,
     "lotId" TEXT NOT NULL,
     "locationId" TEXT NOT NULL,
-    "quantityKg" DECIMAL(12,3) NOT NULL DEFAULT 0,
+    "quantityKg" DECIMAL(12,3) NOT NULL,
     "quantityUnit" INTEGER NOT NULL DEFAULT 0,
     "supplyQty" DECIMAL(12,3) NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

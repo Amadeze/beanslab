@@ -72,12 +72,12 @@ export async function createLocationOpname(input: CreateOpnameInput): Promise<{ 
       select: { quantityKg: true, quantityUnit: true, supplyQty: true },
     });
 
-    const countedKg = Number(input.countedQuantityKg ?? 0);
-    const countedUnit = Number(input.countedQuantityUnit ?? 0);
-    const countedSupply = Number(input.countedSupplyQty ?? 0);
+    const countedKg = input.countedQuantityKg !== undefined ? Number(input.countedQuantityKg) : null;
+    const countedUnit = input.countedQuantityUnit !== undefined ? Number(input.countedQuantityUnit) : null;
+    const countedSupply = input.countedSupplyQty !== undefined ? Number(input.countedSupplyQty) : null;
 
-    if (countedKg === 0 && countedUnit === 0 && countedSupply === 0) {
-      return { success: false, error: "Jumlah terhitung harus lebih dari 0." };
+    if (countedKg === null && countedUnit === null && countedSupply === null) {
+      return { success: false, error: "Jumlah terhitung harus diisi." };
     }
 
     const opname = await tp.locationOpname.create({
@@ -85,12 +85,12 @@ export async function createLocationOpname(input: CreateOpnameInput): Promise<{ 
         tenantId,
         lotId: input.lotId,
         locationId: input.locationId,
-        systemQuantityKg: Number(lot.quantityKg),
-        systemQuantityUnit: Number(lot.quantityUnit),
-        systemSupplyQty: Number(lot.supplyQuantity),
-        countedQuantityKg: countedKg > 0 ? countedKg : null,
-        countedQuantityUnit: countedUnit > 0 ? countedUnit : null,
-        countedSupplyQty: countedSupply > 0 ? countedSupply : null,
+        systemQuantityKg: Number(placement?.quantityKg ?? 0),
+        systemQuantityUnit: Number(placement?.quantityUnit ?? 0),
+        systemSupplyQty: Number(placement?.supplyQty ?? 0),
+        countedQuantityKg: countedKg,
+        countedQuantityUnit: countedUnit,
+        countedSupplyQty: countedSupply,
         notes: input.notes || null,
         createdById: userId,
       },
@@ -134,14 +134,29 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
       if (opname.status === "CONFIRMED") throw new Error("Opname sudah disahkan.");
       if (opname.status === "CANCELLED") throw new Error("Opname sudah dibatalkan.");
 
-      const countedKg = Number(opname.countedQuantityKg ?? 0);
-      const countedUnit = Number(opname.countedQuantityUnit ?? 0);
-      const countedSupply = Number(opname.countedSupplyQty ?? 0);
+      const countedKg = opname.countedQuantityKg !== null ? Number(opname.countedQuantityKg) : null;
+      const countedUnit = opname.countedQuantityUnit !== null ? Number(opname.countedQuantityUnit) : null;
+      const countedSupply = opname.countedSupplyQty !== null ? Number(opname.countedSupplyQty) : null;
       const systemKg = Number(opname.systemQuantityKg);
       const systemUnit = Number(opname.systemQuantityUnit);
       const systemSupply = Number(opname.systemSupplyQty);
 
-      // Update placement to match counted quantity
+      const isProduct = opname.lot.productId != null;
+      const isPackaging = opname.lot.packagingId != null;
+      const isSupply = opname.lot.supplyItemId != null;
+
+      let varianceKg = 0;
+      let varianceUnit = 0;
+      let varianceSupply = 0;
+
+      if (isProduct && countedKg !== null) {
+        varianceKg = countedKg - systemKg;
+      } else if (isPackaging && countedUnit !== null) {
+        varianceUnit = countedUnit - systemUnit;
+      } else if (isSupply && countedSupply !== null) {
+        varianceSupply = countedSupply - systemSupply;
+      }
+
       await tx.lotPlacement.upsert({
         where: {
           tenantId_lotId_locationId: {
@@ -154,70 +169,63 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
           tenantId,
           lotId: opname.lotId,
           locationId: opname.locationId,
-          quantityKg: countedKg,
-          quantityUnit: countedUnit,
-          supplyQty: countedSupply,
+          quantityKg: countedKg ?? 0,
+          quantityUnit: countedUnit ?? 0,
+          supplyQty: countedSupply ?? 0,
         },
         update: {
-          quantityKg: countedKg,
-          quantityUnit: countedUnit,
-          supplyQty: countedSupply,
+          quantityKg: countedKg ?? 0,
+          quantityUnit: countedUnit ?? 0,
+          supplyQty: countedSupply ?? 0,
         },
       });
 
-      // Reconcile canonical ledger for any variance
-      if (opname.lot.productId && countedKg > 0) {
-        const variance = countedKg - systemKg;
-        if (Math.abs(variance) > 0.000001) {
-          await appendLedger(tx, {
-            tenantId,
-            productId: opname.lot.productId,
-            entryType: variance > 0 ? "IN" : "OUT",
-            refType: variance > 0 ? "LOCATION_OPNAME_IN" : "LOCATION_OPNAME_OUT",
-            refId: opnameId,
-            quantityKg: Math.abs(variance),
-            notes: `Koreksi opname lokasi: ${variance > 0 ? "plus" : "minus"} ${Math.abs(variance)}kg`,
-            createdById: userId,
-          });
-        }
-      } else if (opname.lot.packagingId && countedUnit > 0) {
-        const variance = countedUnit - systemUnit;
-        if (Math.abs(variance) > 0) {
-          await appendLedger(tx, {
-            tenantId,
-            packagingId: opname.lot.packagingId,
-            entryType: variance > 0 ? "IN" : "OUT",
-            refType: variance > 0 ? "LOCATION_OPNAME_IN" : "LOCATION_OPNAME_OUT",
-            refId: opnameId,
-            quantityUnit: Math.abs(variance),
-            notes: `Koreksi opname lokasi: ${variance > 0 ? "plus" : "minus"} ${Math.abs(variance)} unit`,
-            createdById: userId,
-          });
-        }
-      } else if (opname.lot.supplyItemId && countedSupply > 0) {
-        const variance = countedSupply - systemSupply;
-        if (Math.abs(variance) > 0.000001) {
-          await appendLedger(tx, {
-            tenantId,
-            supplyItemId: opname.lot.supplyItemId,
-            entryType: variance > 0 ? "IN" : "OUT",
-            refType: variance > 0 ? "LOCATION_OPNAME_IN" : "LOCATION_OPNAME_OUT",
-            refId: opnameId,
-            supplyQuantity: Math.abs(variance),
-            notes: `Koreksi opname lokasi: ${variance > 0 ? "plus" : "minus"} ${Math.abs(variance)} baseUnit`,
-            createdById: userId,
-          });
-        }
+      if (isProduct && Math.abs(varianceKg) > 0.000001) {
+        await appendLedger(tx, {
+          tenantId,
+          productId: opname.lot.productId,
+          entryType: varianceKg > 0 ? "IN" : "OUT",
+          refType: varianceKg > 0 ? "LOCATION_OPNAME_IN" : "LOCATION_OPNAME_OUT",
+          refId: opnameId,
+          quantityKg: Math.abs(varianceKg),
+          notes: `Koreksi opname lokasi: ${varianceKg > 0 ? "plus" : "minus"} ${Math.abs(varianceKg)}kg`,
+          createdById: userId,
+        });
+      } else if (isPackaging && Math.abs(varianceUnit) > 0) {
+        await appendLedger(tx, {
+          tenantId,
+          packagingId: opname.lot.packagingId,
+          entryType: varianceUnit > 0 ? "IN" : "OUT",
+          refType: varianceUnit > 0 ? "LOCATION_OPNAME_IN" : "LOCATION_OPNAME_OUT",
+          refId: opnameId,
+          quantityUnit: Math.abs(varianceUnit),
+          notes: `Koreksi opname lokasi: ${varianceUnit > 0 ? "plus" : "minus"} ${Math.abs(varianceUnit)} unit`,
+          createdById: userId,
+        });
+      } else if (isSupply && Math.abs(varianceSupply) > 0.000001) {
+        await appendLedger(tx, {
+          tenantId,
+          supplyItemId: opname.lot.supplyItemId,
+          entryType: varianceSupply > 0 ? "IN" : "OUT",
+          refType: varianceSupply > 0 ? "LOCATION_OPNAME_IN" : "LOCATION_OPNAME_OUT",
+          refId: opnameId,
+          supplyQuantity: Math.abs(varianceSupply),
+          notes: `Koreksi opname lokasi: ${varianceSupply > 0 ? "plus" : "minus"} ${Math.abs(varianceSupply)} baseUnit`,
+          createdById: userId,
+        });
       }
 
-      await tx.locationOpname.update({
-        where: { id: opnameId },
+      const confirmed = await tx.locationOpname.updateMany({
+        where: { id: opnameId, status: "DRAFT" },
         data: {
           status: "CONFIRMED",
           confirmedAt: new Date(),
           confirmedById: userId,
         },
       });
+      if (confirmed.count === 0) {
+        throw new Error("Opname sudah disahkan oleh proses lain.");
+      }
 
       await recordAudit(tx, {
         tenantId,
@@ -231,9 +239,9 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
           countedKg,
           countedUnit,
           countedSupply,
-          varianceKg: countedKg - systemKg,
-          varianceUnit: countedUnit - systemUnit,
-          varianceSupply: countedSupply - systemSupply,
+          varianceKg,
+          varianceUnit,
+          varianceSupply,
         },
       });
     });
@@ -254,21 +262,17 @@ export async function cancelLocationOpname(opnameId: string, reason?: string): P
     const userId = await getSystemUserId();
     const tp = await requireTenantPrisma();
 
-    const opname = await tp.locationOpname.findUnique({
-      where: { id: opnameId, tenantId },
-      select: { status: true },
-    });
-    if (!opname) return { success: false, error: "Opname tidak ditemukan." };
-    if (opname.status !== "DRAFT") return { success: false, error: "Hanya opname draft yang dapat dibatalkan." };
-
-    await tp.locationOpname.update({
-      where: { id: opnameId, tenantId },
+    const result = await tp.locationOpname.updateMany({
+      where: { id: opnameId, tenantId, status: "DRAFT" },
       data: {
         status: "CANCELLED",
         cancelledAt: new Date(),
         cancelReason: reason || null,
       },
     });
+    if (result.count === 0) {
+      return { success: false, error: "Opname tidak ditemukan atau bukan draft." };
+    }
 
     await recordAudit(tp, {
       tenantId,
@@ -335,9 +339,9 @@ export async function getLocationOpnameDrafts(): Promise<LocationOpnameDraft[]> 
     systemQuantityKg: Number(o.systemQuantityKg ?? 0),
     systemQuantityUnit: o.systemQuantityUnit ?? 0,
     systemSupplyQty: Number(o.systemSupplyQty ?? 0),
-    countedQuantityKg: o.countedQuantityKg ? Number(o.countedQuantityKg) : null,
-    countedQuantityUnit: o.countedQuantityUnit,
-    countedSupplyQty: o.countedSupplyQty ? Number(o.countedSupplyQty) : null,
+    countedQuantityKg: o.countedQuantityKg !== null ? Number(o.countedQuantityKg) : null,
+    countedQuantityUnit: o.countedQuantityUnit !== null ? Number(o.countedQuantityUnit) : null,
+    countedSupplyQty: o.countedSupplyQty !== null ? Number(o.countedSupplyQty) : null,
     varianceKg: Number(o.countedQuantityKg ?? 0) - Number(o.systemQuantityKg ?? 0),
     varianceUnit: (o.countedQuantityUnit ?? 0) - (o.systemQuantityUnit ?? 0),
     varianceSupply: Number(o.countedSupplyQty ?? 0) - Number(o.systemSupplyQty ?? 0),
@@ -398,9 +402,9 @@ export async function getLocationOpnameHistory(): Promise<LocationOpnameDraft[]>
     systemQuantityKg: Number(o.systemQuantityKg ?? 0),
     systemQuantityUnit: o.systemQuantityUnit ?? 0,
     systemSupplyQty: Number(o.systemSupplyQty ?? 0),
-    countedQuantityKg: o.countedQuantityKg ? Number(o.countedQuantityKg) : null,
-    countedQuantityUnit: o.countedQuantityUnit,
-    countedSupplyQty: o.countedSupplyQty ? Number(o.countedSupplyQty) : null,
+    countedQuantityKg: o.countedQuantityKg !== null ? Number(o.countedQuantityKg) : null,
+    countedQuantityUnit: o.countedQuantityUnit !== null ? Number(o.countedQuantityUnit) : null,
+    countedSupplyQty: o.countedSupplyQty !== null ? Number(o.countedSupplyQty) : null,
     varianceKg: Number(o.countedQuantityKg ?? 0) - Number(o.systemQuantityKg ?? 0),
     varianceUnit: (o.countedQuantityUnit ?? 0) - (o.systemQuantityUnit ?? 0),
     varianceSupply: Number(o.countedSupplyQty ?? 0) - Number(o.systemSupplyQty ?? 0),
