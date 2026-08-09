@@ -122,6 +122,7 @@ function buildMockPrisma(overrides: {
       const tx = {
         locationOpname: prisma.locationOpname,
         lotPlacement: {
+          findFirst: prisma.lotPlacement.findFirst,
           upsert: lotPlacementUpsert,
         },
       };

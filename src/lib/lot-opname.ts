@@ -134,16 +134,40 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
       if (opname.status === "CONFIRMED") throw new Error("Opname sudah disahkan.");
       if (opname.status === "CANCELLED") throw new Error("Opname sudah dibatalkan.");
 
+      // Stale-draft guard: physical count must be confirmed against the CURRENT
+      // placement. If quantity changed since the draft was created (e.g. a
+      // legit transfer moved stock out), confirming would silently overwrite
+      // newer placement state and resurrect/destroy quantities.
+      const currentPlacement = await tx.lotPlacement.findFirst({
+        where: { tenantId, lotId: opname.lotId, locationId: opname.locationId },
+        select: { quantityKg: true, quantityUnit: true, supplyQty: true },
+      });
+      const currentKg = Number(currentPlacement?.quantityKg ?? 0);
+      const currentUnit = currentPlacement?.quantityUnit ?? 0;
+      const currentSupply = Number(currentPlacement?.supplyQty ?? 0);
+      const isProduct = opname.lot.productId != null;
+      const isPackaging = opname.lot.packagingId != null;
+      const isSupply = opname.lot.supplyItemId != null;
+
+      const stale = isProduct
+        ? Math.abs(currentKg - Number(opname.systemQuantityKg ?? 0)) > 0.000001
+        : isPackaging
+          ? currentUnit !== Number(opname.systemQuantityUnit ?? 0)
+          : isSupply
+            ? Math.abs(currentSupply - Number(opname.systemSupplyQty ?? 0)) > 0.000001
+            : false;
+      if (stale) {
+        throw new Error(
+          "Stok lokasi berubah sejak draft dibuat. Batalkan draft dan buat opname baru.",
+        );
+      }
+
       const countedKg = opname.countedQuantityKg !== null ? Number(opname.countedQuantityKg) : null;
       const countedUnit = opname.countedQuantityUnit !== null ? Number(opname.countedQuantityUnit) : null;
       const countedSupply = opname.countedSupplyQty !== null ? Number(opname.countedSupplyQty) : null;
       const systemKg = Number(opname.systemQuantityKg);
       const systemUnit = Number(opname.systemQuantityUnit);
       const systemSupply = Number(opname.systemSupplyQty);
-
-      const isProduct = opname.lot.productId != null;
-      const isPackaging = opname.lot.packagingId != null;
-      const isSupply = opname.lot.supplyItemId != null;
 
       let varianceKg = 0;
       let varianceUnit = 0;

@@ -75,7 +75,7 @@ export async function placeLot(data: {
       });
 
       if (!lot) {
-        return { success: false, error: "Lot tidak ditemukan." } as const;
+        throw new Error("LOT_NOT_FOUND");
       }
 
       const inventory = summarizeLotInventory({
@@ -110,19 +110,19 @@ export async function placeLot(data: {
 
       if (lot.productId && Number(lot.quantityKg) > 0) {
         if (Math.round(newTotalKg * 1000) / 1000 > Math.round(inventory.remainingKg * 1000) / 1000) {
-          return { success: false, error: "Total penempatan melebihi stok tersisa lot." } as const;
+          throw new Error("TOTAL_PLACED_EXCEEDS_LOT");
         }
       }
 
       if (lot.packagingId || lot.supplyItemId) {
         if (newTotalUnit > inventory.remainingUnit) {
-          return { success: false, error: "Total penempatan melebihi stok tersisa lot." } as const;
+          throw new Error("TOTAL_PLACED_EXCEEDS_LOT");
         }
       }
 
       if (lot.supplyItemId && newTotalSupply > 0) {
         if (Math.round(newTotalSupply * 1000) / 1000 > Math.round(inventory.remainingUnit * 1000) / 1000) {
-          return { success: false, error: "Total penempatan melebihi stok tersisa lot." } as const;
+          throw new Error("TOTAL_PLACED_EXCEEDS_LOT");
         }
       }
 
@@ -165,6 +165,11 @@ export async function placeLot(data: {
     return { success: true };
   } catch (err) {
     console.error("[placeLot]", err);
+    const msg = err instanceof Error ? err.message : "Gagal menempatkan lot.";
+    if (msg === "LOT_NOT_FOUND") return { success: false, error: "Lot tidak ditemukan." };
+    if (msg === "TOTAL_PLACED_EXCEEDS_LOT") {
+      return { success: false, error: "Total penempatan melebihi stok tersisa lot." };
+    }
     return { success: false, error: "Gagal menempatkan lot." };
   }
 }
