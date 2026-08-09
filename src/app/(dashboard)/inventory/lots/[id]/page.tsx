@@ -8,6 +8,8 @@ import { traceLot, getLotPlacement } from "../../lot-actions";
 import { getCurrentTenantId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PlacementForm } from "./_components/PlacementForm";
+import { TransferDrawer } from "./_components/TransferDrawer";
+import { getTransferHistory } from "@/lib/lot-transfer";
 
 export default async function LotTracePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -29,6 +31,8 @@ export default async function LotTracePage({ params }: { params: Promise<{ id: s
     name: loc.name,
     warehouseName: loc.warehouse.name,
   }));
+
+  const transferHistory = await getTransferHistory(id);
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6 lg:p-8">
@@ -73,6 +77,15 @@ export default async function LotTracePage({ params }: { params: Promise<{ id: s
         remainingKg={placement.remainingKg}
       />
 
+      <div className="flex items-center gap-2">
+        <TransferDrawer
+          lotId={id}
+          availableLocations={availableLocations}
+          existingPlacements={placement.placements}
+          remainingKg={placement.remainingKg}
+        />
+      </div>
+
       <GlassPanel padding="lg">
         <h2 className="mb-4 text-base font-bold">Penempatan Lokasi</h2>
         {placement.placements.length === 0 ? (
@@ -109,6 +122,33 @@ export default async function LotTracePage({ params }: { params: Promise<{ id: s
           </div>
         )}
       </GlassPanel>
+
+      {transferHistory.length > 0 && (
+        <GlassPanel padding="lg">
+          <h2 className="mb-4 text-base font-bold">Riwayat Pindah Lokasi</h2>
+          <div className="space-y-2">
+            {transferHistory.map((t) => (
+              <div key={t.id} className="flex items-center justify-between rounded-md border bg-white/5 p-3 text-sm">
+                <div>
+                  <span className="font-medium text-[var(--text-primary)]">
+                    {t.sourceWarehouseName} — {t.sourceLocationName}
+                  </span>
+                  <span className="text-xs text-[var(--text-tertiary)]"> → </span>
+                  <span className="font-medium text-[var(--text-primary)]">
+                    {t.destinationWarehouseName} — {t.destinationLocationName}
+                  </span>
+                </div>
+                <div className="text-right font-mono text-xs text-[var(--text-tertiary)]">
+                  {t.quantityKg ? `${t.quantityKg.toLocaleString("id-ID")} kg` : ""}
+                  <span className="text-xs text-[var(--text-tertiary)]">
+                    {" "}· {new Date(t.createdAt).toLocaleString("id-ID")}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassPanel>
+      )}
     </div>
   );
 }

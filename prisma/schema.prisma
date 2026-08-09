@@ -438,6 +438,7 @@ model Tenant {
   warehouses                       Warehouse[]
   locations                        Location[]
   lotPlacements                    LotPlacement[]
+  locationTransfers                LocationTransfer[]
 
   @@map("tenants")
 }
@@ -611,6 +612,7 @@ model User {
   grindingBatches            GrindingBatch[]
   experimentalProductions    ExperimentalProduction[]
   reviewedPaymentSubmissions PaymentSubmission[]         @relation("PaymentSubmissionReviewer")
+  locationTransfers          LocationTransfer[]
   tenantId                   String
   tenant                     Tenant                      @relation(fields: [tenantId], references: [id])
 
@@ -1740,6 +1742,7 @@ model Lot {
   tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   inventoryLedgers InventoryLedger[]
   placements       LotPlacement[]
+  transfers        LocationTransfer[]
 
   @@unique([tenantId, batchCode], map: "lots_tenantId_batchCode_unique")
   @@index([tenantId])
@@ -2616,9 +2619,11 @@ model Location {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  warehouse  Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  placements LotPlacement[]
+  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  warehouse    Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  placements   LotPlacement[]
+  outTransfers LocationTransfer[] @relation("SourceLocation")
+  inTransfers  LocationTransfer[] @relation("DestinationLocation")
 
   @@unique([tenantId, warehouseId, code])
   @@index([tenantId, warehouseId, isDefault])
@@ -2653,4 +2658,51 @@ model LotPlacement {
   @@index([tenantId, locationId])
   @@index([tenantId, lotId])
   @@map("lot_placements")
+}
+
+// =============================================================================
+// TABLE S4 · LocationTransfer  — SMART STORAGE EPIC
+// Atomic movement of quantity from one location to another for a given lot.
+// Each transfer adjusts two LotPlacements within a single transaction:
+// source decremented, destination incremented. The source placement must
+// hold enough quantity to cover the transfer amount.
+// =============================================================================
+
+enum LocationTransferStatus {
+  PENDING // dalam proses
+  COMPLETED // selesai
+  VOID // dibatalkan
+}
+
+model LocationTransfer {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  lotId                 String
+  sourceLocationId      String
+  destinationLocationId String
+  quantityKg            Decimal? @db.Decimal(12, 3) // kg yang dipindah (jika product tracked by kg)
+  quantityUnit          Int? // unit yang dipindah (jika product tracked by unit)
+  supplyQty             Decimal? @db.Decimal(12, 3) // supply qty yang dipindah
+
+  notes       String?
+  status      LocationTransferStatus @default(PENDING)
+  completedAt DateTime?
+  voidAt      DateTime?
+  voidReason  String?
+
+  createdAt   DateTime @default(now())
+  createdById String
+  updatedAt   DateTime @updatedAt
+
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lot                 Lot      @relation(fields: [lotId], references: [id])
+  sourceLocation      Location @relation("SourceLocation", fields: [sourceLocationId], references: [id])
+  destinationLocation Location @relation("DestinationLocation", fields: [destinationLocationId], references: [id])
+  createdBy           User     @relation(fields: [createdById], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, lotId])
+  @@index([tenantId, sourceLocationId])
+  @@index([tenantId, destinationLocationId])
+  @@map("location_transfers")
 }
