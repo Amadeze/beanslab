@@ -2,7 +2,6 @@
 
 import { requireRole, requireTenantPrisma, getCurrentTenantId } from "@/lib/auth";
 import { createLocationOpname, confirmLocationOpname, cancelLocationOpname, getLocationOpnameDrafts, getLocationOpnameHistory, type LocationOpnameDraft, type CreateOpnameInput } from "@/lib/lot-opname";
-import { ensureDefaultWarehouse } from "@/lib/storage-location";
 
 export type { LocationOpnameDraft, CreateOpnameInput, OpnameStatus } from "@/lib/lot-opname";
 
@@ -101,6 +100,7 @@ export async function getOpnameWarehouses() {
 }
 
 export async function createOpnameDraft(input: CreateOpnameInput): Promise<{ success: boolean; id?: string; error?: string }> {
+  await requireRole("OWNER", "MANAGER", "OPERATOR");
   return createLocationOpname(input);
 }
 
@@ -122,5 +122,6 @@ export async function getOpnameHistory(): Promise<LocationOpnameDraft[]> {
 
 export async function ensureWarehouse(): Promise<{ warehouseId: string; locationId: string }> {
   const tenantId = await getCurrentTenantId();
+  const { ensureDefaultWarehouse } = await import("@/lib/storage-location");
   return ensureDefaultWarehouse(tenantId);
 }
