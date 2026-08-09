@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, MapPin, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, MapPin, ChevronDown, ChevronRight, LayoutGrid } from "lucide-react";
 import { createWarehouse, updateWarehouse, toggleWarehouseActive, type WarehouseRow } from "../warehouses/actions";
 import { createLocation, updateLocation, toggleLocationActive, type LocationRow } from "../locations/actions";
 
@@ -25,7 +26,7 @@ export function GudangClient({
   locations: LocationRow[];
   qrMap?: Record<string, string>;
 }) {
-  const [activeTab, setActiveTab] = useState<"warehouses" | "locations">("warehouses");
+  const [activeTab, setActiveTab] = useState<"warehouses" | "locations" | "visual">("warehouses");
   const [expandedWarehouse, setExpandedWarehouse] = useState<string | null>(null);
 
   const [showWarehouseForm, setShowWarehouseForm] = useState(false);
@@ -149,6 +150,17 @@ export function GudangClient({
           }`}
         >
           Lokasi
+        </button>
+        <button
+          onClick={() => setActiveTab("visual")}
+          className={`px-4 py-2 text-sm font-semibold transition ${
+            activeTab === "visual"
+              ? "border-b-2 border-[#2B7567] text-[#2B7567]"
+              : "text-[#87CDBC] hover:text-white"
+          }`}
+        >
+          <LayoutGrid size={16} className="inline mr-1" />
+          Visual Map
         </button>
       </div>
 
@@ -369,6 +381,64 @@ export function GudangClient({
                 </div>
               </div>
             ))}
+          </div>
+          </>
+      )}
+
+      {activeTab === "visual" && (
+        <>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">Peta Visual Gudang</h2>
+            <Link href="/gudang/visual" className="flex items-center gap-1 text-sm text-[var(--amber-warm)] hover:underline">
+              <LayoutGrid size={14} /> Buka penuh
+            </Link>
+          </div>
+          <div className="space-y-6">
+            {initialWarehouses.length === 0 ? (
+              <p className="text-sm text-[var(--text-secondary)]">Belum ada gudang untuk ditampilkan.</p>
+            ) : (
+              initialWarehouses.map((w) => {
+                const wLocations = initialLocations.filter((l) => l.warehouseId === w.id);
+                const rackGroups: Record<string, LocationRow[]> = {};
+                wLocations.forEach((l) => {
+                  const rg = l.zone ?? (l.code.split("-")[0] ?? "DEFAULT").toUpperCase();
+                  if (!rackGroups[rg]) rackGroups[rg] = [];
+                  rackGroups[rg].push(l);
+                });
+
+                return (
+                  <div key={w.id} className="glass-card rounded-2xl p-4">
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-2">{w.name} [{w.code}]</h3>
+                    {Object.keys(rackGroups).length === 0 ? (
+                      <p className="text-xs text-[var(--text-tertiary)]">Tidak ada lokasi.</p>
+                    ) : (
+                      Object.entries(rackGroups).map(([rg, locs]) => (
+                        <div key={rg} className="mb-3">
+                          <span className="text-xs font-semibold text-[var(--text-tertiary)]">{rg}</span>
+                          <div className="mt-1 grid grid-cols-[repeat(auto-fill,_minmax(70px,_1fr))] gap-2">
+                            {locs.map((l) => (
+                              <div
+                                key={l.id}
+                                className={`flex h-16 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border p-1 text-center text-xs transition hover:scale-105 ${
+                                  l.isActive
+                                    ? "border-slate-200 bg-slate-50 text-slate-500"
+                                    : "border-slate-300 bg-slate-100 text-slate-400"
+                                }`}
+                                title={l.name}
+                                onClick={() => { window.location.href = `/gudang/scan?code=${l.code}`; }}
+                              >
+                                <span className="font-mono font-semibold">{l.code}</span>
+                                <span className="block max-w-full truncate px-1">{l.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </>
       )}

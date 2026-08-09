@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Printer, MapPin } from "lucide-react";
+import { ArrowLeft, Printer, MapPin, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { CompactHeader } from "@/components/layout/CompactHeader";
@@ -122,6 +122,41 @@ export default async function LotTracePage({ params }: { params: Promise<{ id: s
           </div>
         )}
       </GlassPanel>
+
+      {placement.placements.length > 0 && placement.placedKg > 0 && (
+        <GlassPanel padding="lg">
+          <h2 className="mb-4 text-base font-bold flex items-center gap-2">
+            <BarChart3 size={16} /> Distribusi Lot
+          </h2>
+          <p className="text-sm text-muted-foreground mb-3">
+            {result.lot.batchCode} — Total: {placement.placedKg.toLocaleString("id-ID")} kg
+          </p>
+          <div className="space-y-4">
+            {placement.placements
+              .filter((p) => p.quantityKg > 0)
+              .sort((a, b) => b.quantityKg - a.quantityKg)
+              .map((p) => {
+                const pct = (p.quantityKg / placement.placedKg) * 100;
+                return (
+                  <div key={p.locationId} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium">{p.locationName}</span>
+                      <span className="text-muted-foreground">
+                        {p.quantityKg.toLocaleString("id-ID")} kg ({pct.toFixed(0)}%)
+                      </span>
+                    </div>
+                    <div className="h-3 w-full rounded-full bg-slate-200 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </GlassPanel>
+      )}
 
       {transferHistory.length > 0 && (
         <GlassPanel padding="lg">
