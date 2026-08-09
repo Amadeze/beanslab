@@ -7,6 +7,7 @@ import { recordAudit } from "@/lib/audit";
 import { randomBytes } from "crypto";
 import { getCurrentDate } from "@/lib/date-utils";
 import { postExperimentalProduction, postVoidReversal } from "@/lib/posting";
+import { createLotPlacementInTx } from "@/lib/storage-location";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -77,6 +78,7 @@ export type CreateExperimentalProductionInput = {
   outputKg: number;
   grindingCost?: number;
   notes?: string;
+  destinationLocationId?: string | null;
 };
 
 const CreateExperimentalProductionSchema = z.object({
@@ -94,6 +96,7 @@ const CreateExperimentalProductionSchema = z.object({
   outputKg: z.number().positive("Berat hasil harus lebih dari 0"),
   grindingCost: z.number().nonnegative().optional(),
   notes: z.string().optional(),
+  destinationLocationId: z.string().optional().nullable(),
 }).superRefine((data, ctx) => {
   for (let i = 0; i < data.components.length; i++) {
     const comp = data.components[i];
@@ -428,6 +431,11 @@ export async function createExperimentalProduction(
           receivedAt: getCurrentDate(),
           notes: `Hasil experimental ${batchCode}`,
         },
+      });
+
+      await createLotPlacementInTx(tx, tenantId, outputLot.id, {
+        destinationLocationId: parsed.destinationLocationId,
+        quantityKg: parsed.outputKg,
       });
 
       await appendLedger(tx, {

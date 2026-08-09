@@ -14,18 +14,18 @@ export type CreateSupplyPurchaseInput = {
   operationKey: string;
   supplierId: string;
   supplyItemId: string;
-  /** Kuantitas dalam baseUnit item (pecahan). */
   supplyQuantity: number;
   totalCost: number;
   shippingCost: number;
   paidAmount?: number;
   paymentMethod?: "CASH" | "TRANSFER" | "QRIS";
   dueDate?: string;
-  /** "YYYY-MM-DD" */
   receivedAt: string;
   notes?: string;
   lotNumber?: string;
   bestBeforeDate?: string;
+  /** Optional smart-storage destination location for the created lot. */
+  destinationLocationId?: string | null;
 };
 
 function generateSupplierPaymentCode(receivedAt: Date): string {
@@ -169,6 +169,7 @@ export async function createSupplyPurchase(
             receivedAt,
             supplierId: input.supplierId,
             purchaseId: purchase.id,
+            destinationLocationId: input.destinationLocationId,
           });
 
           await recordAudit(tx, {

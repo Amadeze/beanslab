@@ -11,6 +11,7 @@ import { Prisma } from "@prisma/client";
 import { analyzeRoastOutcome, type RoastOutcome } from "@/lib/roast-intent";
 import { greenBeanIdentity, roastedBeanName, type RoastLevelValue } from "@/lib/roast-product";
 import { postRoastingBatch, postVoidReversal } from "@/lib/posting";
+import { createLotPlacementInTx } from "@/lib/storage-location";
 import { z } from "zod";
 
 // =============================================================================
@@ -178,8 +179,6 @@ export type CreateParentRoastingBatchInput = {
   targetWeightKg: number;
   outputMode: "auto" | "existing" | "new";
   outputProductId?: string;
-
-
   outputProductName?: string;
   outputProductOrigin?: string;
   outputRoastLevel?: string;
@@ -188,6 +187,7 @@ export type CreateParentRoastingBatchInput = {
   lotNumber?: string;
   machineId?: string;
   referenceProfileId?: string;
+  destinationLocationId?: string | null;
 };
 
 const CreateParentRoastingBatchSchema = z.object({
@@ -205,6 +205,7 @@ const CreateParentRoastingBatchSchema = z.object({
   lotNumber: z.string().optional(),
   machineId: z.string().optional(),
   referenceProfileId: z.string().optional(),
+  destinationLocationId: z.string().optional().nullable(),
 });
 
 export type RoastingActionResult =
@@ -854,6 +855,12 @@ export async function createParentRoastingBatch(
             notes: `Hasil roasting ${batch.code}`,
           },
         });
+
+        await createLotPlacementInTx(tx, tenantId, outputLot.id, {
+          destinationLocationId: parsed.destinationLocationId,
+          quantityKg: Number(parsed.actualOutputKg),
+        });
+
         await appendLedger(tx, {
           data: {
             tenantId,
@@ -933,7 +940,8 @@ export async function createParentRoastingBatch(
 
 export async function completeParentRoastingBatch(
   batchId: string,
-  actualOutputKg: number
+  actualOutputKg: number,
+  destinationLocationId?: string | null,
 ): Promise<RoastingActionResult> {
   try {
     await requireRole("OWNER", "MANAGER", "OPERATOR");
@@ -1008,6 +1016,11 @@ export async function completeParentRoastingBatch(
           receivedAt: getCurrentDate(),
           notes: `Hasil roasting ${batch.code}`,
         },
+      });
+
+      await createLotPlacementInTx(tx, tenantId, outputLot.id, {
+        destinationLocationId,
+        quantityKg: actualOutputKg,
       });
 
       await appendLedger(tx, {

@@ -1,4 +1,5 @@
 import { appendLedger } from "./stock";
+import { createLotPlacementInTx } from "./storage-location";
 
 // Flexible type: works with both base PrismaClient and tenant-scoped extended
 // client (mengikuti konvensi stock.ts / audit.ts).
@@ -20,10 +21,12 @@ export type ReceiveSupplyOptions = {
   lotNumber?: string | null;
   expiryDate?: Date | string | null;
   notes?: string | null;
-  receivedAt: Date;
-  supplierId?: string | null;
-  purchaseId?: string | null;
-};
+   receivedAt: Date;
+   supplierId?: string | null;
+   purchaseId?: string | null;
+   /** Smart-storage destination location for the created lot. */
+   destinationLocationId?: string | null;
+ };
 
 /**
  * Terima supply masuk (purchase / receiving): buat Lot bila trackLot=true,
@@ -70,6 +73,13 @@ export async function receiveSupply(
     });
     lotId = lot.id;
     batchCode = lot.batchCode;
+
+    if (opts.destinationLocationId && lotId) {
+      await createLotPlacementInTx(tx, opts.tenantId, lotId, {
+        destinationLocationId: opts.destinationLocationId,
+        supplyQty: opts.quantity,
+      });
+    }
   }
 
   await appendLedger(tx, {

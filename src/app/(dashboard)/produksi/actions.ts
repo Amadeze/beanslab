@@ -9,6 +9,7 @@ import { randomBytes } from "crypto";
 import { normalizeProductionComponents } from "@/lib/operations";
 import { getCurrentDate } from "@/lib/date-utils";
 import { postProductionBatch, postVoidReversal } from "@/lib/posting";
+import { createLotPlacementInTx } from "@/lib/storage-location";
 import { getSupplyProductionHppAccount } from "@/lib/supply-accounts";
 import { Prisma } from "@prisma/client";
 
@@ -32,17 +33,16 @@ export type SupplyComponentInput = {
 export type CreateProductionBatchInput = {
   operationKey: string;
   outputProductId: string;
-  recipeId?: string;           // template yang dipakai sebagai saran (boleh null)
-  /** Legacy: FK langsung ke Packaging (hanya untuk kemasan legacy non-supply). */
+  recipeId?: string;
   packagingId?: string;
-  /** Canonical: FK ke InventorySupplyItem kategori PACKAGING. packagingId di-resolve internal. */
   packagingSupplyItemId?: string;
   unitsProduced: number;
   rbComponents: RBComponentInput[];
   supplyComponents?: SupplyComponentInput[];
-  laborCost?: number;          // biaya tenaga kerja langsung batch ini
-  overheadAllocated?: number;  // biaya overhead kerja dialokasikan ke batch ini
+  laborCost?: number;
+  overheadAllocated?: number;
   notes?: string;
+  destinationLocationId?: string | null;
 };
 
 export type ProductionActionResult =
@@ -740,6 +740,10 @@ export async function createProductionBatch(
           receivedAt: getCurrentDate(),
           notes: `Hasil produksi ${batch.code}`,
         },
+      });
+      await createLotPlacementInTx(tx, tenantId, outputLot.id, {
+        destinationLocationId: input.destinationLocationId,
+        quantityUnit: input.unitsProduced,
       });
       await appendLedger(tx, {
         data: {

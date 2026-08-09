@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 import { appendLedger } from "./stock";
 import { postPurchase } from "./posting";
+import { createLotPlacementInTx } from "./storage-location";
 
 // =============================================================================
 // TYPES
@@ -47,10 +48,14 @@ export type ReceivePOInput = {
   shippingCost?: number;
   paymentMethod?: "CASH" | "TRANSFER" | "CREDIT";
   dueDate?: string;
+  /** Default destination location for all items in this receipt (smart storage). */
+  defaultDestinationLocationId?: string | null;
   items: Array<{
     poItemId: string;
     receivedQuantity: number;
     notes?: string;
+    /** Optional smart-storage location to place the received lot. */
+    destinationLocationId?: string | null;
   }>;
 };
 
@@ -660,6 +665,17 @@ export async function receivePO(
           notes: `Penerimaan ${purchaseCode} dari PO ${poId}`,
         },
       });
+
+      // SMART STORAGE: place received lot into destination location
+      const destLoc = received.destinationLocationId ?? input.defaultDestinationLocationId;
+      if (destLoc) {
+        await createLotPlacementInTx(tx, tenantId, lot.id, {
+          destinationLocationId: destLoc,
+          quantityKg: isProduct ? received.receivedQuantity : 0,
+          quantityUnit: isProduct ? 0 : isSupply ? 0 : Math.round(received.receivedQuantity),
+          supplyQty: isSupply ? received.receivedQuantity : 0,
+        });
+      }
 
       // Create ledger entry + update cached stock + moving average via appendLedger
       if (isSupply && poItem.supplyItemId) {

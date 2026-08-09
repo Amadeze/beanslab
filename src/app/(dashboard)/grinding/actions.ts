@@ -7,6 +7,7 @@ import { recordAudit } from "@/lib/audit";
 import { randomBytes } from "crypto";
 import { getCurrentDate } from "@/lib/date-utils";
 import { postGrindingBatch, postVoidReversal } from "@/lib/posting";
+import { createLotPlacementInTx } from "@/lib/storage-location";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -75,6 +76,7 @@ export type CreateGrindingBatchInput = {
   grindingCost?: number;
   batchReference?: string;
   notes?: string;
+  destinationLocationId?: string | null;
 };
 
 const CreateGrindingBatchSchema = z.object({
@@ -89,6 +91,7 @@ const CreateGrindingBatchSchema = z.object({
   grindingCost: z.number().nonnegative().optional(),
   batchReference: z.string().optional(),
   notes: z.string().optional(),
+  destinationLocationId: z.string().optional().nullable(),
 });
 
 export type GrindingActionResult =
@@ -310,6 +313,11 @@ export async function createGrindingBatch(
           receivedAt: getCurrentDate(),
           notes: `Hasil grinding ${batchCode}`,
         },
+      });
+
+      await createLotPlacementInTx(tx, tenantId, outputLot.id, {
+        destinationLocationId: parsed.destinationLocationId,
+        quantityKg: parsed.outputKg,
       });
 
       await appendLedger(tx, {
