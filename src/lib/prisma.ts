@@ -186,9 +186,15 @@ const ownedRelations: Record<string, OwnedRelation[]> = {
     { foreignKey: "destinationLocationId", relation: "destinationLocation", delegate: "location" },
     { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
   ],
-  LotPlacement: [
+   LotPlacement: [
     { foreignKey: "lotId", relation: "lot", delegate: "lot" },
     { foreignKey: "locationId", relation: "location", delegate: "location" },
+  ],
+  LocationOpname: [
+    { foreignKey: "lotId", relation: "lot", delegate: "lot" },
+    { foreignKey: "locationId", relation: "location", delegate: "location" },
+    { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
+    { foreignKey: "confirmedById", relation: "confirmedBy", delegate: "user" },
   ],
   Warehouse: [],
 };
