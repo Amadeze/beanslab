@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
+import { generateQrDataUrl, encodeLocationQr } from "@/lib/qr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { GudangClient } from "./_components/GudangClient";
 import { WarehouseRow } from "./warehouses/actions";
@@ -46,6 +47,13 @@ export default async function GudangPage() {
     createdAt: loc.createdAt.toISOString(),
   }));
 
+  // Pre-generate QR data URLs for each location (server-side)
+  const qrMap: Record<string, string> = {};
+  for (const loc of rawLocations) {
+    const payload = encodeLocationQr(loc.code);
+    qrMap[loc.id] = await generateQrDataUrl(payload);
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader
@@ -54,7 +62,7 @@ export default async function GudangPage() {
       />
       <div className="custom-scrollbar flex-1 overflow-auto">
         <div className="mx-auto max-w-[1200px] p-4 md:p-6 lg:p-8">
-          <GudangClient warehouses={warehouseRows} locations={locationRows} />
+          <GudangClient warehouses={warehouseRows} locations={locationRows} qrMap={qrMap} />
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import { Loader2, Save, X, Package, Calendar } from "lucide-react";
+import Link from "next/link";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -114,9 +115,17 @@ export function OpnameDraftClient({ items, warehouses }: OpnameDraftClientProps)
               Hitung stok fisik per lot per lokasi. {items.length} lot dengan penempatan aktif.
             </p>
           </div>
-          <button onClick={handleOpenForm} className="flex items-center gap-2 rounded-xl bg-[var(--amber-warm)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition">
-            <Package size={16} /> Buat Draft Opname
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/gudang/scan"
+              className="flex items-center gap-2 rounded-xl border border-[var(--glass-border)] px-4 py-2.5 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--glass-bg-hover)] transition"
+            >
+              <Package size={16} /> Pindai Lokasi
+            </Link>
+            <button onClick={handleOpenForm} className="flex items-center gap-2 rounded-xl bg-[var(--amber-warm)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition">
+              <Package size={16} /> Buat Draft Opname
+            </button>
+          </div>
         </div>
       )}
 

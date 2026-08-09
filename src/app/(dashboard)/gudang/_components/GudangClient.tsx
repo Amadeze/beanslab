@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { toast } from "sonner";
 import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, MapPin, ChevronDown, ChevronRight } from "lucide-react";
 import { createWarehouse, updateWarehouse, toggleWarehouseActive, type WarehouseRow } from "../warehouses/actions";
@@ -18,9 +19,11 @@ const BTN_GHOST_ICON =
 export function GudangClient({
   warehouses: initialWarehouses,
   locations: initialLocations,
+  qrMap = {},
 }: {
   warehouses: WarehouseRow[];
   locations: LocationRow[];
+  qrMap?: Record<string, string>;
 }) {
   const [activeTab, setActiveTab] = useState<"warehouses" | "locations">("warehouses");
   const [expandedWarehouse, setExpandedWarehouse] = useState<string | null>(null);
@@ -245,6 +248,18 @@ export function GudangClient({
                           {l.zone && <p className="text-xs text-[var(--text-tertiary)]">Zona: {l.zone}</p>}
                         </div>
                         <div className="flex items-center gap-1">
+                          {qrMap[l.id] && (
+                            <button
+                              onClick={() => {
+                                const w = window.open("/gudang/scan", "_blank");
+                                if (w) w.focus();
+                              }}
+                              className={BTN_GHOST_ICON}
+                              title="Lihat QR / Pindai"
+                            >
+                              <Image src={qrMap[l.id]} alt={`QR ${l.code}`} width={32} height={32} className="h-8 w-8 rounded" />
+                            </button>
+                          )}
                           <button onClick={() => startEditLocation(l)} className={BTN_GHOST_ICON} title="Edit">
                             <Pencil size={14} />
                           </button>
