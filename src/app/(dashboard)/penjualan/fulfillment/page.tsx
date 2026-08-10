@@ -20,7 +20,7 @@ export default async function FulfillmentPage() {
     select: {
       id: true, code: true, fulfillmentStatus: true, issuedAt: true, trackingNumber: true,
       customer: { select: { name: true } },
-      fulfillmentTasks: { where: { status: { in: ["OPEN", "IN_PROGRESS"] } }, select: { id: true, shortageQuantity: true, product: { select: { name: true } } } },
+      fulfillmentTasks: { where: { status: { in: ["OPEN", "IN_PROGRESS"] } }, select: { id: true, shortageQuantity: true, product: { select: { id: true, name: true } } } },
     },
   });
   const productionUnits = invoices.flatMap((invoice) => invoice.fulfillmentTasks).reduce((sum, task) => sum + task.shortageQuantity, 0);
@@ -33,7 +33,7 @@ export default async function FulfillmentPage() {
         {invoices.map((invoice) => <article key={invoice.id} className="grid gap-4 rounded-xl border border-stone-200 bg-white p-4 md:grid-cols-[1fr_auto] md:items-center">
           <div><div className="flex flex-wrap items-center gap-2"><strong className="text-sm text-stone-900">{invoice.code}</strong><span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-bold uppercase text-stone-600">{statusLabel[invoice.fulfillmentStatus]}</span></div><p className="mt-1 text-xs text-stone-500">{invoice.customer.name} · {invoice.issuedAt.toLocaleString("id-ID")}</p>
           {invoice.fulfillmentTasks.length ? <ul className="mt-3 grid gap-1 text-xs text-amber-800">{invoice.fulfillmentTasks.map((task) => <li key={task.id}>Produksi {task.shortageQuantity} unit · {task.product.name}</li>)}</ul> : invoice.trackingNumber ? <p className="mt-2 text-xs text-emerald-700">Resi {invoice.trackingNumber}</p> : null}</div>
-          <div className="flex gap-2">{invoice.fulfillmentTasks.length ? <Link href="/produksi" className="inline-flex h-9 items-center rounded-lg bg-amber-700 px-3 text-xs font-bold text-white">Buka produksi</Link> : null}<Link href="/penjualan" className="inline-flex h-9 items-center rounded-lg border border-stone-300 px-3 text-xs font-bold">Buka pesanan</Link></div>
+          <div className="flex gap-2">{invoice.fulfillmentTasks.length ? invoice.fulfillmentTasks.map((task) => <Link key={task.id} href={`/produksi?productId=${encodeURIComponent(task.product.id)}&units=${task.shortageQuantity}`} className="inline-flex h-9 items-center rounded-lg bg-amber-700 px-3 text-xs font-bold text-white">Produksi {task.shortageQuantity}</Link>) : null}<Link href="/penjualan" className="inline-flex h-9 items-center rounded-lg border border-stone-300 px-3 text-xs font-bold">Buka pesanan</Link></div>
         </article>)}
       </div>}
     </div></div>
