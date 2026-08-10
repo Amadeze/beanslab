@@ -1,4 +1,5 @@
 import { appendFefoLedgerOut } from "./stock";
+import { postSalesInvoice } from "./posting";
 
 // Kept structural so the helper works with both PrismaClient and a transaction client.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,29 +82,11 @@ export async function reserveInvoiceStock(
   return { hasShortage };
 }
 
-export async function consumeInvoiceReservations(
+export async function markInvoicePaidForFulfillment(
   tx: StorefrontTx,
   input: { tenantId: string; invoiceId: string; invoiceCode: string; createdById: string; now?: Date },
 ) {
   const now = input.now ?? new Date();
-  const reservations = await tx.stockReservation.findMany({
-    where: { tenantId: input.tenantId, invoiceId: input.invoiceId, status: "ACTIVE" },
-  });
-  for (const reservation of reservations) {
-    await appendFefoLedgerOut(tx, {
-      tenantId: input.tenantId,
-      productId: reservation.productId,
-      refType: "SALE_FG_OUT",
-      refId: input.invoiceId,
-      quantityUnit: reservation.quantity,
-      notes: `Storefront dibayar: ${input.invoiceCode}`,
-      createdById: input.createdById,
-    });
-    await tx.stockReservation.update({
-      where: { id: reservation.id },
-      data: { status: "CONSUMED", consumedAt: now },
-    });
-  }
   const openTasks = await tx.fulfillmentTask.count({
     where: { tenantId: input.tenantId, invoiceId: input.invoiceId, status: { in: ["OPEN", "IN_PROGRESS"] } },
   });
@@ -114,7 +97,76 @@ export async function consumeInvoiceReservations(
       fulfillmentStatus: openTasks > 0 ? "NEEDS_PRODUCTION" : "READY_TO_PACK",
     },
   });
-  return { consumedReservations: reservations.length, hasOpenTasks: openTasks > 0 };
+  return { consumedReservations: 0, hasOpenTasks: openTasks > 0 };
+}
+
+export async function fulfillInvoiceAtHandover(
+  tx: StorefrontTx,
+  input: { tenantId: string; invoiceId: string; createdById: string; now?: Date },
+) {
+  const now = input.now ?? new Date();
+  const invoice = await tx.invoice.findFirst({
+    where: { id: input.invoiceId, tenantId: input.tenantId },
+    include: {
+      customer: { select: { name: true } },
+      items: { select: { productId: true, quantity: true, hpp: true, product: { select: { type: true } } } },
+    },
+  });
+  if (!invoice) throw new Error("Invoice tidak ditemukan.");
+  if (invoice.fulfillmentStatus === "DELIVERED") return { alreadyFulfilled: true };
+  if (invoice.status === "VOID" || invoice.status === "RETURNED") throw new Error("Invoice tidak dapat diserahkan.");
+
+  const openTasks = await tx.fulfillmentTask.count({
+    where: { tenantId: input.tenantId, invoiceId: invoice.id, status: { in: ["OPEN", "IN_PROGRESS"] } },
+  });
+  if (openTasks > 0) throw new Error("Produksi untuk pesanan ini belum selesai.");
+
+  const reservations = await tx.stockReservation.findMany({
+    where: { tenantId: input.tenantId, invoiceId: invoice.id, status: "ACTIVE" },
+  });
+  const reservedByProduct = new Map<string, number>();
+  for (const reservation of reservations) {
+    reservedByProduct.set(reservation.productId, (reservedByProduct.get(reservation.productId) ?? 0) + Number(reservation.quantity));
+  }
+  for (const item of invoice.items) {
+    if ((reservedByProduct.get(item.productId) ?? 0) < Number(item.quantity)) {
+      throw new Error("Stok pesanan belum seluruhnya dialokasikan.");
+    }
+  }
+
+  for (const reservation of reservations) {
+    await appendFefoLedgerOut(tx, {
+      tenantId: input.tenantId,
+      productId: reservation.productId,
+      refType: "SALE_FG_OUT",
+      refId: invoice.id,
+      quantityUnit: Number(reservation.quantity),
+      notes: `Penyerahan pesanan: ${invoice.code}`,
+      createdById: input.createdById,
+    });
+    await tx.stockReservation.update({
+      where: { id: reservation.id },
+      data: { status: "CONSUMED", consumedAt: now },
+    });
+  }
+  await postSalesInvoice(
+    invoice.id,
+    Number(invoice.grandTotal),
+    Number(invoice.paidAmount),
+    invoice.customer.name,
+    invoice.items.map((item: { product: { type: string }; hpp: unknown; quantity: unknown }) => ({
+      productType: item.product.type,
+      hpp: Number(item.hpp),
+      quantity: Number(item.quantity),
+    })),
+    { tx, tenantId: input.tenantId, userId: input.createdById },
+    Number(invoice.tax),
+  );
+  await tx.invoice.update({
+    where: { id: invoice.id },
+    data: { fulfillmentStatus: "DELIVERED", deliveredAt: now },
+  });
+  return { alreadyFulfilled: false, fulfilledReservations: reservations.length };
 }
 
 export async function releaseInvoiceReservations(
@@ -163,22 +215,14 @@ export async function allocateProducedStockToDemand(
       continue;
     }
     const allocated = Math.min(available, task.shortageQuantity);
-    if (task.invoice.status === "PAID") {
-      await appendFefoLedgerOut(tx, {
-        tenantId: input.tenantId, productId: input.productId, refType: "SALE_FG_OUT",
-        refId: task.invoiceId, quantityUnit: allocated,
-        notes: `Alokasi produksi untuk ${task.invoice.code}`, createdById: input.createdById,
-      });
-    } else {
-      await tx.stockReservation.upsert({
+    await tx.stockReservation.upsert({
         where: { invoiceId_productId: { invoiceId: task.invoiceId, productId: input.productId } },
         create: {
           tenantId: input.tenantId, invoiceId: task.invoiceId, productId: input.productId,
           quantity: allocated, expiresAt: task.invoice.reservationExpiresAt ?? new Date(now.getTime() + 24 * 60 * 60 * 1_000),
         },
         update: { quantity: { increment: allocated }, status: "ACTIVE", releasedAt: null },
-      });
-    }
+    });
     const shortageQuantity = task.shortageQuantity - allocated;
     const completed = shortageQuantity === 0;
     await tx.fulfillmentTask.update({

@@ -28,6 +28,7 @@ const mockTx = {
         "1-1220": "acct-fg",
         "1-1230": "acct-kemasan",
         "2-1000": "acct-hutang",
+        "2-1300": "acct-uang-muka-pelanggan",
         "3-1000": "acct-modal",
         "3-1010": "acct-prive",
         "4-1000": "acct-penjualan",
@@ -62,6 +63,7 @@ import {
   postRoastingBatch,
   postSalesInvoice,
   postCustomerPayment,
+  postCustomerPrepayment,
   postExpense,
   postCapitalInjection,
   postOwnerWithdrawal,
@@ -97,6 +99,7 @@ function acctCode(acctId: string): string {
     "acct-fg": "1-1220",
     "acct-kemasan": "1-1230",
     "acct-hutang": "2-1000",
+    "acct-uang-muka-pelanggan": "2-1300",
     "acct-modal": "3-1000",
     "acct-prive": "3-1010",
     "acct-penjualan": "4-1000",
@@ -293,15 +296,24 @@ describe("postRoastingBatch", () => {
 });
 
 describe("postSalesInvoice", () => {
-  it("debits receivable/cash and credits revenue", async () => {
+  it("releases customer advances and records the outstanding balance as receivable at handover", async () => {
     await postSalesInvoice("inv-1", 150_000, 100_000, "Budi");
     const result = getCreatedLines();
     const totalDebit = result.lines.reduce((s: number, l: any) => s + l.debit, 0);
     const totalCredit = result.lines.reduce((s: number, l: any) => s + l.credit, 0);
     expect(Math.abs(totalDebit - totalCredit)).toBeLessThan(0.01);
     expectLine(result, "1-1100", 50_000, 0);
-    expectLine(result, "1-1000", 100_000, 0);
+    expectLine(result, "2-1300", 100_000, 0);
     expectLine(result, "4-1000", 0, 150_000);
+  });
+});
+
+describe("postCustomerPrepayment", () => {
+  it("records cash received before handover as a customer advance", async () => {
+    await postCustomerPrepayment("pay-advance-1", 50_000, "INV-001", "Budi");
+    const result = getCreatedLines();
+    expectLine(result, "1-1000", 50_000, 0);
+    expectLine(result, "2-1300", 0, 50_000);
   });
 });
 
@@ -361,7 +373,7 @@ describe("journal balance invariant", () => {
 });
 
 describe("postSalesInvoice with COGS", () => {
-  it("posts revenue, receivable, and COGS lines", async () => {
+  it("posts revenue, releases the advance, and records COGS lines", async () => {
     await postSalesInvoice("inv-1", 200_000, 200_000, "Budi", [
       { productType: "FINISHED_GOODS", hpp: 120_000, quantity: 2 },
     ]);
@@ -369,7 +381,7 @@ describe("postSalesInvoice with COGS", () => {
     const totalDebit = result.lines.reduce((s: number, l: any) => s + l.debit, 0);
     const totalCredit = result.lines.reduce((s: number, l: any) => s + l.credit, 0);
     expect(Math.abs(totalDebit - totalCredit)).toBeLessThan(0.01);
-    expectLine(result, "1-1000", 200_000, 0);
+    expectLine(result, "2-1300", 200_000, 0);
     expectLine(result, "4-1000", 0, 200_000);
     expectLine(result, "5-1000", 240_000, 0);
     expectLine(result, "1-1220", 0, 240_000);

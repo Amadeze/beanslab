@@ -190,7 +190,7 @@ export async function postSalesInvoice(
   const lines: PostingLine[] = [];
 
   if (paidAmount > 0) {
-    lines.push({ accountCode: "1-1000", debit: paidAmount, credit: 0 });
+    lines.push({ accountCode: "2-1300", debit: paidAmount, credit: 0 });
   }
   if (remaining > 0) {
     lines.push({ accountCode: "1-1100", debit: remaining, credit: 0 });
@@ -328,6 +328,25 @@ export async function postCustomerPayment(
     lines: [
       { accountCode: "1-1000", debit: amount, credit: 0 },
       { accountCode: "1-1100", debit: 0, credit: amount },
+    ],
+  }, options);
+}
+
+export async function postCustomerPrepayment(
+  paymentId: string,
+  amount: number,
+  invoiceCode: string,
+  customerName: string,
+  options: PostingOptions = {},
+): Promise<string> {
+  return postJournalEntry({
+    date: getCurrentDate(),
+    description: `Uang muka dari ${customerName} — ${invoiceCode}`,
+    reference: paymentId,
+    refType: "PAYMENT",
+    lines: [
+      { accountCode: "1-1000", debit: amount, credit: 0 },
+      { accountCode: "2-1300", debit: 0, credit: amount },
     ],
   }, options);
 }

@@ -9,7 +9,8 @@ import { appendLedger } from "@/lib/stock";
 import { getPurchasePaymentStatus, getReceivableAgingBucket, type ReceivableAgingBucket as _ReceivableAgingBucket } from "@/lib/purchase-payments";
 export type ReceivableAgingBucket = _ReceivableAgingBucket;
 import { getCurrentDate, getZonedMonthRange } from "@/lib/date-utils";
-import { postCapitalInjection, postOwnerWithdrawal, postCustomerPayment, postExpense, postSupplierPayment, postVoidReversal } from "@/lib/posting";
+import { postCapitalInjection, postOwnerWithdrawal, postCustomerPayment, postCustomerPrepayment, postExpense, postSupplierPayment, postVoidReversal } from "@/lib/posting";
+import { markInvoicePaidForFulfillment } from "@/lib/storefront-commerce";
 import { voidPurchaseCore } from "@/lib/purchase-void";
 import { calculateSalesPerformance } from "@/lib/financial-reporting";
 import { computeSampleCostByType, computeCogsComponentBreakdown } from "@/lib/financial-helpers";
@@ -327,7 +328,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
     const result = await tenantPrisma.$transaction(async (tx) => {
       const inv = await tx.invoice.findUnique({
         where: { id: parsed.invoiceId },
-        select: { id: true, code: true, grandTotal: true, paidAmount: true, status: true, customer: { select: { name: true } } },
+        select: { id: true, code: true, grandTotal: true, paidAmount: true, status: true, fulfillmentStatus: true, createdById: true, customer: { select: { name: true } } },
       });
       if (!inv) throw new Error("Nota tidak ditemukan.");
       if (inv.status === "DRAFT") throw new Error("Nota belum diterbitkan.");
@@ -347,6 +348,12 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
         data: { tenantId, code: payCode, operationKey: opKey, invoiceId: inv.id, amount: parsed.amount, method: parsed.method, reference: refString, paidAt, notes: parsed.notes, createdById: userId },
       });
       await tx.invoice.update({ where: { id: inv.id }, data: { paidAmount: newPaidTotal, status: newStatus } });
+      const settledBeforeHandover = inv.fulfillmentStatus !== "DELIVERED";
+      if (settledBeforeHandover && newStatus === "PAID") {
+        await markInvoicePaidForFulfillment(tx, {
+          tenantId, invoiceId: inv.id, invoiceCode: inv.code, createdById: inv.createdById, now: paidAt,
+        });
+      }
       await recordAudit(tx, {
         tenantId,
         userId,
@@ -360,7 +367,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
           method: payment.method,
         },
       });
-      await postCustomerPayment(
+      await (settledBeforeHandover ? postCustomerPrepayment : postCustomerPayment)(
         payment.id,
         parsed.amount,
         inv.code,

@@ -26,7 +26,6 @@ import {
 } from "@/lib/api-observability";
 import { z } from "zod";
 import { getCurrentDate } from "@/lib/date-utils";
-import { postSalesInvoice } from "@/lib/posting";
 import { paymentDestinationSnapshot, toPublicPaymentMethod } from "@/lib/manual-payments";
 import { calculateStorefrontTotals, reserveInvoiceStock } from "@/lib/storefront-commerce";
 
@@ -362,20 +361,6 @@ export async function POST(
           },
         });
       }
-
-      await postSalesInvoice(
-        inv.id,
-        grandTotal,
-        0,
-        customer.name,
-        invoiceItemsData.map((item) => ({
-          productType: "FINISHED_GOODS" as const,
-          hpp: item.hpp,
-          quantity: item.quantity,
-        })),
-        { tx, tenantId: tenant.id, userId: createdById },
-        tax,
-      );
 
       await recordAudit(tx, {
         tenantId: tenant.id,

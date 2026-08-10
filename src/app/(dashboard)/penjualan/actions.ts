@@ -13,6 +13,8 @@ import { getTenantTaxConfig } from "@/lib/tax-server";
 import { postSalesInvoice, postCreditNote, postVoidReversal, postJournalEntry } from "@/lib/posting";
 import { getCurrentDate } from "@/lib/date-utils";
 import { createMidtransSnapTransaction } from "@/lib/midtrans";
+import { fulfillInvoiceAtHandover, reserveInvoiceStock } from "@/lib/storefront-commerce";
+import { postCustomerPrepayment } from "@/lib/posting";
 
 // =============================================================================
 // TYPES
@@ -418,12 +420,6 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
       if (!product) {
         return { success: false, error: "Salah satu produk tidak valid atau sudah nonaktif." };
       }
-      if (product.stockUnit < item.quantity) {
-        return {
-          success: false,
-          error: `Stok "${product.name}" tidak cukup. Tersedia: ${product.stockUnit} unit, dibutuhkan: ${item.quantity} unit.`,
-        };
-      }
     }
 
     // ── HPP snapshot per product ──
@@ -541,16 +537,27 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
         });
       }
 
-      // InventoryLedger OUT per item
-      for (const item of enrichedItems) {
-        await appendFefoLedgerOut(tx, {
-            tenantId,
-            productId: item.productId,
-            refType: "SALE_FG_OUT",
-            refId: inv.id,
-            quantityUnit: item.quantity,
-            notes: `Penjualan ${invoiceCode}`,
-            createdById: userId,
+      const isWalkInHandover = parsed.salesChannel === "WALK_IN" && parsed.status === "PAID";
+      if (isWalkInHandover) {
+        for (const item of enrichedItems) {
+          await appendFefoLedgerOut(tx, {
+            tenantId, productId: item.productId, refType: "SALE_FG_OUT", refId: inv.id,
+            quantityUnit: item.quantity, notes: `Penjualan walk-in ${invoiceCode}`, createdById: userId,
+          });
+        }
+      } else {
+        const reservation = await reserveInvoiceStock(tx, {
+          tenantId,
+          invoiceId: inv.id,
+          expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1_000),
+          items: enrichedItems.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+        });
+        await tx.invoice.update({
+          where: { id: inv.id },
+          data: {
+            reservationExpiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1_000),
+            fulfillmentStatus: reservation.hasShortage ? "NEEDS_PRODUCTION" : parsed.status === "PAID" ? "READY_TO_PACK" : "AWAITING_PAYMENT",
+          },
         });
       }
 
@@ -559,7 +566,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
         const payPrefix = `PAY-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
         const payCode = `${payPrefix}-${randomBytes(4).toString("hex").toUpperCase()}`;
 
-        await tx.payment.create({
+        const payment = await tx.payment.create({
           data: {
             tenantId,
             code: payCode,
@@ -571,6 +578,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
             createdById: userId,
           },
         });
+        await postCustomerPrepayment(payment.id, grandTotal, inv.code, customer.name, { tx, tenantId, userId });
       }
 
       await recordAudit(tx, {
@@ -587,19 +595,14 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
         metadata: { itemCount: enrichedItems.length, operationKey: parsed.operationKey },
       });
 
-      await postSalesInvoice(
-        inv.id,
-        Number(inv.grandTotal),
-        Number(inv.paidAmount),
-        customer.name,
-        enrichedItems.map((item) => ({
-          productType: item.productType,
-          hpp: Number(item.hpp),
-          quantity: item.quantity,
-        })),
-        { tx, tenantId, userId },
-        taxResult.taxAmount,
-      );
+      if (isWalkInHandover) {
+        await postSalesInvoice(
+          inv.id, Number(inv.grandTotal), Number(inv.paidAmount), customer.name,
+          enrichedItems.map((item) => ({ productType: item.productType, hpp: Number(item.hpp), quantity: item.quantity })),
+          { tx, tenantId, userId }, taxResult.taxAmount,
+        );
+        await tx.invoice.update({ where: { id: inv.id }, data: { fulfillmentStatus: "DELIVERED", deliveredAt: now } });
+      }
 
       return inv;
     });
@@ -972,6 +975,14 @@ export async function updateInvoiceShipping(
     }
 
     await tenantPrisma.$transaction(async (tx) => {
+      if (nextFulfillment === "DELIVERED") {
+        await fulfillInvoiceAtHandover(tx, {
+          tenantId,
+          invoiceId,
+          createdById: userId,
+          now: getCurrentDate(),
+        });
+      }
       await tx.invoice.update({
         where: { id: invoiceId },
         data: updateData,

@@ -5,10 +5,10 @@ import { decryptCredential } from "@/lib/credentials";
 import { Prisma } from "@prisma/client";
 import { recordAudit } from "@/lib/audit";
 import { getCurrentDate } from "@/lib/date-utils";
-import { postCustomerPayment } from "@/lib/posting";
+import { postCustomerPrepayment } from "@/lib/posting";
 import { postVoidReversal } from "@/lib/posting";
 import { appendLedger } from "@/lib/stock";
-import { consumeInvoiceReservations, releaseInvoiceReservations } from "@/lib/storefront-commerce";
+import { markInvoicePaidForFulfillment, releaseInvoiceReservations } from "@/lib/storefront-commerce";
 import {
   getRequestId,
   internalErrorResponse,
@@ -185,14 +185,14 @@ export async function POST(req: Request) {
             paidAmount: previousPaid + paidAmount,
           }
         });
-        await consumeInvoiceReservations(tx, {
+        await markInvoicePaidForFulfillment(tx, {
           tenantId: invoice.tenantId,
           invoiceId: invoice.id,
           invoiceCode: invoice.code,
           createdById: invoice.createdById,
           now: paidAt,
         });
-        await postCustomerPayment(
+        await postCustomerPrepayment(
           payment.id,
           paidAmount,
           invoice.code,

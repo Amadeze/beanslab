@@ -6,9 +6,9 @@ import { recordAudit } from "@/lib/audit";
 import { getSystemUserId, getCurrentTenantId, requireRole, requireTenantPrisma } from "@/lib/auth";
 import { getCurrentDate } from "@/lib/date-utils";
 import { canReviewPayment, validatePaymentReview } from "@/lib/manual-payments";
-import { postCustomerPayment } from "@/lib/posting";
+import { postCustomerPrepayment } from "@/lib/posting";
 import { dispatchPaymentReviewNotifications } from "@/lib/payment-notifications";
-import { consumeInvoiceReservations } from "@/lib/storefront-commerce";
+import { markInvoicePaidForFulfillment } from "@/lib/storefront-commerce";
 import { withSerializableRetry } from "@/lib/transaction-retry";
 
 export type ReviewPaymentResult = { success: true } | { success: false; error: string };
@@ -85,7 +85,7 @@ export async function verifyPaymentSubmission(
         },
       });
       if (isPaid) {
-        await consumeInvoiceReservations(tx, {
+        await markInvoicePaidForFulfillment(tx, {
           tenantId,
           invoiceId: submission.invoiceId,
           invoiceCode: submission.invoice.code,
@@ -108,7 +108,7 @@ export async function verifyPaymentSubmission(
         select: { id: true },
       }) : null;
 
-      await postCustomerPayment(payment.id, appliedAmount, submission.invoice.code, submission.invoice.customer.name, { tx, tenantId, userId });
+      await postCustomerPrepayment(payment.id, appliedAmount, submission.invoice.code, submission.invoice.customer.name, { tx, tenantId, userId });
       await recordAudit(tx, {
         tenantId,
         userId,

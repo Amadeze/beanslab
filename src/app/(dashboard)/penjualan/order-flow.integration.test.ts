@@ -1,11 +1,15 @@
 import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
-import { prisma } from "@/lib/prisma";
-import { createInvoice } from "./actions";
+import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { resolveTestDatabaseUrl } from "../../../../test/setup/test-database-guard";
+import { createInvoice, updateInvoiceShipping } from "./actions";
 import { recordPayment } from "../keuangan/actions";
 
 // Gated integration test: only runs against an isolated test DB with RUN_INTEGRATION=true.
 const integrationEnabled = process.env.RUN_INTEGRATION === "true";
 const suite = integrationEnabled ? describe : describe.skip;
+let prisma: PrismaClient;
 
 // revalidatePath is a Next.js cache-invalidation side effect that only works
 // inside a RSC request scope. The business logic under test (invoice creation,
@@ -23,7 +27,7 @@ vi.mock("@/lib/auth", async (importOriginal) => {
     getSystemUserId: vi.fn().mockResolvedValue("test-user-integration"),
     requireRole: vi.fn(),
     requireFeature: vi.fn(),
-    requireTenantPrisma: vi.fn().mockResolvedValue(prisma),
+    requireTenantPrisma: vi.fn(async () => prisma),
   };
 });
 
@@ -32,6 +36,8 @@ suite("Penjualan End-to-End Integration", () => {
   let productId = "";
   
   beforeAll(async () => {
+    const pool = new Pool({ connectionString: resolveTestDatabaseUrl(), max: 3 });
+    prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
     // Setup test tenant and data
     await prisma.tenant.upsert({
       where: { id: "test-tenant-integration" },
@@ -87,6 +93,8 @@ suite("Penjualan End-to-End Integration", () => {
     await prisma.account.deleteMany({ where: { tenantId: "test-tenant-integration" } });
     await prisma.auditLog.deleteMany({ where: { tenantId: "test-tenant-integration" } });
     await prisma.inventoryLedger.deleteMany({ where: { tenantId: "test-tenant-integration" }});
+    await prisma.stockReservation.deleteMany({ where: { tenantId: "test-tenant-integration" } });
+    await prisma.fulfillmentTask.deleteMany({ where: { tenantId: "test-tenant-integration" } });
     await prisma.invoiceItem.deleteMany({ where: { invoice: { tenantId: "test-tenant-integration" } }});
     await prisma.payment.deleteMany({ where: { tenantId: "test-tenant-integration" }});
     await prisma.invoice.deleteMany({ where: { tenantId: "test-tenant-integration" }});
@@ -94,9 +102,10 @@ suite("Penjualan End-to-End Integration", () => {
     await prisma.customer.deleteMany({ where: { tenantId: "test-tenant-integration" }});
     await prisma.user.deleteMany({ where: { id: "test-user-integration" }});
     await prisma.tenant.deleteMany({ where: { id: "test-tenant-integration" }});
+    await prisma.$disconnect();
   });
 
-  it("should create invoice, process payment, and deduct inventory", async () => {
+  it("holds paid orders as customer advances until physical handover", async () => {
     // 1. Order (Create Invoice)
     const orderRes = await createInvoice({
       operationKey: "123e4567-e89b-12d3-a456-426614174000",
@@ -132,7 +141,7 @@ suite("Penjualan End-to-End Integration", () => {
     expect(updatedInvoice?.status).toBe("PAID");
     expect(updatedInvoice?.paidAmount.toNumber()).toBe(100000);
 
-    // 3. Inventory Deduction
+    // 3. Payment does not issue inventory before handover.
     const ledgers = await prisma.inventoryLedger.findMany({
       where: {
         tenantId: "test-tenant-integration",
@@ -142,14 +151,31 @@ suite("Penjualan End-to-End Integration", () => {
       }
     });
 
-    expect(ledgers.length).toBe(1);
-    expect(ledgers[0].entryType).toBe("OUT");
-    expect(Number(ledgers[0].quantityUnit)).toBe(2);
+    expect(ledgers).toHaveLength(0);
+    const heldProduct = await prisma.product.findUnique({ where: { id: productId } });
+    expect(Number(heldProduct?.stockUnit)).toBe(100);
 
-    // Verify product stock was updated
+    // 4. Handover atomically consumes the reservation, issues stock, and recognizes sales.
+    const handover = await updateInvoiceShipping(invoiceId, { fulfillmentStatus: "DELIVERED" });
+    expect(handover.success).toBe(true);
+    const deliveredLedgers = await prisma.inventoryLedger.findMany({
+      where: {
+        tenantId: "test-tenant-integration", productId, refId: invoiceId, refType: "SALE_FG_OUT",
+      },
+    });
+    expect(deliveredLedgers).toHaveLength(1);
+    expect(deliveredLedgers[0].entryType).toBe("OUT");
+    expect(Number(deliveredLedgers[0].quantityUnit)).toBe(2);
+
+    const journals = await prisma.journalEntry.findMany({
+      where: { tenantId: "test-tenant-integration", reference: invoiceId },
+      include: { lines: { include: { account: { select: { code: true } } } } },
+    });
+    expect(journals).toHaveLength(1);
+    expect(journals[0].lines.some((line) => line.account.code === "2-1300" && Number(line.debit) === 100000)).toBe(true);
+
+    // Verify product stock was updated only at handover.
     const updatedProduct = await prisma.product.findUnique({ where: { id: productId } });
-    // Assuming initial was 100, and no ledger created it so base is 100
-    // Wait, the action `appendFefoLedgerOut` / `appendLedger` actually decrements `stockUnit` using `decrement: 2`
     expect(Number(updatedProduct?.stockUnit)).toBe(98);
   });
 });
