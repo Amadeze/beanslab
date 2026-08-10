@@ -177,6 +177,7 @@ export function ExperimentalClient({
         {promoteBatch && (
           <PromoteForm
             batch={promoteBatch}
+            supplyOptions={supplyOptions}
             onSuccess={() => {
               setPromoteBatch(null);
               router.refresh();

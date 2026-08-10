@@ -29,6 +29,7 @@ export type SupplyOption = {
   baseUnit: string;
   costPerUnit: number;
   stockQuantity: number;
+  category: string;
 };
 
 export type FGProductOption = {
@@ -155,7 +156,7 @@ async function fetchRBOptions(): Promise<RBStockOption[]> {
 async function fetchSupplyOptions(): Promise<SupplyOption[]> {
   const items = await (await requireTenantPrisma()).inventorySupplyItem.findMany({
     where: { isActive: true, consumableInProduction: true },
-    select: { id: true, code: true, name: true, baseUnit: true, costPerUnit: true, avgCostPerUnit: true, stockQuantity: true },
+    select: { id: true, code: true, name: true, baseUnit: true, costPerUnit: true, avgCostPerUnit: true, stockQuantity: true, category: true },
     orderBy: { name: "asc" },
   });
   return items
@@ -167,6 +168,7 @@ async function fetchSupplyOptions(): Promise<SupplyOption[]> {
       baseUnit: item.baseUnit,
       costPerUnit: Number(item.avgCostPerUnit ?? item.costPerUnit),
       stockQuantity: Number(item.stockQuantity),
+      category: item.category,
     }));
 }
 

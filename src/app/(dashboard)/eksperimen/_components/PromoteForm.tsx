@@ -22,6 +22,7 @@ import {
 import { formatRupiah } from "@/lib/format";
 import { promoteExperimentalToCatalog } from "../promote-actions";
 import type { ExperimentalProductionRow } from "../actions";
+import type { SupplyOption } from "../actions";
 
 const schema = z.object({
   experimentalProductionId: z.string(),
@@ -32,6 +33,7 @@ const schema = z.object({
   priceSilver: z.coerce.number().nonnegative().optional(),
   priceGold: z.coerce.number().nonnegative().optional(),
   netWeightGrams: z.coerce.number().nonnegative().optional(),
+  packagingSupplyItemId: z.string().min(1, "Kemasan wajib dipilih"),
   notes: z.string().optional(),
 });
 
@@ -50,11 +52,12 @@ function FieldError({ message }: { message?: string }) {
 
 interface PromoteFormProps {
   batch: ExperimentalProductionRow;
+  supplyOptions: SupplyOption[];
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function PromoteForm({ batch, onSuccess, onCancel }: PromoteFormProps) {
+export function PromoteForm({ batch, supplyOptions, onSuccess, onCancel }: PromoteFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -74,6 +77,7 @@ export function PromoteForm({ batch, onSuccess, onCancel }: PromoteFormProps) {
       priceSilver: 0,
       priceGold: 0,
       netWeightGrams: 0,
+      packagingSupplyItemId: "",
       notes: batch.notes ?? "",
     },
   });
@@ -91,6 +95,7 @@ export function PromoteForm({ batch, onSuccess, onCancel }: PromoteFormProps) {
         priceSilver: values.priceSilver || undefined,
         priceGold: values.priceGold || undefined,
         netWeightGrams: values.netWeightGrams || undefined,
+        packagingSupplyItemId: values.packagingSupplyItemId,
         notes: values.notes,
       });
 
@@ -182,6 +187,12 @@ export function PromoteForm({ batch, onSuccess, onCancel }: PromoteFormProps) {
       </FieldGroup>
 
       <Separator className="bg-white/50" />
+
+      <FieldGroup>
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Kemasan katalog <span className="text-red-500">*</span></Label>
+        <Controller control={control} name="packagingSupplyItemId" render={({ field }) => <Select value={field.value} onValueChange={(value: string | null) => field.onChange(value ?? "")}><SelectTrigger className={cn("w-full h-9", glassInput)}><SelectValue placeholder="Pilih kemasan yang akan dikonsumsi..." /></SelectTrigger><SelectContent>{supplyOptions.filter((item) => item.category === "PACKAGING").map((item) => <SelectItem key={item.id} value={item.id}>{item.name} ({item.stockQuantity} {item.baseUnit})</SelectItem>)}</SelectContent></Select>} />
+        <FieldError message={errors.packagingSupplyItemId?.message} />
+      </FieldGroup>
 
       <div className="grid grid-cols-2 gap-4">
         <FieldGroup>
