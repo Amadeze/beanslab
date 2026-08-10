@@ -24,7 +24,8 @@ export type RBStockOption = {
   avgCostPerKg: number;
 };
 
-export type FGProductOption = {
+/** Coffee kept in kg after grinding, ready for the packaging operation. */
+export type GroundCoffeeOption = {
   id: string;
   name: string;
   type: string;
@@ -60,7 +61,7 @@ export type GrindingBatchRow = {
 export type GrindingPageData = {
   batches: GrindingBatchRow[];
   rbOptions: RBStockOption[];
-  fgOptions: FGProductOption[];
+  groundCoffeeOptions: GroundCoffeeOption[];
   grinderOptions: GrinderOption[];
 };
 
@@ -142,9 +143,11 @@ async function fetchRBOptions(): Promise<RBStockOption[]> {
     .filter((p) => p.stockKg > 0);
 }
 
-async function fetchFGOptions(): Promise<FGProductOption[]> {
+async function fetchGroundCoffeeOptions(): Promise<GroundCoffeeOption[]> {
   const products = await (await requireTenantPrisma()).product.findMany({
-    where: { type: "FINISHED_GOODS", isActive: true },
+    // Finished Goods is unit-tracked. Ground coffee is still a kg-tracked
+    // intermediate so it can be consumed by the packaging workflow.
+    where: { type: "ROASTED_BEAN", isActive: true },
     select: { id: true, name: true, type: true },
     orderBy: { name: "asc" },
   });
@@ -209,13 +212,13 @@ async function fetchBatchHistory(): Promise<GrindingBatchRow[]> {
 
 export async function getGrindingPageData(): Promise<GrindingPageData> {
   await requireRole("OWNER", "MANAGER", "OPERATOR");
-  const [batches, rbOptions, fgOptions, grinderOptions] = await Promise.all([
+  const [batches, rbOptions, groundCoffeeOptions, grinderOptions] = await Promise.all([
     fetchBatchHistory(),
     fetchRBOptions(),
-    fetchFGOptions(),
+    fetchGroundCoffeeOptions(),
     fetchGrinderOptions(),
   ]);
-  return { batches, rbOptions, fgOptions, grinderOptions };
+  return { batches, rbOptions, groundCoffeeOptions, grinderOptions };
 }
 
 export async function createGrindingBatch(
@@ -238,7 +241,7 @@ export async function createGrindingBatch(
 
     const batchCode = await generateBatchCode();
 
-    return await tenantPrisma.$transaction(async (tx) => {
+    const result = await tenantPrisma.$transaction(async (tx) => {
       const sourceProduct = await tx.product.findUnique({
         where: { id: parsed.sourceProductId },
         select: { id: true, name: true, type: true, isActive: true, stockKg: true, avgCostPerKg: true },
@@ -251,8 +254,11 @@ export async function createGrindingBatch(
         where: { id: parsed.outputProductId },
         select: { id: true, name: true, type: true, isActive: true },
       });
-      if (!outputProduct || !outputProduct.isActive || outputProduct.type !== "FINISHED_GOODS") {
-        throw new Error("Produk output harus Finished Goods aktif.");
+      if (!outputProduct || !outputProduct.isActive || outputProduct.type !== "ROASTED_BEAN") {
+        throw new Error("Produk output giling harus berupa stok kopi aktif (kg).");
+      }
+      if (outputProduct.id === sourceProduct.id) {
+        throw new Error("SKU kopi giling harus berbeda dari Roasted Bean sumber.");
       }
 
       const currentStock = Number(sourceProduct.stockKg);
@@ -360,13 +366,13 @@ export async function createGrindingBatch(
         metadata: { operationKey: input.operationKey },
       });
 
-      return { success: true, batchCode: batch.code };
+      return { success: true as const, batchCode: batch.code };
     }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
 
     revalidatePath("/produksi");
     revalidatePath("/inventory");
     revalidatePath("/roasting");
-    return { success: true, batchCode: batchCode };
+    return result;
   } catch (err) {
     console.error("[createGrindingBatch]", err);
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" && input.operationKey) {

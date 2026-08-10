@@ -91,6 +91,8 @@ function HppSummary({
   rbOptions: RBStockOption[];
   packagingOptions: PackagingOption[];
   supplyOptions: SupplyConsumptionOption[];
+  initialOutputProductId?: string;
+  initialUnitsProduced?: number;
   supplyComponents?: Array<{ supplyItemId: string; quantityPerUnit: number }>;
   packagingId: string;
   unitsProduced: number;
@@ -201,6 +203,8 @@ interface ProductionFormProps {
   rbOptions: RBStockOption[];
   packagingOptions: PackagingOption[];
   supplyOptions: SupplyConsumptionOption[];
+  initialOutputProductId?: string;
+  initialUnitsProduced?: number;
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
 }
@@ -215,6 +219,8 @@ export function ProductionForm({
   rbOptions,
   packagingOptions,
   supplyOptions,
+  initialOutputProductId = "",
+  initialUnitsProduced = 1,
   onSuccess,
   onPendingChange,
 }: ProductionFormProps) {
@@ -233,10 +239,10 @@ export function ProductionForm({
   } = useForm<FormValues>({
     resolver: zodResolver(schema) as unknown as Resolver<FormValues>,
     defaultValues: {
-      outputProductId: "",
+      outputProductId: initialOutputProductId,
       recipeId:        "",
       packagingId:     "",
-      unitsProduced:   1,
+      unitsProduced:   initialUnitsProduced,
       rbComponents:    [{ productId: "", productName: "", gramsPerUnit: 0 }],
       supplyComponents: [],
       notes:           "",
@@ -267,6 +273,18 @@ export function ProductionForm({
     "laborCost",
     "overheadAllocated",
   ]);
+
+  // A packaging item with a configured fill capacity provides the safest
+  // default for a new single-origin production run. Recipes remain the source
+  // of truth and are never overwritten by this convenience default.
+  useEffect(() => {
+    if (!packagingId || watch("recipeId") || rbComponents.length !== 1) return;
+    const capacity = packagingOptions.find((item) => item.id === packagingId)?.capacityGrams;
+    if (capacity && capacity > 0) {
+      setValue("rbComponents.0.gramsPerUnit", capacity, { shouldDirty: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packagingId]);
 
   // ── Auto-fill dari resep saat user pilih FG ──
   useEffect(() => {

@@ -12,7 +12,7 @@ import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import type {
   RBStockOption,
-  FGProductOption,
+  GroundCoffeeOption,
   GrindingBatchRow,
   GrinderOption,
 } from "../actions";
@@ -20,21 +20,21 @@ import type {
 interface GrindingClientProps {
   batches: GrindingBatchRow[];
   rbOptions: RBStockOption[];
-  fgOptions: FGProductOption[];
+  groundCoffeeOptions: GroundCoffeeOption[];
   grinderOptions: GrinderOption[];
 }
 
 export function GrindingClient({
   batches,
   rbOptions,
-  fgOptions,
+  groundCoffeeOptions,
   grinderOptions,
 }: GrindingClientProps) {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canGrind = rbOptions.length > 0 && fgOptions.length > 0;
+  const canGrind = rbOptions.length > 0 && groundCoffeeOptions.length > 0;
 
   const kpi = useMemo(() => {
     const validBatches = batches.filter((b) => b.status === "COMPLETED");
@@ -54,11 +54,11 @@ export function GrindingClient({
   const headerMetrics = useMemo(() => {
     return [
       { label: "RB", value: `${rbOptions.length} pilihan` },
-      { label: "Output", value: `${fgOptions.length} pilihan` },
+      { label: "Output", value: `${groundCoffeeOptions.length} pilihan` },
       { label: "Hasil", value: `${kpi.totalOutput.toFixed(1)} kg` },
       { label: "Susut", value: `${kpi.totalLoss.toFixed(2)} kg` },
     ];
-  }, [rbOptions.length, fgOptions.length, kpi]);
+  }, [rbOptions.length, groundCoffeeOptions.length, kpi]);
 
   return (
     <>
@@ -134,15 +134,15 @@ export function GrindingClient({
             </p>
             <p className="text-xs text-zinc-400 max-w-xs">
               {rbOptions.length === 0 && "Roasted Bean stok kosong. "}
-              {fgOptions.length === 0 && "Finished Goods belum dibuat. "}
-              Tambahkan melalui Roasting dan Produksi terlebih dahulu.
+              {groundCoffeeOptions.length === 0 && "Belum ada SKU kopi giling (kg). "}
+              Tambahkan SKU Roasted Bean khusus untuk kopi giling di Master Data.
             </p>
           </div>
         ) : (
           <GrindingForm
             id="grinding-form"
             rbOptions={rbOptions}
-            fgOptions={fgOptions}
+            groundCoffeeOptions={groundCoffeeOptions}
             grinderOptions={grinderOptions}
             onSuccess={() => {
               setDrawerOpen(false);

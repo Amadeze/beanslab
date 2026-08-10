@@ -23,7 +23,7 @@ import { formatKg, formatRupiah } from "@/lib/format";
 import {
   createGrindingBatch,
   type RBStockOption,
-  type FGProductOption,
+  type GroundCoffeeOption,
   type GrinderOption,
 } from "../actions";
 
@@ -106,7 +106,7 @@ function FieldError({ message }: { message?: string }) {
 interface GrindingFormProps {
   id: string;
   rbOptions: RBStockOption[];
-  fgOptions: FGProductOption[];
+  groundCoffeeOptions: GroundCoffeeOption[];
   grinderOptions: GrinderOption[];
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
@@ -119,7 +119,7 @@ interface GrindingFormProps {
 export function GrindingForm({
   id,
   rbOptions,
-  fgOptions,
+  groundCoffeeOptions,
   grinderOptions,
   onSuccess,
   onPendingChange,
@@ -256,7 +256,7 @@ export function GrindingForm({
 
       <FieldGroup>
         <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-          Produk Output <span className="text-red-500">*</span>
+          SKU Kopi Giling (kg) <span className="text-red-500">*</span>
         </Label>
         <Controller
           control={control}
@@ -268,16 +268,16 @@ export function GrindingForm({
             >
               <SelectTrigger className={cn("w-full h-9", glassInput)}>
                 <SelectValue placeholder="Pilih produk output...">
-                  {field.value ? fgOptions.find((f) => f.id === field.value)?.name : null}
+                  {field.value ? groundCoffeeOptions.find((f) => f.id === field.value)?.name : null}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {fgOptions.length === 0 ? (
+                {groundCoffeeOptions.length === 0 ? (
                   <SelectItem value="_empty" disabled>
-                    Belum ada produk Finished Goods
+                    Belum ada SKU kopi giling
                   </SelectItem>
                 ) : (
-                  fgOptions.map((f) => (
+                  groundCoffeeOptions.map((f) => (
                     <SelectItem key={f.id} value={f.id}>
                       {f.name}
                     </SelectItem>

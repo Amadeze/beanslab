@@ -9,7 +9,7 @@ export default async function GrindingPage() {
     <GrindingClient
       batches={data.batches}
       rbOptions={data.rbOptions}
-      fgOptions={data.fgOptions}
+      groundCoffeeOptions={data.groundCoffeeOptions}
       grinderOptions={data.grinderOptions}
     />
   );

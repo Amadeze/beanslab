@@ -147,14 +147,16 @@ suite("createGrindingBatch", () => {
     });
   }
 
-  async function createFG(tx: any, productId: string) {
+  async function createGroundCoffeeSku(tx: any, productId: string) {
     await tx.product.create({
       data: {
         id: productId,
         tenantId: TEST_TENANT_ID,
         code: productId,
-        name: `FG ${productId}`,
-        type: "FINISHED_GOODS",
+        name: `Ground ${productId}`,
+        // Grinding output remains kg-tracked so the packaging workflow can
+        // consume it as a coffee component.
+        type: "ROASTED_BEAN",
         stockKg: 0,
         stockUnit: 0,
         isActive: true,
@@ -175,20 +177,20 @@ suite("createGrindingBatch", () => {
 
   it("creates grinding batch and updates ledger", async () => {
     const rbId = `rb-grind-${Date.now()}`;
-    const fgId = `fg-grind-${Date.now()}`;
+    const groundCoffeeId = `ground-grind-${Date.now()}`;
     const machineId = `machine-grind-${Date.now()}`;
     const operationKey = randomUUID();
 
     await client.$transaction(async (tx) => {
       await createRB(tx, rbId, 10, 50000);
-      await createFG(tx, fgId);
+      await createGroundCoffeeSku(tx, groundCoffeeId);
       await createMachine(tx, machineId);
     });
 
     const result = await createGrindingBatch({
       operationKey,
       sourceProductId: rbId,
-      outputProductId: fgId,
+      outputProductId: groundCoffeeId,
       grindSize: "MEDIUM",
       inputKg: 5,
       outputKg: 4.5,
@@ -230,7 +232,7 @@ suite("createGrindingBatch", () => {
 
     await client.$transaction(async (tx) => {
       await createRB(tx, rbId, 10, 50000);
-      await createFG(tx, fgId);
+      await createGroundCoffeeSku(tx, fgId);
     });
 
     const result1 = await createGrindingBatch({
@@ -263,7 +265,7 @@ suite("createGrindingBatch", () => {
 
     await client.$transaction(async (tx) => {
       await createRB(tx, rbId, 1, 50000);
-      await createFG(tx, fgId);
+      await createGroundCoffeeSku(tx, fgId);
     });
 
     const result = await createGrindingBatch({
@@ -287,7 +289,7 @@ suite("createGrindingBatch", () => {
 
     await client.$transaction(async (tx) => {
       await createRB(tx, rbId, 10, 50000);
-      await createFG(tx, fgId);
+      await createGroundCoffeeSku(tx, fgId);
     });
 
     const createResult = await createGrindingBatch({
@@ -326,8 +328,8 @@ suite("createGrindingBatch", () => {
     expect(Array.isArray(data.batches)).toBe(true);
     expect(data.rbOptions).toBeDefined();
     expect(Array.isArray(data.rbOptions)).toBe(true);
-    expect(data.fgOptions).toBeDefined();
-    expect(Array.isArray(data.fgOptions)).toBe(true);
+    expect(data.groundCoffeeOptions).toBeDefined();
+    expect(Array.isArray(data.groundCoffeeOptions)).toBe(true);
     expect(data.grinderOptions).toBeDefined();
     expect(Array.isArray(data.grinderOptions)).toBe(true);
   });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Factory, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassPanel } from "@/components/ui/glass-panel";
@@ -34,7 +34,13 @@ export function ProductionClient({
   supplyOptions,
 }: ProductionClientProps) {
   const router = useRouter();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const requestedProductId = searchParams.get("productId") ?? "";
+  const requestedUnits = Number(searchParams.get("units") ?? 0);
+  const initialUnits = Number.isInteger(requestedUnits) && requestedUnits > 0
+    ? requestedUnits
+    : 1;
+  const [drawerOpen, setDrawerOpen] = useState(Boolean(requestedProductId));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canProduce = rbOptions.length > 0 && packagingOptions.length > 0;
@@ -148,6 +154,8 @@ export function ProductionClient({
             rbOptions={rbOptions}
             packagingOptions={packagingOptions}
             supplyOptions={supplyOptions}
+            initialOutputProductId={requestedProductId}
+            initialUnitsProduced={initialUnits}
             onSuccess={() => {
               setDrawerOpen(false);
               router.refresh();

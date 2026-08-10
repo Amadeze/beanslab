@@ -10,7 +10,6 @@ import { normalizeProductionComponents } from "@/lib/operations";
 import { getCurrentDate } from "@/lib/date-utils";
 import { postProductionBatch, postVoidReversal } from "@/lib/posting";
 import { createLotPlacementInTx } from "@/lib/storage-location";
-import { getSupplyProductionHppAccount } from "@/lib/supply-accounts";
 import { Prisma } from "@prisma/client";
 
 // =============================================================================
@@ -98,6 +97,8 @@ export type PackagingOption = {
   baseUnit: string;
   costPerUnit: number;
   stockUnit: number;
+  /** Suggested net coffee weight for one pack, when configured on the supply item. */
+  capacityGrams: number | null;
   /** Legacy packaging adapter id (untuk resolve internal di server). */
   packagingId: string;
 };
@@ -237,6 +238,7 @@ async function fetchPackagingOptions(): Promise<PackagingOption[]> {
       costPerUnit: true,
       avgCostPerUnit: true,
       stockQuantity: true,
+      capacityGrams: true,
       packaging: { select: { id: true } },
     },
     orderBy: { name: "asc" },
@@ -250,6 +252,7 @@ async function fetchPackagingOptions(): Promise<PackagingOption[]> {
       baseUnit: item.baseUnit,
       costPerUnit: Number(item.avgCostPerUnit ?? item.costPerUnit),
       stockUnit: Number(item.stockQuantity),
+      capacityGrams: item.capacityGrams === null ? null : Number(item.capacityGrams),
       packagingId: item.packaging!.id,
     }));
 }
