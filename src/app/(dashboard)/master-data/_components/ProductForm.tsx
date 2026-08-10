@@ -66,6 +66,15 @@ const schema = z.object({
   category:          z.string().optional(),
   blendType:         z.enum(["SINGLE", "BLEND"]).optional(),
   origin:            z.string().optional(),
+  country:           z.string().optional(),
+  farm:              z.string().optional(),
+  varietal:          z.string().optional(),
+  processMethod:     z.string().optional(),
+  fermentationMethod: z.string().optional(),
+  elevation:         z.string().optional(),
+  cropYear:          z.string().optional(),
+  certifications:    z.string().optional(),
+  tastingNotes:      z.string().optional(),
   description:       z.string().optional(),
   imageUrl:          z.string().optional(),
   price:             z.number().optional(),
@@ -128,6 +137,15 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           type:              (initialData.type as FormValues["type"]) ?? "GREEN_BEAN",
           category:          initialData.category ?? "",
           origin:            initialData.origin ?? "",
+          country:           initialData.coffeeSource?.country ?? "",
+          farm:              initialData.coffeeSource?.farm ?? "",
+          varietal:          initialData.coffeeSource?.varietal ?? "",
+          processMethod:     initialData.coffeeSource?.processMethod ?? "",
+          fermentationMethod: initialData.coffeeSource?.fermentationMethod ?? "",
+          elevation:         initialData.coffeeSource?.elevation ?? "",
+          cropYear:          initialData.coffeeSource?.cropYear ?? "",
+          certifications:    initialData.coffeeSource?.certifications?.join(", ") ?? "",
+          tastingNotes:      initialData.coffeeSource?.tastingNotes ?? "",
           description:       initialData.description ?? "",
           imageUrl:          initialData.imageUrl ?? "",
           price:             initialData.price ?? 0,
@@ -147,6 +165,8 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
         }
       : {
           name: "", type: "GREEN_BEAN", category: "", origin: "", blendType: "SINGLE",
+          country: "", farm: "", varietal: "", processMethod: "", fermentationMethod: "",
+          elevation: "", cropYear: "", certifications: "", tastingNotes: "",
           description: "", imageUrl: "", price: 0, priceSilver: 0, priceGold: 0, isActive: true,
           recipePackagingId: "", recipeOutputGrams: 0, recipeNotes: "", recipeItems: [],
           storefrontGrindOptions: ["WHOLE_BEAN"],
@@ -267,11 +287,31 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
         }
       : undefined;
 
+    const coffeeIdentity = selectedType === "GREEN_BEAN"
+      ? {
+          country: values.country || undefined,
+          region:  values.origin || undefined,
+          farm:    values.farm || undefined,
+          species: values.coffeeSpecies || undefined,
+          varietal: values.varietal || undefined,
+          processMethod: values.processMethod || undefined,
+          fermentationMethod: values.fermentationMethod || undefined,
+          elevation: values.elevation || undefined,
+          cropYear: values.cropYear || undefined,
+          certifications: (values.certifications ?? "")
+            .split(",")
+            .map((value) => value.trim())
+            .filter((value) => value.length > 0),
+          tastingNotes: values.tastingNotes || undefined,
+        }
+      : undefined;
+
     try {
       const result = isEditMode
         ? await updateProduct({
             id: initialData!.id,
             name: values.name,
+            coffeeSpecies: values.coffeeSpecies || undefined,
             category: values.category || undefined,
             origin: values.origin,
             description: values.description,
@@ -281,6 +321,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
             priceGold: values.priceGold,
             isActive: values.isActive,
             recipe,
+            coffeeIdentity,
             reorderAlertEnabled: values.reorderAlertEnabled,
             leadTimeDays: values.leadTimeDays,
             safetyStockQuantity: values.safetyStockQuantity,
@@ -289,6 +330,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
         : await createProduct({
             name: values.name,
             type: values.type,
+            coffeeSpecies: values.coffeeSpecies || undefined,
             category: values.category || undefined,
             origin: values.origin,
             description: values.description,
@@ -297,6 +339,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
             priceSilver: values.priceSilver,
             priceGold: values.priceGold,
             recipe,
+            coffeeIdentity,
             reorderAlertEnabled: values.reorderAlertEnabled,
             leadTimeDays: values.leadTimeDays,
             safetyStockQuantity: values.safetyStockQuantity,
@@ -409,6 +452,62 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           <Input placeholder="Gayo, Toraja, Ethiopia, dll." className={cn("h-9", glassInput)} {...register("origin")} />
         </div>
       </div>
+
+      {/* ── Identitas Kopi (GREEN_BEAN only) ── */}
+      {selectedType === "GREEN_BEAN" && (
+        <div className={cn(glassCard, "space-y-4")}>
+          <div>
+            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Identitas Kopi (CoffeeSource)</Label>
+            <p className="mt-1 text-xs text-slate-500">
+              Akar identitas kopi ini. Metode proses yang berbeda (mis. washed vs anaerobic natural)
+              adalah identitas yang berbeda, walau dari region yang sama.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Negara</Label>
+              <Input placeholder="Indonesia" className={cn("h-9", glassInput)} {...register("country")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Farm / Produser / Koperasi</Label>
+              <Input placeholder="Koperasi Atu Lintang, dll." className={cn("h-9", glassInput)} {...register("farm")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Varietas</Label>
+              <Input placeholder="Gayo 1, Ateng Super, dll." className={cn("h-9", glassInput)} {...register("varietal")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Metode Proses</Label>
+              <Input list="process-method-list" placeholder="Washed / Natural / Honey / Anaerobic, dll." className={cn("h-9", glassInput)} {...register("processMethod")} />
+              <datalist id="process-method-list">
+                {["Natural", "Washed / Full Washed", "Honey", "Wet Hulled", "Anaerobic Natural", "Anaerobic Washed", "Carbonic Maceration"].map((value) => (
+                  <option key={value} value={value} />
+                ))}
+              </datalist>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Metode Fermentasi</Label>
+              <Input placeholder="Opsional" className={cn("h-9", glassInput)} {...register("fermentationMethod")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Ketinggian</Label>
+              <Input placeholder="1100–1600 mdpl" className={cn("h-9", glassInput)} {...register("elevation")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Tahun Panen</Label>
+              <Input placeholder="2025" className={cn("h-9", glassInput)} {...register("cropYear")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Sertifikasi</Label>
+              <Input placeholder="Fair Trade, Organic (pisahkan dengan koma)" className={cn("h-9", glassInput)} {...register("certifications")} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Catatan Cita Rasa</Label>
+            <Input placeholder="Flavor profile, body, acidity..." className={cn("h-9", glassInput)} {...register("tastingNotes")} />
+          </div>
+        </div>
+      )}
 
       {/* ── Deskripsi ── */}
       <div className="space-y-1.5">

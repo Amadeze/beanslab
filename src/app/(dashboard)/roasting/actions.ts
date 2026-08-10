@@ -664,6 +664,7 @@ export async function createParentRoastingBatch(
           isActive: true,
           stockKg: true,
           avgCostPerKg: true,
+          coffeeSourceId: true,
         },
       });
       if (!inputProduct || !inputProduct.isActive || inputProduct.type !== "GREEN_BEAN") {
@@ -693,6 +694,8 @@ export async function createParentRoastingBatch(
             origin: parsed.outputProductOrigin || inputProduct.origin,
             roastLevel: requestedRoastLevel,
             sourceGreenBeanId: inputProduct.id,
+            coffeeSourceId: inputProduct.coffeeSourceId,
+            materialOrigin: "INTERNAL_ROAST",
             description: inputProduct.description,
             imageUrl: inputProduct.imageUrl,
           },
@@ -720,6 +723,8 @@ export async function createParentRoastingBatch(
             origin: inputProduct.origin,
             roastLevel: requestedRoastLevel,
             sourceGreenBeanId: inputProduct.id,
+            coffeeSourceId: inputProduct.coffeeSourceId,
+            materialOrigin: "INTERNAL_ROAST",
             description: inputProduct.description,
             imageUrl: inputProduct.imageUrl,
           },

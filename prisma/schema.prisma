@@ -66,6 +66,11 @@ enum GrindSize {
   CUSTOM
 }
 
+enum MaterialOrigin {
+  INTERNAL_ROAST // sangrai internal (roasting flow)
+  PURCHASED_ROASTED // Roasted Bean dibeli dari supplier
+}
+
 enum PurchaseType {
   GREEN_BEAN // pembelian biji kopi mentah
   PACKAGING // pembelian bahan kemasan (legacy; write baru pakai SUPPLY)
@@ -459,6 +464,7 @@ model Tenant {
   lotPlacements                    LotPlacement[]
   locationTransfers                LocationTransfer[]
   locationOpnames                  LocationOpname[]
+  coffeeSources                    CoffeeSource[]
 
   @@map("tenants")
 }
@@ -722,13 +728,51 @@ model Supplier {
 }
 
 // =============================================================================
+// TABLE 3B · CoffeeSource (Identitas Kopi / Green Coffee Master)
+// Akar identitas untuk satu kopi (single origin). BUKAN persediaan fisik —
+// identitas tetap ada meski stok Green Bean kosong.
+// Processing method yang berbeda = identitas yang berbeda:
+// "Gayo Fully Washed" dan "Gayo Anaerobic Natural" adalah dua CoffeeSource.
+// Product/Lot/Lot fisik mereferensikan identitas ini.
+// =============================================================================
+
+model CoffeeSource {
+  id                 String   @id @default(cuid())
+  code               String // e.g., "CS-GAYO-FW-001"
+  name               String // "Gayo Fully Washed"
+  country            String? // negara asal: "Indonesia"
+  region             String? // wilayah asal: "Gayo, Aceh Tengah"
+  farm               String? // farm / producer / cooperative
+  species            String? // "ARABICA", "ROBUSTA", dll.
+  varietal           String? // "Gayo 1", "Ateng Super", dll.
+  processMethod      String? // natural | washed/full washed | honey | wet hulled | anaerobic natural | anaerobic washed | carbonic maceration
+  fermentationMethod String? // metode fermentasi tambahan
+  elevation          String? // "1100–1600 mdpl"
+  cropYear           String? // "2025"
+  certifications     String[] // fair trade, organic, dll.
+  tastingNotes       String? // catatan cita rasa
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  products Product[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+  @@map("coffee_sources")
+}
+
+// =============================================================================
 // TABLE 4 · Product
 // Mewakili semua jenis kopi: Green Bean, Roasted Bean, dan Finished Goods.
 // Stok dihitung dari agregasi InventoryLedger, BUKAN disimpan di sini.
 // =============================================================================
 
 model Product {
-  id                String      @id @default(cuid())
+  id                String          @id @default(cuid())
   code              String // e.g., "GB-GAYO-001", "RB-ETHIOPIA-MED", "FG-BLEND-250"
   name              String
   type              ProductType
@@ -737,14 +781,16 @@ model Product {
   origin            String? // asal kopi: "Gayo", "Ethiopia Yirgacheffe", dsb.
   roastLevel        String? // hanya relevan untuk ROASTED_BEAN — bisa nilai enum default atau custom tenant
   sourceGreenBeanId String? // exact GREEN_BEAN identity used to create this ROASTED_BEAN
+  coffeeSourceId    String? // FK → CoffeeSource (identitas kopi akar; GB/RB/lot mengacu ke sini)
+  materialOrigin    MaterialOrigin? // hanya relevan untuk ROASTED_BEAN: sangrai internal vs beli jadi
   description       String?
   imageUrl          String? // URL gambar produk
-  price             Decimal?    @default(0) @db.Decimal(12, 2) // Harga jual retail
-  priceSilver       Decimal?    @default(0) @db.Decimal(12, 2) // Harga jual Wholesale Silver
-  priceGold         Decimal?    @default(0) @db.Decimal(12, 2) // Harga jual Wholesale Gold
-  isActive          Boolean     @default(true)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  price             Decimal?        @default(0) @db.Decimal(12, 2) // Harga jual retail
+  priceSilver       Decimal?        @default(0) @db.Decimal(12, 2) // Harga jual Wholesale Silver
+  priceGold         Decimal?        @default(0) @db.Decimal(12, 2) // Harga jual Wholesale Gold
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   // Caching Field untuk Performa
   stockUnit    Int      @default(0) // Cache jumlah unit (FG)
@@ -772,6 +818,7 @@ model Product {
   roastingOutputs    ParentRoastingBatch[] @relation("RoastingOutput")
   sourceGreenBean    Product?              @relation("GreenBeanRoastOutputs", fields: [sourceGreenBeanId], references: [id], onDelete: SetNull)
   roastLevelOutputs  Product[]             @relation("GreenBeanRoastOutputs")
+  coffeeSource       CoffeeSource?         @relation(fields: [coffeeSourceId], references: [id], onDelete: SetNull)
 
   // Relasi resep & produksi
   recipeItems       RecipeItem[]
@@ -801,6 +848,7 @@ model Product {
   @@unique([tenantId, sourceGreenBeanId, roastLevel])
   @@index([tenantId, type, isActive])
   @@index([tenantId, sourceGreenBeanId])
+  @@index([tenantId, coffeeSourceId])
   @@map("products")
 }
 

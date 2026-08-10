@@ -57,6 +57,7 @@ type OwnedRelation = {
 const ownedRelations: Record<string, OwnedRelation[]> = {
   Product: [
     { foreignKey: "sourceGreenBeanId", relation: "sourceGreenBean", delegate: "product" },
+    { foreignKey: "coffeeSourceId", relation: "coffeeSource", delegate: "coffeeSource" },
   ],
   Recipe: [
     { foreignKey: "productId", relation: "product", delegate: "product" },
@@ -286,8 +287,8 @@ async function assertOwnedRelationsBelongToTenant(
   }
 }
 
-export function withTenant(tenantId: string) {
-  const client = prisma.$extends({
+export function withTenant(tenantId: string, base: PrismaClient = prisma) {
+  const client = base.$extends({
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
@@ -339,16 +340,20 @@ export function withTenant(tenantId: string) {
             mArgs.update = { ...mArgs.update, tenantId };
           }
 
-          if (operation === "create" || operation === "createMany") {
-            await assertOwnedRelationsBelongToTenant(model, mArgs.data, tenantId);
-          } else if (operation === "update") {
-            await assertOwnedRelationsBelongToTenant(model, mArgs.data, tenantId);
-          } else if (operation === "upsert") {
-            await assertOwnedRelationsBelongToTenant(model, mArgs.create, tenantId);
-            await assertOwnedRelationsBelongToTenant(model, mArgs.update, tenantId);
-          }
+          // Jalankan operasi dalam konteks assertion store sehingga query
+          // kepemilikan tenant memakai klien/pool yang sama dengan operasinya.
+          return assertionClientStore.run(base, async () => {
+            if (operation === "create" || operation === "createMany") {
+              await assertOwnedRelationsBelongToTenant(model, mArgs.data, tenantId);
+            } else if (operation === "update") {
+              await assertOwnedRelationsBelongToTenant(model, mArgs.data, tenantId);
+            } else if (operation === "upsert") {
+              await assertOwnedRelationsBelongToTenant(model, mArgs.create, tenantId);
+              await assertOwnedRelationsBelongToTenant(model, mArgs.update, tenantId);
+            }
 
-          return query(mArgs);
+            return query(mArgs);
+          });
         },
       },
     },

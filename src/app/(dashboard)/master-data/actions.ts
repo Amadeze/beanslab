@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { roastedBeanName, type RoastLevelValue } from "@/lib/roast-product";
+import { coffeeSourceCreateDataFromProduct, normalizeCoffeeIdentity, type CoffeeIdentityInput } from "@/lib/coffee-identity";
 import {
   customerInputSchema,
   emptyToNull,
@@ -65,6 +66,24 @@ export type ProductRecipe = {
   supplyItems: ProductRecipeSupplyItem[];
 };
 
+export type CoffeeSourceRow = {
+  id: string;
+  code: string;
+  name: string;
+  country: string | null;
+  region: string | null;
+  farm: string | null;
+  species: string | null;
+  varietal: string | null;
+  processMethod: string | null;
+  fermentationMethod: string | null;
+  elevation: string | null;
+  cropYear: string | null;
+  certifications: string[];
+  tastingNotes: string | null;
+  isActive: boolean;
+};
+
 export type ProductRow = {
   id: string; code: string; name: string;
   type: "GREEN_BEAN" | "ROASTED_BEAN" | "FINISHED_GOODS" | "PACKAGING";
@@ -73,6 +92,8 @@ export type ProductRow = {
   origin: string | null; roastLevel: string | null; description: string | null;
   imageUrl: string | null;
   isActive: boolean; createdAt: string;
+  materialOrigin: "INTERNAL_ROAST" | "PURCHASED_ROASTED" | null;
+  coffeeSource: CoffeeSourceRow | null;
   price: number;
   priceSilver: number;
   priceGold: number;
@@ -166,10 +187,30 @@ export async function getMasterData(): Promise<MasterPageData> {
     category: true,
     origin: true,
     roastLevel: true,
+    materialOrigin: true,
     description: true,
     imageUrl: true,
     isActive: true,
     createdAt: true,
+    coffeeSource: {
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        country: true,
+        region: true,
+        farm: true,
+        species: true,
+        varietal: true,
+        processMethod: true,
+        fermentationMethod: true,
+        elevation: true,
+        cropYear: true,
+        certifications: true,
+        tastingNotes: true,
+        isActive: true,
+      },
+    },
     price: true,
     priceSilver: true,
     priceGold: true,
@@ -266,6 +307,26 @@ export async function getMasterData(): Promise<MasterPageData> {
         category: p.category,
         origin: p.origin,
         roastLevel: p.roastLevel,
+        materialOrigin: p.materialOrigin,
+        coffeeSource: p.coffeeSource
+          ? {
+              id: p.coffeeSource.id,
+              code: p.coffeeSource.code,
+              name: p.coffeeSource.name,
+              country: p.coffeeSource.country,
+              region: p.coffeeSource.region,
+              farm: p.coffeeSource.farm,
+              species: p.coffeeSource.species,
+              varietal: p.coffeeSource.varietal,
+              processMethod: p.coffeeSource.processMethod,
+              fermentationMethod: p.coffeeSource.fermentationMethod,
+              elevation: p.coffeeSource.elevation,
+              cropYear: p.coffeeSource.cropYear,
+              certifications: p.coffeeSource.certifications,
+              tastingNotes: p.coffeeSource.tastingNotes,
+              isActive: p.coffeeSource.isActive,
+            }
+          : null,
         description: p.description,
         imageUrl: p.imageUrl,
         isActive: p.isActive,
@@ -841,6 +902,7 @@ export type CreateProductInput = {
   priceSilver?: number; // Harga jual Wholesale Silver
   priceGold?:   number; // Harga jual Wholesale Gold
   recipe?:      RecipeInput;
+  coffeeIdentity?: CoffeeIdentityInput; // hanya untuk GREEN_BEAN — disinkronkan ke CoffeeSource
   reorderAlertEnabled?: boolean;
   leadTimeDays?: number;
   safetyStockQuantity?: number;
@@ -891,6 +953,44 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
 
       try {
         await tp.$transaction(async (tx) => {
+          // Identitas akar untuk Green Bean: buat CoffeeSource dulu dengan kode
+          // yang sama dengan produk GB (deterministik, 1:1), lalu hubungkan.
+          let coffeeSourceId: string | null = null;
+          if (input.type === "GREEN_BEAN") {
+            const identity = normalizeCoffeeIdentity({
+              ...(input.coffeeIdentity ?? {}),
+              name: input.name,
+              species: input.coffeeSpecies ?? input.coffeeIdentity?.species,
+              region: input.origin ?? input.coffeeIdentity?.region,
+            });
+            const base = coffeeSourceCreateDataFromProduct({
+              code, name: input.name,
+              coffeeSpecies: identity.species,
+              origin: identity.region,
+            });
+            const source = await tx.coffeeSource.create({
+              data: {
+                tenantId,
+                code: base.code,
+                name: identity.name,
+                country: identity.country,
+                region: identity.region,
+                farm: identity.farm,
+                species: identity.species,
+                varietal: identity.varietal,
+                processMethod: identity.processMethod,
+                fermentationMethod: identity.fermentationMethod,
+                elevation: identity.elevation,
+                cropYear: identity.cropYear,
+                certifications: identity.certifications,
+                tastingNotes: identity.tastingNotes,
+                isActive: true,
+              },
+              select: { id: true },
+            });
+            coffeeSourceId = source.id;
+          }
+
           const product = await tx.product.create({
             data: {
               tenantId,
@@ -899,6 +999,8 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
               category:    input.category?.trim()    || null,
               origin:      input.origin?.trim()      || null,
               roastLevel:  input.type === "ROASTED_BEAN" ? (input.roastLevel ?? null) : null,
+              materialOrigin: input.type === "ROASTED_BEAN" ? "INTERNAL_ROAST" : null,
+              coffeeSourceId,
               description: input.description?.trim() || null,
               imageUrl:    input.imageUrl?.trim() || null,
               price:       input.type === "FINISHED_GOODS" ? (input.price ?? 0) : null,
@@ -999,11 +1101,68 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
     }
 
     await tp.$transaction(async (tx) => {
+      // Sinkronkan identitas kopi (CoffeeSource) untuk Green Bean:
+      //   • sudah punya sumber → update field identity + species/region produk.
+      //   • belum punya (legacy) → buat deterministik dengan kode = kode produk.
+      if (existing.type === "GREEN_BEAN") {
+        const product = await tx.product.findUnique({
+          where: { id: input.id },
+          select: {
+            coffeeSourceId: true,
+            name: true,
+            coffeeSpecies: true,
+            origin: true,
+            type: true,
+          },
+        });
+        if (product) {
+          const identity = normalizeCoffeeIdentity({
+            ...(input.coffeeIdentity ?? {}),
+            name: input.name ?? product.name,
+            species: input.coffeeSpecies ?? input.coffeeIdentity?.species ?? product.coffeeSpecies,
+            region: input.origin ?? input.coffeeIdentity?.region ?? product.origin,
+          });
+          const sourceData = {
+            tenantId,
+            code: existing.code,
+            name: identity.name,
+            country: identity.country,
+            region: identity.region,
+            farm: identity.farm,
+            species: identity.species,
+            varietal: identity.varietal,
+            processMethod: identity.processMethod,
+            fermentationMethod: identity.fermentationMethod,
+            elevation: identity.elevation,
+            cropYear: identity.cropYear,
+            certifications: identity.certifications,
+            tastingNotes: identity.tastingNotes,
+            isActive: true,
+          };
+          if (product.coffeeSourceId) {
+            await tx.coffeeSource.update({
+              where: { id: product.coffeeSourceId },
+              data: sourceData,
+            });
+          } else {
+            const source = await tx.coffeeSource.create({
+              data: sourceData,
+              select: { id: true },
+            });
+            await tx.product.update({
+              where: { id: input.id },
+              data: { coffeeSourceId: source.id },
+            });
+          }
+        }
+      }
+
       // ✅ DITAMBAHKAN: Data price dikirim untuk update
       await tx.product.update({
         where: { id: input.id },
         data: {
           name:        input.name!.trim(),
+          coffeeSpecies: input.coffeeSpecies?.trim() || undefined,
           category:    input.category?.trim()    || null,
           origin:      input.origin?.trim()      || null,
           roastLevel:  existing.type === "ROASTED_BEAN" ? (input.roastLevel ?? null) : null,

@@ -92,6 +92,7 @@ export async function createStudioRoastingBatch(
             description: true,
             imageUrl: true,
             stockKg: true,
+            coffeeSourceId: true,
           },
         }),
       ]);
@@ -135,6 +136,8 @@ export async function createStudioRoastingBatch(
           origin: greenBean.origin,
           roastLevel: input.roastLevel,
           sourceGreenBeanId: greenBean.id,
+          coffeeSourceId: greenBean.coffeeSourceId,
+          materialOrigin: "INTERNAL_ROAST",
           description: greenBean.description,
           imageUrl: greenBean.imageUrl,
         },
