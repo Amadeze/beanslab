@@ -28,11 +28,19 @@ import { z } from "zod";
 import { getCurrentDate } from "@/lib/date-utils";
 import { paymentDestinationSnapshot, toPublicPaymentMethod } from "@/lib/manual-payments";
 import { calculateStorefrontTotals, reserveInvoiceStock } from "@/lib/storefront-commerce";
+import {
+  aggregateStorefrontStock,
+  normalizeStorefrontGrind,
+  STOREFRONT_GRIND_SIZES,
+  type StorefrontGrindSize,
+} from "@/lib/storefront-grind";
 
 type CheckoutItemInput = {
   id?: string;
   productId?: string;
   quantity?: number;
+  grindSize?: StorefrontGrindSize;
+  customGrindLabel?: string | null;
 };
 
 type InvoiceItemCreateData = {
@@ -43,6 +51,8 @@ type InvoiceItemCreateData = {
   discount: number;
   subtotal: number;
   hpp: number;
+  grindSize: StorefrontGrindSize;
+  customGrindLabel: string | null;
 };
 
 type MidtransItemDetail = {
@@ -67,6 +77,8 @@ const CheckoutSchema = z.object({
         id: z.string().optional(),
         productId: z.string().optional(),
         quantity: z.coerce.number().int().positive().max(10_000),
+        grindSize: z.enum(STOREFRONT_GRIND_SIZES).default("WHOLE_BEAN"),
+        customGrindLabel: z.string().trim().max(100).nullable().optional(),
       }),
     )
     .min(1)
@@ -146,6 +158,8 @@ export async function POST(
       .map((item) => ({
         productId: item.productId || item.id,
         quantity: Number(item.quantity || 0),
+        grindSize: item.grindSize ?? "WHOLE_BEAN",
+        customGrindLabel: item.customGrindLabel ?? null,
       }))
       .filter((item) => item.productId && Number.isInteger(item.quantity) && item.quantity > 0);
 
@@ -153,12 +167,7 @@ export async function POST(
       return NextResponse.json({ error: "Item checkout tidak valid" }, { status: 400 });
     }
 
-    const quantityByProduct = new Map<string, number>();
-    for (const item of normalizedItems) {
-      quantityByProduct.set(item.productId!, (quantityByProduct.get(item.productId!) || 0) + item.quantity);
-    }
-
-    const productIds = Array.from(quantityByProduct.keys());
+    const productIds = Array.from(new Set(normalizedItems.map((item) => item.productId!)));
     const products = await prisma.product.findMany({
       where: {
         tenantId: tenant.id,
@@ -170,6 +179,12 @@ export async function POST(
         id: true,
         name: true,
         price: true,
+        recipes: {
+          where: { isActive: true },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { storefrontGrindOptions: true },
+        },
       },
     });
 
@@ -197,8 +212,26 @@ export async function POST(
     const invoiceItemsData: InvoiceItemCreateData[] = [];
     const midtransItemDetails: MidtransItemDetail[] = [];
     
-    for (const product of products) {
-      const qty = quantityByProduct.get(product.id) || 0;
+    const productById = new Map(products.map((product) => [product.id, product]));
+    for (const line of normalizedItems) {
+      const product = productById.get(line.productId!);
+      if (!product) {
+        return NextResponse.json({ error: "Produk checkout tidak ditemukan" }, { status: 400 });
+      }
+      const qty = line.quantity;
+      let preparation;
+      try {
+        preparation = normalizeStorefrontGrind(
+          line.grindSize,
+          line.customGrindLabel ?? undefined,
+          product.recipes[0]?.storefrontGrindOptions ?? ["WHOLE_BEAN"],
+        );
+      } catch (error) {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "Pilihan gilingan tidak valid" },
+          { status: 400 },
+        );
+      }
       const unitPrice = Number(product.price || 0);
       const itemSub = unitPrice * qty;
       subtotal += itemSub;
@@ -211,13 +244,15 @@ export async function POST(
         discount: 0,
         subtotal: itemSub,
         hpp: hppByProduct.get(product.id) || 0,
+        grindSize: preparation.grindSize,
+        customGrindLabel: preparation.customGrindLabel,
       });
 
       midtransItemDetails.push({
-        id: product.id,
+        id: `${product.id}-${preparation.grindSize}`.substring(0, 50),
         price: Math.round(unitPrice),
         quantity: qty,
-        name: product.name.substring(0, 50)
+        name: `${product.name} - ${preparation.grindSize}`.substring(0, 50)
       });
     }
 
@@ -339,7 +374,7 @@ export async function POST(
         tenantId: tenant.id,
         invoiceId: inv.id,
         expiresAt: paymentExpiresAt,
-        items: invoiceItemsData.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+        items: aggregateStorefrontStock(invoiceItemsData),
       });
       if (reservation.hasShortage) {
         await tx.invoice.update({ where: { id: inv.id }, data: { fulfillmentStatus: "NEEDS_PRODUCTION" } });

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
+import { STOREFRONT_GRIND_LABEL } from "@/lib/storefront-grind";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export default async function FulfillmentPage() {
     select: {
       id: true, code: true, fulfillmentStatus: true, issuedAt: true, trackingNumber: true,
       customer: { select: { name: true } },
+      items: { select: { id: true, quantity: true, grindSize: true, customGrindLabel: true, product: { select: { name: true } } } },
       fulfillmentTasks: { where: { status: { in: ["OPEN", "IN_PROGRESS"] } }, select: { id: true, shortageQuantity: true, product: { select: { id: true, name: true } } } },
     },
   });
@@ -32,6 +34,7 @@ export default async function FulfillmentPage() {
       {invoices.length === 0 ? <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center text-sm text-stone-500">Tidak ada pesanan storefront yang perlu ditindaklanjuti.</div> : <div className="grid gap-3">
         {invoices.map((invoice) => <article key={invoice.id} className="grid gap-4 rounded-xl border border-stone-200 bg-white p-4 md:grid-cols-[1fr_auto] md:items-center">
           <div><div className="flex flex-wrap items-center gap-2"><strong className="text-sm text-stone-900">{invoice.code}</strong><span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-bold uppercase text-stone-600">{statusLabel[invoice.fulfillmentStatus]}</span></div><p className="mt-1 text-xs text-stone-500">{invoice.customer.name} · {invoice.issuedAt.toLocaleString("id-ID")}</p>
+          <ul className="mt-3 grid gap-1 text-xs text-stone-600">{invoice.items.map((item) => <li key={item.id}>{item.quantity}× {item.product.name}{item.grindSize ? ` · ${item.grindSize === "CUSTOM" ? item.customGrindLabel : STOREFRONT_GRIND_LABEL[item.grindSize]}` : ""}</li>)}</ul>
           {invoice.fulfillmentTasks.length ? <ul className="mt-3 grid gap-1 text-xs text-amber-800">{invoice.fulfillmentTasks.map((task) => <li key={task.id}>Produksi {task.shortageQuantity} unit · {task.product.name}</li>)}</ul> : invoice.trackingNumber ? <p className="mt-2 text-xs text-emerald-700">Resi {invoice.trackingNumber}</p> : null}</div>
           <div className="flex gap-2">{invoice.fulfillmentTasks.length ? invoice.fulfillmentTasks.map((task) => <Link key={task.id} href={`/produksi?productId=${encodeURIComponent(task.product.id)}&units=${task.shortageQuantity}`} className="inline-flex h-9 items-center rounded-lg bg-amber-700 px-3 text-xs font-bold text-white">Produksi {task.shortageQuantity}</Link>) : null}<Link href="/penjualan" className="inline-flex h-9 items-center rounded-lg border border-stone-300 px-3 text-xs font-bold">Buka pesanan</Link></div>
         </article>)}

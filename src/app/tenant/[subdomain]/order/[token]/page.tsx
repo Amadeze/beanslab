@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { paymentStatusLabel } from "@/lib/manual-payments";
 import { PaymentProofForm } from "./PaymentProofForm";
+import { STOREFRONT_GRIND_LABEL } from "@/lib/storefront-grind";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function PublicOrderPage({ params }: { params: Promise<{ su
       reservationExpiresAt: true,
       customer: { select: { name: true } },
       tenant: { select: { name: true, subdomain: true, whatsappNumber: true } },
-      items: { select: { id: true, quantity: true, unitPrice: true, subtotal: true, product: { select: { name: true } } } },
+      items: { select: { id: true, quantity: true, unitPrice: true, subtotal: true, grindSize: true, customGrindLabel: true, product: { select: { name: true } } } },
       fulfillmentTasks: { where: { status: { in: ["OPEN", "IN_PROGRESS"] } }, select: { shortageQuantity: true } },
       paymentSubmissions: {
         orderBy: { createdAt: "desc" }, take: 10,
@@ -89,7 +90,7 @@ export default async function PublicOrderPage({ params }: { params: Promise<{ su
           <section>
             <h2 className="text-xs font-black uppercase tracking-wider text-stone-600">Isi pesanan</h2>
             <div className="mt-3 divide-y divide-stone-100 rounded-xl border border-stone-200">
-              {invoice.items.map((item) => <div key={item.id} className="flex items-center justify-between gap-4 px-4 py-3 text-sm"><div><p className="font-bold">{item.product.name}</p><p className="text-xs text-stone-500">{item.quantity} × Rp {Number(item.unitPrice).toLocaleString("id-ID")}</p></div><strong>Rp {Number(item.subtotal).toLocaleString("id-ID")}</strong></div>)}
+              {invoice.items.map((item) => <div key={item.id} className="flex items-center justify-between gap-4 px-4 py-3 text-sm"><div><p className="font-bold">{item.product.name}</p><p className="text-xs text-stone-500">{item.quantity} × Rp {Number(item.unitPrice).toLocaleString("id-ID")}</p>{item.grindSize ? <p className="mt-1 text-xs font-semibold text-amber-800">{item.grindSize === "CUSTOM" ? item.customGrindLabel : STOREFRONT_GRIND_LABEL[item.grindSize]}</p> : null}</div><strong>Rp {Number(item.subtotal).toLocaleString("id-ID")}</strong></div>)}
               {Number(invoice.shippingCost) > 0 ? <div className="flex justify-between px-4 py-3 text-sm"><span>Ongkir</span><strong>Rp {Number(invoice.shippingCost).toLocaleString("id-ID")}</strong></div> : null}
               {Number(invoice.tax) > 0 ? <div className="flex justify-between px-4 py-3 text-sm"><span>Pajak</span><strong>Rp {Number(invoice.tax).toLocaleString("id-ID")}</strong></div> : null}
             </div>

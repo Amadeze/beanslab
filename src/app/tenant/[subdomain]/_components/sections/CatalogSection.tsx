@@ -9,12 +9,20 @@ import {
 import { ThemeSkin } from "../themes/ThemeSkin";
 import { getDisplayPrice, formatPrice, getMoq, CustomerTier } from "../themes/pricing";
 import type { Product } from "@prisma/client";
+import {
+  STOREFRONT_GRIND_LABEL,
+  type StorefrontGrindSize,
+} from "@/lib/storefront-grind";
+
+type StorefrontProduct = Product & {
+  recipes?: Array<{ storefrontGrindOptions: StorefrontGrindSize[] }>;
+};
 
 interface CatalogSectionProps {
-  products: Product[];
+  products: StorefrontProduct[];
   catalogTitle: string;
   catalogSubtitle: string;
-  handleAddToCart: (product: Product) => void;
+  handleAddToCart: (product: Product, grindSize?: StorefrontGrindSize, customGrindLabel?: string | null) => void;
   customerTier?: CustomerTier;
   skin: ThemeSkin;
 }
@@ -62,6 +70,8 @@ export function CatalogSection({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [showFilters, setShowFilters] = useState(false);
+  const [grindSelections, setGrindSelections] = useState<Record<string, StorefrontGrindSize>>({});
+  const [customGrindLabels, setCustomGrindLabels] = useState<Record<string, string>>({});
 
   const categories = useMemo(() => {
     const set = new Set(products.filter(p => p.category).map(p => p.category!));
@@ -120,8 +130,45 @@ export function CatalogSection({
   const handleBulkAdd = (product: any) => {
     const moq = getMoq(product);
     const qty = quantities[product.id] || moq;
-    for (let i = 0; i < qty; i++) handleAddToCart(product);
+    const options: StorefrontGrindSize[] = product.recipes?.[0]?.storefrontGrindOptions ?? ["WHOLE_BEAN"];
+    const grindSize = grindSelections[product.id] ?? options[0] ?? "WHOLE_BEAN";
+    const customLabel = grindSize === "CUSTOM" ? customGrindLabels[product.id]?.trim() || null : null;
+    if (grindSize === "CUSTOM" && !customLabel) return;
+    for (let i = 0; i < qty; i++) handleAddToCart(product, grindSize, customLabel);
     setQuantities(prev => ({ ...prev, [product.id]: moq }));
+  };
+
+  const grindPicker = (product: StorefrontProduct) => {
+    const options = product.recipes?.[0]?.storefrontGrindOptions ?? ["WHOLE_BEAN"];
+    const selected = grindSelections[product.id] ?? options[0] ?? "WHOLE_BEAN";
+    if (options.length === 1 && selected === "WHOLE_BEAN") return null;
+    return (
+      <div className="space-y-2">
+        <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--t-text-muted)]">
+          Mau digiling?
+        </label>
+        <select
+          value={selected}
+          onChange={(event) => setGrindSelections((current) => ({
+            ...current,
+            [product.id]: event.target.value as StorefrontGrindSize,
+          }))}
+          className="h-9 w-full rounded-xl border border-[var(--t-border)] bg-[var(--t-surface)] px-3 text-xs text-[var(--t-text)]"
+        >
+          {options.map((option) => (
+            <option key={option} value={option}>{STOREFRONT_GRIND_LABEL[option]}</option>
+          ))}
+        </select>
+        {selected === "CUSTOM" && (
+          <input
+            value={customGrindLabels[product.id] ?? ""}
+            onChange={(event) => setCustomGrindLabels((current) => ({ ...current, [product.id]: event.target.value }))}
+            placeholder="Contoh: Comandante 22 klik"
+            className="h-9 w-full rounded-xl border border-[var(--t-border)] bg-[var(--t-surface)] px-3 text-xs text-[var(--t-text)]"
+          />
+        )}
+      </div>
+    );
   };
 
   const resetFilters = () => {
@@ -514,6 +561,8 @@ export function CatalogSection({
                           </div>
                         )}
 
+                        {grindPicker(product)}
+
                         {/* Quantity + Add to Cart */}
                         <div className="flex items-center gap-2">
                           <div className="flex items-center border border-[var(--t-border)] rounded-2xl overflow-hidden bg-[var(--t-surface)]">
@@ -644,6 +693,7 @@ export function CatalogSection({
                         </div>
                       </td>
                       <td className="p-4">
+                        <div className="mb-2 min-w-40">{grindPicker(product)}</div>
                         <button
                           onClick={() => handleBulkAdd(product)}
                           disabled={!hasStock}

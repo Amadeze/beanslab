@@ -105,6 +105,12 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
           priceGold: true,
           stockKg: true,
           stockUnit: true,
+          recipes: {
+            where: { isActive: true },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { storefrontGrindOptions: true },
+          },
         },
         orderBy: [
           { stockKg: "desc" },

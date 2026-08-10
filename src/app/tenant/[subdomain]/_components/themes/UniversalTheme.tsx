@@ -16,6 +16,7 @@ import { resolveSkin } from "./skins";
 
 import { TenantPortalLayout } from "./TenantPortalLayout";
 import { PortalThemeRenderer } from "@/features/portal-theme/components/PortalThemeRenderer";
+import { STOREFRONT_GRIND_LABEL } from "@/lib/storefront-grind";
 
 export function UniversalTheme({
   tenant, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
@@ -135,6 +136,11 @@ export function UniversalTheme({
                         </h4>
                         <p className="text-xs mb-2 text-[var(--t-text-muted)]">
                           Rp {item.price.toLocaleString("id-ID")}
+                        </p>
+                        <p className="mb-2 text-[11px] font-semibold text-[var(--t-primary)]">
+                          {item.grindSize
+                            ? (item.grindSize === "CUSTOM" ? item.customGrindLabel : STOREFRONT_GRIND_LABEL[item.grindSize as keyof typeof STOREFRONT_GRIND_LABEL])
+                            : STOREFRONT_GRIND_LABEL.WHOLE_BEAN}
                         </p>
                         <div className="flex items-center gap-2">
                           <button

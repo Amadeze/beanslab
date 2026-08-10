@@ -60,6 +60,7 @@ export type ProductRecipeSupplyItem = {
 
 export type ProductRecipe = {
   id: string; packagingId: string; outputGrams: number; notes: string | null;
+  storefrontGrindOptions: Array<"WHOLE_BEAN" | "COARSE" | "MEDIUM_COARSE" | "MEDIUM" | "MEDIUM_FINE" | "FINE" | "ESPRESSO" | "CUSTOM">;
   items: ProductRecipeItem[];
   supplyItems: ProductRecipeSupplyItem[];
 };
@@ -184,6 +185,7 @@ export async function getMasterData(): Promise<MasterPageData> {
           id: true,
           packagingId: true,
           outputGrams: true,
+          storefrontGrindOptions: true,
           notes: true,
           items: {
             select: {
@@ -282,6 +284,7 @@ export async function getMasterData(): Promise<MasterPageData> {
               id: r.id,
               packagingId: r.packagingId,
               outputGrams: Number(r.outputGrams),
+              storefrontGrindOptions: r.storefrontGrindOptions,
               notes: r.notes,
               items: r.items.map((i) => ({
                 id: i.id,
@@ -822,6 +825,7 @@ export type RecipeInput = {
   notes?:       string;
   items:        RecipeItemInput[];
   supplyItems?: Array<{ supplyItemId: string; quantityPerUnit: number }>;
+  storefrontGrindOptions?: ProductRecipe["storefrontGrindOptions"];
 };
 
 export type CreateProductInput = {
@@ -921,6 +925,7 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
                   productId:   product.id,
                   packagingId: r.packagingId,
                   outputGrams: outputG,
+                  storefrontGrindOptions: r.storefrontGrindOptions ?? ["WHOLE_BEAN"],
                   notes:       r.notes?.trim() || null,
                 },
               });
@@ -1034,6 +1039,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
                 data: {
                   packagingId: r.packagingId,
                   outputGrams: outputG,
+                  storefrontGrindOptions: r.storefrontGrindOptions ?? ["WHOLE_BEAN"],
                   notes:       r.notes?.trim() || null,
                 },
               });
@@ -1072,6 +1078,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
                   productId:   input.id,
                   packagingId: r.packagingId,
                   outputGrams: outputG,
+                  storefrontGrindOptions: r.storefrontGrindOptions ?? ["WHOLE_BEAN"],
                   notes:       r.notes?.trim() || null,
                 },
               });

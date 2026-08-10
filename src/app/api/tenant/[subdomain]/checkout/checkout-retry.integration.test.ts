@@ -33,6 +33,7 @@ const TENANT_ID = "tenant-checkout-retry";
 const TENANT_SUBDOMAIN = "checkout-retry";
 const USER_ID = "user-checkout-retry";
 const PRODUCT_ID = "product-checkout-retry";
+const PACKAGING_ID = "packaging-checkout-retry";
 const INVOICE_PREFIX = "INV-RETRY-";
 
 function prismaError(code: string) {
@@ -53,7 +54,9 @@ async function cleanupTenantData() {
   await prisma.payment.deleteMany({ where: { tenantId: TENANT_ID } });
   await prisma.invoice.deleteMany({ where: { tenantId: TENANT_ID } });
   await prisma.customer.deleteMany({ where: { tenantId: TENANT_ID } });
+  await prisma.recipe.deleteMany({ where: { tenantId: TENANT_ID } });
   await prisma.product.deleteMany({ where: { tenantId: TENANT_ID } });
+  await prisma.packaging.deleteMany({ where: { tenantId: TENANT_ID } });
   await prisma.user.deleteMany({ where: { tenantId: TENANT_ID } });
   await prisma.tenant.deleteMany({ where: { id: TENANT_ID } });
 }
@@ -103,6 +106,27 @@ suite("checkout Serializable retry (integration)", () => {
         isActive: true,
       },
     });
+    await prisma.packaging.create({
+      data: {
+        id: PACKAGING_ID,
+        tenantId: TENANT_ID,
+        code: "PKG-RETRY-1",
+        name: "Retry Pouch",
+        weightGrams: 10,
+        costPerUnit: 1_000,
+      },
+    });
+    await prisma.recipe.create({
+      data: {
+        tenantId: TENANT_ID,
+        code: "RCP-RETRY-1",
+        name: "Retry Recipe",
+        productId: PRODUCT_ID,
+        packagingId: PACKAGING_ID,
+        outputGrams: 1_000,
+        storefrontGrindOptions: ["WHOLE_BEAN", "ESPRESSO"],
+      },
+    });
   });
 
   beforeEach(() => {
@@ -131,7 +155,7 @@ suite("checkout Serializable retry (integration)", () => {
     await cleanupTenantData();
   });
 
-  async function runCheckout() {
+  async function runCheckout(items: Array<Record<string, unknown>> = [{ productId: PRODUCT_ID, quantity: 1 }]) {
     const req = new NextRequest(
       `http://localhost/api/tenant/${TENANT_SUBDOMAIN}/checkout`,
       {
@@ -143,7 +167,7 @@ suite("checkout Serializable retry (integration)", () => {
           customerEmail: "retry@example.com",
           customerAddress: "Jl. Test Retry 1",
           shippingMethod: "PICKUP",
-          items: [{ productId: PRODUCT_ID, quantity: 1 }],
+          items,
         }),
       },
     );
@@ -170,18 +194,9 @@ suite("checkout Serializable retry (integration)", () => {
     expect(
       await prisma.stockReservation.count({ where: { tenantId: TENANT_ID } }),
     ).toBe(1);
-    const journals = await prisma.journalEntry.findMany({
-      where: { tenantId: TENANT_ID },
-      select: { reference: true },
-    });
-    expect(journals).toHaveLength(1);
-    const invoiceIds = (
-      await prisma.invoice.findMany({
-        where: { tenantId: TENANT_ID },
-        select: { id: true },
-      })
-    ).map((row) => row.id);
-    expect(journals[0]?.reference).toBe(invoiceIds[0]);
+    expect(
+      await prisma.journalEntry.count({ where: { tenantId: TENANT_ID } }),
+    ).toBe(0);
     expect(
       await prisma.auditLog.count({
         where: { tenantId: TENANT_ID, action: "CREATE_PUBLIC" },
@@ -197,6 +212,26 @@ suite("checkout Serializable retry (integration)", () => {
     expect(res.status).toBe(500);
     expect(state.calls).toBe(3);
     expect(await invoiceCount()).toBe(before);
+  });
+
+  it("stores preparation per line while reserving shared product stock once", async () => {
+    const res = await runCheckout([
+      { productId: PRODUCT_ID, quantity: 1, grindSize: "WHOLE_BEAN" },
+      { productId: PRODUCT_ID, quantity: 2, grindSize: "ESPRESSO" },
+    ]);
+    expect(res.status).toBe(200);
+
+    const invoice = await prisma.invoice.findFirstOrThrow({
+      where: { tenantId: TENANT_ID },
+      orderBy: { createdAt: "desc" },
+      include: { items: { orderBy: { grindSize: "asc" } }, stockReservations: true },
+    });
+    expect(invoice.items.map((item) => [item.grindSize, item.quantity])).toEqual([
+      ["WHOLE_BEAN", 1],
+      ["ESPRESSO", 2],
+    ]);
+    expect(invoice.stockReservations).toHaveLength(1);
+    expect(invoice.stockReservations[0]?.quantity).toBe(3);
   });
 
   it("does not retry non-P2034 errors", async () => {

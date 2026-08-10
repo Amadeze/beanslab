@@ -918,16 +918,17 @@ model InventorySupplyItem {
 // =============================================================================
 
 model Recipe {
-  id          String   @id @default(cuid())
-  code        String // e.g., "RCP-HOUSE-BLEND-250"
-  name        String // "House Blend 250g"
-  productId   String // FK → Product (type = FINISHED_GOODS)
-  packagingId String // LEGACY: FK → Packaging (compatibility). Write baru memakai RecipeSupplyItem (multi: pouch, valve, label, box)
-  outputGrams Decimal  @db.Decimal(8, 2) // gram kopi bersih per unit output
-  notes       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                     String      @id @default(cuid())
+  code                   String // e.g., "RCP-HOUSE-BLEND-250"
+  name                   String // "House Blend 250g"
+  productId              String // FK → Product (type = FINISHED_GOODS)
+  packagingId            String // LEGACY: FK → Packaging (compatibility). Write baru memakai RecipeSupplyItem (multi: pouch, valve, label, box)
+  outputGrams            Decimal     @db.Decimal(8, 2) // gram kopi bersih per unit output
+  storefrontGrindOptions GrindSize[] @default([WHOLE_BEAN])
+  notes                  String?
+  isActive               Boolean     @default(true)
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
 
   product           Product            @relation(fields: [productId], references: [id])
   packaging         Packaging          @relation(fields: [packagingId], references: [id])
@@ -1494,13 +1495,15 @@ model InvoiceItem {
   invoiceId String
   productId String // FK → Product (type = FINISHED_GOODS)
 
-  quantity        Int
-  unitPrice       Decimal         @db.Decimal(12, 2)
-  discount        Decimal         @default(0) @db.Decimal(12, 2) // diskon per unit
-  subtotal        Decimal         @db.Decimal(14, 2) // = (unitPrice - discount) * quantity, dihitung server
-  hpp             Decimal         @db.Decimal(12, 2) // snapshot HPP per unit saat transaksi
-  priceSource     SalePriceSource @default(BASE)
-  contractPriceId String?
+  quantity         Int
+  unitPrice        Decimal         @db.Decimal(12, 2)
+  discount         Decimal         @default(0) @db.Decimal(12, 2) // diskon per unit
+  subtotal         Decimal         @db.Decimal(14, 2) // = (unitPrice - discount) * quantity, dihitung server
+  hpp              Decimal         @db.Decimal(12, 2) // snapshot HPP per unit saat transaksi
+  priceSource      SalePriceSource @default(BASE)
+  contractPriceId  String?
+  grindSize        GrindSize?
+  customGrindLabel String?
 
   invoice       Invoice        @relation(fields: [invoiceId], references: [id])
   product       Product        @relation(fields: [productId], references: [id])

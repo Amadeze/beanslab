@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createProduct, updateProduct } from "../actions";
 import type { ProductRow, PackagingRow } from "../actions";
 import { cn } from "@/lib/utils";
+import { STOREFRONT_GRIND_LABEL, STOREFRONT_GRIND_SIZES } from "@/lib/storefront-grind";
 
 const glassInput = "bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 focus:border-white/80";
 const glassCard = "rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl p-4 shadow-sm";
@@ -75,6 +76,7 @@ const schema = z.object({
   recipeOutputGrams: z.number().optional(),
   recipeNotes:       z.string().optional(),
   recipeItems:       z.array(recipeItemSchema).optional(),
+  storefrontGrindOptions: z.array(z.enum(STOREFRONT_GRIND_SIZES)).min(1),
   reorderAlertEnabled:  z.boolean(),
   leadTimeDays:         z.number().int().min(1).max(365),
   safetyStockQuantity:  z.number().min(0),
@@ -136,6 +138,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           recipeOutputGrams: existingRecipe?.outputGrams ?? 0,
           recipeNotes:       existingRecipe?.notes ?? "",
           recipeItems:       defaultRecipeItems,
+          storefrontGrindOptions: existingRecipe?.storefrontGrindOptions ?? ["WHOLE_BEAN"],
           blendType:         existingRecipe?.items.length === 1 ? "SINGLE" : "BLEND",
           reorderAlertEnabled:  initialData.reorderAlertEnabled ?? false,
           leadTimeDays:         initialData.leadTimeDays ?? 7,
@@ -146,6 +149,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           name: "", type: "GREEN_BEAN", category: "", origin: "", blendType: "SINGLE",
           description: "", imageUrl: "", price: 0, priceSilver: 0, priceGold: 0, isActive: true,
           recipePackagingId: "", recipeOutputGrams: 0, recipeNotes: "", recipeItems: [],
+          storefrontGrindOptions: ["WHOLE_BEAN"],
           reorderAlertEnabled: false, leadTimeDays: 7, safetyStockQuantity: 0, reorderLookbackDays: 30,
         },
   });
@@ -162,6 +166,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
   const totalRatio       = recipeItems.reduce((s, i) => s + (Number(i.ratioPercent) || 0), 0);
   const isFG             = selectedType === "FINISHED_GOODS";
   const recipePackagingId = watch("recipePackagingId");
+  const storefrontGrindOptions = watch("storefrontGrindOptions") ?? ["WHOLE_BEAN"];
 
   const estimatedHpp = useMemo(() => {
     if (!isFG) return 0;
@@ -254,6 +259,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           packagingId: values.recipePackagingId,
           outputGrams: values.recipeOutputGrams,
           notes:       values.recipeNotes || undefined,
+          storefrontGrindOptions: values.storefrontGrindOptions,
           items:       values.recipeItems!.map((i) => ({
             rbProductId:  i.rbProductId,
             gramsPerUnit: i.gramsPerUnit,
@@ -476,6 +482,40 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           <p className="text-xs text-slate-400">
             {blendType === "SINGLE" ? "Satu jenis Roasted Bean, 100% murni" : "Campuran beberapa Roasted Bean dengan rasio tertentu"}
           </p>
+        </div>
+      )}
+
+      {isFG && (
+        <div className={cn(glassCard, "space-y-3")}>
+          <div>
+            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Pilihan gilingan di storefront</Label>
+            <p className="mt-1 text-xs text-slate-400">Kemasan tetap menjadi SKU stok. Gilingan dicatat sebagai instruksi per pesanan.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {STOREFRONT_GRIND_SIZES.map((grindSize) => {
+              const selected = storefrontGrindOptions.includes(grindSize);
+              return (
+                <button
+                  key={grindSize}
+                  type="button"
+                  onClick={() => {
+                    const next = selected
+                      ? storefrontGrindOptions.filter((value) => value !== grindSize)
+                      : [...storefrontGrindOptions, grindSize];
+                    if (next.length > 0) setValue("storefrontGrindOptions", next, { shouldDirty: true });
+                  }}
+                  className={cn(
+                    "rounded-xl border px-3 py-2 text-left text-xs font-semibold transition",
+                    selected
+                      ? "border-violet-400 bg-violet-50 text-violet-700"
+                      : "border-slate-200 bg-white/60 text-slate-500 hover:border-slate-300",
+                  )}
+                >
+                  {STOREFRONT_GRIND_LABEL[grindSize]}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 

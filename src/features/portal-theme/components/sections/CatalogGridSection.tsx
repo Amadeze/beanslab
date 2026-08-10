@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 import { ShoppingBag, Plus, Coffee, Tag } from "lucide-react";
+import { useState } from "react";
+import { STOREFRONT_GRIND_LABEL, type StorefrontGrindSize } from "@/lib/storefront-grind";
 
 interface CatalogGridProps {
   settings: Record<string, unknown>;
@@ -10,7 +12,7 @@ interface CatalogGridProps {
   layout?: any;
   isPreview?: boolean;
   products?: any[];
-  onAddToCart?: (product: any) => void;
+  onAddToCart?: (product: any, grindSize?: StorefrontGrindSize, customGrindLabel?: string | null) => void;
 }
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -27,6 +29,8 @@ export function CatalogGridSection({ settings, typography, products = [], onAddT
   const subtitle = (settings.subtitle as string) || "";
   const columns = (settings.columns as number) || 3;
   const showPrices = settings.showPrices !== false;
+  const [grindSelections, setGrindSelections] = useState<Record<string, StorefrontGrindSize>>({});
+  const [customLabels, setCustomLabels] = useState<Record<string, string>>({});
 
   const displayProducts = products && products.length > 0 ? products : null;
 
@@ -130,6 +134,30 @@ export function CatalogGridSection({ settings, typography, products = [], onAddT
                     )}
                   </div>
 
+                  {(() => {
+                    const options: StorefrontGrindSize[] = product.recipes?.[0]?.storefrontGrindOptions ?? ["WHOLE_BEAN"];
+                    const selected = grindSelections[product.id] ?? options[0] ?? "WHOLE_BEAN";
+                    if (options.length === 1 && selected === "WHOLE_BEAN") return null;
+                    return <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: "var(--portal-text-muted, #6B7280)" }}>Pilihan gilingan</label>
+                      <select
+                        value={selected}
+                        onChange={(event) => setGrindSelections((current) => ({ ...current, [product.id]: event.target.value as StorefrontGrindSize }))}
+                        className="h-9 w-full rounded-xl border bg-transparent px-3 text-xs"
+                        style={{ borderColor: "var(--portal-border, #E5E7EB)", color: "var(--portal-text, #1A1A1A)" }}
+                      >
+                        {options.map((option) => <option key={option} value={option}>{STOREFRONT_GRIND_LABEL[option]}</option>)}
+                      </select>
+                      {selected === "CUSTOM" ? <input
+                        value={customLabels[product.id] ?? ""}
+                        onChange={(event) => setCustomLabels((current) => ({ ...current, [product.id]: event.target.value }))}
+                        placeholder="Contoh: Comandante 22 klik"
+                        className="h-9 w-full rounded-xl border bg-transparent px-3 text-xs"
+                        style={{ borderColor: "var(--portal-border, #E5E7EB)", color: "var(--portal-text, #1A1A1A)" }}
+                      /> : null}
+                    </div>;
+                  })()}
+
                   <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: "var(--portal-border-subtle, #F0F0F0)" }}>
                     {showPrices && (
                       <div>
@@ -142,7 +170,12 @@ export function CatalogGridSection({ settings, typography, products = [], onAddT
                       </div>
                     )}
                     <button
-                      onClick={() => onAddToCart && onAddToCart(product)}
+                      onClick={() => {
+                        const options: StorefrontGrindSize[] = product.recipes?.[0]?.storefrontGrindOptions ?? ["WHOLE_BEAN"];
+                        const grindSize = grindSelections[product.id] ?? options[0] ?? "WHOLE_BEAN";
+                        const customLabel = grindSize === "CUSTOM" ? customLabels[product.id]?.trim() || null : null;
+                        if (grindSize !== "CUSTOM" || customLabel) onAddToCart?.(product, grindSize, customLabel);
+                      }}
                       aria-label={`Add ${product.name} to cart`}
                       className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all shadow-sm active:scale-95"
                       style={{

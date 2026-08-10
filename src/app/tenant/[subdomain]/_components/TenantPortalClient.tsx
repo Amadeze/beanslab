@@ -5,6 +5,7 @@ import { useCartStore } from "../_store/cartStore";
 import { useState, useEffect } from "react";
 import { ThemeEngine } from "./themes/ThemeEngine";
 import { UniversalTheme } from "./themes/UniversalTheme";
+import { storefrontLineId, type StorefrontGrindSize } from "@/lib/storefront-grind";
 
 // =============================================================================
 // TENANT PORTAL CLIENT — $10k Architecture
@@ -39,8 +40,12 @@ type ExtendedTenant = Tenant & {
   }>;
 };
 
+type StorefrontProduct = Product & {
+  recipes?: Array<{ storefrontGrindOptions: StorefrontGrindSize[] }>;
+};
+
 interface TenantPortalClientProps {
-  tenant: ExtendedTenant & { products: Product[] };
+  tenant: ExtendedTenant & { products: StorefrontProduct[] };
 }
 
 export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
@@ -105,13 +110,24 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
   }, [customerName, customerPhone, customerAddress, shippingMethod]);
 
   // ─── Cart Actions ─────────────────────────────────────────────────────
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = (
+    product: Product,
+    grindSize?: StorefrontGrindSize,
+    customGrindLabel: string | null = null,
+  ) => {
+    const storefrontProduct = product as StorefrontProduct;
+    const resolvedGrindSize = grindSize
+      ?? storefrontProduct.recipes?.[0]?.storefrontGrindOptions[0]
+      ?? "WHOLE_BEAN";
     cart.addItem(tenant.subdomain || "", {
-      id: product.id,
+      id: storefrontLineId(product.id, resolvedGrindSize, customGrindLabel),
+      productId: product.id,
       code: product.code,
       name: product.name,
       imageUrl: product.imageUrl,
       price: Number(product.price || 0),
+      grindSize: resolvedGrindSize,
+      customGrindLabel,
     });
     setIsCartOpen(true);
   };

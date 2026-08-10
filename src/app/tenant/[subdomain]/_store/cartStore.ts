@@ -1,18 +1,22 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { StorefrontGrindSize } from '@/lib/storefront-grind';
 
 export interface CartItem {
   id: string;
+  productId: string;
   code: string;
   name: string;
   imageUrl: string | null;
   price: number;
   quantity: number;
+  grindSize: StorefrontGrindSize;
+  customGrindLabel: string | null;
 }
 
 interface CartState {
   items: Record<string, CartItem[]>;
-  addItem: (tenantId: string, product: { id: string; code: string; name: string; imageUrl: string | null; price: number }) => void;
+  addItem: (tenantId: string, product: Omit<CartItem, "quantity">) => void;
   removeItem: (tenantId: string, id: string) => void;
   updateQuantity: (tenantId: string, id: string, delta: number) => void;
   clearCart: (tenantId: string) => void;
