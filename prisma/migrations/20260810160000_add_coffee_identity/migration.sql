@@ -9,11 +9,13 @@
 --   • Satu CoffeeSource dibuat dari setiap produk GREEN_BEAN yang sudah ada,
 --     dengan id = id produk GB tersebut (mapping 1:1 eksak, tanpa join).
 --   • Produk GB dihubungkan ke sumbernya sendiri.
---   • Produk ROASTED_BEAN dengan sourceGreenBeanId dihubungkan ke sumber
---     Green Bean-nya (sourceGreenBeanId == id CoffeeSource karena mapping 1:1).
---   • Ambigu (RB tanpa sourceGreenBeanId) dibiarkan NULL untuk pemetaan manual.
---   • materialOrigin ROASTED_BEAN yang ada = INTERNAL_ROAST (belum ada jalur
---     beli jadi saat ini, sehingga nilai ini eksak dan aman).
+--   • Produk ROASTED_BEAN dihubungkan ke sumber Green Bean-nya HANYA jika
+--     lineage terbukti: sourceGreenBeanId valid, target memang GREEN_BEAN,
+--     tenant sama, dan target punya identitas. Referensi invalid/ambigu
+--     (non-GB, beda tenant, atau tanpa sourceGreenBeanId) tetap NULL.
+--   • materialOrigin = INTERNAL_ROAST HANYA untuk RB dengan lineage terbukti
+--     (hasil sangrai internal). RB lama/impor/penyesuaian tanpa bukti
+--     dibiarkan NULL untuk ditinjau manual.
 --   • Tidak ada perubahan InventoryLedger / stock cache (stockUnit/stockKg).
 -- =============================================================================
 
@@ -70,17 +72,35 @@ UPDATE "products" gb
 SET "coffeeSourceId" = gb."id"
 WHERE gb."type" = 'GREEN_BEAN';
 
--- 3. Roasted Bean dihubungkan ke identitas Green Bean sumbernya.
---    (sourceGreenBeanId == id CoffeeSource karena mapping 1:1 di atas.)
+-- 3. Roasted Bean dihubungkan ke identitas Green Bean sumbernya HANYA jika
+--    lineage terbukti (sourceGreenBeanId valid + target GREEN_BEAN + tenant
+--    sama + target beridentitas). Referensi invalid/ambigu tetap NULL.
 UPDATE "products" rb
 SET "coffeeSourceId" = rb."sourceGreenBeanId"
 WHERE rb."type" = 'ROASTED_BEAN'
-  AND rb."sourceGreenBeanId" IS NOT NULL;
+  AND rb."sourceGreenBeanId" IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM "products" gb
+    WHERE gb."id" = rb."sourceGreenBeanId"
+      AND gb."type" = 'GREEN_BEAN'
+      AND gb."tenantId" = rb."tenantId"
+      AND gb."coffeeSourceId" IS NOT NULL
+  );
 
--- 4. materialOrigin: seluruh RB yang ada berasal dari sangrai internal.
+-- 4. materialOrigin INTERNAL_ROAST HANYA untuk RB dengan lineage terbukti
+--    (hasil sangrai internal). RB legacy/impor/penyesuaian tanpa bukti
+--    dibiarkan NULL untuk ditinjau manual.
 UPDATE "products" rb
 SET "materialOrigin" = 'INTERNAL_ROAST'
-WHERE rb."type" = 'ROASTED_BEAN';
+WHERE rb."type" = 'ROASTED_BEAN'
+  AND rb."sourceGreenBeanId" IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM "products" gb
+    WHERE gb."id" = rb."sourceGreenBeanId"
+      AND gb."type" = 'GREEN_BEAN'
+      AND gb."tenantId" = rb."tenantId"
+      AND gb."coffeeSourceId" IS NOT NULL
+  );
 
 -- =============================================================================
 -- Constraints & indexes

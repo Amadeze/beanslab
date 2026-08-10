@@ -233,4 +233,91 @@ suite("coffee identity — real PostgreSQL (TEST_DATABASE_URL)", () => {
     const ledgerCount = await client.inventoryLedger.count({ where: { tenantId: fixture.tenantId } });
     expect(ledgerCount).toBe(0);
   });
+
+  it("atomically links a CoffeeSource to its GREEN_BEAN inside one $transaction", async () => {
+    const fixture = await seedTenant("atomic-tx");
+    const result = await withTenant(fixture.tenantId, client).$transaction(async (tx) => {
+      const source = await tx.coffeeSource.create({
+        data: {
+          tenantId: fixture.tenantId,
+          code: "CS-ATOMIC-001",
+          name: "Atomic Gayo",
+          country: "Indonesia",
+        },
+      });
+      const gb = await tx.product.create({
+        data: {
+          tenantId: fixture.tenantId,
+          code: "GB-ATOMIC-001",
+          name: "Atomic Gayo Green",
+          type: "GREEN_BEAN",
+          coffeeSourceId: source.id,
+        },
+      });
+      return { source, gb };
+    });
+
+    expect(result.source.id).toBeTruthy();
+    expect(result.gb.coffeeSourceId).toBe(result.source.id);
+    const gbRow = await client.product.findUnique({ where: { id: result.gb.id } });
+    expect(gbRow?.coffeeSourceId).toBe(result.source.id);
+  });
+
+  it("rolls back CoffeeSource and GREEN_BEAN writes when the transaction fails", async () => {
+    const fixture = await seedTenant("rollback-tx");
+    const sourceId = `cs-rollback-${randomUUID()}`;
+    await expect(
+      withTenant(fixture.tenantId, client).$transaction(async (tx) => {
+        await tx.coffeeSource.create({
+          data: {
+            id: sourceId,
+            tenantId: fixture.tenantId,
+            code: "CS-ROLLBACK-001",
+            name: "Rollback Gayo",
+            country: "Indonesia",
+          },
+        });
+        await tx.product.create({
+          data: {
+            tenantId: fixture.tenantId,
+            code: "GB-ROLLBACK-001",
+            name: "Rollback Gayo Green",
+            type: "GREEN_BEAN",
+            coffeeSourceId: sourceId,
+          },
+        });
+        throw new Error("forced rollback");
+      }),
+    ).rejects.toThrow(/forced rollback/);
+
+    expect(await client.coffeeSource.findUnique({ where: { id: sourceId } })).toBeNull();
+    const products = await client.product.findMany({ where: { tenantId: fixture.tenantId } });
+    expect(products).toHaveLength(0);
+  });
+
+  it("rejects a committed cross-tenant coffeeSourceId write inside a $transaction", async () => {
+    const tenantA = await seedTenant("tx-tenant-a");
+    const tenantB = await seedTenant("tx-tenant-b");
+    const { source } = await createIdentityLinkedGb(tenantB.tenantId, {
+      code: "GB-TX-TENANT-B",
+      name: "Tenant B Coffee",
+    }, {});
+
+    await expect(
+      withTenant(tenantA.tenantId, client).$transaction(async (tx) => {
+        await tx.product.create({
+          data: {
+            tenantId: tenantA.tenantId,
+            code: "GB-TX-TENANT-A",
+            name: "Tenant A Coffee",
+            type: "GREEN_BEAN",
+            coffeeSourceId: source.id,
+          },
+        });
+      }),
+    ).rejects.toThrow(/Cross-tenant Product\.coffeeSourceId write rejected/);
+
+    const rows = await client.product.findMany({ where: { tenantId: tenantA.tenantId } });
+    expect(rows).toHaveLength(0);
+  });
 });

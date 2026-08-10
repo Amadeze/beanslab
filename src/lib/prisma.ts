@@ -342,7 +342,11 @@ export function withTenant(tenantId: string, base: PrismaClient = prisma) {
 
           // Jalankan operasi dalam konteks assertion store sehingga query
           // kepemilikan tenant memakai klien/pool yang sama dengan operasinya.
-          return assertionClientStore.run(base, async () => {
+          // Jika sudah ada transaction client aktif (dari $transaction),
+          // pertahankan itu — jangan menimpa dengan base — supaya assertion
+          // bisa melihat write yang belum di-commit.
+          const assertionClient = assertionClientStore.getStore() ?? base;
+          return assertionClientStore.run(assertionClient, async () => {
             if (operation === "create" || operation === "createMany") {
               await assertOwnedRelationsBelongToTenant(model, mArgs.data, tenantId);
             } else if (operation === "update") {
