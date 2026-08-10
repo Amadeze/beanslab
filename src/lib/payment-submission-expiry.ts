@@ -67,11 +67,16 @@ export async function expirePaymentSubmissions(client: PrismaClient, now = getCu
           where: { id: submission.invoiceId },
           data: { status: "VOID", fulfillmentStatus: "CANCELLED", voidReason: reason, voidAt: now },
         });
-        await postVoidReversal("INVOICE", submission.invoiceId, reason, {
-          tx,
-          tenantId: submission.tenantId,
-          userId: submission.invoice.createdById,
+        const hasSalesJournal = await tx.journalEntry.count({
+          where: { tenantId: submission.tenantId, refType: "INVOICE", reference: submission.invoiceId, voidAt: null },
         });
+        if (hasSalesJournal > 0) {
+          await postVoidReversal("INVOICE", submission.invoiceId, reason, {
+            tx,
+            tenantId: submission.tenantId,
+            userId: submission.invoice.createdById,
+          });
+        }
         await recordAudit(tx, {
           tenantId: submission.tenantId,
           userId: submission.invoice.createdById,
@@ -111,7 +116,12 @@ export async function expireUnpaidStorefrontOrders(client: PrismaClient, now = g
       const reason = "Reservasi storefront kedaluwarsa sebelum pembayaran diterima";
       await releaseInvoiceReservations(tx, invoice.id, "EXPIRED", now);
       await tx.invoice.update({ where: { id: invoice.id }, data: { status: "VOID", fulfillmentStatus: "CANCELLED", voidReason: reason, voidAt: now } });
-      await postVoidReversal("INVOICE", invoice.id, reason, { tx, tenantId: invoice.tenantId, userId: invoice.createdById });
+      const hasSalesJournal = await tx.journalEntry.count({
+        where: { tenantId: invoice.tenantId, refType: "INVOICE", reference: invoice.id, voidAt: null },
+      });
+      if (hasSalesJournal > 0) {
+        await postVoidReversal("INVOICE", invoice.id, reason, { tx, tenantId: invoice.tenantId, userId: invoice.createdById });
+      }
       await recordAudit(tx, {
         tenantId: invoice.tenantId, userId: invoice.createdById, action: "VOID_EXPIRED",
         entityType: "Invoice", entityId: invoice.id,

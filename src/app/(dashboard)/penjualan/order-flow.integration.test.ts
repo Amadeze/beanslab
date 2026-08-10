@@ -5,6 +5,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { resolveTestDatabaseUrl } from "../../../../test/setup/test-database-guard";
 import { createInvoice, updateInvoiceShipping, voidInvoice } from "./actions";
 import { recordPayment } from "../keuangan/actions";
+import { expireUnpaidStorefrontOrders } from "@/lib/payment-submission-expiry";
 
 // Gated integration test: only runs against an isolated test DB with RUN_INTEGRATION=true.
 const integrationEnabled = process.env.RUN_INTEGRATION === "true";
@@ -205,5 +206,25 @@ suite("Penjualan End-to-End Integration", () => {
       where: { tenantId: "test-tenant-integration", refId: orderRes.invoiceId, refType: "SALE_FG_OUT" },
     });
     expect(salesLedger).toBe(0);
+  });
+
+  it("expires an unpaid reserved order without requiring a sales journal", async () => {
+    const orderRes = await createInvoice({
+      operationKey: "123e4567-e89b-12d3-a456-426614174002",
+      customerId,
+      items: [{ productId, quantity: 1, discount: 0 }],
+      invoiceDiscount: 0,
+      tax: 0,
+      taxType: "NONE",
+      status: "ISSUED",
+      salesChannel: "WHATSAPP",
+    });
+    expect(orderRes.success).toBe(true);
+    if (!orderRes.success) throw new Error("Failed to create invoice");
+
+    const result = await expireUnpaidStorefrontOrders(prisma, new Date("2030-01-01T00:00:00.000Z"));
+    expect(result.voidedInvoices).toBe(1);
+    const invoice = await prisma.invoice.findUnique({ where: { id: orderRes.invoiceId } });
+    expect(invoice?.status).toBe("VOID");
   });
 });
