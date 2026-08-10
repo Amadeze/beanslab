@@ -26,6 +26,24 @@ export interface TransferRow {
   completedAt: string | null;
 }
 
+// Transaction-owned variant for operational workflows (roasting WIP, future
+// controlled moves). It deliberately shares LocationTransfer persistence.
+export async function transferLotInTx(tx: any, input: { tenantId: string; userId: string; lotId: string; sourceLocationId: string; destinationLocationId: string; quantityKg: number; notes?: string }) {
+  if (!Number.isFinite(input.quantityKg) || input.quantityKg <= 0) throw new Error("Jumlah transfer harus lebih dari 0.");
+  if (input.sourceLocationId === input.destinationLocationId) throw new Error("Sumber dan tujuan tidak boleh sama.");
+  const [lot, sourceLocation, destinationLocation] = await Promise.all([
+    tx.lot.findFirst({ where: { id: input.lotId, tenantId: input.tenantId }, select: { id: true } }),
+    tx.location.findFirst({ where: { id: input.sourceLocationId, tenantId: input.tenantId, isActive: true }, select: { id: true } }),
+    tx.location.findFirst({ where: { id: input.destinationLocationId, tenantId: input.tenantId, isActive: true }, select: { id: true } }),
+  ]);
+  if (!lot || !sourceLocation || !destinationLocation) throw new Error("Lot atau lokasi transfer tidak valid untuk tenant ini.");
+  const source = await tx.lotPlacement.findFirst({ where: { tenantId: input.tenantId, lotId: input.lotId, locationId: input.sourceLocationId } });
+  if (!source || Number(source.quantityKg) < input.quantityKg) throw new Error("Stok lokasi sumber tidak mencukupi.");
+  await tx.lotPlacement.update({ where: { id: source.id }, data: { quantityKg: { decrement: input.quantityKg } } });
+  await tx.lotPlacement.upsert({ where: { tenantId_lotId_locationId: { tenantId: input.tenantId, lotId: input.lotId, locationId: input.destinationLocationId } }, create: { tenantId: input.tenantId, lotId: input.lotId, locationId: input.destinationLocationId, quantityKg: input.quantityKg }, update: { quantityKg: { increment: input.quantityKg } } });
+  return tx.locationTransfer.create({ data: { tenantId: input.tenantId, lotId: input.lotId, sourceLocationId: input.sourceLocationId, destinationLocationId: input.destinationLocationId, quantityKg: input.quantityKg, notes: input.notes, status: "COMPLETED", completedAt: new Date(), createdById: input.userId } });
+}
+
 /**
  * Atomically transfer quantity of a lot from one location to another.
  * Decrements source LotPlacement, increments (or upserts) destination

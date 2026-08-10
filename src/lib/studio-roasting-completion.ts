@@ -1,11 +1,8 @@
 import type { Prisma } from "@prisma/client";
 
-import { recordAudit } from "@/lib/audit";
-import { getCurrentDate } from "@/lib/date-utils";
-import { postRoastingBatch } from "@/lib/posting";
 import { prisma } from "@/lib/prisma";
-import { analyzeRoastOutcome, type RoastOutcome } from "@/lib/roast-intent";
-import { appendLedger } from "@/lib/stock";
+import type { RoastOutcome } from "@/lib/roast-intent";
+import { completeRoastInTx } from "@/lib/roast-lifecycle";
 
 export type StudioBatchCompletion =
   | { status: "WAITING_FOR_CHILDREN"; remainingChildren: number }
@@ -92,109 +89,25 @@ async function completeOnce(
       };
     }
 
-    const recentComparable = await tx.parentRoastingBatch.findMany({
-      where: {
-        tenantId,
-        id: { not: batch.id },
-        inputProductId: batch.inputProductId,
-        outputProductId: batch.outputProductId,
-        status: "COMPLETED",
-        totalShrinkagePercent: { not: null },
-      },
-      orderBy: { completedAt: "desc" },
-      take: 10,
-      select: { totalShrinkagePercent: true },
-    });
-    const outcome = analyzeRoastOutcome(
-      inputKg,
-      summary.actualOutputKg,
-      recentComparable.map((item) => Number(item.totalShrinkagePercent)),
-    );
-
-    const claimed = await tx.parentRoastingBatch.updateMany({
-      where: { id: batch.id, tenantId, status: "PENDING" },
-      data: {
-        actualOutputKg: summary.actualOutputKg,
-        totalShrinkagePercent: outcome.lossPercent,
-        status: "COMPLETED",
-        completedAt: getCurrentDate(),
-      },
-    });
-    if (claimed.count !== 1) {
-      const completed = await tx.parentRoastingBatch.findFirst({
-        where: { id: batch.id, tenantId, status: "COMPLETED" },
-        select: { code: true, actualOutputKg: true },
-      });
-      if (completed?.actualOutputKg != null) {
-        return {
-          status: "ALREADY_COMPLETED",
-          batchCode: completed.code,
-          actualOutputKg: Number(completed.actualOutputKg),
-        };
-      }
-      throw new Error("Batch berubah saat diselesaikan. Sinkronkan ulang.");
-    }
-
-    const outputLot = await tx.lot.create({
-      data: {
-        tenantId,
-        productId: batch.outputProductId,
-        batchCode: `${batch.code}-RB`,
-        quantityKg: summary.actualOutputKg,
-        receivedAt: getCurrentDate(),
-        notes: `Hasil Roastd Studio ${batch.code}`,
-      },
-    });
-    const inputCost = Number(batch.inputProduct.avgCostPerKg ?? 0) * inputKg;
-
-    await appendLedger(tx, {
-      data: {
-        tenantId,
-        productId: batch.outputProductId,
-        entryType: "IN",
-        refType: "ROASTING_RB_IN",
-        refId: batch.id,
-        quantityKg: summary.actualOutputKg,
-        incomingPrice: inputCost / summary.actualOutputKg,
-        lotId: outputLot.id,
-        lotNumber: outputLot.batchCode,
-        notes: `Roastd Studio: ${batch.code}`,
-        createdById: batch.createdById,
-      },
-    });
-
-    await postRoastingBatch(
-      batch.id,
-      inputCost,
-      inputKg,
-      summary.actualOutputKg,
-      batch.inputProduct.name,
-      batch.outputProduct.name,
-      { tx, tenantId, userId: batch.createdById },
-    );
-
-    await recordAudit(tx, {
+    const completed = await completeRoastInTx(tx, {
       tenantId,
       userId: batch.createdById,
-      action: "COMPLETE",
-      entityType: "ParentRoastingBatch",
-      entityId: batch.id,
-      before: { status: batch.status },
-      after: {
-        status: "COMPLETED",
-        actualOutputKg: summary.actualOutputKg,
-        totalShrinkagePercent: outcome.lossPercent,
-        outcomeStatus: outcome.status,
-      },
-      metadata: { source: "ROASTD_STUDIO", childCount: batch.childBatches.length },
-    });
-
-    return {
-      status: "COMPLETED",
-      batchCode: batch.code,
+      batchId: batch.id,
       actualOutputKg: summary.actualOutputKg,
-      outcome,
-    };
+      source: "ROASTD_STUDIO",
+    });
+    return completed.alreadyCompleted
+      ? {
+          status: "ALREADY_COMPLETED",
+          batchCode: completed.batchCode,
+          actualOutputKg: completed.actualOutputKg,
+        }
+      : {
+          status: "COMPLETED",
+          batchCode: completed.batchCode,
+          actualOutputKg: completed.actualOutputKg,
+          outcome: completed.outcome,
+        };
   }, { isolationLevel: "Serializable" as Prisma.TransactionIsolationLevel });
 }
 

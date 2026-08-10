@@ -2,26 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const tx = {
-    parentRoastingBatch: {
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      updateMany: vi.fn(),
-    },
-    lot: { create: vi.fn() },
+    parentRoastingBatch: { findFirst: vi.fn() },
   };
   return {
     tx,
     transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
-    appendLedger: vi.fn(),
-    postRoastingBatch: vi.fn(),
-    recordAudit: vi.fn(),
+    completeRoastInTx: vi.fn(),
   };
 });
 
 vi.mock("@/lib/prisma", () => ({ prisma: { $transaction: mocks.transaction } }));
-vi.mock("@/lib/stock", () => ({ appendLedger: mocks.appendLedger }));
-vi.mock("@/lib/posting", () => ({ postRoastingBatch: mocks.postRoastingBatch }));
-vi.mock("@/lib/audit", () => ({ recordAudit: mocks.recordAudit }));
+vi.mock("@/lib/roast-lifecycle", () => ({ completeRoastInTx: mocks.completeRoastInTx }));
 
 import {
   completeStudioRoastingBatchIfReady,
@@ -69,10 +60,22 @@ describe("completeStudioRoastingBatchIfReady", () => {
         { roastId: "roast-2", roast: { roastedWeightGrams: 4250 } },
       ],
     });
-    mocks.tx.parentRoastingBatch.findMany.mockResolvedValue([]);
-    mocks.tx.parentRoastingBatch.updateMany.mockResolvedValue({ count: 1 });
-    mocks.tx.lot.create.mockResolvedValue({ id: "lot-1", batchCode: "RST-TEST-RB" });
-    mocks.postRoastingBatch.mockResolvedValue("JE-TEST");
+    mocks.completeRoastInTx.mockResolvedValue({
+      alreadyCompleted: false,
+      batchCode: "RST-TEST",
+      actualOutputKg: 8.5,
+      outcome: {
+        inputKg: 10,
+        outputKg: 8.5,
+        lossKg: 1.5,
+        lossPercent: 15,
+        expectedLossPercent: 15,
+        expectedMinPercent: 8,
+        expectedMaxPercent: 25,
+        historySampleCount: 0,
+        status: "NORMAL",
+      },
+    });
   });
 
   it("completes stock, lot, journal, and audit exactly once when the last child arrives", async () => {
@@ -87,21 +90,12 @@ describe("completeStudioRoastingBatchIfReady", () => {
       actualOutputKg: 8.5,
       outcome: { lossPercent: 15, status: "NORMAL" },
     });
-    expect(mocks.tx.parentRoastingBatch.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: "batch-1", tenantId: "tenant-1", status: "PENDING" },
-      data: expect.objectContaining({ status: "COMPLETED", actualOutputKg: 8.5 }),
-    }));
-    expect(mocks.appendLedger).toHaveBeenCalledWith(mocks.tx, expect.objectContaining({
-      data: expect.objectContaining({
-        refType: "ROASTING_RB_IN",
-        quantityKg: 8.5,
-        lotId: "lot-1",
-      }),
-    }));
-    expect(mocks.postRoastingBatch).toHaveBeenCalledOnce();
-    expect(mocks.recordAudit).toHaveBeenCalledWith(mocks.tx, expect.objectContaining({
-      action: "COMPLETE",
-      metadata: { source: "ROASTD_STUDIO", childCount: 2 },
+    expect(mocks.completeRoastInTx).toHaveBeenCalledWith(mocks.tx, expect.objectContaining({
+      tenantId: "tenant-1",
+      userId: "user-1",
+      batchId: "batch-1",
+      actualOutputKg: 8.5,
+      source: "ROASTD_STUDIO",
     }));
   });
 });

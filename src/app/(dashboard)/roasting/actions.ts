@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { appendFefoLedgerOut, appendLedger } from "@/lib/stock";
+import { appendLedger } from "@/lib/stock";
 import { getCurrentTenantId, getSystemUserId, requireRole, requireTenantPrisma } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { randomBytes } from "crypto";
@@ -9,9 +9,15 @@ import { validateRoastingWeights } from "@/lib/operations";
 import { getCurrentDate } from "@/lib/date-utils";
 import { Prisma } from "@prisma/client";
 import { analyzeRoastOutcome, type RoastOutcome } from "@/lib/roast-intent";
-import { greenBeanIdentity, roastedBeanName, type RoastLevelValue } from "@/lib/roast-product";
-import { postRoastingBatch, postVoidReversal } from "@/lib/posting";
-import { createLotPlacementInTx } from "@/lib/storage-location";
+import { roastedBeanName, type RoastLevelValue } from "@/lib/roast-product";
+import { postVoidReversal } from "@/lib/posting";
+import {
+  abortRoastInTx,
+  cancelRoastInTx,
+  chargeRoastMaterialsInTx,
+  completeRoastInTx,
+  reserveRoastMaterialsInTx,
+} from "@/lib/roast-lifecycle";
 import { z } from "zod";
 
 // =============================================================================
@@ -54,6 +60,7 @@ export type ParentRoastingBatchRow = {
   actualOutputKg: number | null;
   totalShrinkagePercent: number | null;
   status: string;
+  lifecycleStatus: string;
   createdAt: string;
   notes: string | null;
   machineId: string | null;
@@ -380,6 +387,7 @@ async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
     actualOutputKg:    b.actualOutputKg ? Number(b.actualOutputKg) : null,
     totalShrinkagePercent: b.totalShrinkagePercent ? Number(b.totalShrinkagePercent) : null,
     status:            b.status,
+    lifecycleStatus:   b.lifecycleStatus,
     notes:             b.notes,
     machineId:         b.machine?.id ?? null,
     machineName:       b.machine?.name ?? null,
@@ -782,11 +790,12 @@ export async function createParentRoastingBatch(
           inputProductId:   parsed.inputProductId,
           targetWeightKg:   parsed.targetWeightKg,
           outputProductId:  outputProduct.id,
-          actualOutputKg:   parsed.mode === "MANUAL" ? Number(parsed.actualOutputKg) : null,
-          totalShrinkagePercent: outcome?.lossPercent ?? null,
-          status:           parsed.mode === "MANUAL" ? "COMPLETED" : "PENDING",
+          actualOutputKg:   null,
+          totalShrinkagePercent: null,
+          status:           "PENDING",
+          lifecycleStatus:  "PLANNED",
           notes:            parsed.notes?.trim() || null,
-          completedAt:      parsed.mode === "MANUAL" ? getCurrentDate() : null,
+          completedAt:      null,
           createdById:      userId,
           machineId:        parsed.machineId || null,
           referenceProfileId: parsed.referenceProfileId || null,
@@ -832,60 +841,19 @@ export async function createParentRoastingBatch(
         }
       }
 
-      // Always deduct GB immediately
-      await appendFefoLedgerOut(tx, {
-          tenantId,
-          productId:   parsed.inputProductId,
-          refType:     "ROASTING_GB_OUT",
-          refId:       batch.id,
-          quantityKg:  parsed.targetWeightKg,
-          notes:       `Roasting: ${batch.code}`,
-          createdById: userId,
-      });
+      await reserveRoastMaterialsInTx(tx, { tenantId, userId, batchId: batch.id });
+      await chargeRoastMaterialsInTx(tx, { tenantId, userId, batchId: batch.id });
 
-      // If MANUAL, also add RB immediately
       if (parsed.mode === "MANUAL") {
-        const outputLot = await tx.lot.create({
-          data: {
-            tenantId,
-            productId: outputProduct.id,
-            batchCode: `${batch.code}-RB`,
-            quantityKg: Number(parsed.actualOutputKg),
-            receivedAt: batch.completedAt ?? getCurrentDate(),
-            notes: `Hasil roasting ${batch.code}`,
-          },
-        });
-
-        await createLotPlacementInTx(tx, tenantId, outputLot.id, {
+        const completed = await completeRoastInTx(tx, {
+          tenantId,
+          userId,
+          batchId: batch.id,
+          actualOutputKg: Number(parsed.actualOutputKg),
           destinationLocationId: parsed.destinationLocationId,
-          quantityKg: Number(parsed.actualOutputKg),
+          source: "MANUAL",
         });
-
-        await appendLedger(tx, {
-          data: {
-            tenantId,
-            productId:   outputProduct.id,
-            entryType:   "IN",
-            refType:     "ROASTING_RB_IN",
-            refId:       batch.id,
-            quantityKg:  Number(input.actualOutputKg),
-            incomingPrice: (Number(inputProduct.avgCostPerKg ?? 0) * input.targetWeightKg) / Number(input.actualOutputKg),
-            lotId:        outputLot.id,
-            lotNumber:    outputLot.batchCode,
-            notes:       `Roasting: ${batch.code}`,
-            createdById: userId,
-          },
-        });
-
-        await postRoastingBatch(
-          batch.id,
-          Number(inputProduct.avgCostPerKg ?? 0) * input.targetWeightKg,
-          input.targetWeightKg,
-          Number(input.actualOutputKg),
-          inputProduct.name,
-          outputProduct.name,
-          { tx, tenantId, userId },
-        );
+        outcome = completed.outcome;
       }
 
       await recordAudit(tx, {
@@ -897,11 +865,10 @@ export async function createParentRoastingBatch(
         after: {
           code: batch.code,
           mode: input.mode,
-          status: batch.status,
+          status: parsed.mode === "MANUAL" ? "COMPLETED" : "PENDING",
+          lifecycleStatus: parsed.mode === "MANUAL" ? "COMPLETED" : "CHARGED",
           targetWeightKg: Number(batch.targetWeightKg),
-          actualOutputKg: batch.actualOutputKg
-            ? Number(batch.actualOutputKg)
-            : null,
+          actualOutputKg: parsed.mode === "MANUAL" ? Number(parsed.actualOutputKg) : null,
         },
         metadata: {
           operationKey: input.operationKey,
@@ -952,121 +919,17 @@ export async function completeParentRoastingBatch(
     const tenantId = await getCurrentTenantId();
     const tenantPrisma = await requireTenantPrisma();
 
-    const result = await tenantPrisma.$transaction(async (tx) => {
-      const batch = await tx.parentRoastingBatch.findUnique({ 
-        where: { id: batchId },
-        include: {
-          inputProduct: { select: { avgCostPerKg: true, name: true } },
-          outputProduct: { select: { name: true } },
-        }
-      });
-      if (!batch) {
-        throw new Error("Batch roasting tidak ditemukan.");
-      }
-      if (batch.status === "COMPLETED" && batch.actualOutputKg) {
-        const recordedOutputKg = Number(batch.actualOutputKg);
-        if (Math.abs(recordedOutputKg - actualOutputKg) < 0.0001) {
-          return {
-            batchCode: batch.code,
-            outcome: analyzeRoastOutcome(Number(batch.targetWeightKg), recordedOutputKg),
-          };
-        }
-        throw new Error("Batch sudah selesai dengan berat hasil yang berbeda.");
-      }
-      if (batch.status !== "PENDING") {
-        throw new Error("Batch tidak dapat diselesaikan karena statusnya bukan proses.");
-      }
-
-      const recentComparable = await tx.parentRoastingBatch.findMany({
-        where: {
-          id: { not: batch.id },
-          inputProductId: batch.inputProductId,
-          outputProductId: batch.outputProductId,
-          status: "COMPLETED",
-          totalShrinkagePercent: { not: null },
-        },
-        orderBy: { completedAt: "desc" },
-        take: 10,
-        select: { totalShrinkagePercent: true },
-      });
-      const outcome = analyzeRoastOutcome(
-        Number(batch.targetWeightKg),
-        actualOutputKg,
-        recentComparable.map((item) => Number(item.totalShrinkagePercent)),
-      );
-      const claimed = await tx.parentRoastingBatch.updateMany({
-        where: { id: batchId, status: "PENDING" },
-        data: {
-          actualOutputKg,
-          totalShrinkagePercent: outcome.lossPercent,
-          status: "COMPLETED",
-          completedAt: getCurrentDate(),
-        },
-      });
-      if (claimed.count !== 1) {
-        throw new Error("Batch sudah diselesaikan oleh proses lain.");
-      }
-
-      const outputLot = await tx.lot.create({
-        data: {
-          tenantId,
-          productId: batch.outputProductId,
-          batchCode: `${batch.code}-RB`,
-          quantityKg: actualOutputKg,
-          receivedAt: getCurrentDate(),
-          notes: `Hasil roasting ${batch.code}`,
-        },
-      });
-
-      await createLotPlacementInTx(tx, tenantId, outputLot.id, {
-        destinationLocationId,
-        quantityKg: actualOutputKg,
-      });
-
-      await appendLedger(tx, {
-        data: {
-          tenantId,
-          productId:   batch.outputProductId,
-          entryType:   "IN",
-          refType:     "ROASTING_RB_IN",
-          refId:       batch.id,
-          quantityKg:  actualOutputKg,
-          incomingPrice: (Number(batch.inputProduct.avgCostPerKg ?? 0) * Number(batch.targetWeightKg)) / actualOutputKg,
-          lotId:        outputLot.id,
-          lotNumber:    outputLot.batchCode,
-          notes:       `Roasting: ${batch.code}`,
-          createdById: userId,
-        },
-      });
-
-      await postRoastingBatch(
-        batch.id,
-        Number(batch.inputProduct.avgCostPerKg ?? 0) * Number(batch.targetWeightKg),
-        Number(batch.targetWeightKg),
-        actualOutputKg,
-        batch.inputProduct.name ?? "Green Bean",
-        batch.outputProduct.name ?? "Roasted Bean",
-        { tx, tenantId, userId },
-      );
-
-      await recordAudit(tx, {
+    const result = await tenantPrisma.$transaction(
+      (tx) => completeRoastInTx(tx, {
         tenantId,
         userId,
-        action: "COMPLETE",
-        entityType: "ParentRoastingBatch",
-        entityId: batch.id,
-        before: { status: batch.status },
-        after: {
-          status: "COMPLETED",
-          actualOutputKg,
-          totalShrinkagePercent: outcome.lossPercent,
-          outcomeStatus: outcome.status,
-          expectedLossPercent: outcome.expectedLossPercent,
-          expectedLossRange: [outcome.expectedMinPercent, outcome.expectedMaxPercent],
-        },
-      });
-      return { batchCode: batch.code, outcome };
-    }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
+        batchId,
+        actualOutputKg,
+        destinationLocationId,
+        source: "WEB",
+      }),
+      { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 },
+    );
 
     revalidatePath("/roasting");
     revalidatePath("/inventory");
@@ -1105,6 +968,21 @@ export async function voidParentRoastingBatch(
       });
       if (!batch) throw new Error("Batch tidak ditemukan.");
       if (batch.status === "VOID") throw new Error("Batch sudah divoid.");
+
+      if (batch.lifecycleStatus === "PLANNED" || batch.lifecycleStatus === "RESERVED") {
+        await cancelRoastInTx(tx, { tenantId, userId, batchId, reason });
+        return;
+      }
+      if (batch.lifecycleStatus === "CHARGED") {
+        await abortRoastInTx(tx, {
+          tenantId,
+          userId,
+          batchId,
+          reason,
+          mode: "RECOVERABLE",
+        });
+        return;
+      }
 
       await tx.parentRoastingBatch.update({
         where: { id: batchId },
@@ -1187,6 +1065,39 @@ export async function voidParentRoastingBatch(
     return {
       success: false,
       error: err instanceof Error ? err.message : "Gagal membatalkan batch.",
+    };
+  }
+}
+
+export async function abortParentRoastingBatchAsScrap(
+  batchId: string,
+  reason: string,
+): Promise<VoidResult> {
+  try {
+    await requireRole("OWNER", "MANAGER");
+    if (!reason.trim()) return { success: false, error: "Alasan scrap wajib diisi." };
+    const userId = await getSystemUserId();
+    const tenantId = await getCurrentTenantId();
+    await (await requireTenantPrisma()).$transaction(
+      (tx) => abortRoastInTx(tx, {
+        tenantId,
+        userId,
+        batchId,
+        reason,
+        mode: "SCRAP",
+      }),
+      { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 },
+    );
+    revalidatePath("/roasting");
+    revalidatePath("/inventory");
+    revalidatePath("/dashboard");
+    revalidatePath("/laporan");
+    return { success: true };
+  } catch (err) {
+    console.error("[abortParentRoastingBatchAsScrap]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Gagal mencatat Green Bean sebagai scrap.",
     };
   }
 }
@@ -1752,4 +1663,3 @@ export async function deleteTenantRoastLevel(
     };
   }
 }
-

@@ -13,7 +13,8 @@ const mocks = vi.hoisted(() => {
   return {
     tx,
     transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
-    appendFefoLedgerOut: vi.fn(),
+    reserveRoastMaterialsInTx: vi.fn(),
+    chargeRoastMaterialsInTx: vi.fn(),
     recordAudit: vi.fn(),
   };
 });
@@ -24,7 +25,10 @@ vi.mock("@/lib/prisma", () => ({
     parentRoastingBatch: { findFirst: vi.fn() },
   },
 }));
-vi.mock("@/lib/stock", () => ({ appendFefoLedgerOut: mocks.appendFefoLedgerOut }));
+vi.mock("@/lib/roast-lifecycle", () => ({
+  reserveRoastMaterialsInTx: mocks.reserveRoastMaterialsInTx,
+  chargeRoastMaterialsInTx: mocks.chargeRoastMaterialsInTx,
+}));
 vi.mock("@/lib/audit", () => ({ recordAudit: mocks.recordAudit }));
 
 import { createStudioRoastingBatch } from "./studio-roasting-batch";
@@ -47,7 +51,7 @@ describe("createStudioRoastingBatch", () => {
     mocks.tx.parentRoastingBatch.create.mockResolvedValue({ id: "batch-1", code: "RST-TEST" });
   });
 
-  it("splits by machine capacity and allocates green bean through FEFO", async () => {
+  it("splits by machine capacity and enters the shared reserve/charge lifecycle", async () => {
     mocks.tx.parentRoastingBatch.findFirst
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ referenceRoastId: "profile-1" });
@@ -77,11 +81,15 @@ describe("createStudioRoastingBatch", () => {
     }));
     const createInput = mocks.tx.parentRoastingBatch.create.mock.calls[0][0];
     expect(createInput.data.childBatches.create).toHaveLength(3);
-    expect(mocks.appendFefoLedgerOut).toHaveBeenCalledWith(mocks.tx, expect.objectContaining({
+    expect(mocks.reserveRoastMaterialsInTx).toHaveBeenCalledWith(mocks.tx, expect.objectContaining({
       tenantId: "tenant-1",
-      productId: "green-1",
-      quantityKg: 12,
-      refType: "ROASTING_GB_OUT",
+      batchId: "batch-1",
+      userId: "user-1",
+    }));
+    expect(mocks.chargeRoastMaterialsInTx).toHaveBeenCalledWith(mocks.tx, expect.objectContaining({
+      tenantId: "tenant-1",
+      batchId: "batch-1",
+      userId: "user-1",
     }));
     expect(mocks.recordAudit).toHaveBeenCalledWith(mocks.tx, expect.objectContaining({
       userId: "user-1",
@@ -133,7 +141,8 @@ describe("createStudioRoastingBatch", () => {
       referenceProfileId: null,
     });
     expect(mocks.tx.parentRoastingBatch.create).not.toHaveBeenCalled();
-    expect(mocks.appendFefoLedgerOut).not.toHaveBeenCalled();
+    expect(mocks.reserveRoastMaterialsInTx).not.toHaveBeenCalled();
+    expect(mocks.chargeRoastMaterialsInTx).not.toHaveBeenCalled();
   });
 
   it("rejects a batch before writing when stock is insufficient", async () => {
@@ -158,6 +167,7 @@ describe("createStudioRoastingBatch", () => {
     })).rejects.toThrow("Stok Gayo Natural hanya 2.00 kg.");
 
     expect(mocks.tx.parentRoastingBatch.create).not.toHaveBeenCalled();
-    expect(mocks.appendFefoLedgerOut).not.toHaveBeenCalled();
+    expect(mocks.reserveRoastMaterialsInTx).not.toHaveBeenCalled();
+    expect(mocks.chargeRoastMaterialsInTx).not.toHaveBeenCalled();
   });
 });

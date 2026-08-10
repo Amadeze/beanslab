@@ -1,10 +1,10 @@
 import crypto from "node:crypto";
 import { Prisma, type RoastLevel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { appendFefoLedgerOut } from "@/lib/stock";
 import { recordAudit } from "@/lib/audit";
 import { getCurrentDate } from "@/lib/date-utils";
 import { roastedBeanName } from "@/lib/roast-product";
+import { chargeRoastMaterialsInTx, reserveRoastMaterialsInTx } from "@/lib/roast-lifecycle";
 
 const ROAST_LEVELS = new Set<RoastLevel>(["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"]);
 
@@ -156,6 +156,7 @@ export async function createStudioRoastingBatch(
           targetWeightKg: input.targetWeightKg,
           outputProductId: outputProduct.id,
           status: "PENDING",
+          lifecycleStatus: "PLANNED",
           notes: `[Studio: ${childCount} batch @ ${chargeWeightKg.toFixed(2)} kg dari ${machine.name}]`,
           createdById: input.userId,
           machineId: machine.id,
@@ -170,14 +171,15 @@ export async function createStudioRoastingBatch(
         select: { id: true, code: true },
       });
 
-      await appendFefoLedgerOut(tx, {
+      await reserveRoastMaterialsInTx(tx, {
         tenantId: input.tenantId,
-        productId: greenBean.id,
-        refType: "ROASTING_GB_OUT",
-        refId: batch.id,
-        quantityKg: input.targetWeightKg,
-        notes: `Roasting: ${batch.code}`,
-        createdById: input.userId,
+        userId: input.userId,
+        batchId: batch.id,
+      });
+      await chargeRoastMaterialsInTx(tx, {
+        tenantId: input.tenantId,
+        userId: input.userId,
+        batchId: batch.id,
       });
 
       await recordAudit(tx, {
@@ -190,6 +192,7 @@ export async function createStudioRoastingBatch(
           code: batch.code,
           source: "ROASTD_STUDIO",
           status: "PENDING",
+          lifecycleStatus: "CHARGED",
           targetWeightKg: input.targetWeightKg,
           roastLevel: input.roastLevel,
           childCount,

@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { formatKg, formatDate } from "@/lib/format";
 import { VoidConfirmDialog } from "@/components/VoidConfirmDialog";
 import {
+  abortParentRoastingBatchAsScrap,
   voidParentRoastingBatch,
   completeParentRoastingBatch,
   searchRoastReferenceProfiles,
@@ -87,6 +88,7 @@ interface RoastingHistoryTableProps {
 
 export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistoryTableProps) {
   const [voidTarget, setVoidTarget] = useState<ParentRoastingBatchRow | null>(null);
+  const [scrapTarget, setScrapTarget] = useState<ParentRoastingBatchRow | null>(null);
   const [completeTarget, setCompleteTarget] = useState<ParentRoastingBatchRow | null>(null);
   const [splitTarget, setSplitTarget] = useState<ParentRoastingBatchRow | null>(null);
   const [showSplitModal, setShowSplitModal] = useState(false);
@@ -334,6 +336,24 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
                       >
                         Selesaikan
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg"
+                        onClick={() => setVoidTarget(b)}
+                      >
+                        {b.lifecycleStatus === "CHARGED" ? "Kembalikan" : "Batalkan"}
+                      </Button>
+                      {b.lifecycleStatus === "CHARGED" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs text-red-700 hover:bg-red-100 hover:text-red-800 rounded-lg"
+                          onClick={() => setScrapTarget(b)}
+                        >
+                          Scrap
+                        </Button>
+                      )}
                     </>
                   )}
                 </TableCell>
@@ -387,19 +407,29 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
                   </Button>
                 )}
                 {b.status === "PENDING" && (
-                  <Button size="sm" variant="ghost" onClick={() => {
-                    setCompleteTarget(b);
-                    const totalRoasted = b.childBatches
-                      .filter((c) => c.roastedWeightGrams)
-                      .reduce((sum, c) => sum + (c.roastedWeightGrams || 0), 0);
-                    if (totalRoasted > 0) {
-                      setActualOutputKg((totalRoasted / 1000).toFixed(2));
-                    } else {
-                      setActualOutputKg("");
-                    }
-                  }} className="h-7 px-2.5 text-[11px] font-bold uppercase text-indigo-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
-                    Validasi Sore
-                  </Button>
+                  <>
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      setCompleteTarget(b);
+                      const totalRoasted = b.childBatches
+                        .filter((c) => c.roastedWeightGrams)
+                        .reduce((sum, c) => sum + (c.roastedWeightGrams || 0), 0);
+                      if (totalRoasted > 0) {
+                        setActualOutputKg((totalRoasted / 1000).toFixed(2));
+                      } else {
+                        setActualOutputKg("");
+                      }
+                    }} className="h-7 px-2.5 text-[11px] font-bold uppercase text-indigo-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                      Validasi Sore
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setVoidTarget(b)} className="h-7 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg">
+                      {b.lifecycleStatus === "CHARGED" ? "Kembalikan" : "Batalkan"}
+                    </Button>
+                    {b.lifecycleStatus === "CHARGED" && (
+                      <Button size="sm" variant="ghost" onClick={() => setScrapTarget(b)} className="h-7 px-2.5 text-[11px] font-bold uppercase text-red-700 hover:bg-red-100 hover:text-red-800 rounded-lg">
+                        Scrap
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -506,11 +536,21 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
       open={!!voidTarget}
       onOpenChange={(v) => { if (!v) setVoidTarget(null); }}
       title={`Void Batch ${voidTarget?.code ?? ""}`}
-      description="Tindakan ini akan membalik mutasi stok Green Bean dan Roasted Bean. Tidak dapat dibatalkan."
+      description={voidTarget?.status === "PENDING"
+        ? "Green Bean akan dikembalikan dari Roasting WIP ke lokasi asal. Stok kanonis dan jurnal tidak berubah."
+        : "Tindakan ini akan membalik mutasi stok Green Bean dan Roasted Bean. Tidak dapat dibatalkan."}
       onConfirm={async (reason) => {
         const result = await voidParentRoastingBatch(voidTarget!.id, reason);
         return result;
       }}
+    />
+
+    <VoidConfirmDialog
+      open={!!scrapTarget}
+      onOpenChange={(v) => { if (!v) setScrapTarget(null); }}
+      title={`Catat Scrap ${scrapTarget?.code ?? ""}`}
+      description="Gunakan hanya jika Green Bean yang sudah di-charge benar-benar hilang atau rusak. Stok kanonis akan berkurang dan jurnal penyesuaian akan dibuat."
+      onConfirm={async (reason) => abortParentRoastingBatchAsScrap(scrapTarget!.id, reason)}
     />
 
     {completeTarget && (

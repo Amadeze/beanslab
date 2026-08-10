@@ -149,7 +149,7 @@ export function RoastingClient({
           if (!isSubmitting) setDrawerOpen(open);
         }}
         title="Catat Roasting Batch"
-        description="Stok Green Bean akan dipotong dan Roasted Bean bertambah otomatis."
+        description="Green Bean dipindahkan ke Roasting WIP; stok kanonis berkurang saat batch selesai."
         size="lg"
         submitButton={
           <Button

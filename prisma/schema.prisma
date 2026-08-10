@@ -100,6 +100,22 @@ enum TransactionStatus {
   VOID // dibatalkan, mutasi stok sudah dibalik
 }
 
+enum RoastLifecycleStatus {
+  PLANNED
+  RESERVED
+  CHARGED
+  COMPLETED
+  ABORTED
+  CANCELLED
+}
+
+enum RoastMaterialReservationStatus {
+  ACTIVE
+  CHARGED
+  RELEASED
+  CONSUMED
+}
+
 enum InvoiceStatus {
   DRAFT // nota belum diterbitkan
   ISSUED // nota diterbitkan, belum bayar
@@ -387,6 +403,7 @@ model Tenant {
   purchaseOrders                   PurchaseOrder[]
   purchaseOrderItems               PurchaseOrderItem[]
   parentRoastingBatches            ParentRoastingBatch[]
+  roastMaterialReservations        RoastMaterialReservation[]
   productionBatches                ProductionBatch[]
   invoices                         Invoice[]
   payments                         Payment[]
@@ -1059,8 +1076,9 @@ model ParentRoastingBatch {
   outputProductId String // FK → Product (type = ROASTED_BEAN)
   actualOutputKg  Decimal? @db.Decimal(10, 3) // Hasil Akhir Sore (Misal: 16.5 Kg)
 
-  totalShrinkagePercent Decimal?          @db.Decimal(5, 2)
-  status                TransactionStatus @default(PENDING) // PENDING (Aktif), COMPLETED, VOID
+  totalShrinkagePercent Decimal?             @db.Decimal(5, 2)
+  status                TransactionStatus    @default(PENDING) // PENDING (Aktif), COMPLETED, VOID
+  lifecycleStatus       RoastLifecycleStatus @default(PLANNED)
 
   notes      String?
   voidReason String?
@@ -1086,6 +1104,7 @@ model ParentRoastingBatch {
   tenant        Tenant  @relation(fields: [tenantId], references: [id])
 
   childBatches            ChildRoastingBatch[]
+  materialReservations    RoastMaterialReservation[]
   productionBatches       ProductionBatch[]
   grindingBatches         GrindingBatch[]
   experimentalProductions ExperimentalProduction[]
@@ -1097,6 +1116,31 @@ model ParentRoastingBatch {
   @@index([referenceRoastId])
   @@index([referenceProfileId])
   @@map("parent_roasting_batches")
+}
+
+model RoastMaterialReservation {
+  id               String                         @id @default(cuid())
+  tenantId         String
+  parentBatchId    String
+  lotId            String
+  sourceLocationId String
+  quantityKg       Decimal                        @db.Decimal(12, 3)
+  status           RoastMaterialReservationStatus @default(ACTIVE)
+  chargeTransferId String?
+  releasedAt       DateTime?
+  consumedAt       DateTime?
+  createdAt        DateTime                       @default(now())
+  updatedAt        DateTime                       @updatedAt
+
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parentBatch    ParentRoastingBatch @relation(fields: [parentBatchId], references: [id], onDelete: Cascade)
+  lot            Lot                 @relation(fields: [lotId], references: [id])
+  sourceLocation Location            @relation(fields: [sourceLocationId], references: [id])
+
+  @@unique([parentBatchId, lotId, sourceLocationId])
+  @@index([tenantId, status])
+  @@index([tenantId, lotId, status])
+  @@map("roast_material_reservations")
 }
 
 model ChildRoastingBatch {
@@ -1739,16 +1783,17 @@ model Lot {
   consumedAt     DateTime?
   notes          String?
 
-  product          Product?             @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  packaging        Packaging?           @relation(fields: [packagingId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  supplyItem       InventorySupplyItem? @relation(fields: [supplyItemId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  supplier         Supplier?            @relation(fields: [supplierId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  purchase         Purchase?            @relation(fields: [purchaseId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  inventoryLedgers InventoryLedger[]
-  placements       LotPlacement[]
-  transfers        LocationTransfer[]
-  opnames          LocationOpname[]
+  product                   Product?                   @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  packaging                 Packaging?                 @relation(fields: [packagingId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  supplyItem                InventorySupplyItem?       @relation(fields: [supplyItemId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  supplier                  Supplier?                  @relation(fields: [supplierId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  purchase                  Purchase?                  @relation(fields: [purchaseId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  tenant                    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  inventoryLedgers          InventoryLedger[]
+  roastMaterialReservations RoastMaterialReservation[]
+  placements                LotPlacement[]
+  transfers                 LocationTransfer[]
+  opnames                   LocationOpname[]
 
   @@unique([tenantId, batchCode], map: "lots_tenantId_batchCode_unique")
   @@index([tenantId])
@@ -2620,17 +2665,20 @@ model Location {
   zone        String? // optional grouping e.g. "DRY", "COLD"
   capacity    Decimal? @db.Decimal(12, 3) // kapasitas kapasitas (satuan bebas, opsional)
 
-  isActive  Boolean  @default(true)
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive      Boolean  @default(true)
+  isDefault     Boolean  @default(false)
+  isSystem      Boolean  @default(false)
+  systemPurpose String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  warehouse    Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  placements   LotPlacement[]
-  outTransfers LocationTransfer[] @relation("SourceLocation")
-  inTransfers  LocationTransfer[] @relation("DestinationLocation")
-  opnames      LocationOpname[]
+  tenant                    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  warehouse                 Warehouse                  @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  placements                LotPlacement[]
+  outTransfers              LocationTransfer[]         @relation("SourceLocation")
+  inTransfers               LocationTransfer[]         @relation("DestinationLocation")
+  opnames                   LocationOpname[]
+  roastMaterialReservations RoastMaterialReservation[]
 
   @@unique([tenantId, warehouseId, code])
   @@index([tenantId, warehouseId, isDefault])
