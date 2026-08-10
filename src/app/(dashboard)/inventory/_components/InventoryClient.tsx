@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { StandardDrawer } from "@/components/StandardDrawer";
 import { StockTable } from "./StockTable";
 import { PurchaseForm } from "./PurchaseForm";
+import { RoastedBeanPurchaseForm } from "./RoastedBeanPurchaseForm";
 import { PackagingPurchaseForm } from "./PackagingPurchaseForm";
 import { SupplyPurchaseForm } from "./SupplyPurchaseForm";
 import { StockAdjustmentDrawer } from "./StockAdjustmentDrawer";
@@ -22,6 +23,7 @@ import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import { SupplierForm } from "../../master-data/_components/SupplierForm";
 import type {
   GBProductOption,
+  RBProductOption,
   LedgerHistoryRow,
   PackagingStockRow,
   ProductStockRow,
@@ -55,6 +57,7 @@ interface InventoryClientProps {
   ledgerEntries: LedgerHistoryRow[];
   suppliers:  SupplierOption[];
   gbProducts: GBProductOption[];
+  rbProducts: RBProductOption[];
   packagings: PackagingOption[];
   supplyOptions: SupplyOption[];
   sampleConsumption: SampleConsumptionSummary;
@@ -201,7 +204,7 @@ function ActionsDropdown({ onStockOpname }: { onStockOpname: () => void }) {
 
 // ── Barang Datang Popup ──
 
-function BarangDatangPopup({ onGBDatang, onKemasanDatang, onSupplyDatang }: { onGBDatang: () => void; onKemasanDatang: () => void; onSupplyDatang: () => void }) {
+function BarangDatangPopup({ onGBDatang, onRBDatang, onKemasanDatang, onSupplyDatang }: { onGBDatang: () => void; onRBDatang: () => void; onKemasanDatang: () => void; onSupplyDatang: () => void }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -228,9 +231,22 @@ function BarangDatangPopup({ onGBDatang, onKemasanDatang, onSupplyDatang }: { on
               <div className="text-xs text-slate-500 mt-1">Bahan baku mentah</div>
             </div>
           </button>
-          
-          <button 
-            onClick={() => { setOpen(false); onKemasanDatang(); }} 
+
+          <button
+            onClick={() => { setOpen(false); onRBDatang(); }}
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-slate-100 bg-white hover:border-amber-500 hover:bg-amber-50 hover:shadow-md transition-all group"
+          >
+            <div className="p-3 rounded-full bg-amber-100 text-amber-600 group-hover:scale-110 transition-transform">
+              <CircleDot size={28} />
+            </div>
+            <div className="text-center">
+              <div className="font-bold text-slate-800">Roasted Bean (RB)</div>
+              <div className="text-xs text-slate-500 mt-1">Biji kopi sangrai jadi (beli jadi)</div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => { setOpen(false); onKemasanDatang(); }}
             className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-slate-100 bg-white hover:border-orange-500 hover:bg-orange-50 hover:shadow-md transition-all group"
           >
             <div className="p-3 rounded-full bg-orange-100 text-orange-600 group-hover:scale-110 transition-transform">
@@ -244,7 +260,7 @@ function BarangDatangPopup({ onGBDatang, onKemasanDatang, onSupplyDatang }: { on
 
           <button
             onClick={() => { setOpen(false); onSupplyDatang(); }}
-            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-slate-100 bg-white hover:border-emerald-500 hover:bg-emerald-50 hover:shadow-md transition-all group sm:col-span-2"
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-slate-100 bg-white hover:border-emerald-500 hover:bg-emerald-50 hover:shadow-md transition-all group"
           >
             <div className="p-3 rounded-full bg-emerald-100 text-emerald-600 group-hover:scale-110 transition-transform">
               <Boxes size={28} className="rotate-90" />
@@ -267,7 +283,7 @@ type WorkspaceTab = "stock" | "po" | "receiving" | "mutations";
 // ── Main component ──
 
 export function InventoryClient({
-  gbStocks, rbStocks, fgStocks, supplyStocks, ledgerEntries, suppliers, gbProducts, packagings, supplyOptions, sampleConsumption,
+  gbStocks, rbStocks, fgStocks, supplyStocks, ledgerEntries, suppliers, gbProducts, rbProducts, packagings, supplyOptions, sampleConsumption,
   lotsByProduct, supplyLotsByItem,
   productReorderSummaries, supplyReorderSummaries, poSummary,
 }: InventoryClientProps) {
@@ -275,6 +291,7 @@ export function InventoryClient({
   const searchParams = useSearchParams();
 
   const [gbDrawerOpen,  setGbDrawerOpen]  = useState(false);
+  const [rbDrawerOpen,  setRbDrawerOpen]  = useState(false);
   const [pkgDrawerOpen, setPkgDrawerOpen] = useState(false);
   const [supDrawerOpen, setSupDrawerOpen] = useState(false);
   const [adjDrawerOpen, setAdjDrawerOpen] = useState(false);
@@ -282,7 +299,7 @@ export function InventoryClient({
   const [poDetailOpen, setPoDetailOpen] = useState(false);
   const [receiptDrawerOpen, setReceiptDrawerOpen] = useState(false);
   const [supplierDrawerOpen, setSupplierDrawerOpen] = useState(false);
-  const [supplierTarget, setSupplierTarget] = useState<"purchase" | "packaging" | "po" | null>(null);
+  const [supplierTarget, setSupplierTarget] = useState<"purchase" | "rb" | "packaging" | "po" | null>(null);
   const [preferredSupplierId, setPreferredSupplierId] = useState<string | null>(null);
   const [supplierOptions, setSupplierOptions] = useState(suppliers);
   const [selectedPoId, setSelectedPoId] = useState<string | null>(null);
@@ -296,7 +313,7 @@ export function InventoryClient({
     setSupplierOptions(suppliers);
   }, [suppliers]);
 
-  const openSupplierQuickAdd = (target: "purchase" | "packaging" | "po") => {
+  const openSupplierQuickAdd = (target: "purchase" | "rb" | "packaging" | "po") => {
     setSupplierTarget(target);
     setPreferredSupplierId(null);
     setSupplierDrawerOpen(true);
@@ -549,7 +566,7 @@ export function InventoryClient({
               {activeView === "stock" ? (
                 <>
                   <ActionsDropdown onStockOpname={() => setAdjDrawerOpen(true)} />
-                  <BarangDatangPopup onGBDatang={() => setGbDrawerOpen(true)} onKemasanDatang={() => setPkgDrawerOpen(true)} onSupplyDatang={() => setSupDrawerOpen(true)} />
+                  <BarangDatangPopup onGBDatang={() => setGbDrawerOpen(true)} onRBDatang={() => setRbDrawerOpen(true)} onKemasanDatang={() => setPkgDrawerOpen(true)} onSupplyDatang={() => setSupDrawerOpen(true)} />
                 </>
               ) : (
                 <>
@@ -655,6 +672,11 @@ export function InventoryClient({
         <PurchaseForm id="purchase-form" suppliers={supplierOptions} gbProducts={gbProducts} onSuccess={() => { setGbDrawerOpen(false); finishSupplierFlow(); router.refresh(); }} onPendingChange={setIsSubmitting} onAddSupplier={() => openSupplierQuickAdd("purchase")} preferredSupplierId={supplierTarget === "purchase" ? preferredSupplierId : null} />
       </StandardDrawer>
 
+      <StandardDrawer open={rbDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setRbDrawerOpen(open); }} title="Catat Barang Datang (Roasted Bean)" description="Stok Roasted Bean beli jadi akan bertambah otomatis setelah disimpan (ditandai PURCHASED_ROASTED)." size="lg"
+        submitButton={<Button type="submit" form="rb-purchase-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>}>
+        <RoastedBeanPurchaseForm id="rb-purchase-form" suppliers={supplierOptions} rbProducts={rbProducts} onSuccess={() => { setRbDrawerOpen(false); setIsSubmitting(false); finishSupplierFlow(); router.refresh(); }} onPendingChange={setIsSubmitting} onAddSupplier={() => openSupplierQuickAdd("rb")} preferredSupplierId={supplierTarget === "rb" ? preferredSupplierId : null} />
+      </StandardDrawer>
+
       <StandardDrawer open={supDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setSupDrawerOpen(open); }} title="Catat Barang Datang (Non-Kopi)" description="Stok persediaan non-kopi akan bertambah otomatis setelah disimpan." size="md"
         submitButton={<Button type="submit" form="supply-purchase-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>}>
         <SupplyPurchaseForm
@@ -685,7 +707,7 @@ export function InventoryClient({
       </StandardDrawer>
 
       <StandardDrawer open={poDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setPoDrawerOpen(open); }} title="Buat Purchase Order" description="Buat PO baru untuk supplier." size="lg" showFooter={false}>
-        <POForm suppliers={supplierOptions.map((s) => ({ id: s.id, name: s.name }))} products={gbStocks.map((p) => ({ id: p.id, name: p.name, type: p.type, stockKg: p.stockKg }))} packagings={packagings.map((p) => ({ id: p.id, name: p.name, stockUnit: 0 }))} supplyItems={supplyOptions.map((s) => ({ id: s.id, name: s.name, category: s.category, baseUnit: s.baseUnit }))} onAddSupplier={() => openSupplierQuickAdd("po")} preferredSupplierId={supplierTarget === "po" ? preferredSupplierId : null} onSuccess={() => { setPoDrawerOpen(false); handlePORefresh(); finishSupplierFlow(); }} onCancel={() => { setPoDrawerOpen(false); finishSupplierFlow(); }} />
+        <POForm suppliers={supplierOptions.map((s) => ({ id: s.id, name: s.name }))} products={[...gbStocks, ...rbStocks].map((p) => ({ id: p.id, name: p.name, type: p.type, stockKg: p.stockKg }))} packagings={packagings.map((p) => ({ id: p.id, name: p.name, stockUnit: 0 }))} supplyItems={supplyOptions.map((s) => ({ id: s.id, name: s.name, category: s.category, baseUnit: s.baseUnit }))} onAddSupplier={() => openSupplierQuickAdd("po")} preferredSupplierId={supplierTarget === "po" ? preferredSupplierId : null} onSuccess={() => { setPoDrawerOpen(false); handlePORefresh(); finishSupplierFlow(); }} onCancel={() => { setPoDrawerOpen(false); finishSupplierFlow(); }} />
       </StandardDrawer>
 
       <StandardDrawer open={poDetailOpen} onOpenChange={setPoDetailOpen} title="Detail Purchase Order" size="lg" showFooter={false}>

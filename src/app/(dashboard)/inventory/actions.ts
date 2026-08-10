@@ -29,6 +29,7 @@ import type {
   SampleConsumptionSummary,
   LedgerHistoryRow,
   PurchaseActionInput,
+  RoastedBeanPurchaseInput,
   PackagingPurchaseInput,
   ActionResult,
   SUPPLY_CATEGORY_LABEL,
@@ -55,6 +56,19 @@ function generateProductCode(name: string): string {
     .slice(0, 12);
   return `GB-${slug || "BARU"}-${randomBytes(4).toString("hex").toUpperCase()}`;
 }
+
+/** Generate kode Product untuk Roasted Bean baru: RB-SLUG */
+function generateRBCode(name: string): string {
+  const slug = name
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 12);
+  return `RB-${slug || "BARU"}-${randomBytes(4).toString("hex").toUpperCase()}`;
+}
+
+const ROAST_LEVELS = new Set(["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"]);
 
 // =============================================================================
 // QUERIES
@@ -260,7 +274,7 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [gbStocks, rbStocks, supplyStocks, fgStocks, ledgerEntries, suppliers, gbProducts, sampleConsumption, lots, supplyAdapterRows] =
+  const [gbStocks, rbStocks, supplyStocks, fgStocks, ledgerEntries, suppliers, gbProducts, rbProducts, sampleConsumption, lots, supplyAdapterRows] =
     await Promise.all([
       fetchProductStocks("GREEN_BEAN"),
       fetchProductStocks("ROASTED_BEAN"),
@@ -275,6 +289,11 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
       tp.product.findMany({
         where: { type: "GREEN_BEAN", isActive: true },
         select: { id: true, name: true, origin: true },
+        orderBy: { name: "asc" },
+      }),
+      tp.product.findMany({
+        where: { type: "ROASTED_BEAN", isActive: true },
+        select: { id: true, name: true, origin: true, roastLevel: true },
         orderBy: { name: "asc" },
       }),
       fetchSampleConsumption(monthStart, now),
@@ -382,7 +401,7 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
     });
   }
 
-  return { gbStocks, rbStocks, supplyStocks, fgStocks, ledgerEntries, suppliers, gbProducts, sampleConsumption, lotsByProduct, supplyLotsByItem };
+  return { gbStocks, rbStocks, supplyStocks, fgStocks, ledgerEntries, suppliers, gbProducts, rbProducts, sampleConsumption, lotsByProduct, supplyLotsByItem };
 }
 
 // Tambah packaging options ke page data helper
@@ -611,6 +630,219 @@ export async function createGreenBeanPurchase(
     return { success: true, purchaseCode };
   } catch (err) {
     console.error("[createGreenBeanPurchase]", err);
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" && input.operationKey) {
+      const existing = await (await requireTenantPrisma()).purchase.findFirst({
+        where: { operationKey: input.operationKey },
+        select: { code: true },
+      });
+      if (existing) return { success: true, purchaseCode: existing.code };
+    }
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Terjadi kesalahan sistem.",
+    };
+  }
+}
+
+// =============================================================================
+// CREATE ROASTED BEAN PURCHASE (beli jadi)
+// =============================================================================
+
+/**
+ * Pencatatan barang datang Roasted Bean (beli jadi).
+ * Pola identik dengan createGreenBeanPurchase:
+ *   1. Find-or-create Product (ROASTED_BEAN) — materialOrigin PURCHASED_ROASTED,
+ *      coffeeSourceId dibiarkan NULL (asal tidak bisa dibuktikan otomatis,
+ *      bisa ditautkan manual di master data).
+ *   2. Insert Purchase (type = ROASTED_BEAN, status = COMPLETED)
+ *   3. Insert Lot + placement, InventoryLedger (IN, refType = PURCHASE_RB),
+ *      moving average, jurnal pembelian (1-1210).
+ */
+export async function createRoastedBeanPurchase(
+  input: RoastedBeanPurchaseInput
+): Promise<ActionResult> {
+  try {
+    await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const userId = await getSystemUserId();
+    const tenantId = await getCurrentTenantId();
+    if (!input.operationKey || !/^[0-9a-f-]{36}$/i.test(input.operationKey)) {
+      return { success: false, error: "Identitas transaksi tidak valid. Buka ulang form lalu coba lagi." };
+    }
+    if (!Number.isFinite(input.weightKg) || input.weightKg <= 0) {
+      return { success: false, error: "Berat Roasted Bean harus lebih dari 0 kg." };
+    }
+    if (!Number.isFinite(input.totalCost) || input.totalCost <= 0) {
+      return { success: false, error: "Total pembelian harus lebih dari 0." };
+    }
+    const shippingCost = Number(input.shippingCost ?? 0);
+    if (!Number.isFinite(shippingCost) || shippingCost < 0 || shippingCost >= input.totalCost) {
+      return { success: false, error: "Ongkos kirim harus lebih kecil dari total pembelian." };
+    }
+    const roastLevel = (input.productRoastLevel ?? "").trim().toUpperCase();
+    if (!ROAST_LEVELS.has(roastLevel)) {
+      return { success: false, error: "Tingkat sangrai tidak valid." };
+    }
+
+    const tenantPrisma = await requireTenantPrisma();
+    const previousAttempt = await tenantPrisma.purchase.findFirst({
+      where: { operationKey: input.operationKey },
+      select: { code: true },
+    });
+    if (previousAttempt) return { success: true, purchaseCode: previousAttempt.code };
+
+    const payment = resolvePurchasePaymentFromAmount(input.totalCost, input.paidAmount);
+    const receivedAt = new Date(`${input.receivedAt}T00:00:00`);
+    if (Number.isNaN(receivedAt.getTime())) {
+      return { success: false, error: "Tanggal penerimaan tidak valid." };
+    }
+    const dueDate = parsePurchaseDueDate(payment.paymentStatus, input.dueDate, receivedAt);
+    const purchaseCode = generatePurchaseCode(receivedAt);
+    const itemCost = input.totalCost - shippingCost;
+    const pricePerKg = itemCost / input.weightKg;
+    const supplier = await tenantPrisma.supplier.findUnique({
+      where: { id: input.supplierId },
+      select: { id: true, name: true, isActive: true },
+    });
+    if (!supplier?.isActive) {
+      return { success: false, error: "Supplier tidak ditemukan atau sudah nonaktif." };
+    }
+
+    await tenantPrisma.$transaction(async (tx) => {
+      if (!supplier?.isActive) throw new Error("Supplier tidak ditemukan atau sudah nonaktif.");
+
+      let product = input.productId
+        ? await tx.product.findUnique({ where: { id: input.productId } })
+        : null;
+      if (product && (product.type !== "ROASTED_BEAN" || !product.isActive)) {
+        throw new Error("Produk bukan Roasted Bean aktif.");
+      }
+      if (!product && input.productName?.trim()) {
+        const productName = input.productName.trim();
+        product = await tx.product.findFirst({
+          where: { name: { equals: productName, mode: "insensitive" }, type: "ROASTED_BEAN", isActive: true },
+        });
+        if (!product) {
+          product = await tx.product.create({
+            data: {
+              tenantId,
+              code: generateRBCode(productName),
+              name: productName,
+              type: "ROASTED_BEAN",
+              roastLevel,
+              origin: input.productOrigin?.trim() || null,
+              materialOrigin: "PURCHASED_ROASTED",
+            },
+          });
+        }
+      }
+      if (!product) throw new Error("Pilih Roasted Bean atau tulis nama Roasted Bean baru.");
+
+      const purchase = await tx.purchase.create({
+        data: {
+          tenantId,
+          code: purchaseCode,
+          operationKey: input.operationKey,
+          type: "ROASTED_BEAN",
+          supplierId: input.supplierId,
+          productId: product.id,
+          weightKg: input.weightKg,
+          pricePerUnit: pricePerKg,
+          shippingCost,
+          totalCost: input.totalCost,
+          status: "COMPLETED",
+          paymentStatus: payment.paymentStatus,
+          paidAmount: payment.paidAmount,
+          dueDate,
+          receivedAt,
+          notes: input.notes ?? null,
+          createdById: userId,
+        },
+      });
+
+      if (payment.paidAmount > 0) {
+        await tx.supplierPayment.create({
+          data: {
+            tenantId,
+            code: generateSupplierPaymentCode(receivedAt),
+            purchaseId: purchase.id,
+            amount: payment.paidAmount,
+            method: input.paymentMethod ?? "CASH",
+            paidAt: receivedAt,
+            notes: payment.paymentStatus === "PARTIAL" ? "Uang muka pembelian" : "Pembayaran pembelian",
+            createdById: userId,
+          },
+        });
+      }
+
+      const lot = await tx.lot.create({
+        data: {
+          tenantId,
+          productId: product.id,
+          supplierId: input.supplierId,
+          purchaseId: purchase.id,
+          batchCode: purchase.code,
+          quantityKg: input.weightKg,
+          expiryDate: input.bestBeforeDate ? new Date(`${input.bestBeforeDate}T00:00:00`) : null,
+          receivedAt,
+          notes: input.lotNumber ? `Lot supplier: ${input.lotNumber}` : null,
+        },
+      });
+
+      await createLotPlacementInTx(tx, tenantId, lot.id, {
+        quantityKg: input.weightKg,
+      });
+
+      await appendLedger(tx, {
+        data: {
+          tenantId,
+          productId: product.id,
+          entryType: "IN",
+          refType: "PURCHASE_RB",
+          refId: purchase.id,
+          quantityKg: input.weightKg,
+          incomingPrice: input.totalCost / input.weightKg,
+          lotId: lot.id,
+          lotNumber: lot.batchCode,
+          expiryDate: input.bestBeforeDate ? new Date(`${input.bestBeforeDate}T00:00:00`) : null,
+          notes: `Barang datang: ${purchase.code}`,
+          createdById: userId,
+        },
+      });
+
+      await recordAudit(tx, {
+        tenantId,
+        userId,
+        action: "CREATE",
+        entityType: "Purchase",
+        entityId: purchase.id,
+        after: {
+          code: purchase.code,
+          type: purchase.type,
+          totalCost: Number(purchase.totalCost),
+          paymentStatus: purchase.paymentStatus,
+          paidAmount: Number(purchase.paidAmount),
+        },
+        metadata: { operationKey: input.operationKey, balance: payment.balance },
+      });
+
+      await postPurchase(
+        purchase.id,
+        "ROASTED_BEAN",
+        Number(input.totalCost),
+        Number(payment.paidAmount),
+        supplier.name,
+        { tx, tenantId, userId },
+      );
+    }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
+
+    revalidatePath("/inventory");
+    revalidatePath("/dashboard");
+    revalidatePath("/keuangan");
+    revalidatePath("/laporan");
+
+    return { success: true, purchaseCode };
+  } catch (err) {
+    console.error("[createRoastedBeanPurchase]", err);
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" && input.operationKey) {
       const existing = await (await requireTenantPrisma()).purchase.findFirst({
         where: { operationKey: input.operationKey },

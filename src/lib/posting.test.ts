@@ -410,6 +410,14 @@ describe("postPurchase", () => {
     expectLine(result, "1-1230", 500_000, 0);
     expectLine(result, "1-1000", 0, 500_000);
   });
+
+  it("debits roasted bean inventory (1-1210) for purchased roasted beans", async () => {
+    await postPurchase("pur-4", "ROASTED_BEAN", 900_000, 300_000, "Supplier D");
+    const result = getCreatedLines();
+    expectLine(result, "1-1210", 900_000, 0);
+    expectLine(result, "1-1000", 0, 300_000);
+    expectLine(result, "2-1000", 0, 600_000);
+  });
 });
 
 describe("postStockAdjustment", () => {

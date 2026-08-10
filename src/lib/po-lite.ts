@@ -468,6 +468,7 @@ export async function receivePO(
           supplyItemId: true,
           quantity: true,
           unitPrice: true,
+          product: { select: { type: true } },
         },
       },
     },
@@ -572,6 +573,23 @@ export async function receivePO(
       const isProduct = !!poItem.productId;
       const isSupply = !!poItem.supplyItemId;
 
+      // Purchase type diturunkan dari tipe produk sebenarnya (GB vs RB beli
+      // jadi). Tipe produk lain (FG/dsb.) tidak didukung pembelian PO.
+      const purchaseType: "GREEN_BEAN" | "ROASTED_BEAN" | "PACKAGING" | "SUPPLY" =
+        isSupply
+          ? "SUPPLY"
+          : isProduct
+            ? poItem.product?.type === "ROASTED_BEAN"
+              ? "ROASTED_BEAN"
+              : poItem.product?.type === "GREEN_BEAN"
+                ? "GREEN_BEAN"
+                : (() => {
+                    throw new Error(
+                      `Tipe produk pada item PO ${poItem.id} tidak didukung pembelian.`,
+                    );
+                  })()
+            : "PACKAGING";
+
       // H12: Prevent over-receipt per item
       const previousForItem = prevPurchases
         .filter((p) =>
@@ -607,7 +625,7 @@ export async function receivePO(
         data: {
           tenantId,
           code: purchaseCode,
-          type: isSupply ? "SUPPLY" : isProduct ? "GREEN_BEAN" : "PACKAGING",
+          type: purchaseType,
           supplierId: po.supplierId,
           productId: isSupply ? null : poItem.productId,
           packagingId: isSupply ? null : poItem.packagingId,
@@ -700,7 +718,7 @@ export async function receivePO(
             tenantId,
             productId: poItem.productId,
             entryType: "IN",
-            refType: "PURCHASE_GB",
+            refType: purchaseType === "ROASTED_BEAN" ? "PURCHASE_RB" : "PURCHASE_GB",
             refId: purchase.id,
             quantityKg: received.receivedQuantity,
             incomingPrice: totalCost / received.receivedQuantity,
@@ -730,7 +748,7 @@ export async function receivePO(
 
       await postPurchase(
         purchase.id,
-        isSupply ? "SUPPLY" : isProduct ? "GREEN_BEAN" : "PACKAGING",
+        purchaseType,
         totalCost,
         isPaid ? totalCost : 0,
         po.supplier.name,

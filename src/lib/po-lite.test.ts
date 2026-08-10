@@ -391,7 +391,7 @@ describe("receivePO", () => {
       },
       supplier: { name: "PT Kopi" },
       items: [
-        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000 },
+        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000, product: { type: "GREEN_BEAN" } },
       ],
     });
     prisma.purchase.count.mockResolvedValue(0);
@@ -453,7 +453,7 @@ describe("receivePO", () => {
       },
       supplier: { name: "PT Kopi" },
       items: [
-        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000 },
+        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000, product: { type: "GREEN_BEAN" } },
       ],
     });
     prisma.purchase.count.mockResolvedValue(0);
@@ -511,7 +511,7 @@ describe("receivePO", () => {
       },
       supplier: { name: "PT Kopi" },
       items: [
-        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000 },
+        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000, product: { type: "GREEN_BEAN" } },
       ],
     });
     prisma.purchase.count.mockResolvedValue(0);
@@ -539,6 +539,98 @@ describe("receivePO", () => {
     expect(prisma.lot.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ batchCode: "PUR-202607-001" }),
     });
+  });
+
+  it("records a roasted bean receipt with type ROASTED_BEAN and PURCHASE_RB ledger", async () => {
+    const prisma = createMockPrisma();
+    prisma.purchaseOrder.findUnique.mockResolvedValue({
+      id: "po-2",
+      code: "PO-202607-002",
+      tenantId: "tenant-1",
+      status: "SENT",
+      supplierId: "sup-1",
+      inventorySupplyItem: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      supplier: { name: "PT Kopi" },
+      items: [
+        { id: "item-rb", productId: "rb-1", packagingId: null, quantity: 5, unitPrice: 120000, product: { type: "ROASTED_BEAN" } },
+      ],
+    });
+    prisma.purchase.count.mockResolvedValue(0);
+    prisma.purchase.create.mockResolvedValue({ id: "pur-rb", code: "PUR-202607-002" });
+    prisma.purchase.findMany.mockResolvedValue([]);
+    prisma.product.updateMany.mockResolvedValue({ count: 1 });
+    prisma.purchaseOrder.update.mockResolvedValue({});
+
+    const result = await receivePO(
+      prisma,
+      "po-2",
+      {
+        receivedAt: "2026-07-18",
+        paymentMethod: "TRANSFER",
+        items: [{ poItemId: "item-rb", receivedQuantity: 5 }],
+      },
+      "user-1",
+    );
+
+    expect(prisma.purchase.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        type: "ROASTED_BEAN",
+        productId: "rb-1",
+        weightKg: 5,
+      }),
+    });
+    expect(prisma.inventoryLedger.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          productId: "rb-1",
+          entryType: "IN",
+          refType: "PURCHASE_RB",
+          quantityKg: 5,
+        }),
+      }),
+    );
+    expect(postPurchase).toHaveBeenLastCalledWith(
+      "pur-rb",
+      "ROASTED_BEAN",
+      600_000,
+      600_000,
+      "PT Kopi",
+      expect.objectContaining({ tenantId: "tenant-1", userId: "user-1" }),
+      undefined,
+    );
+  });
+
+  it("rejects receiving a PO item whose product type is unsupported", async () => {
+    const prisma = createMockPrisma();
+    prisma.purchaseOrder.findUnique.mockResolvedValue({
+      id: "po-3",
+      code: "PO-202607-003",
+      tenantId: "tenant-1",
+      status: "SENT",
+      supplierId: "sup-1",
+      inventorySupplyItem: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      supplier: { name: "PT Kopi" },
+      items: [
+        { id: "item-fg", productId: "fg-1", packagingId: null, quantity: 3, unitPrice: 50000, product: { type: "FINISHED_GOODS" } },
+      ],
+    });
+    prisma.purchase.count.mockResolvedValue(0);
+
+    await expect(
+      receivePO(
+        prisma,
+        "po-3",
+        {
+          receivedAt: "2026-07-18",
+          items: [{ poItemId: "item-fg", receivedQuantity: 3 }],
+        },
+        "user-1",
+      ),
+    ).rejects.toThrow(/Tipe produk pada item PO .* tidak didukung pembelian/);
   });
 
   it("throws error for non-Sent/Partial PO", async () => {

@@ -73,6 +73,7 @@ enum MaterialOrigin {
 
 enum PurchaseType {
   GREEN_BEAN // pembelian biji kopi mentah
+  ROASTED_BEAN // pembelian biji kopi sangrai jadi (beli jadi)
   PACKAGING // pembelian bahan kemasan (legacy; write baru pakai SUPPLY)
   SUPPLY // pembelian persediaan non-kopi (InventorySupplyItem)
 }
@@ -297,6 +298,7 @@ enum RoastMatchStatus {
 /// Jenis transaksi asal untuk audit trail di InventoryLedger
 enum LedgerRefType {
   PURCHASE_GB // Green Bean masuk via Purchase
+  PURCHASE_RB // Roasted Bean masuk via Purchase (beli jadi)
   PURCHASE_PKG // Packaging masuk via Purchase
   ROASTING_GB_OUT // Green Bean keluar ke roasting
   ROASTING_RB_IN // Roasted Bean masuk dari roasting
@@ -1058,11 +1060,11 @@ model Purchase {
   type         PurchaseType
 
   supplierId   String
-  productId    String? // wajib jika type = GREEN_BEAN
+  productId    String? // wajib jika type = GREEN_BEAN atau ROASTED_BEAN
   packagingId  String? // wajib jika type = PACKAGING (legacy)
   supplyItemId String? // wajib jika type = SUPPLY
 
-  weightKg       Decimal? @db.Decimal(10, 3) // GREEN_BEAN: berat masuk (kg)
+  weightKg       Decimal? @db.Decimal(10, 3) // GREEN_BEAN / ROASTED_BEAN: berat masuk (kg)
   quantityUnits  Int? // PACKAGING (legacy): jumlah unit masuk
   supplyQuantity Decimal? @db.Decimal(12, 3) // SUPPLY: kuantitas masuk (baseUnit item)
 

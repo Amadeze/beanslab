@@ -896,6 +896,7 @@ export type CreateProductInput = {
   category?:    string; // e.g. "Espresso Base", "Specialty"
   origin?:      string;
   roastLevel?:  "LIGHT" | "MEDIUM" | "MEDIUM_DARK" | "DARK" | null;
+  materialOrigin?: "INTERNAL_ROAST" | "PURCHASED_ROASTED"; // hanya relevan untuk ROASTED_BEAN
   description?: string;
   imageUrl?:    string;
   price?:       number; // Harga jual retail
@@ -999,7 +1000,7 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
               category:    input.category?.trim()    || null,
               origin:      input.origin?.trim()      || null,
               roastLevel:  input.type === "ROASTED_BEAN" ? (input.roastLevel ?? null) : null,
-              materialOrigin: input.type === "ROASTED_BEAN" ? "INTERNAL_ROAST" : null,
+              materialOrigin: input.type === "ROASTED_BEAN" ? (input.materialOrigin ?? "INTERNAL_ROAST") : null,
               coffeeSourceId,
               description: input.description?.trim() || null,
               imageUrl:    input.imageUrl?.trim() || null,
@@ -1166,6 +1167,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
           category:    input.category?.trim()    || null,
           origin:      input.origin?.trim()      || null,
           roastLevel:  existing.type === "ROASTED_BEAN" ? (input.roastLevel ?? null) : null,
+          materialOrigin: existing.type === "ROASTED_BEAN" ? (input.materialOrigin ?? undefined) : null,
           description: input.description?.trim() || null,
           imageUrl:    input.imageUrl?.trim() || null,
           isActive:    input.isActive,

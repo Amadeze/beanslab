@@ -470,7 +470,7 @@ export async function postRoastingBatch(
 
 export async function postPurchase(
   purchaseId: string,
-  type: "GREEN_BEAN" | "PACKAGING" | "SUPPLY",
+  type: "GREEN_BEAN" | "ROASTED_BEAN" | "PACKAGING" | "SUPPLY",
   totalCost: number,
   paidAmount: number,
   supplierName: string,
@@ -480,9 +480,11 @@ export async function postPurchase(
   const inventoryAccount =
     type === "GREEN_BEAN"
       ? "1-1200"
-      : type === "SUPPLY"
-        ? getSupplyInventoryAccount(supplyCategory ?? "OTHER")
-        : "1-1230";
+      : type === "ROASTED_BEAN"
+        ? "1-1210"
+        : type === "SUPPLY"
+          ? getSupplyInventoryAccount(supplyCategory ?? "OTHER")
+          : "1-1230";
 
   const lines: PostingLine[] = [
     { accountCode: inventoryAccount, debit: totalCost, credit: 0 },
@@ -497,7 +499,13 @@ export async function postPurchase(
   }
 
   const typeLabel =
-    type === "GREEN_BEAN" ? "Green Bean" : type === "SUPPLY" ? "Supply" : "Kemasan";
+    type === "GREEN_BEAN"
+      ? "Green Bean"
+      : type === "ROASTED_BEAN"
+        ? "Roasted Bean"
+        : type === "SUPPLY"
+          ? "Supply"
+          : "Kemasan";
   return postJournalEntry({
     date: getCurrentDate(),
     description: `Pembelian ${typeLabel} dari ${supplierName} — ${purchaseId}`,

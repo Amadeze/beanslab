@@ -86,6 +86,13 @@ export type GBProductOption = {
   origin: string | null;
 };
 
+export type RBProductOption = {
+  id: string;
+  name: string;
+  origin: string | null;
+  roastLevel: string | null;
+};
+
 export type InventoryPageData = {
   gbStocks: ProductStockRow[];
   rbStocks: ProductStockRow[];
@@ -94,6 +101,7 @@ export type InventoryPageData = {
   ledgerEntries: LedgerHistoryRow[];
   suppliers: SupplierOption[];
   gbProducts: GBProductOption[];
+  rbProducts: RBProductOption[];
   sampleConsumption: SampleConsumptionSummary;
   lotsByProduct: Record<string, ProductLotRow[]>;
   supplyLotsByItem: Record<string, SupplyLotRow[]>;
@@ -129,6 +137,25 @@ export type PurchaseActionInput = {
   productId?: string;
   productName?: string;
   productOrigin?: string;
+  weightKg: number;
+  totalCost: number;
+  shippingCost: number;
+  paidAmount?: number;
+  paymentMethod?: "CASH" | "TRANSFER" | "QRIS";
+  dueDate?: string;
+  notes?: string;
+  lotNumber?: string;
+  bestBeforeDate?: string;
+};
+
+export type RoastedBeanPurchaseInput = {
+  operationKey: string;
+  supplierId: string;
+  receivedAt: string;
+  productId?: string;
+  productName?: string;
+  productOrigin?: string;
+  productRoastLevel?: string;
   weightKg: number;
   totalCost: number;
   shippingCost: number;
