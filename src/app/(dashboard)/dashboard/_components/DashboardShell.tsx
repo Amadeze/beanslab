@@ -256,7 +256,7 @@ function CompactDashboardHeader({
   );
 }
 
-function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
+export function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
   const [showAll, setShowAll] = useState(false);
   const [snoozed, setSnoozed] = useState<Record<string, number>>({});
   const [mounted, setMounted] = useState(false);
@@ -266,7 +266,7 @@ function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
     try {
       const stored = localStorage.getItem("ros_snoozed_tasks");
       if (stored) setSnoozed(JSON.parse(stored));
-    } catch (e) {}
+    } catch {}
   }, []);
 
   const handleSnooze = (id: string, e: React.MouseEvent) => {
@@ -274,7 +274,7 @@ function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
     e.stopPropagation();
     const newSnoozed = { ...snoozed, [id]: Date.now() + 86400000 }; // 24 hours
     setSnoozed(newSnoozed);
-    try { localStorage.setItem("ros_snoozed_tasks", JSON.stringify(newSnoozed)); } catch (err) {}
+    try { localStorage.setItem("ros_snoozed_tasks", JSON.stringify(newSnoozed)); } catch {}
   };
 
   const activeItems = items.filter((item) => {
@@ -290,8 +290,8 @@ function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
     <section className="overflow-hidden rounded-[14px] border border-border bg-card" aria-labelledby="work-queue-title">
       <div className="flex min-h-16 items-center justify-between border-b border-stone-200 px-4 md:px-5">
         <div>
-          <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-primary">Decision queue</p>
-          <h2 id="work-queue-title" className="mt-1 text-base font-black tracking-[-0.025em] text-stone-950">Yang perlu diputuskan</h2>
+          <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-primary">Hari ini</p>
+          <h2 id="work-queue-title" className="mt-1 text-base font-black tracking-[-0.025em] text-stone-950">Pekerjaan berikutnya</h2>
         </div>
         <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-[8px] bg-[#05090D] px-2 text-xs font-bold tabular-nums text-[#8EF3FC]">
           {String(activeItems.length).padStart(2, "0")}
@@ -301,9 +301,9 @@ function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
       {activeItems.length === 0 ? (
         <div className="flex min-h-[260px] flex-col items-center justify-center px-6 text-center">
           <CircleCheck size={30} className="text-emerald-600" />
-          <p className="mt-3 text-sm font-semibold text-stone-900">Tidak ada pengecualian aktif</p>
+          <p className="mt-3 text-sm font-semibold text-stone-900">Semua pekerjaan utama sudah beres</p>
           <p className="mt-1 max-w-sm text-xs leading-5 text-stone-500">
-            Stok, piutang, dan integrasi tidak memerlukan tindakan segera.
+            Tidak ada pekerjaan operasional yang perlu ditindaklanjuti sekarang.
           </p>
         </div>
       ) : (
@@ -329,7 +329,21 @@ function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
                     {item.severity === "critical" ? <TriangleAlert size={15} /> : <AlertTriangle size={15} />}
                   </span>
                   <span className="min-w-0 pr-10 md:pr-12">
-                    <span className="mb-0.5 block font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-stone-400">{item.domain}</span>
+                    <span className="mb-0.5 flex items-center gap-2 font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-stone-400">
+                      {item.domain}
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 py-0.5 tracking-[0.08em]",
+                          item.status === "BLOCKED"
+                            ? "bg-red-50 text-red-700"
+                            : item.status === "IN_PROGRESS"
+                              ? "bg-sky-50 text-sky-700"
+                              : "bg-emerald-50 text-emerald-700",
+                        )}
+                      >
+                        {item.status === "BLOCKED" ? "Terhambat" : item.status === "IN_PROGRESS" ? "Berjalan" : "Siap"}
+                      </span>
+                    </span>
                     <span className={cn("block font-semibold text-stone-900", index === 0 && !showAll ? "text-sm leading-5" : "truncate text-xs")}>{item.title}</span>
                     <span className="mt-0.5 block truncate text-[11px] text-stone-500">{item.context}</span>
                   </span>
@@ -341,7 +355,7 @@ function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
                 <button
                   type="button"
                   onClick={(e) => handleSnooze(item.id, e)}
-                  title="Tunda peringatan ini 24 jam"
+                  title="Tunda pekerjaan ini 24 jam"
                   className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-lg p-2 text-stone-400 opacity-0 transition hover:bg-stone-200 hover:text-stone-700 group-hover:opacity-100 sm:right-1/4 md:right-[20%] xl:right-32"
                 >
                   <span className="sr-only">Tunda 24 jam</span>
@@ -358,7 +372,7 @@ function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
                 onClick={() => setShowAll(true)}
                 className="text-xs font-semibold text-stone-600 hover:text-stone-900 transition-colors"
               >
-                Lihat semua ({activeItems.length}) peringatan
+                Lihat semua ({activeItems.length}) pekerjaan
               </button>
             </div>
           )}
@@ -369,7 +383,7 @@ function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
                 onClick={() => setShowAll(false)}
                 className="text-xs font-semibold text-stone-600 hover:text-stone-900 transition-colors"
               >
-                Sembunyikan peringatan
+                Ringkas pekerjaan
               </button>
             </div>
           )}

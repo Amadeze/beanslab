@@ -81,6 +81,13 @@ export type DashboardData = {
   };
 };
 
+export type TodayData = {
+  asOf: string;
+  role: "OWNER" | "MANAGER" | "OPERATOR" | "CASHIER";
+  lowStock: LowStockItem[];
+  operationalQueue: DashboardData["operationalQueue"];
+};
+
 // =============================================================================
 // MAIN QUERY
 // =============================================================================
@@ -496,6 +503,122 @@ export async function getDashboardData(): Promise<DashboardData> {
       overdueReceivables: {
         count: overdueReceivables._count,
         total: overdueReceivablesTotal,
+      },
+    },
+  };
+}
+
+export async function getTodayData(): Promise<TodayData> {
+  const user = await requireRole("OWNER", "MANAGER", "OPERATOR", "CASHIER");
+  const tp = await requireTenantPrisma();
+  const now = getCurrentDate();
+
+  const [
+    stockProducts,
+    stockPackagings,
+    purchaseOrdersToReceive,
+    roastingBatchesOpen,
+    paymentReviews,
+    fulfillmentGroups,
+    overdueReceivables,
+  ] = await Promise.all([
+    tp.product.findMany({
+      where: { isActive: true, type: { in: ["GREEN_BEAN", "ROASTED_BEAN", "FINISHED_GOODS"] } },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        stockKg: true,
+        stockUnit: true,
+        reorderAlertEnabled: true,
+        safetyStockQuantity: true,
+      },
+      orderBy: { name: "asc" },
+    }),
+    tp.packaging.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        stockUnit: true,
+        reorderAlertEnabled: true,
+        safetyStockQuantity: true,
+      },
+      orderBy: { name: "asc" },
+    }),
+    tp.purchaseOrder.count({ where: { status: { in: ["SENT", "PARTIAL"] } } }),
+    tp.parentRoastingBatch.count({ where: { status: "PENDING" } }),
+    tp.paymentSubmission.count({ where: { status: "AWAITING_VERIFICATION" } }),
+    tp.invoice.groupBy({
+      by: ["fulfillmentStatus"],
+      where: {
+        publicOrderToken: { not: null },
+        fulfillmentStatus: { in: ["NEEDS_PRODUCTION", "READY_TO_PACK", "PACKED"] },
+      },
+      _count: true,
+    }),
+    tp.invoice.aggregate({
+      where: { status: { in: ["ISSUED", "PARTIAL"] }, dueDate: { lt: now } },
+      _count: true,
+      _sum: { grandTotal: true, paidAmount: true },
+    }),
+  ]);
+
+  const lowStock: LowStockItem[] = [];
+  for (const product of stockProducts) {
+    if (!product.reorderAlertEnabled) continue;
+    const threshold = Number(product.safetyStockQuantity);
+    const usesUnits = product.type === "FINISHED_GOODS";
+    const stock = Number(usesUnits ? product.stockUnit : product.stockKg);
+    if (stock <= threshold) {
+      lowStock.push({
+        id: product.id,
+        name: product.name,
+        type: product.type as LowStockItem["type"],
+        stock,
+        unit: usesUnits ? "pcs" : "kg",
+        threshold,
+      });
+    }
+  }
+  for (const packaging of stockPackagings) {
+    if (!packaging.reorderAlertEnabled) continue;
+    const stock = Number(packaging.stockUnit);
+    const threshold = Number(packaging.safetyStockQuantity);
+    if (stock <= threshold) {
+      lowStock.push({
+        id: packaging.id,
+        name: packaging.name,
+        type: "PACKAGING",
+        stock,
+        unit: "pcs",
+        threshold,
+      });
+    }
+  }
+
+  const fulfillmentCount = new Map(
+    fulfillmentGroups.map((row) => [row.fulfillmentStatus, row._count]),
+  );
+  const overdueTotal = Math.max(
+    0,
+    Number(overdueReceivables._sum.grandTotal ?? 0) - Number(overdueReceivables._sum.paidAmount ?? 0),
+  );
+
+  return {
+    asOf: now.toISOString(),
+    role: user.role as TodayData["role"],
+    lowStock,
+    operationalQueue: {
+      purchaseOrdersToReceive,
+      roastingBatchesOpen,
+      paymentReviews,
+      fulfillmentNeedsProduction: fulfillmentCount.get("NEEDS_PRODUCTION") ?? 0,
+      fulfillmentReadyToPack: fulfillmentCount.get("READY_TO_PACK") ?? 0,
+      fulfillmentPacked: fulfillmentCount.get("PACKED") ?? 0,
+      overdueReceivables: {
+        count: overdueReceivables._count,
+        total: overdueTotal,
       },
     },
   };

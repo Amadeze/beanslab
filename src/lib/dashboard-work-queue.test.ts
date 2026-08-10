@@ -30,7 +30,19 @@ describe("buildDashboardWorkItems", () => {
       "purchase-orders-receiving",
       "roasting-open",
     ]);
-    expect(items[0]).toMatchObject({ actionLabel: "Periksa", severity: "critical" });
+    expect(items[0]).toMatchObject({
+      type: "PAYMENT_REVIEW",
+      sourceType: "PAYMENT_SUBMISSION",
+      sourceId: "payment-reviews",
+      status: "READY",
+      actionLabel: "Periksa",
+      severity: "critical",
+    });
+    expect(items[1]).toMatchObject({
+      type: "PRODUCE",
+      status: "BLOCKED",
+      blocker: "Stok barang jadi belum cukup untuk memenuhi pesanan",
+    });
   });
 
   it("promotes empty stock to critical and keeps stale brief actions out of the queue", () => {
@@ -50,5 +62,49 @@ describe("buildDashboardWorkItems", () => {
 
   it("returns an empty queue when every operational signal is clear", () => {
     expect(buildDashboardWorkItems({ signals: emptySignals, lowStock: [] })).toEqual([]);
+  });
+
+  it("keeps packing and handover as separate next actions", () => {
+    const items = buildDashboardWorkItems({
+      signals: { ...emptySignals, fulfillmentReadyToPack: 2, fulfillmentPacked: 3 },
+      lowStock: [],
+    });
+
+    expect(items.map((item) => item.id)).toEqual([
+      "fulfillment-pack",
+      "fulfillment-handover",
+    ]);
+    expect(items[0]).toMatchObject({ type: "PACK", status: "READY", actionLabel: "Kemas" });
+    expect(items[1]).toMatchObject({ type: "HANDOVER", status: "READY", actionLabel: "Serahkan" });
+  });
+
+  it("shows each role only the work they can actually perform", () => {
+    const signals = {
+      ...emptySignals,
+      paymentReviews: 1,
+      fulfillmentNeedsProduction: 1,
+      fulfillmentReadyToPack: 1,
+      fulfillmentPacked: 1,
+      purchaseOrdersToReceive: 1,
+      roastingBatchesOpen: 1,
+      overdueReceivables: { count: 1, total: 500_000 },
+    };
+
+    const operatorItems = buildDashboardWorkItems({ signals, lowStock: [], role: "OPERATOR" });
+    const cashierItems = buildDashboardWorkItems({ signals, lowStock: [], role: "CASHIER" });
+
+    expect(operatorItems.map((item) => item.type)).toEqual([
+      "PRODUCE",
+      "PACK",
+      "HANDOVER",
+      "RECEIVE",
+      "ROAST",
+    ]);
+    expect(cashierItems.map((item) => item.type)).toEqual([
+      "PAYMENT_REVIEW",
+      "COLLECT_PAYMENT",
+      "PACK",
+      "HANDOVER",
+    ]);
   });
 });
