@@ -14,6 +14,7 @@ import { postSalesInvoice, postCreditNote, postVoidReversal, postJournalEntry } 
 import { getCurrentDate } from "@/lib/date-utils";
 import { createMidtransSnapTransaction } from "@/lib/midtrans";
 import { fulfillInvoiceAtHandover, reserveInvoiceStock } from "@/lib/storefront-commerce";
+import { releaseInvoiceReservations } from "@/lib/storefront-commerce";
 import { postCustomerPrepayment } from "@/lib/posting";
 
 // =============================================================================
@@ -795,36 +796,37 @@ export async function voidInvoice(
       const saleEntries = await tx.inventoryLedger.findMany({
         where: { refId: invoiceId, refType: "SALE_FG_OUT", entryType: "OUT" },
       });
-      if (saleEntries.length === 0) {
-        throw new Error("Ledger penjualan tidak ditemukan; void dibatalkan.");
-      }
-      // Kembalikan stok ke lot asal agar traceability tidak terputus.
-      for (const entry of saleEntries) {
-        await appendLedger(tx, {
-          data: {
-            tenantId,
-            productId:    entry.productId,
-            entryType:    "IN",
-            refType:      "VOID_REVERSAL",
-            refId:        invoiceId,
-            quantityUnit: entry.quantityUnit,
-            lotId:        entry.lotId,
-            lotNumber:    entry.lotNumber,
-            expiryDate:   entry.expiryDate,
-            notes:        `VOID reversal: ${inv.code}`,
-            createdById: userId,
-          },
-        });
-        if (entry.lotId) {
-          await tx.lot.update({ where: { id: entry.lotId }, data: { consumedAt: null } });
+      if (saleEntries.length > 0) {
+        // Kembalikan stok ke lot asal agar traceability tidak terputus.
+        for (const entry of saleEntries) {
+          await appendLedger(tx, {
+            data: {
+              tenantId,
+              productId:    entry.productId,
+              entryType:    "IN",
+              refType:      "VOID_REVERSAL",
+              refId:        invoiceId,
+              quantityUnit: entry.quantityUnit,
+              lotId:        entry.lotId,
+              lotNumber:    entry.lotNumber,
+              expiryDate:   entry.expiryDate,
+              notes:        `VOID reversal: ${inv.code}`,
+              createdById: userId,
+            },
+          });
+          if (entry.lotId) {
+            await tx.lot.update({ where: { id: entry.lotId }, data: { consumedAt: null } });
+          }
         }
+        await postVoidReversal("INVOICE", invoiceId, reason, { tx, tenantId, userId });
+      } else {
+        await releaseInvoiceReservations(tx, invoiceId, "RELEASED", getCurrentDate());
       }
 
       await tx.invoice.update({
         where: { id: invoiceId },
-        data: { status: "VOID", voidReason: reason, voidAt: getCurrentDate() },
+        data: { status: "VOID", fulfillmentStatus: "CANCELLED", voidReason: reason, voidAt: getCurrentDate() },
       });
-      await postVoidReversal("INVOICE", invoiceId, reason, { tx, tenantId, userId });
 
       await recordAudit(tx, {
         tenantId,

@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { resolveTestDatabaseUrl } from "../../../../test/setup/test-database-guard";
-import { createInvoice, updateInvoiceShipping } from "./actions";
+import { createInvoice, updateInvoiceShipping, voidInvoice } from "./actions";
 import { recordPayment } from "../keuangan/actions";
 
 // Gated integration test: only runs against an isolated test DB with RUN_INTEGRATION=true.
@@ -177,5 +177,33 @@ suite("Penjualan End-to-End Integration", () => {
     // Verify product stock was updated only at handover.
     const updatedProduct = await prisma.product.findUnique({ where: { id: productId } });
     expect(Number(updatedProduct?.stockUnit)).toBe(98);
+  });
+
+  it("voids an order before handover by releasing its reservation without moving stock", async () => {
+    const orderRes = await createInvoice({
+      operationKey: "123e4567-e89b-12d3-a456-426614174001",
+      customerId,
+      items: [{ productId, quantity: 1, discount: 0 }],
+      invoiceDiscount: 0,
+      tax: 0,
+      taxType: "NONE",
+      status: "ISSUED",
+      salesChannel: "WHATSAPP",
+    });
+    expect(orderRes.success).toBe(true);
+    if (!orderRes.success) throw new Error("Failed to create invoice");
+
+    const cancelled = await voidInvoice(orderRes.invoiceId, "Pesanan dibatalkan pelanggan");
+    expect(cancelled.success).toBe(true);
+
+    const invoice = await prisma.invoice.findUnique({ where: { id: orderRes.invoiceId } });
+    expect(invoice?.status).toBe("VOID");
+    expect(invoice?.fulfillmentStatus).toBe("CANCELLED");
+    const reservation = await prisma.stockReservation.findFirst({ where: { invoiceId: orderRes.invoiceId } });
+    expect(reservation?.status).toBe("RELEASED");
+    const salesLedger = await prisma.inventoryLedger.count({
+      where: { tenantId: "test-tenant-integration", refId: orderRes.invoiceId, refType: "SALE_FG_OUT" },
+    });
+    expect(salesLedger).toBe(0);
   });
 });
