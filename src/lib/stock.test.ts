@@ -19,6 +19,10 @@ function transaction(updateCount = 1) {
       findMany: vi.fn().mockResolvedValue([]),
       update: vi.fn().mockResolvedValue({}),
     },
+    lotPlacement: {
+      findMany: vi.fn().mockResolvedValue([]),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+    },
     inventorySupplyItem: {
       findUnique: vi.fn(),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -318,6 +322,44 @@ describe("appendLedger", () => {
 });
 
 describe("appendFefoLedgerOut", () => {
+  it("depletes placed stock with the canonical lot consumption", async () => {
+    const tx = transaction();
+    tx.$queryRaw.mockResolvedValue([{ id: "lot-1" }]);
+    tx.lot.findMany.mockResolvedValue([
+      {
+        id: "lot-1",
+        batchCode: "LOT-1",
+        expiryDate: null,
+        quantityKg: 10,
+        quantityUnit: 0,
+        supplyQuantity: 0,
+        inventoryLedgers: [{ entryType: "IN", quantityKg: 10, quantityUnit: null, supplyQuantity: null }],
+      },
+    ]);
+    tx.lotPlacement.findMany.mockResolvedValue([
+      { id: "placement-a", quantityKg: 4, quantityUnit: 0, supplyQty: 0 },
+      { id: "placement-b", quantityKg: 6, quantityUnit: 0, supplyQty: 0 },
+    ]);
+
+    await appendFefoLedgerOut(tx, {
+      tenantId: "tenant-1",
+      productId: "green-bean-1",
+      quantityKg: 7,
+      refType: "ROASTING_GB_OUT",
+      refId: "roast-1",
+      createdById: "user-1",
+    });
+
+    expect(tx.lotPlacement.updateMany).toHaveBeenNthCalledWith(1, {
+      where: { id: "placement-a", tenantId: "tenant-1", quantityKg: { gte: 4 } },
+      data: { quantityKg: { decrement: 4 } },
+    });
+    expect(tx.lotPlacement.updateMany).toHaveBeenNthCalledWith(2, {
+      where: { id: "placement-b", tenantId: "tenant-1", quantityKg: { gte: 3 } },
+      data: { quantityKg: { decrement: 3 } },
+    });
+  });
+
   it("supply FEFO: allocates supplyQuantity from earliest expiry lot first", async () => {
     const tx = transaction();
     tx.$queryRaw.mockResolvedValue([

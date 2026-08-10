@@ -262,6 +262,14 @@ describe("postProductionBatch", () => {
     expectLine(result, "1-1220", 600_000, 0);
     expect(result.lines.filter((l: any) => acctCode(l.accountId) === "5-1010" || acctCode(l.accountId) === "5-1020")).toHaveLength(0);
   });
+
+  it("credits non-coffee inventory when additional supply is capitalized", async () => {
+    await postProductionBatch("batch-supply", 500_000, 100_000, 25_000, 0, 0, "Kopi Sachet");
+    const result = getCreatedLines();
+    expectLine(result, "1-1230", 0, 100_000);
+    expectLine(result, "1-1230", 0, 25_000);
+    expect(result.lines.some((l: any) => acctCode(l.accountId) === "5-1030")).toBe(false);
+  });
 });
 
 describe("postRoastingBatch", () => {

@@ -3,6 +3,7 @@
 import { requireRole, requireTenantPrisma, getCurrentTenantId, getSystemUserId } from "./auth";
 import { recordAudit } from "./audit";
 import { appendLedger } from "./stock";
+import { postStockAdjustment } from "./posting";
 import { revalidatePath } from "next/cache";
 
 export type OpnameStatus = "DRAFT" | "CONFIRMED" | "CANCELLED";
@@ -49,7 +50,7 @@ export async function createLocationOpname(input: CreateOpnameInput): Promise<{ 
     const lot = await tp.lot.findUnique({
       where: { id: input.lotId, tenantId },
       include: {
-        product: { select: { name: true } },
+        product: { select: { name: true, type: true } },
         packaging: { select: { name: true } },
         supplyItem: { select: { name: true } },
         inventoryLedgers: {
@@ -76,7 +77,11 @@ export async function createLocationOpname(input: CreateOpnameInput): Promise<{ 
     const countedUnit = input.countedQuantityUnit !== undefined ? Number(input.countedQuantityUnit) : null;
     const countedSupply = input.countedSupplyQty !== undefined ? Number(input.countedSupplyQty) : null;
 
-    if (countedKg === null && countedUnit === null && countedSupply === null) {
+    const expectedField = lot.productId
+      ? lot.product?.type === "FINISHED_GOODS" ? "unit" : "kg"
+      : lot.packagingId ? "unit" : "supply";
+    const validCount = expectedField === "kg" ? countedKg : expectedField === "unit" ? countedUnit : countedSupply;
+    if (validCount === null || validCount < 0) {
       return { success: false, error: "Jumlah terhitung harus diisi." };
     }
 
@@ -128,7 +133,15 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
     await tp.$transaction(async (tx) => {
       const opname = await tx.locationOpname.findUnique({
         where: { id: opnameId, tenantId },
-        include: { lot: true },
+        include: {
+          lot: {
+            include: {
+              product: { select: { type: true, avgCostPerKg: true, lastHpp: true } },
+              packaging: { select: { avgCostPerUnit: true, costPerUnit: true } },
+              supplyItem: { select: { avgCostPerUnit: true, category: true, includeInProductHpp: true } },
+            },
+          },
+        },
       });
       if (!opname) throw new Error("Opname tidak ditemukan.");
       if (opname.status === "CONFIRMED") throw new Error("Opname sudah disahkan.");
@@ -145,13 +158,14 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
       const currentKg = Number(currentPlacement?.quantityKg ?? 0);
       const currentUnit = currentPlacement?.quantityUnit ?? 0;
       const currentSupply = Number(currentPlacement?.supplyQty ?? 0);
-      const isProduct = opname.lot.productId != null;
+      const isProductKg = opname.lot.productId != null && opname.lot.product?.type !== "FINISHED_GOODS";
+      const isProductUnit = opname.lot.productId != null && opname.lot.product?.type === "FINISHED_GOODS";
       const isPackaging = opname.lot.packagingId != null;
       const isSupply = opname.lot.supplyItemId != null;
 
-      const stale = isProduct
+      const stale = isProductKg
         ? Math.abs(currentKg - Number(opname.systemQuantityKg ?? 0)) > 0.000001
-        : isPackaging
+        : isProductUnit || isPackaging
           ? currentUnit !== Number(opname.systemQuantityUnit ?? 0)
           : isSupply
             ? Math.abs(currentSupply - Number(opname.systemSupplyQty ?? 0)) > 0.000001
@@ -173,9 +187,9 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
       let varianceUnit = 0;
       let varianceSupply = 0;
 
-      if (isProduct && countedKg !== null) {
+      if (isProductKg && countedKg !== null) {
         varianceKg = countedKg - systemKg;
-      } else if (isPackaging && countedUnit !== null) {
+      } else if ((isProductUnit || isPackaging) && countedUnit !== null) {
         varianceUnit = countedUnit - systemUnit;
       } else if (isSupply && countedSupply !== null) {
         varianceSupply = countedSupply - systemSupply;
@@ -204,7 +218,7 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
         },
       });
 
-      if (isProduct && Math.abs(varianceKg) > 0.000001) {
+      if (isProductKg && Math.abs(varianceKg) > 0.000001) {
         await appendLedger(tx, {
           tenantId,
           productId: opname.lot.productId,
@@ -215,10 +229,10 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
           notes: `Koreksi opname lokasi: ${varianceKg > 0 ? "plus" : "minus"} ${Math.abs(varianceKg)}kg`,
           createdById: userId,
         });
-      } else if (isPackaging && Math.abs(varianceUnit) > 0) {
+      } else if ((isProductUnit || isPackaging) && Math.abs(varianceUnit) > 0) {
         await appendLedger(tx, {
           tenantId,
-          packagingId: opname.lot.packagingId,
+          ...(isProductUnit ? { productId: opname.lot.productId } : { packagingId: opname.lot.packagingId }),
           entryType: varianceUnit > 0 ? "IN" : "OUT",
           refType: varianceUnit > 0 ? "LOCATION_OPNAME_IN" : "LOCATION_OPNAME_OUT",
           refId: opnameId,
@@ -237,6 +251,26 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
           notes: `Koreksi opname lokasi: ${varianceSupply > 0 ? "plus" : "minus"} ${Math.abs(varianceSupply)} baseUnit`,
           createdById: userId,
         });
+      }
+
+      if (Math.abs(varianceKg) > 0.000001 || Math.abs(varianceUnit) > 0 || Math.abs(varianceSupply) > 0.000001) {
+        const direction = varianceKg > 0 || varianceUnit > 0 || varianceSupply > 0 ? "IN" : "OUT";
+        const quantity = Math.abs(varianceKg || varianceUnit || varianceSupply);
+        if (isProductKg || isProductUnit) {
+          const product = opname.lot.product;
+          const productType = product?.type ?? (isProductUnit ? "FINISHED_GOODS" : "GREEN_BEAN");
+          await postStockAdjustment(opnameId, productType, direction, quantity,
+            productType === "FINISHED_GOODS" ? Number(product?.lastHpp ?? 0) : Number(product?.avgCostPerKg ?? 0),
+            { tx, tenantId, userId });
+        } else if (isPackaging) {
+          const packaging = opname.lot.packaging;
+          await postStockAdjustment(opnameId, "PACKAGING", direction, quantity,
+            Number(packaging?.avgCostPerUnit ?? packaging?.costPerUnit ?? 0), { tx, tenantId, userId });
+        } else if (isSupply) {
+          const supply = opname.lot.supplyItem;
+          await postStockAdjustment(opnameId, "SUPPLY", direction, quantity, Number(supply?.avgCostPerUnit ?? 0),
+            { tx, tenantId, userId }, { category: supply?.category ?? "OTHER", includeInProductHpp: supply?.includeInProductHpp ?? false });
+        }
       }
 
       const confirmed = await tx.locationOpname.updateMany({

@@ -10,8 +10,13 @@ export interface DefaultWarehouse {
   locationId: string;
 }
 
-export async function ensureDefaultWarehouse(tenantId: string): Promise<DefaultWarehouse> {
-  const existing = await prisma.warehouse.findFirst({
+type StorageClient = Pick<typeof prisma, "warehouse" | "location" | "lotPlacement">;
+
+async function ensureDefaultWarehouseWithClient(
+  client: StorageClient,
+  tenantId: string,
+): Promise<DefaultWarehouse> {
+  const existing = await client.warehouse.findFirst({
     where: { tenantId, isDefault: true, isActive: true },
     include: {
       locations: { where: { isDefault: true, isActive: true } },
@@ -25,23 +30,33 @@ export async function ensureDefaultWarehouse(tenantId: string): Promise<DefaultW
     };
   }
 
-  const warehouse = await prisma.warehouse.create({
-    data: {
+  const warehouse = existing ?? await client.warehouse.upsert({
+    where: { tenantId_code: { tenantId, code: DEFAULT_WAREHOUSE_CODE } },
+    create: {
       tenantId,
       code: DEFAULT_WAREHOUSE_CODE,
       name: DEFAULT_WAREHOUSE_NAME,
       isDefault: true,
     },
+    update: { isActive: true, isDefault: true },
   });
 
-  const location = await prisma.location.create({
-    data: {
+  const location = await client.location.upsert({
+    where: {
+      tenantId_warehouseId_code: {
+        tenantId,
+        warehouseId: warehouse.id,
+        code: DEFAULT_LOCATION_CODE,
+      },
+    },
+    create: {
       tenantId,
       warehouseId: warehouse.id,
       code: DEFAULT_LOCATION_CODE,
       name: DEFAULT_LOCATION_NAME,
       isDefault: true,
     },
+    update: { isActive: true, isDefault: true },
   });
 
   return {
@@ -50,26 +65,44 @@ export async function ensureDefaultWarehouse(tenantId: string): Promise<DefaultW
   };
 }
 
-export async function getDefaultLocation(tenantId: string): Promise<string | null> {
-  const location = await prisma.location.findFirst({
+export async function ensureDefaultWarehouse(tenantId: string): Promise<DefaultWarehouse> {
+  return ensureDefaultWarehouseWithClient(prisma, tenantId);
+}
+
+async function getDefaultLocationWithClient(
+  client: StorageClient,
+  tenantId: string,
+): Promise<string | null> {
+  const location = await client.location.findFirst({
     where: { tenantId, isDefault: true, isActive: true },
     select: { id: true },
   });
   return location?.id ?? null;
 }
 
-export async function resolveOrCreateDefaultLocation(tenantId: string): Promise<string> {
-  const existing = await getDefaultLocation(tenantId);
+export async function getDefaultLocation(tenantId: string): Promise<string | null> {
+  return getDefaultLocationWithClient(prisma, tenantId);
+}
+
+async function resolveOrCreateDefaultLocationWithClient(
+  client: StorageClient,
+  tenantId: string,
+): Promise<string> {
+  const existing = await getDefaultLocationWithClient(client, tenantId);
   if (existing) return existing;
 
-  const defaults = await ensureDefaultWarehouse(tenantId);
+  const defaults = await ensureDefaultWarehouseWithClient(client, tenantId);
   return defaults.locationId;
+}
+
+export async function resolveOrCreateDefaultLocation(tenantId: string): Promise<string> {
+  return resolveOrCreateDefaultLocationWithClient(prisma, tenantId);
 }
 
 /**
  * Create a LotPlacement entry for a newly created lot within an existing
- * transaction. If destinationLocationId is null/undefined and
- * autoPlaceDefault is true, resolves the tenant's default location lazily.
+ * transaction. Unless explicitly disabled, a missing destination resolves to
+ * the tenant's default location so new lots never become unplaced by default.
  *
  * This is the single integration point used by receiving, roasting,
  * grinding, production, and eksperimen flows.
@@ -88,8 +121,8 @@ export async function createLotPlacementInTx(
 ) {
   let locationId = opts.destinationLocationId;
 
-  if (!locationId && opts.autoPlaceDefault) {
-    locationId = await resolveOrCreateDefaultLocation(tenantId);
+  if (!locationId && opts.autoPlaceDefault !== false) {
+    locationId = await resolveOrCreateDefaultLocationWithClient(tx, tenantId);
   }
 
   if (!locationId) return null;
@@ -111,4 +144,3 @@ export async function createLotPlacementInTx(
     },
   });
 }
-

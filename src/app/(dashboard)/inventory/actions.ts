@@ -15,6 +15,7 @@ import { getBatchReorderSummaries } from "@/lib/reorder";
 import { postPurchase, postStockAdjustment } from "@/lib/posting";
 import { summarizeLotInventory, summarizeSupplyLotInventory, type LotOperationalStatus } from "@/lib/lot";
 import { createSupplyPurchase, type CreateSupplyPurchaseInput } from "@/lib/supply-purchase";
+import { createLotPlacementInTx } from "@/lib/storage-location";
 import type {
   ProductStockRow,
   PackagingStockRow,
@@ -556,6 +557,10 @@ export async function createGreenBeanPurchase(
         },
       });
 
+      await createLotPlacementInTx(tx, tenantId, lot.id, {
+        quantityKg: input.weightKg,
+      });
+
       await appendLedger(tx, {
         data: {
           productId: product.id,
@@ -724,6 +729,10 @@ export async function createPackagingPurchase(
           receivedAt,
           notes: input.lotNumber ? `Lot supplier: ${input.lotNumber}` : null,
         },
+      });
+
+      await createLotPlacementInTx(tx, tenantId, lot.id, {
+        quantityUnit: input.quantityUnits,
       });
 
       await appendLedger(tx, {
@@ -1035,4 +1044,3 @@ export async function getReorderAlertData() {
   const tp = await requireTenantPrisma();
   return getBatchReorderSummaries(tp);
 }
-

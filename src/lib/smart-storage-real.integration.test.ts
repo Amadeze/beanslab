@@ -97,10 +97,13 @@ suite("Smart Storage — real PostgreSQL (TEST_DATABASE_URL)", () => {
     await tx.warehouse.deleteMany({ where: { tenantId: TENANT_ID } });
     await tx.inventoryLedger.deleteMany({ where: { tenantId: TENANT_ID } });
     await tx.auditLog.deleteMany({ where: { tenantId: TENANT_ID } });
+    await tx.journalLine.deleteMany({ where: { journalEntry: { tenantId: TENANT_ID } } });
+    await tx.journalEntry.deleteMany({ where: { tenantId: TENANT_ID } });
     await tx.lot.deleteMany({ where: { tenantId: TENANT_ID } });
     await tx.product.deleteMany({ where: { tenantId: TENANT_ID } });
     await tx.packaging.deleteMany({ where: { tenantId: TENANT_ID } });
     await tx.inventorySupplyItem.deleteMany({ where: { tenantId: TENANT_ID } });
+    await tx.account.deleteMany({ where: { tenantId: TENANT_ID } });
     await tx.user.deleteMany({ where: { tenantId: TENANT_ID } });
     await tx.user.deleteMany({ where: { id: USER_ID } });
     await tx.tenant.deleteMany({ where: { id: TENANT_ID } });

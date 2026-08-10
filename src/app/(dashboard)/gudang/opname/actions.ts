@@ -10,6 +10,7 @@ export type OpnameItem = {
   batchCode: string;
   label: string;
   productName: string | null;
+  productType: string | null;
   packagingName: string | null;
   supplyItemName: string | null;
   locationId: string;
@@ -47,7 +48,7 @@ export async function getOpnameItems(): Promise<OpnameItem[]> {
           productId: true,
           packagingId: true,
           supplyItemId: true,
-          product: { select: { name: true } },
+          product: { select: { name: true, type: true } },
           packaging: { select: { name: true } },
           supplyItem: { select: { name: true } },
         },
@@ -72,6 +73,7 @@ export async function getOpnameItems(): Promise<OpnameItem[]> {
       p.lot.supplyItem?.name ??
       p.lot.batchCode,
     productName: p.lot.product?.name ?? null,
+    productType: p.lot.product?.type ?? null,
     packagingName: p.lot.packaging?.name ?? null,
     supplyItemName: p.lot.supplyItem?.name ?? null,
     locationId: p.locationId,

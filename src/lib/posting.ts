@@ -4,7 +4,6 @@ import { ensureDefaultChartOfAccounts } from "@/lib/coa-templates";
 import {
   getSupplyInventoryAccount,
   getSupplyIssueExpenseAccount,
-  getSupplyProductionHppAccount,
 } from "@/lib/supply-accounts";
 import { Prisma, ProductType, type InventorySupplyCategory, type JournalRefType } from "@prisma/client";
 import { randomBytes } from "node:crypto";
@@ -406,7 +405,7 @@ export async function postProductionBatch(
     { accountCode: "1-1230", debit: 0, credit: packagingCost },
   ];
   if (supplyCost > 0) {
-    lines.push({ accountCode: getSupplyProductionHppAccount("PACKAGING"), debit: 0, credit: supplyCost });
+    lines.push({ accountCode: getSupplyInventoryAccount("PACKAGING"), debit: 0, credit: supplyCost });
   }
   if (laborCost > 0) {
     lines.push({ accountCode: "5-1010", debit: 0, credit: laborCost });

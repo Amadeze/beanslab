@@ -64,8 +64,9 @@ export function OpnameDraftClient({ items, warehouses }: OpnameDraftClientProps)
   const selectedLot = items.find((i) => i.lotId === watch("lotId"));
   const isSupply = selectedLot?.supplyItemName != null && selectedLot?.productName == null && selectedLot?.packagingName == null;
   const isPackaging = selectedLot?.packagingName != null;
-  const isProduct = selectedLot?.productName != null;
-  const unitLabel = isSupply || isPackaging ? "Unit" : "Kg";
+  const isProduct = selectedLot?.productName != null && selectedLot.productType !== "FINISHED_GOODS";
+  const isFinishedGoods = selectedLot?.productType === "FINISHED_GOODS";
+  const unitLabel = isSupply || isPackaging || isFinishedGoods ? "Unit" : "Kg";
 
   function handleOpenForm() {
     setShowForm(true);
@@ -86,7 +87,7 @@ export function OpnameDraftClient({ items, warehouses }: OpnameDraftClientProps)
         lotId: data.lotId,
         locationId: data.locationId,
         countedQuantityKg: isProduct ? data.countedQuantity : undefined,
-        countedQuantityUnit: isPackaging ? Math.round(data.countedQuantity) : undefined,
+        countedQuantityUnit: (isPackaging || isFinishedGoods) ? Math.round(data.countedQuantity) : undefined,
         countedSupplyQty: isSupply ? data.countedQuantity : undefined,
         notes: data.notes,
       });

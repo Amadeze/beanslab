@@ -32,6 +32,51 @@ type FefoLedgerEntryData = Omit<
   tenantId: string;
 };
 
+type PlacementQuantityField = "quantityKg" | "quantityUnit" | "supplyQty";
+
+/**
+ * Keep Smart Storage's physical dimension in lockstep with a canonical lot
+ * consumption. Lots can remain partially or wholly unplaced for historical
+ * stock, so this only depletes quantities that are actually placed.
+ */
+async function consumeLotPlacements(
+  tx: TransactionClient,
+  tenantId: string,
+  lotId: string,
+  field: PlacementQuantityField,
+  quantity: number,
+) {
+  if (quantity <= 0) return;
+
+  const placements = await tx.lotPlacement.findMany({
+    where: {
+      tenantId,
+      lotId,
+      [field]: { gt: 0 },
+    },
+    orderBy: [{ updatedAt: "asc" }, { createdAt: "asc" }],
+    select: { id: true, quantityKg: true, quantityUnit: true, supplyQty: true },
+  });
+
+  let remaining = quantity;
+  const epsilon = field === "quantityUnit" ? 0 : 0.000001;
+  for (const placement of placements) {
+    if (remaining <= epsilon) break;
+    const available = Number(placement[field] ?? 0);
+    if (available <= epsilon) continue;
+
+    const consumed = Math.min(remaining, available);
+    const result = await tx.lotPlacement.updateMany({
+      where: { id: placement.id, tenantId, [field]: { gte: consumed } },
+      data: { [field]: { decrement: consumed } },
+    });
+    if (result.count !== 1) {
+      throw new Error("Stok lokasi berubah saat alokasi lot. Coba ulangi transaksi.");
+    }
+    remaining -= consumed;
+  }
+}
+
 /**
  * Hitung stok kopi (kg) untuk satu product dari agregasi InventoryLedger.
  * Digunakan oleh roasting & produksi untuk validasi stok sebelum transaksi.
@@ -343,6 +388,17 @@ export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedge
         expiryDate: lot.expiryDate,
       });
       entries.push(entry);
+
+      const placementField: PlacementQuantityField = isSupply
+        ? "supplyQty"
+        : quantityKg > 0 ? "quantityKg" : "quantityUnit";
+      await consumeLotPlacements(
+        tx,
+        data.tenantId,
+        lot.id,
+        placementField,
+        allocated,
+      );
       remaining -= allocated;
 
       if (available - allocated <= epsilon) {
@@ -368,4 +424,3 @@ export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedge
 
     return entries;
   }
-

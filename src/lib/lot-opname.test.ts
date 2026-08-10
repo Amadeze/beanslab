@@ -20,6 +20,10 @@ vi.mock("@/lib/stock", () => ({
   appendLedger: vi.fn().mockResolvedValue({ id: "ledger-1" }),
 }));
 
+vi.mock("@/lib/posting", () => ({
+  postStockAdjustment: vi.fn().mockResolvedValue("journal-1"),
+}));
+
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
@@ -58,7 +62,7 @@ function buildMockPrisma(overrides: {
     quantityUnit: 0,
     supplyQuantity: 0,
     batchCode: "BATCH-1",
-    product: { name: "Green Bean Gayo" },
+    product: { name: "Green Bean Gayo", type: "GREEN_BEAN", avgCostPerKg: 100_000, lastHpp: null },
     packaging: null,
     supplyItem: null,
     inventoryLedgers: [],
@@ -125,6 +129,9 @@ function buildMockPrisma(overrides: {
           findFirst: prisma.lotPlacement.findFirst,
           upsert: lotPlacementUpsert,
         },
+        product: { findUnique: vi.fn() },
+        packaging: { findUnique: vi.fn() },
+        inventorySupplyItem: { findUnique: vi.fn() },
       };
       return cb(tx);
     }),
