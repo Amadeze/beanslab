@@ -6,6 +6,7 @@ import { getTenantAccessState } from "@/lib/subscription";
 import { planHasFeature } from "@/lib/plans";
 import { resolveTenantPortalTheme } from "@/features/portal-theme/resolver";
 import { tenantStorefrontUrl } from "@/lib/tenant-host";
+import { loadStorefrontCatalog } from "@/lib/storefront-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -85,63 +86,6 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
       storefrontFlatShippingRate: true,
       storefrontFreeShippingMinimum: true,
       storefrontTaxRate: true,
-      products: {
-        where: {
-          type: "FINISHED_GOODS",
-          isActive: true,
-        },
-        select: {
-          id: true,
-          code: true,
-          name: true,
-          type: true,
-          category: true,
-          origin: true,
-          roastLevel: true,
-          description: true,
-          imageUrl: true,
-          price: true,
-          priceSilver: true,
-          priceGold: true,
-          stockKg: true,
-          stockUnit: true,
-          recipes: {
-            where: { isActive: true },
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: { storefrontGrindOptions: true },
-          },
-        },
-        orderBy: [
-          { stockKg: "desc" },
-          { name: "asc" },
-        ],
-      },
-      offerings: {
-        where: { isActive: true },
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-        select: {
-          id: true,
-          code: true,
-          name: true,
-          description: true,
-          imageUrl: true,
-          roastLevel: true,
-          grindOptions: true,
-          allowCustomGrind: true,
-          coffeeSource: { select: { name: true } },
-          variants: {
-            where: { isActive: true },
-            orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-            select: {
-              id: true,
-              packageName: true,
-              netWeightGrams: true,
-              unitPrice: true,
-            },
-          },
-        },
-      },
       tenantPaymentMethods: {
         where: { isActive: true },
         orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
@@ -171,6 +115,10 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
 
   // Next.js App Router Server -> Client serialization doesn't support Prisma Decimal
   // Only storefront fields are serialized; internal costs and credentials stay server-side.
+
+  // Canonical catalog (products + coffee offerings dengan ketersediaan kg real-time)
+  // — payload yang sama dipakai customizer preview via /api/portal-theme/products.
+  const catalog = await loadStorefrontCatalog(prisma, tenant.id);
 
   // Fetch PortalTheme for block-based customizer (graceful fallback if table not yet migrated)
   let portalTheme: { draftConfig: unknown; publishedConfig: unknown; publishedAt: Date | null } | null = null;
@@ -230,23 +178,8 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
     storefrontFreeShippingMinimum: tenant.storefrontFreeShippingMinimum === null ? null : Number(tenant.storefrontFreeShippingMinimum),
     storefrontTaxRate: Number(tenant.storefrontTaxRate),
     paymentMethods: tenant.tenantPaymentMethods,
-    products: tenant.products.map(product => ({
-      ...product,
-      price: product.price ? Number(product.price) : null,
-      priceSilver: product.priceSilver ? Number(product.priceSilver) : null,
-      priceGold: product.priceGold ? Number(product.priceGold) : null,
-      stockKg: product.stockKg ? Number(product.stockKg) : null,
-      stockUnit: product.stockUnit ? Number(product.stockUnit) : null,
-    })),
-    offerings: tenant.offerings.map(offering => ({
-      ...offering,
-      grindOptions: offering.grindOptions,
-      variants: offering.variants.map(variant => ({
-        ...variant,
-        netWeightGrams: Number(variant.netWeightGrams),
-        unitPrice: Number(variant.unitPrice),
-      })),
-    })),
+    products: catalog.products,
+    offerings: catalog.offerings,
   };
 
   // Type cast back to any or specific shape since Client component expects Decimal type structurally

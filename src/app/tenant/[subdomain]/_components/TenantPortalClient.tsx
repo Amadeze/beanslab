@@ -175,12 +175,31 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
 
     try {
       setIsCheckingOut(true);
+      const checkoutPayload = {
+        customerName,
+        customerPhone,
+        customerAddress: customerAddress || "Ambil di roastery",
+        shippingMethod,
+        paymentMethodId: paymentMethodId || undefined,
+        items: cart.items[tenant.subdomain || ""] || [],
+      };
+      const idempotencyStorageKey = `ros_checkout_operation_${tenant.subdomain || "storefront"}`;
+      const fingerprint = JSON.stringify(checkoutPayload);
+      let operationKey = crypto.randomUUID();
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(idempotencyStorageKey) || "null") as {
+          fingerprint?: string;
+          operationKey?: string;
+        } | null;
+        if (saved?.fingerprint === fingerprint && saved.operationKey) operationKey = saved.operationKey;
+        else sessionStorage.setItem(idempotencyStorageKey, JSON.stringify({ fingerprint, operationKey }));
+      } catch {
+        sessionStorage.setItem(idempotencyStorageKey, JSON.stringify({ fingerprint, operationKey }));
+      }
       const res = await fetch(`/api/tenant/${tenant.subdomain}/checkout`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName, customerPhone, customerAddress: customerAddress || "Ambil di roastery", shippingMethod, paymentMethodId: paymentMethodId || undefined, items: cart.items[tenant.subdomain || ""] || [],
-        }),
+        headers: { "Content-Type": "application/json", "Idempotency-Key": operationKey },
+        body: fingerprint,
       });
 
       if (!res.ok) {
@@ -190,6 +209,7 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
       }
 
       const data = await res.json();
+      sessionStorage.removeItem(idempotencyStorageKey);
       const invoiceCode = data.invoice?.code || "-";
 
       if (data.orderUrl) {

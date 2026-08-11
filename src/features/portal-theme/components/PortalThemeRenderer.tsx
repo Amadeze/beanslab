@@ -254,12 +254,14 @@ interface PortalThemeRendererProps {
   config: PortalThemeConfig;
   isPreview?: boolean;
   products?: any[];
+  offerings?: any[];
   onAddToCart?: (product: any) => void;
+  onAddOfferingToCart?: (...args: any[]) => void;
   onOpenCart?: () => void;
   cartItemCount?: number;
 }
 
-export function PortalThemeRenderer({ config, isPreview = false, products = [], onAddToCart, onOpenCart, cartItemCount = 0 }: PortalThemeRendererProps) {
+export function PortalThemeRenderer({ config, isPreview = false, products = [], offerings = [], onAddToCart, onAddOfferingToCart, onOpenCart, cartItemCount = 0 }: PortalThemeRendererProps) {
   const cssVars = useMemo(() => generateCSSVariables(config), [config]);
   const fontsUrl = useMemo(() => getGoogleFontsUrl(config), [config]);
 
@@ -343,7 +345,9 @@ export function PortalThemeRenderer({ config, isPreview = false, products = [], 
                 sectionId={section.id}
                 isPreview={isPreview}
                 products={products}
+                offerings={offerings}
                 onAddToCart={onAddToCart}
+                onAddOfferingToCart={onAddOfferingToCart}
                 onOpenCart={onOpenCart}
                 cartItemCount={cartItemCount}
               />

@@ -18,10 +18,11 @@ const VIEWPORT_SIZES = {
 
 interface InlinePreviewProps {
   products?: any[];
+  offerings?: any[];
   subdomain?: string;
 }
 
-export function InlinePreview({ products = [], subdomain = "your-roastery" }: InlinePreviewProps) {
+export function InlinePreview({ products = [], offerings = [], subdomain = "your-roastery" }: InlinePreviewProps) {
   const workingDraft = useCustomizerStore((s) => s.workingDraft);
   const previewViewport = useCustomizerStore((s) => s.previewViewport);
   const size = VIEWPORT_SIZES[previewViewport];
@@ -54,7 +55,7 @@ export function InlinePreview({ products = [], subdomain = "your-roastery" }: In
 
           {/* Live rendered portal */}
           <div className="overflow-auto flex-1" style={{ height: `calc(${size.height} - 36px)` }}>
-            <PortalThemeRenderer config={workingDraft} isPreview products={products} />
+            <PortalThemeRenderer config={workingDraft} isPreview products={products} offerings={offerings} />
           </div>
         </div>
       </div>

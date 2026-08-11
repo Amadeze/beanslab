@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { ShoppingBag, Plus, Coffee, Tag } from "lucide-react";
 import { useState } from "react";
 import { STOREFRONT_GRIND_LABEL, type StorefrontGrindSize } from "@/lib/storefront-grind";
+import type { StorefrontOffering } from "@/lib/storefront-grind";
+import { CoffeeOfferingCard } from "@/components/storefront/CoffeeOfferingCard";
 
 interface CatalogGridProps {
   settings: Record<string, unknown>;
@@ -12,7 +14,14 @@ interface CatalogGridProps {
   layout?: any;
   isPreview?: boolean;
   products?: any[];
+  offerings?: StorefrontOffering[];
   onAddToCart?: (product: any, grindSize?: StorefrontGrindSize, customGrindLabel?: string | null) => void;
+  onAddOfferingToCart?: (
+    offering: StorefrontOffering,
+    variant: StorefrontOffering["variants"][number],
+    grindSize?: StorefrontGrindSize,
+    customGrindLabel?: string | null,
+  ) => void;
 }
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -24,7 +33,7 @@ const GRID_COLS: Record<number, string> = {
   4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
 };
 
-export function CatalogGridSection({ settings, typography, products = [], onAddToCart, isPreview }: CatalogGridProps) {
+export function CatalogGridSection({ settings, typography, products = [], offerings = [], onAddToCart, onAddOfferingToCart, isPreview }: CatalogGridProps) {
   const title = (settings.title as string) || "The Collection";
   const subtitle = (settings.subtitle as string) || "";
   const columns = (settings.columns as number) || 3;
@@ -70,6 +79,23 @@ export function CatalogGridSection({ settings, typography, products = [], onAddT
             </p>
           )}
         </motion.div>
+
+        {offerings.length > 0 ? (
+          <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-2">
+            {offerings.map((offering) => (
+              <CoffeeOfferingCard
+                key={offering.id}
+                offering={offering}
+                preview={isPreview}
+                onAdd={onAddOfferingToCart ? ({ variant, grindSize, customGrindLabel, quantity }) => {
+                  for (let index = 0; index < quantity; index += 1) {
+                    onAddOfferingToCart(offering, variant, grindSize, customGrindLabel);
+                  }
+                } : undefined}
+              />
+            ))}
+          </div>
+        ) : null}
 
         {/* Real Products Grid */}
         {displayProducts ? (
@@ -191,7 +217,7 @@ export function CatalogGridSection({ settings, typography, products = [], onAddT
               </motion.div>
             ))}
           </div>
-        ) : (
+        ) : offerings.length === 0 ? (
           /* Placeholder Grid when no products available */
           <div
             className={`grid gap-6 ${GRID_COLS[Math.min(columns, 4)] || GRID_COLS[3]}`}
@@ -227,7 +253,7 @@ export function CatalogGridSection({ settings, typography, products = [], onAddT
               </motion.div>
             ))}
           </div>
-        )}
+        ) : null}
 
         {isPreview && !displayProducts && (
           <p className="mt-8 text-center text-xs" style={{ color: "var(--portal-text-muted, #6B7280)" }}>

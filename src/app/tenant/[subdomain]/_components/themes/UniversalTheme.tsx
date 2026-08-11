@@ -53,7 +53,9 @@ export function UniversalTheme({
         <PortalThemeRenderer
           config={tenant.portalThemeConfig}
           products={products}
+          offerings={offerings}
           onAddToCart={handleAddToCart}
+          onAddOfferingToCart={handleAddOfferingToCart}
           onOpenCart={() => setIsCartOpen(true)}
           cartItemCount={cartItems.reduce((acc: number, item: any) => acc + item.quantity, 0)}
         />

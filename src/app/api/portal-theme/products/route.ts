@@ -1,54 +1,27 @@
-﻿// =============================================================================
-// PRODUCTS API — Returns real products for the tenant's catalog preview
+// =============================================================================
+// PRODUCTS API — Canonical catalog payload for the tenant's customizer preview.
+// Same shape as the live storefront (loadStorefrontCatalog): real products +
+// coffee offerings with real-time kg availability.
 // =============================================================================
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getValidatedCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { loadStorefrontCatalog } from "@/lib/storefront-catalog";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const user = await getValidatedCurrentUser();
     if (!user) {
-      return NextResponse.json({ products: [] });
+      return NextResponse.json({ products: [], offerings: [] });
     }
 
-    const products = await prisma.product.findMany({
-      where: {
-        tenantId: user.tenantId,
-        type: "FINISHED_GOODS",
-        isActive: true,
-      },
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        category: true,
-        origin: true,
-        roastLevel: true,
-        description: true,
-        imageUrl: true,
-        price: true,
-        priceSilver: true,
-        priceGold: true,
-        stockUnit: true,
-      },
-      orderBy: [{ stockUnit: "desc" }, { name: "asc" }],
-      take: 50,
-    });
-
-    return NextResponse.json({
-      products: products.map((p) => ({
-        ...p,
-        price: p.price ? Number(p.price) : null,
-        priceSilver: p.priceSilver ? Number(p.priceSilver) : null,
-        priceGold: p.priceGold ? Number(p.priceGold) : null,
-      })),
-    });
+    const catalog = await loadStorefrontCatalog(prisma, user.tenantId);
+    return NextResponse.json(catalog);
   } catch (err) {
     console.error("[products-api]", err);
-    return NextResponse.json({ products: [] });
+    return NextResponse.json({ products: [], offerings: [] });
   }
 }

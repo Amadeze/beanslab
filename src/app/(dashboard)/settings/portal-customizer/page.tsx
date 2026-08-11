@@ -40,6 +40,7 @@ export default function PortalCustomizerPage() {
   const [activeTab, setActiveTab] = useState<SidebarTab>("sections");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
+  const [offerings, setOfferings] = useState<any[]>([]);
   const [subdomain, setSubdomain] = useState("your-roastery");
   const [loaded, setLoaded] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -64,6 +65,7 @@ export default function PortalCustomizerPage() {
       .then((r) => r.json())
       .then((d) => {
         if (d && d.products) setProducts(d.products);
+        if (d && d.offerings) setOfferings(d.offerings);
       })
       .catch(() => {});
   }, [initialize]);
@@ -299,7 +301,7 @@ export default function PortalCustomizerPage() {
 
         {/* Center Inline Live Preview */}
         <main className="flex-1 min-w-0 bg-gray-950 relative overflow-hidden flex flex-col">
-          <InlinePreview products={products} subdomain={subdomain} />
+          <InlinePreview products={products} offerings={offerings} subdomain={subdomain} />
         </main>
       </div>
 

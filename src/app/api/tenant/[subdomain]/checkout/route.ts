@@ -29,6 +29,10 @@ import { getCurrentDate } from "@/lib/date-utils";
 import { paymentDestinationSnapshot, toPublicPaymentMethod } from "@/lib/manual-payments";
 import { calculateStorefrontTotals, reserveInvoiceStock } from "@/lib/storefront-commerce";
 import {
+  LineageResolutionError,
+  resolveOfferingLineage,
+} from "@/lib/storefront-catalog";
+import {
   normalizeStorefrontGrind,
   offeringReserveKg,
   STOREFRONT_GRIND_SIZES,
@@ -37,7 +41,7 @@ import {
 
 type CheckoutItemInput = {
   id?: string;
-  productId?: string;
+  productId?: string | null;
   offeringId?: string;
   variantId?: string;
   quantity?: number;
@@ -56,6 +60,7 @@ type InvoiceItemCreateData = {
   grindSize: StorefrontGrindSize;
   customGrindLabel: string | null;
   offeringId?: string | null;
+  offeringVariantId?: string | null;
   offeringName?: string | null;
   packageName?: string | null;
   netWeightGrams?: number | null;
@@ -82,7 +87,7 @@ const CheckoutSchema = z.object({
     .array(
       z.object({
         id: z.string().optional(),
-        productId: z.string().optional(),
+        productId: z.string().nullable().optional(),
         offeringId: z.string().optional(),
         variantId: z.string().optional(),
         quantity: z.coerce.number().int().positive().max(10_000),
@@ -103,6 +108,7 @@ async function findOfferingRows(tenantId: string, offeringIds: string[]) {
       roastLevel: true,
       sourceMode: true,
       coffeeSourceId: true,
+      lineageProductId: true,
       grindOptions: true,
       allowCustomGrind: true,
       variants: {
@@ -114,22 +120,6 @@ async function findOfferingRows(tenantId: string, offeringIds: string[]) {
 }
 
 type CoffeeOfferingRow = Awaited<ReturnType<typeof findOfferingRows>>[number];
-
-async function findLineageProducts(tenantId: string, coffeeSourceIds: string[]) {
-  return prisma.product.findMany({
-    where: {
-      tenantId,
-      coffeeSourceId: { in: coffeeSourceIds },
-      type: "ROASTED_BEAN",
-      materialOrigin: "PURCHASED_ROASTED",
-      isActive: true,
-    },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, coffeeSourceId: true, avgCostPerKg: true },
-  });
-}
-
-type LineageRow = Awaited<ReturnType<typeof findLineageProducts>>[number];
 
 export async function POST(
   req: NextRequest,
@@ -166,6 +156,13 @@ export async function POST(
       paymentMethodId,
       items,
     } = parsedBody.data;
+    const rawIdempotencyKey = req.headers.get("idempotency-key")?.trim() || null;
+    if (
+      rawIdempotencyKey
+      && (rawIdempotencyKey.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(rawIdempotencyKey))
+    ) {
+      return NextResponse.json({ error: "Idempotency key tidak valid." }, { status: 400 });
+    }
 
     // 1. Dapatkan tenant
     const tenant = await prisma.tenant.findUnique({
@@ -184,6 +181,31 @@ export async function POST(
     const createdById = tenant.users[0]?.id;
     if (!createdById) {
       return NextResponse.json({ error: "Tenant belum memiliki user admin" }, { status: 400 });
+    }
+
+    if (rawIdempotencyKey) {
+      const existing = await prisma.invoice.findUnique({
+        where: {
+          tenantId_operationKey: {
+            tenantId: tenant.id,
+            operationKey: rawIdempotencyKey,
+          },
+        },
+      });
+      if (existing?.publicOrderToken) {
+        return NextResponse.json({
+          success: true,
+          invoice: {
+            code: existing.code,
+            status: existing.status,
+            grandTotal: Number(existing.grandTotal),
+          },
+          snapToken: null,
+          paymentUrl: existing.paymentUrl,
+          orderUrl: `/tenant/${subdomain}/order/${existing.publicOrderToken}`,
+          replayed: true,
+        });
+      }
     }
 
     const activePaymentMethods = await prisma.tenantPaymentMethod.findMany({
@@ -264,7 +286,7 @@ export async function POST(
     // ── Coffee offering lines: validate offering + variant, resolve the
     // lineage roasted bean product that will carry the kg reservation. ──
     let offeringById = new Map<string, CoffeeOfferingRow>();
-    let lineageBySourceId = new Map<string | null, LineageRow>();
+    const lineageById = new Map<string, { productId: string; avgCostPerKg: number | null }>();
     if (offeringLines.length > 0) {
       const offeringIds = Array.from(new Set(offeringLines.map((line) => line.offeringId!)));
       const offeringRows = await findOfferingRows(tenant.id, offeringIds);
@@ -273,11 +295,27 @@ export async function POST(
       }
       offeringById = new Map(offeringRows.map((offering) => [offering.id, offering]));
 
-      const lineageProducts = await findLineageProducts(
-        tenant.id,
-        offeringRows.map((o) => o.coffeeSourceId),
-      );
-      lineageBySourceId = new Map(lineageProducts.map((p) => [p.coffeeSourceId, p]));
+      for (const offering of offeringRows) {
+        try {
+          const resolution = await resolveOfferingLineage(prisma, {
+            ...offering,
+            tenantId: tenant.id,
+          });
+          lineageById.set(offering.id, {
+            productId: resolution.productId,
+            avgCostPerKg: resolution.avgCostPerKg,
+          });
+        } catch (error) {
+          return NextResponse.json(
+            {
+              error: error instanceof LineageResolutionError
+                ? error.message
+                : "Belum ada stok roasted bean untuk penawaran ini. Silakan hubungi roastery.",
+            },
+            { status: 400 },
+          );
+        }
+      }
     }
 
     // 2. Kalkulasi Subtotal & Buat Items Array dari data server
@@ -332,7 +370,7 @@ export async function POST(
     for (const line of offeringLines) {
       const offering = offeringById.get(line.offeringId!);
       const variant = offering?.variants.find((v: { id: string }) => v.id === line.variantId);
-      const lineage = offering ? lineageBySourceId.get(offering.coffeeSourceId) : undefined;
+      const lineage = offering ? lineageById.get(offering.id) : undefined;
       if (!offering || !variant || !lineage) {
         return NextResponse.json(
           { error: "Belum ada stok roasted bean untuk penawaran ini. Silakan hubungi roastery." },
@@ -362,7 +400,7 @@ export async function POST(
 
       invoiceItemsData.push({
         tenantId: tenant.id,
-        productId: lineage.id,
+        productId: lineage.productId,
         quantity: qty,
         unitPrice,
         discount: 0,
@@ -373,6 +411,7 @@ export async function POST(
         grindSize: preparation.grindSize,
         customGrindLabel: preparation.customGrindLabel,
         offeringId: offering.id,
+        offeringVariantId: variant.id,
         offeringName: offering.name,
         packageName: variant.packageName,
         netWeightGrams,
@@ -419,7 +458,9 @@ export async function POST(
 
     if (hasMidtrans) {
       const serverKey = decryptCredential(tenant.midtransServerKey);
-      midtransOrderId = `${invoiceCode}-${Date.now().toString().slice(-6)}`;
+      midtransOrderId = rawIdempotencyKey
+        ? `${tenant.code}-${crypto.createHash("sha256").update(rawIdempotencyKey).digest("hex").slice(0, 24)}`
+        : `${invoiceCode}-${Date.now().toString().slice(-6)}`;
       const snap = new midtransClient.Snap({
         isProduction: tenant.midtransIsProduction,
         serverKey,
@@ -455,6 +496,7 @@ export async function POST(
     }
 
     // 4. Buat customer, invoice, line item, dan ledger stok dalam satu transaksi dengan retry untuk P2034
+    let replayed = false;
     const invoice = await withSerializableRetry(prisma, async (tx) => {
       let customer = await tx.customer.findFirst({
         where: { tenantId: tenant.id, phone: customerPhone }
@@ -476,6 +518,7 @@ export async function POST(
       const inv = await tx.invoice.create({
         data: {
           code: invoiceCode,
+          operationKey: rawIdempotencyKey,
           customerId: customer.id,
           tenantId: tenant.id,
           createdById,
@@ -501,8 +544,8 @@ export async function POST(
         }
       });
 
-      // Aggregate per lineage product: product lines reserve stock units,
-      // offering lines reserve kg on the roasted bean product (1 unit = 1 kg).
+      // Aggregate per lineage product: product lines reserve stock units;
+      // offering lines preserve package count and reserve exact kg on the RB.
       const reserveMap = new Map<string, { productId: string; quantity: number; quantityKg: number | null }>();
       for (const item of invoiceItemsData) {
         const entry = reserveMap.get(item.productId) ?? { productId: item.productId, quantity: 0, quantityKg: null };
@@ -557,17 +600,36 @@ export async function POST(
       });
 
       return inv;
+    }).catch(async (error: unknown) => {
+      const prismaCode = typeof error === "object" && error !== null && "code" in error
+        ? String((error as { code?: unknown }).code)
+        : null;
+      if (prismaCode !== "P2002" || !rawIdempotencyKey) throw error;
+      const existing = await prisma.invoice.findUnique({
+        where: {
+          tenantId_operationKey: {
+            tenantId: tenant.id,
+            operationKey: rawIdempotencyKey,
+          },
+        },
+      });
+      if (!existing) throw error;
+      replayed = true;
+      return existing;
     });
 
     revalidatePath("/penjualan");
     revalidatePath("/inventory");
 
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || req.nextUrl.origin).replace(/\/$/, "");
-    const publicOrderUrl = `${appUrl}/tenant/${subdomain}/order/${orderPublicToken}`;
-    await Promise.allSettled([
-      customerEmail ? sendInvoiceEmail(customerEmail, invoiceCode, publicOrderUrl) : Promise.resolve(),
-      sendInvoiceWhatsApp(customerPhone, invoiceCode, publicOrderUrl),
-    ]);
+    const resolvedPublicOrderToken = invoice.publicOrderToken ?? orderPublicToken;
+    const publicOrderUrl = `${appUrl}/tenant/${subdomain}/order/${resolvedPublicOrderToken}`;
+    if (!replayed) {
+      await Promise.allSettled([
+        customerEmail ? sendInvoiceEmail(customerEmail, invoice.code, publicOrderUrl) : Promise.resolve(),
+        sendInvoiceWhatsApp(customerPhone, invoice.code, publicOrderUrl),
+      ]);
+    }
 
     return NextResponse.json({
       success: true,
@@ -577,8 +639,9 @@ export async function POST(
         grandTotal: Number(invoice.grandTotal),
       },
       snapToken,
-      paymentUrl,
-      orderUrl: `/tenant/${subdomain}/order/${orderPublicToken}`,
+      paymentUrl: invoice.paymentUrl,
+      orderUrl: `/tenant/${subdomain}/order/${resolvedPublicOrderToken}`,
+      replayed,
     });
   } catch (error) {
     if (error instanceof RateLimitError) {
