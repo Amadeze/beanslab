@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { StandardDrawer } from "@/components/StandardDrawer";
 import { StockTable } from "./StockTable";
-import { PurchaseForm } from "./PurchaseForm";
-import { RoastedBeanPurchaseForm } from "./RoastedBeanPurchaseForm";
+import { CoffeePurchaseForm } from "./CoffeePurchaseForm";
 import { PackagingPurchaseForm } from "./PackagingPurchaseForm";
 import { SupplyPurchaseForm } from "./SupplyPurchaseForm";
 import { StockAdjustmentDrawer } from "./StockAdjustmentDrawer";
@@ -24,6 +23,7 @@ import { SupplierForm } from "../../master-data/_components/SupplierForm";
 import type {
   GBProductOption,
   RBProductOption,
+  CoffeeSourceOption,
   LedgerHistoryRow,
   PackagingStockRow,
   ProductStockRow,
@@ -58,6 +58,7 @@ interface InventoryClientProps {
   suppliers:  SupplierOption[];
   gbProducts: GBProductOption[];
   rbProducts: RBProductOption[];
+  coffeeSources: CoffeeSourceOption[];
   packagings: PackagingOption[];
   supplyOptions: SupplyOption[];
   sampleConsumption: SampleConsumptionSummary;
@@ -283,7 +284,7 @@ type WorkspaceTab = "stock" | "po" | "receiving" | "mutations";
 // ── Main component ──
 
 export function InventoryClient({
-  gbStocks, rbStocks, fgStocks, supplyStocks, ledgerEntries, suppliers, gbProducts, rbProducts, packagings, supplyOptions, sampleConsumption,
+  gbStocks, rbStocks, fgStocks, supplyStocks, ledgerEntries, suppliers, gbProducts, rbProducts, coffeeSources, packagings, supplyOptions, sampleConsumption,
   lotsByProduct, supplyLotsByItem,
   productReorderSummaries, supplyReorderSummaries, poSummary,
 }: InventoryClientProps) {
@@ -667,14 +668,12 @@ export function InventoryClient({
       </div>
 
       {/* ── Drawers ── */}
-      <StandardDrawer open={gbDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setGbDrawerOpen(open); }} title="Catat Barang Datang (Green Bean)" description="Stok Green Bean akan bertambah otomatis setelah disimpan." size="lg"
-        submitButton={<Button type="submit" form="purchase-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>}>
-        <PurchaseForm id="purchase-form" suppliers={supplierOptions} gbProducts={gbProducts} onSuccess={() => { setGbDrawerOpen(false); finishSupplierFlow(); router.refresh(); }} onPendingChange={setIsSubmitting} onAddSupplier={() => openSupplierQuickAdd("purchase")} preferredSupplierId={supplierTarget === "purchase" ? preferredSupplierId : null} />
+      <StandardDrawer open={gbDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setGbDrawerOpen(open); }} title="Catat Barang Datang (Green Bean)" description="Stok Green Bean akan bertambah otomatis setelah disimpan." size="lg">
+        <CoffeePurchaseForm id="purchase-form" initialMode="GREEN_BEAN" suppliers={supplierOptions} gbProducts={gbProducts} rbProducts={rbProducts} coffeeSources={coffeeSources} onSuccess={() => { setGbDrawerOpen(false); finishSupplierFlow(); router.refresh(); }} onPendingChange={setIsSubmitting} onAddSupplier={() => openSupplierQuickAdd("purchase")} preferredSupplierId={supplierTarget === "purchase" ? preferredSupplierId : null} />
       </StandardDrawer>
 
-      <StandardDrawer open={rbDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setRbDrawerOpen(open); }} title="Catat Barang Datang (Roasted Bean)" description="Stok Roasted Bean beli jadi akan bertambah otomatis setelah disimpan (ditandai PURCHASED_ROASTED)." size="lg"
-        submitButton={<Button type="submit" form="rb-purchase-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>}>
-        <RoastedBeanPurchaseForm id="rb-purchase-form" suppliers={supplierOptions} rbProducts={rbProducts} onSuccess={() => { setRbDrawerOpen(false); setIsSubmitting(false); finishSupplierFlow(); router.refresh(); }} onPendingChange={setIsSubmitting} onAddSupplier={() => openSupplierQuickAdd("rb")} preferredSupplierId={supplierTarget === "rb" ? preferredSupplierId : null} />
+      <StandardDrawer open={rbDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setRbDrawerOpen(open); }} title="Catat Barang Datang (Roasted Bean)" description="Stok Roasted Bean beli jadi akan bertambah otomatis setelah disimpan (ditandai PURCHASED_ROASTED)." size="lg">
+        <CoffeePurchaseForm id="rb-purchase-form" initialMode="ROASTED_BEAN" suppliers={supplierOptions} gbProducts={gbProducts} rbProducts={rbProducts} coffeeSources={coffeeSources} onSuccess={() => { setRbDrawerOpen(false); setIsSubmitting(false); finishSupplierFlow(); router.refresh(); }} onPendingChange={setIsSubmitting} onAddSupplier={() => openSupplierQuickAdd("rb")} preferredSupplierId={supplierTarget === "rb" ? preferredSupplierId : null} />
       </StandardDrawer>
 
       <StandardDrawer open={supDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setSupDrawerOpen(open); }} title="Catat Barang Datang (Non-Kopi)" description="Stok persediaan non-kopi akan bertambah otomatis setelah disimpan." size="md"
@@ -707,7 +706,7 @@ export function InventoryClient({
       </StandardDrawer>
 
       <StandardDrawer open={poDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setPoDrawerOpen(open); }} title="Buat Purchase Order" description="Buat PO baru untuk supplier." size="lg" showFooter={false}>
-        <POForm suppliers={supplierOptions.map((s) => ({ id: s.id, name: s.name }))} products={[...gbStocks, ...rbStocks].map((p) => ({ id: p.id, name: p.name, type: p.type, stockKg: p.stockKg }))} packagings={packagings.map((p) => ({ id: p.id, name: p.name, stockUnit: 0 }))} supplyItems={supplyOptions.map((s) => ({ id: s.id, name: s.name, category: s.category, baseUnit: s.baseUnit }))} onAddSupplier={() => openSupplierQuickAdd("po")} preferredSupplierId={supplierTarget === "po" ? preferredSupplierId : null} onSuccess={() => { setPoDrawerOpen(false); handlePORefresh(); finishSupplierFlow(); }} onCancel={() => { setPoDrawerOpen(false); finishSupplierFlow(); }} />
+        <POForm suppliers={supplierOptions.map((s) => ({ id: s.id, name: s.name }))} products={[...gbStocks, ...rbStocks.filter((p) => p.type !== "ROASTED_BEAN" || p.materialOrigin === "PURCHASED_ROASTED")].map((p) => ({ id: p.id, name: p.name, type: p.type, stockKg: p.stockKg }))} packagings={packagings.map((p) => ({ id: p.id, name: p.name, stockUnit: 0 }))} supplyItems={supplyOptions.map((s) => ({ id: s.id, name: s.name, category: s.category, baseUnit: s.baseUnit }))} onAddSupplier={() => openSupplierQuickAdd("po")} preferredSupplierId={supplierTarget === "po" ? preferredSupplierId : null} onSuccess={() => { setPoDrawerOpen(false); handlePORefresh(); finishSupplierFlow(); }} onCancel={() => { setPoDrawerOpen(false); finishSupplierFlow(); }} />
       </StandardDrawer>
 
       <StandardDrawer open={poDetailOpen} onOpenChange={setPoDetailOpen} title="Detail Purchase Order" size="lg" showFooter={false}>

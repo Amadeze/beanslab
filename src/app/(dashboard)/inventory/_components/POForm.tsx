@@ -331,7 +331,7 @@ export function POForm({
                       <SelectContent>
                         {products.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.name} ({p.type === "GREEN_BEAN" ? "GB" : "RB"})
+                            {p.name} ({p.type === "GREEN_BEAN" ? "GB" : "RB Beli Jadi"})
                           </SelectItem>
                         ))}
                         {supplyItems.map((s) => (

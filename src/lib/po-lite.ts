@@ -468,7 +468,14 @@ export async function receivePO(
           supplyItemId: true,
           quantity: true,
           unitPrice: true,
-          product: { select: { type: true } },
+          product: {
+            select: {
+              type: true,
+              materialOrigin: true,
+              coffeeSourceId: true,
+              isActive: true,
+            },
+          },
         },
       },
     },
@@ -516,6 +523,22 @@ export async function receivePO(
       const meta = supplyItemMeta.get(poItem.supplyItemId);
       if (!meta || !meta.isActive) {
         throw new Error("Supply item pada PO tidak aktif atau bukan milik tenant supplier.");
+      }
+    }
+    if (poItem.productId && poItem.product) {
+      if (!poItem.product.isActive) {
+        throw new Error(`Produk pada item PO ${received.poItemId} tidak aktif.`);
+      }
+      // Roasted Bean hanya boleh diterima ke produk BELI JADI (PURCHASED_ROASTED)
+      // dengan sumber kopi tertaut. Menyetok hasil sangrai internal ke pembelian
+      // akan mencampur dua asal material dalam satu Product — dilarang.
+      if (
+        poItem.product.type === "ROASTED_BEAN" &&
+        (poItem.product.materialOrigin !== "PURCHASED_ROASTED" || !poItem.product.coffeeSourceId)
+      ) {
+        throw new Error(
+          `Produk Roasted Bean pada item PO ${received.poItemId} harus beli jadi (PURCHASED_ROASTED) dengan sumber kopi tertaut.`,
+        );
       }
     }
     if (seenItemIds.has(received.poItemId)) {

@@ -391,7 +391,7 @@ describe("receivePO", () => {
       },
       supplier: { name: "PT Kopi" },
       items: [
-        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000, product: { type: "GREEN_BEAN" } },
+        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000, product: { type: "GREEN_BEAN", materialOrigin: null, coffeeSourceId: null, isActive: true } },
       ],
     });
     prisma.purchase.count.mockResolvedValue(0);
@@ -453,7 +453,7 @@ describe("receivePO", () => {
       },
       supplier: { name: "PT Kopi" },
       items: [
-        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000, product: { type: "GREEN_BEAN" } },
+        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000, product: { type: "GREEN_BEAN", materialOrigin: null, coffeeSourceId: null, isActive: true } },
       ],
     });
     prisma.purchase.count.mockResolvedValue(0);
@@ -511,7 +511,7 @@ describe("receivePO", () => {
       },
       supplier: { name: "PT Kopi" },
       items: [
-        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000, product: { type: "GREEN_BEAN" } },
+        { id: "item-1", productId: "gb-1", packagingId: null, quantity: 10, unitPrice: 50000, product: { type: "GREEN_BEAN", materialOrigin: null, coffeeSourceId: null, isActive: true } },
       ],
     });
     prisma.purchase.count.mockResolvedValue(0);
@@ -554,7 +554,7 @@ describe("receivePO", () => {
       },
       supplier: { name: "PT Kopi" },
       items: [
-        { id: "item-rb", productId: "rb-1", packagingId: null, quantity: 5, unitPrice: 120000, product: { type: "ROASTED_BEAN" } },
+        { id: "item-rb", productId: "rb-1", packagingId: null, quantity: 5, unitPrice: 120000, product: { type: "ROASTED_BEAN", materialOrigin: "PURCHASED_ROASTED", coffeeSourceId: "src-1", isActive: true } },
       ],
     });
     prisma.purchase.count.mockResolvedValue(0);
@@ -602,6 +602,68 @@ describe("receivePO", () => {
     );
   });
 
+  it("rejects receiving into an internal-roast RB product", async () => {
+    const prisma = createMockPrisma();
+    prisma.purchaseOrder.findUnique.mockResolvedValue({
+      id: "po-4",
+      code: "PO-202607-004",
+      tenantId: "tenant-1",
+      status: "SENT",
+      supplierId: "sup-1",
+      inventorySupplyItem: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      supplier: { name: "PT Kopi" },
+      items: [
+        { id: "item-rb-int", productId: "rb-int-1", packagingId: null, quantity: 5, unitPrice: 120000, product: { type: "ROASTED_BEAN", materialOrigin: "INTERNAL_ROAST", coffeeSourceId: "src-1", isActive: true } },
+      ],
+    });
+    prisma.purchase.count.mockResolvedValue(0);
+
+    await expect(
+      receivePO(
+        prisma,
+        "po-4",
+        {
+          receivedAt: "2026-07-18",
+          items: [{ poItemId: "item-rb-int", receivedQuantity: 5 }],
+        },
+        "user-1",
+      ),
+    ).rejects.toThrow(/harus beli jadi \(PURCHASED_ROASTED\)/);
+  });
+
+  it("rejects receiving into an unidentified RB product without a coffee source", async () => {
+    const prisma = createMockPrisma();
+    prisma.purchaseOrder.findUnique.mockResolvedValue({
+      id: "po-5",
+      code: "PO-202607-005",
+      tenantId: "tenant-1",
+      status: "SENT",
+      supplierId: "sup-1",
+      inventorySupplyItem: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      supplier: { name: "PT Kopi" },
+      items: [
+        { id: "item-rb-null", productId: "rb-null-1", packagingId: null, quantity: 5, unitPrice: 120000, product: { type: "ROASTED_BEAN", materialOrigin: "PURCHASED_ROASTED", coffeeSourceId: null, isActive: true } },
+      ],
+    });
+    prisma.purchase.count.mockResolvedValue(0);
+
+    await expect(
+      receivePO(
+        prisma,
+        "po-5",
+        {
+          receivedAt: "2026-07-18",
+          items: [{ poItemId: "item-rb-null", receivedQuantity: 5 }],
+        },
+        "user-1",
+      ),
+    ).rejects.toThrow(/harus beli jadi \(PURCHASED_ROASTED\)/);
+  });
+
   it("rejects receiving a PO item whose product type is unsupported", async () => {
     const prisma = createMockPrisma();
     prisma.purchaseOrder.findUnique.mockResolvedValue({
@@ -615,7 +677,7 @@ describe("receivePO", () => {
       },
       supplier: { name: "PT Kopi" },
       items: [
-        { id: "item-fg", productId: "fg-1", packagingId: null, quantity: 3, unitPrice: 50000, product: { type: "FINISHED_GOODS" } },
+        { id: "item-fg", productId: "fg-1", packagingId: null, quantity: 3, unitPrice: 50000, product: { type: "FINISHED_GOODS", materialOrigin: null, coffeeSourceId: null, isActive: true } },
       ],
     });
     prisma.purchase.count.mockResolvedValue(0);

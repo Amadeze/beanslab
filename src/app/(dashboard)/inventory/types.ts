@@ -9,6 +9,8 @@ export type ProductStockRow = {
   type: "GREEN_BEAN" | "ROASTED_BEAN";
   origin: string | null;
   roastLevel: string | null;
+  materialOrigin: "INTERNAL_ROAST" | "PURCHASED_ROASTED" | null;
+  coffeeSourceId: string | null;
   stockKg: number;
   latestHppPerKg: number | null;
 };
@@ -91,6 +93,29 @@ export type RBProductOption = {
   name: string;
   origin: string | null;
   roastLevel: string | null;
+  materialOrigin: "INTERNAL_ROAST" | "PURCHASED_ROASTED" | null;
+};
+
+export type CoffeeSourceOption = {
+  id: string;
+  name: string;
+  region: string | null;
+  country: string | null;
+};
+
+export type NewCoffeeSourceInput = {
+  name: string;
+  country?: string | null;
+  region?: string | null;
+  farm?: string | null;
+  species?: string | null;
+  varietal?: string | null;
+  processMethod?: string | null;
+  fermentationMethod?: string | null;
+  elevation?: string | null;
+  cropYear?: string | null;
+  certifications?: string[];
+  tastingNotes?: string | null;
 };
 
 export type InventoryPageData = {
@@ -102,6 +127,7 @@ export type InventoryPageData = {
   suppliers: SupplierOption[];
   gbProducts: GBProductOption[];
   rbProducts: RBProductOption[];
+  coffeeSources: CoffeeSourceOption[];
   sampleConsumption: SampleConsumptionSummary;
   lotsByProduct: Record<string, ProductLotRow[]>;
   supplyLotsByItem: Record<string, SupplyLotRow[]>;
@@ -156,6 +182,8 @@ export type RoastedBeanPurchaseInput = {
   productName?: string;
   productOrigin?: string;
   productRoastLevel?: string;
+  coffeeSourceId?: string;
+  coffeeSource?: NewCoffeeSourceInput;
   weightKg: number;
   totalCost: number;
   shippingCost: number;

@@ -23,6 +23,7 @@ export default async function InventoryPage() {
       suppliers={data.suppliers}
       gbProducts={data.gbProducts}
       rbProducts={data.rbProducts}
+      coffeeSources={data.coffeeSources}
       sampleConsumption={data.sampleConsumption}
       lotsByProduct={data.lotsByProduct}
       supplyLotsByItem={data.supplyLotsByItem}

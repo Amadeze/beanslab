@@ -9,6 +9,7 @@ import { ChevronDown, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,24 +19,40 @@ import { getTodayString } from "@/lib/date-utils";
 import { defaultDueDate } from "@/lib/sale-intent";
 import {
   createGreenBeanPurchase,
+  createRoastedBeanPurchase,
+  preparePurchasedRoastedBean,
 } from "../actions";
 import {
   type SupplierOption,
   type GBProductOption,
+  type RBProductOption,
+  type CoffeeSourceOption,
 } from "../types";
 
 // =============================================================================
 // Zod schema
 // =============================================================================
 
+const ROAST_LEVELS = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"] as const;
+
 const schema = z
   .object({
+    coffeeType: z.enum(["GREEN_BEAN", "ROASTED_BEAN"]),
     supplierId: z.string().min(1, "Wajib pilih supplier"),
     receivedAt: z.string().min(1, "Tanggal wajib diisi"),
     productMode: z.enum(["existing", "new"]),
     productId: z.string().optional(),
     productName: z.string().optional(),
     productOrigin: z.string().optional(),
+    productRoastLevel: z.enum(ROAST_LEVELS),
+    sourceMode: z.enum(["existing", "new"]),
+    coffeeSourceId: z.string().optional(),
+    sourceName: z.string().optional(),
+    sourceRegion: z.string().optional(),
+    sourceCountry: z.string().optional(),
+    sourceSpecies: z.string().optional(),
+    sourceVarietal: z.string().optional(),
+    sourceProcessMethod: z.string().optional(),
     // z.number() + valueAsNumber:true in register — react-hook-form converts input string to number
     weightKg: z.number().positive("Harus lebih dari 0"),
     totalCost: z.number().positive("Total pembelian harus lebih dari 0"),
@@ -61,6 +78,23 @@ const schema = z
           code: "custom",
           path: ["productName"],
           message: "Nama minimal 2 karakter",
+        });
+      }
+    }
+    // Roasted Bean beli jadi harus punya identitas kopi (sumber + tingkat sangrai)
+    if (data.coffeeType === "ROASTED_BEAN" && data.productMode === "new") {
+      if (data.sourceMode === "existing" && !data.coffeeSourceId) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["sourceName"],
+          message: "Wajib pilih sumber kopi atau isi sumber kopi baru",
+        });
+      }
+      if (data.sourceMode === "new" && (!data.sourceName || data.sourceName.trim().length < 2)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["sourceName"],
+          message: "Nama sumber kopi minimal 2 karakter",
         });
       }
     }
@@ -108,10 +142,13 @@ function FieldError({ message }: { message?: string }) {
 // Props
 // =============================================================================
 
-interface PurchaseFormProps {
+interface CoffeePurchaseFormProps {
   id: string;
   suppliers: SupplierOption[];
   gbProducts: GBProductOption[];
+  rbProducts: RBProductOption[];
+  coffeeSources: CoffeeSourceOption[];
+  initialMode?: "GREEN_BEAN" | "ROASTED_BEAN";
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
   onAddSupplier?: () => void;
@@ -122,19 +159,24 @@ interface PurchaseFormProps {
 // Component
 // =============================================================================
 
-export function PurchaseForm({
+export function CoffeePurchaseForm({
   id,
   suppliers,
   gbProducts,
+  rbProducts,
+  coffeeSources,
+  initialMode = "GREEN_BEAN",
   onSuccess,
   onPendingChange,
   onAddSupplier,
   preferredSupplierId,
-}: PurchaseFormProps) {
+}: CoffeePurchaseFormProps) {
+  const router = useRouter();
   const today = getTodayString();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
   const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
-  const [showOptionalDetails, setShowOptionalDetails] = useState(false);
+  const [showIdentityDetails, setShowIdentityDetails] = useState(false);
   const [step, setStep] = useState(1);
 
   const {
@@ -147,12 +189,22 @@ export function PurchaseForm({
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      coffeeType: initialMode,
       supplierId: "",
       receivedAt: today,
-      productMode: gbProducts.length > 0 ? "existing" : "new",
+      productMode: initialMode === "GREEN_BEAN" ? (gbProducts.length > 0 ? "existing" : "new") : (rbProducts.length > 0 ? "existing" : "new"),
       productId: "",
       productName: "",
       productOrigin: "",
+      productRoastLevel: "MEDIUM",
+      sourceMode: coffeeSources.length > 0 ? "existing" : "new",
+      coffeeSourceId: "",
+      sourceName: "",
+      sourceRegion: "",
+      sourceCountry: "",
+      sourceSpecies: "",
+      sourceVarietal: "",
+      sourceProcessMethod: "",
       weightKg: 0,
       totalCost: 0,
       shippingCost: 0,
@@ -177,10 +229,13 @@ export function PurchaseForm({
     "totalCost",
     "receivedAt",
   ]);
+  const coffeeType = watch("coffeeType");
   const productMode = watch("productMode");
+  const sourceMode = watch("sourceMode");
   const paymentStatus = watch("paymentStatus");
 
   const hppPerKg = Number(weightKg) > 0 ? (Number(totalCost) || 0) / Number(weightKg) : 0;
+  const isRoasted = coffeeType === "ROASTED_BEAN";
 
   useEffect(() => {
     if (paymentStatus !== "PAID") {
@@ -190,32 +245,77 @@ export function PurchaseForm({
     }
   }, [paymentStatus, receivedAt, setValue, today]);
 
+  const switchCoffeeType = (next: "GREEN_BEAN" | "ROASTED_BEAN") => {
+    if (next === coffeeType) return;
+    setValue("coffeeType", next, { shouldDirty: true });
+    setValue(
+      "productMode",
+      next === "GREEN_BEAN" ? (gbProducts.length > 0 ? "existing" : "new") : (rbProducts.length > 0 ? "existing" : "new"),
+      { shouldDirty: true },
+    );
+    setValue("productId", "");
+    setValue("productName", "");
+    setValue("productOrigin", "");
+  };
+
   // ── Submit ──
   const onSubmit = async (values: FormValues) => {
-    if (isSubmitting) return;
+    if (isSubmitting || isPreparing) return;
     setIsSubmitting(true);
     onPendingChange(true);
     try {
-      const result = await createGreenBeanPurchase({
-        operationKey,
-        supplierId: values.supplierId,
-        receivedAt: values.receivedAt,
-        productId: values.productMode === "existing" ? values.productId : undefined,
-        productName: values.productMode === "new" ? values.productName : undefined,
-        productOrigin: values.productMode === "new" ? values.productOrigin : undefined,
-        weightKg: values.weightKg,
-        totalCost: values.totalCost,
-        shippingCost: values.shippingCost,
-        paidAmount: values.paymentStatus === "PAID"
-          ? values.totalCost
-          : values.paymentStatus === "PARTIAL"
-            ? values.initialPaidAmount
-            : 0,
-        paymentMethod: values.paymentMethod,
-        dueDate: values.dueDate,
-        notes: values.notes,
-        bestBeforeDate: values.bestBeforeDate || undefined,
-      });
+      const isNewProduct = values.productMode === "new";
+      const result = isRoasted
+        ? await createRoastedBeanPurchase({
+            operationKey,
+            supplierId: values.supplierId,
+            receivedAt: values.receivedAt,
+            productId: !isNewProduct ? values.productId : undefined,
+            productName: isNewProduct ? values.productName : undefined,
+            productOrigin: isNewProduct ? values.productOrigin : undefined,
+            productRoastLevel: values.productRoastLevel,
+            coffeeSourceId: isNewProduct && values.sourceMode === "existing" && values.coffeeSourceId ? values.coffeeSourceId : undefined,
+            coffeeSource: isNewProduct && values.sourceMode === "new" ? {
+              name: values.sourceName ?? "",
+              region: values.sourceRegion || null,
+              country: values.sourceCountry || null,
+              species: values.sourceSpecies || null,
+              varietal: values.sourceVarietal || null,
+              processMethod: values.sourceProcessMethod || null,
+            } : undefined,
+            weightKg: values.weightKg,
+            totalCost: values.totalCost,
+            shippingCost: values.shippingCost,
+            paidAmount: values.paymentStatus === "PAID"
+              ? values.totalCost
+              : values.paymentStatus === "PARTIAL"
+                ? values.initialPaidAmount
+                : 0,
+            paymentMethod: values.paymentMethod,
+            dueDate: values.dueDate,
+            notes: values.notes,
+            bestBeforeDate: values.bestBeforeDate || undefined,
+          })
+        : await createGreenBeanPurchase({
+            operationKey,
+            supplierId: values.supplierId,
+            receivedAt: values.receivedAt,
+            productId: !isNewProduct ? values.productId : undefined,
+            productName: isNewProduct ? values.productName : undefined,
+            productOrigin: isNewProduct ? values.productOrigin : undefined,
+            weightKg: values.weightKg,
+            totalCost: values.totalCost,
+            shippingCost: values.shippingCost,
+            paidAmount: values.paymentStatus === "PAID"
+              ? values.totalCost
+              : values.paymentStatus === "PARTIAL"
+                ? values.initialPaidAmount
+                : 0,
+            paymentMethod: values.paymentMethod,
+            dueDate: values.dueDate,
+            notes: values.notes,
+            bestBeforeDate: values.bestBeforeDate || undefined,
+          });
 
       if (!result.success) {
         toastSafe.error(result.error);
@@ -227,10 +327,60 @@ export function PurchaseForm({
       setOperationKey(crypto.randomUUID());
       onSuccess();
     } catch (err) {
-      console.error("[PurchaseForm]", err);
+      console.error("[CoffeePurchaseForm]", err);
       toast.error("Terjadi kesalahan sistem. Coba lagi.");
     } finally {
       setIsSubmitting(false);
+      onPendingChange(false);
+    }
+  };
+
+  // ── Siapkan Roasted Bean beli jadi untuk PO (tanpa pembelian) ──
+  const handlePrepare = async () => {
+    if (isSubmitting || isPreparing) return;
+    const name = watch("productName");
+    const sourceOk =
+      sourceMode === "existing"
+        ? !!watch("coffeeSourceId")
+        : (watch("sourceName")?.trim().length ?? 0) >= 2;
+    if (!name || name.trim().length < 2) {
+      toastSafe.error("Tulis nama Roasted Bean minimal 2 karakter");
+      return;
+    }
+    if (!sourceOk) {
+      toastSafe.error("Lengkapi sumber kopi (pilih yang ada atau isi nama baru)");
+      return;
+    }
+    setIsPreparing(true);
+    onPendingChange(true);
+    try {
+      const result = await preparePurchasedRoastedBean({
+        productName: name,
+        productOrigin: watch("productOrigin") || undefined,
+        productRoastLevel: watch("productRoastLevel"),
+        coffeeSourceId: sourceMode === "existing" && watch("coffeeSourceId") ? watch("coffeeSourceId") : undefined,
+        coffeeSource: sourceMode === "new" ? {
+          name: watch("sourceName") ?? "",
+          region: watch("sourceRegion") || null,
+          country: watch("sourceCountry") || null,
+          species: watch("sourceSpecies") || null,
+          varietal: watch("sourceVarietal") || null,
+          processMethod: watch("sourceProcessMethod") || null,
+        } : undefined,
+      });
+      if (!result.success) {
+        toastSafe.error(result.error);
+        return;
+      }
+      toast.success(result.created ? `Produk disiapkan — ${result.productName}` : "Produk sudah pernah disiapkan — dipakai ulang");
+      setValue("productMode", "existing", { shouldDirty: true });
+      setValue("productId", result.productId, { shouldDirty: true });
+      router.refresh();
+    } catch (err) {
+      console.error("[CoffeePurchaseForm:prepare]", err);
+      toast.error("Terjadi kesalahan sistem. Coba lagi.");
+    } finally {
+      setIsPreparing(false);
       onPendingChange(false);
     }
   };
@@ -309,10 +459,29 @@ export function PurchaseForm({
 
       {step === 2 && (
         <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+          {/* ── Jenis Kopi ── */}
+          <div className="grid grid-cols-2 gap-2">
+            {(["GREEN_BEAN", "ROASTED_BEAN"] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => switchCoffeeType(type)}
+                className={cn(
+                  "rounded-xl border px-3 py-2.5 text-sm font-bold transition-all",
+                  coffeeType === type
+                    ? "border-amber-600 bg-amber-600 text-white shadow-sm"
+                    : "border-white/60 bg-white/30 text-slate-600 hover:bg-white/50"
+                )}
+              >
+                {type === "GREEN_BEAN" ? "Green Bean" : "Roasted Bean (Beli Jadi)"}
+              </button>
+            ))}
+          </div>
+
           {/* ── Produk ── */}
           <div className="flex items-center justify-between gap-3">
             <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-              Green Bean <span className="text-red-500">*</span>
+              {isRoasted ? "Roasted Bean" : "Green Bean"} <span className="text-red-500">*</span>
             </Label>
             <button
               type="button"
@@ -326,7 +495,9 @@ export function PurchaseForm({
           {/* ── Pilih existing ── */}
           {productMode === "existing" && (
             <FieldGroup>
-              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Pilih Green Bean</Label>
+              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                Pilih {isRoasted ? "Roasted Bean" : "Green Bean"}
+              </Label>
               <select
                 className={cn(
                   "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
@@ -336,15 +507,25 @@ export function PurchaseForm({
                 {...register("productId")}
               >
                 <option value="" disabled>Pilih produk...</option>
-                {gbProducts.length === 0 ? (
-                  <option value="_empty" disabled>Belum ada produk GB</option>
-                ) : (
-                  gbProducts.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} {p.origin ? ` — ${p.origin}` : ""}
-                    </option>
-                  ))
-                )}
+                {isRoasted
+                  ? (rbProducts.length === 0 ? (
+                      <option value="_empty" disabled>Belum ada RB beli jadi — siapkan dulu di "Produk baru"</option>
+                    ) : (
+                      rbProducts.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} {p.roastLevel ? ` · ${p.roastLevel.replaceAll("_", " ")}` : ""} {p.origin ? ` — ${p.origin}` : ""}
+                        </option>
+                      ))
+                    ))
+                  : (gbProducts.length === 0 ? (
+                      <option value="_empty" disabled>Belum ada produk GB</option>
+                    ) : (
+                      gbProducts.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} {p.origin ? ` — ${p.origin}` : ""}
+                        </option>
+                      ))
+                    ))}
               </select>
               <FieldError message={errors.productId?.message} />
             </FieldGroup>
@@ -355,10 +536,10 @@ export function PurchaseForm({
             <div className={cn(glassCard, "space-y-4")}>
               <FieldGroup>
                 <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-                  Nama Green Bean <span className="text-red-500">*</span>
+                  Nama {isRoasted ? "Roasted Bean" : "Green Bean"} <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  placeholder="e.g. Gayo Natural, Ethiopia Yirgacheffe"
+                  placeholder={isRoasted ? "e.g. Gayo Beli Jadi Medium, Ethiopia Yirgacheffe Dark" : "e.g. Gayo Natural, Ethiopia Yirgacheffe"}
                   className={cn("h-9 font-medium", glassInput)}
                   {...register("productName")}
                 />
@@ -372,7 +553,135 @@ export function PurchaseForm({
                   {...register("productOrigin")}
                 />
               </FieldGroup>
+
+              {isRoasted && (
+                <>
+                  {/* ── Sumber kopi ── */}
+                  <FieldGroup>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                      Sumber Kopi <span className="text-red-500">*</span>
+                    </Label>
+                    <select
+                      className={cn(
+                        "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
+                        glassInput
+                      )}
+                      value={sourceMode}
+                      onChange={(e) => setValue("sourceMode", e.target.value as "existing" | "new", { shouldDirty: true, shouldValidate: true })}
+                    >
+                      <option value="existing">Pilih sumber yang sudah ada</option>
+                      <option value="new">Sumber baru</option>
+                    </select>
+                  </FieldGroup>
+
+                  {sourceMode === "existing" && (
+                    <FieldGroup>
+                      <select
+                        className={cn(
+                          "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
+                          glassInput,
+                          errors.sourceName ? "border-red-500 ring-2 ring-red-500/20" : ""
+                        )}
+                        {...register("coffeeSourceId")}
+                      >
+                        <option value="" disabled>Pilih sumber kopi...</option>
+                        {coffeeSources.length === 0 ? (
+                          <option value="_empty" disabled>Belum ada sumber kopi — pilih "Sumber baru"</option>
+                        ) : (
+                          coffeeSources.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}{s.region ? ` — ${s.region}` : ""}{s.country ? ` (${s.country})` : ""}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      <FieldError message={errors.sourceName?.message} />
+                    </FieldGroup>
+                  )}
+
+                  {sourceMode === "new" && (
+                    <div className="space-y-4">
+                      <FieldGroup>
+                        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                          Nama Sumber Kopi <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          placeholder="e.g. Gayo Atu Lintang, Kopi Sumber Alam"
+                          className={cn("h-9 font-medium", glassInput)}
+                          {...register("sourceName")}
+                        />
+                        <FieldError message={errors.sourceName?.message} />
+                      </FieldGroup>
+
+                      {/* ── Detail identitas opsional ── */}
+                      <button
+                        type="button"
+                        onClick={() => setShowIdentityDetails((v) => !v)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-900"
+                      >
+                        <ChevronDown size={13} className={cn("transition-transform", showIdentityDetails && "rotate-180")} />
+                        {showIdentityDetails ? "Sembunyikan detail" : "Detail identitas kopi (opsional)"}
+                      </button>
+
+                      {showIdentityDetails && (
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 animate-in fade-in duration-200">
+                          <FieldGroup>
+                            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Wilayah / Region</Label>
+                            <Input className={cn("h-9", glassInput)} placeholder="e.g. Kabupaten Gayo Lues" {...register("sourceRegion")} />
+                          </FieldGroup>
+                          <FieldGroup>
+                            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Negara</Label>
+                            <Input className={cn("h-9", glassInput)} placeholder="e.g. Indonesia" {...register("sourceCountry")} />
+                          </FieldGroup>
+                          <FieldGroup>
+                            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Species</Label>
+                            <Input className={cn("h-9", glassInput)} placeholder="e.g. Arabica, Robusta" {...register("sourceSpecies")} />
+                          </FieldGroup>
+                          <FieldGroup>
+                            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Varietal</Label>
+                            <Input className={cn("h-9", glassInput)} placeholder="e.g. Tim Tim, Bourbon" {...register("sourceVarietal")} />
+                          </FieldGroup>
+                          <FieldGroup>
+                            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Proses</Label>
+                            <Input className={cn("h-9", glassInput)} placeholder="e.g. Natural, Washed" {...register("sourceProcessMethod")} />
+                          </FieldGroup>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <FieldGroup>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                      Tingkat Sangrai <span className="text-red-500">*</span>
+                    </Label>
+                    <select
+                      className={cn(
+                        "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
+                        glassInput
+                      )}
+                      {...register("productRoastLevel")}
+                    >
+                      {ROAST_LEVELS.map((level) => (
+                        <option key={level} value={level}>
+                          {level.replaceAll("_", " ")}
+                        </option>
+                      ))}
+                    </select>
+                  </FieldGroup>
+                </>
+              )}
             </div>
+          )}
+
+          {isRoasted && productMode === "new" && (
+            <button
+              type="button"
+              onClick={handlePrepare}
+              disabled={isPreparing || isSubmitting}
+              className="w-full rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-2.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-all disabled:opacity-50"
+            >
+              {isPreparing ? "Menyiapkan..." : "Siapkan produk untuk PO (tanpa pembelian)"}
+            </button>
           )}
 
           {/* ── Berat & Harga ── */}
@@ -432,7 +741,9 @@ export function PurchaseForm({
               </p>
             </div>
             <p className="mt-0.5 text-[11px] leading-4 text-emerald-700">
-              ID barang datang = kode lot · stok & ledger · HPP & jurnal · urutan FIFO/FEFO
+              {isRoasted
+                ? "ID barang datang = kode lot · stok & ledger & jurnal (1-1210) · ditandai Beli Jadi (PURCHASED_ROASTED)"
+                : "ID barang datang = kode lot · stok & ledger · HPP & jurnal · urutan FIFO/FEFO"}
             </p>
           </div>
         </div>
@@ -508,7 +819,7 @@ export function PurchaseForm({
           <button
             type="button"
             onClick={handleSubmit(onSubmit)}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isPreparing}
             className="rounded-xl bg-amber-600 px-6 py-2 text-sm font-bold text-white shadow-sm hover:bg-amber-700 transition-all disabled:opacity-50"
           >
             {isSubmitting ? "Menyimpan..." : "Simpan Pembelian"}

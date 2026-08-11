@@ -16,6 +16,7 @@ import { postPurchase, postStockAdjustment } from "@/lib/posting";
 import { summarizeLotInventory, summarizeSupplyLotInventory, type LotOperationalStatus } from "@/lib/lot";
 import { createSupplyPurchase, type CreateSupplyPurchaseInput } from "@/lib/supply-purchase";
 import { createLotPlacementInTx } from "@/lib/storage-location";
+import { normalizeCoffeeIdentity } from "@/lib/coffee-identity";
 import type {
   ProductStockRow,
   PackagingStockRow,
@@ -25,6 +26,9 @@ import type {
   SupplyLotRow,
   SupplierOption,
   GBProductOption,
+  RBProductOption,
+  CoffeeSourceOption,
+  NewCoffeeSourceInput,
   InventoryPageData,
   SampleConsumptionSummary,
   LedgerHistoryRow,
@@ -70,6 +74,70 @@ function generateRBCode(name: string): string {
 
 const ROAST_LEVELS = new Set(["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"]);
 
+type TransactionClient = any;
+
+/** Generate kode CoffeeSource inline: CS-SLUG-RANDOM */
+function generateSourceCode(name: string): string {
+  const slug = name
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 12);
+  return `CS-${slug || "BARU"}-${randomBytes(4).toString("hex").toUpperCase()}`;
+}
+
+/**
+ * Resolusi CoffeeSource untuk Roasted Bean beli jadi: wajib tepat satu dari
+ * (a) coffeeSourceId → sumber eksisting yang aktif, atau
+ * (b) coffeeSource → dibuat inline (atomik di dalam transaksi pemanggil).
+ * Selalu mengembalikan sumber yang sudah tersimpan; melempar jika tidak valid.
+ */
+async function resolveRoastedBeanSource(
+  tx: TransactionClient,
+  tenantId: string,
+  sourceInput: { coffeeSourceId?: string; coffeeSource?: NewCoffeeSourceInput },
+): Promise<{ id: string; name: string; species: string | null; region: string | null }> {
+  const hasExisting = !!sourceInput.coffeeSourceId?.trim();
+  const hasInline = !!sourceInput.coffeeSource?.name?.trim();
+  if (hasExisting === hasInline) {
+    throw new Error("Pilih sumber kopi yang sudah ada atau isi nama sumber kopi baru.");
+  }
+  if (hasExisting) {
+    const source = await tx.coffeeSource.findFirst({
+      where: { id: sourceInput.coffeeSourceId, isActive: true },
+      select: { id: true, name: true, species: true, region: true },
+    });
+    if (!source) throw new Error("Sumber kopi tidak ditemukan atau sudah nonaktif.");
+    return source;
+  }
+  const identity = normalizeCoffeeIdentity(sourceInput.coffeeSource!);
+  if (!identity.name) throw new Error("Nama sumber kopi harus diisi.");
+  // Sumber inline SELALU dibuat baru: reuse hanya lewat coffeeSourceId yang
+  // dipilih eksplisit oleh pengguna, tidak pernah lewat kesamaan nama.
+  const source = await tx.coffeeSource.create({
+    data: {
+      tenantId,
+      code: generateSourceCode(identity.name),
+      name: identity.name,
+      country: identity.country,
+      region: identity.region,
+      farm: identity.farm,
+      species: identity.species,
+      varietal: identity.varietal,
+      processMethod: identity.processMethod,
+      fermentationMethod: identity.fermentationMethod,
+      elevation: identity.elevation,
+      cropYear: identity.cropYear,
+      certifications: identity.certifications,
+      tastingNotes: identity.tastingNotes,
+      isActive: true,
+    },
+    select: { id: true, name: true, species: true, region: true },
+  });
+  return source;
+}
+
 // =============================================================================
 // QUERIES
 // =============================================================================
@@ -86,6 +154,8 @@ async function fetchProductStocks(
       type: true,
       origin: true,
       roastLevel: true,
+      materialOrigin: true,
+      coffeeSourceId: true,
       stockKg: true,
       avgCostPerKg: true,
     },
@@ -99,6 +169,8 @@ async function fetchProductStocks(
     type: p.type as "GREEN_BEAN" | "ROASTED_BEAN",
     origin: p.origin,
     roastLevel: p.roastLevel,
+    materialOrigin: p.materialOrigin,
+    coffeeSourceId: p.coffeeSourceId,
     stockKg: Number(p.stockKg),
     latestHppPerKg: p.avgCostPerKg ? Number(p.avgCostPerKg) : null,
   }));
@@ -274,7 +346,7 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [gbStocks, rbStocks, supplyStocks, fgStocks, ledgerEntries, suppliers, gbProducts, rbProducts, sampleConsumption, lots, supplyAdapterRows] =
+  const [gbStocks, rbStocks, supplyStocks, fgStocks, ledgerEntries, suppliers, gbProducts, rbProducts, coffeeSources, sampleConsumption, lots, supplyAdapterRows] =
     await Promise.all([
       fetchProductStocks("GREEN_BEAN"),
       fetchProductStocks("ROASTED_BEAN"),
@@ -292,8 +364,13 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
         orderBy: { name: "asc" },
       }),
       tp.product.findMany({
-        where: { type: "ROASTED_BEAN", isActive: true },
-        select: { id: true, name: true, origin: true, roastLevel: true },
+        where: { type: "ROASTED_BEAN", isActive: true, materialOrigin: "PURCHASED_ROASTED" },
+        select: { id: true, name: true, origin: true, roastLevel: true, materialOrigin: true },
+        orderBy: { name: "asc" },
+      }),
+      tp.coffeeSource.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, region: true, country: true },
         orderBy: { name: "asc" },
       }),
       fetchSampleConsumption(monthStart, now),
@@ -401,7 +478,7 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
     });
   }
 
-  return { gbStocks, rbStocks, supplyStocks, fgStocks, ledgerEntries, suppliers, gbProducts, rbProducts, sampleConsumption, lotsByProduct, supplyLotsByItem };
+  return { gbStocks, rbStocks, supplyStocks, fgStocks, ledgerEntries, suppliers, gbProducts, rbProducts, coffeeSources, sampleConsumption, lotsByProduct, supplyLotsByItem };
 }
 
 // Tambah packaging options ke page data helper
@@ -501,27 +578,55 @@ export async function createGreenBeanPurchase(
       if (!supplier?.isActive) throw new Error("Supplier tidak ditemukan atau sudah nonaktif.");
 
       let product = input.productId
-        ? await tx.product.findUnique({ where: { id: input.productId } })
+        ? await tx.product.findUnique({ where: { id: input.productId, tenantId } })
         : null;
+      if (input.productId && !product) {
+        throw new Error("Green Bean tidak ditemukan atau bukan milik tenant Anda.");
+      }
       if (product && (product.type !== "GREEN_BEAN" || !product.isActive)) {
         throw new Error("Produk bukan Green Bean aktif.");
       }
       if (!product && input.productName?.trim()) {
         const productName = input.productName.trim();
-        product = await tx.product.findFirst({
-          where: { name: { equals: productName, mode: "insensitive" }, type: "GREEN_BEAN", isActive: true },
+        // Produk baru SELALU dibuat baru (beserta CoffeeSource atomik-nya):
+        // reuse hanya lewat productId eksplisit, tidak pernah lewat nama.
+        const productCode = generateProductCode(productName);
+        // Identitas akar dibuat atomik bersama produk: CoffeeSource dengan
+        // kode sama dengan produk GB (deterministik, 1:1 seperti master data).
+        const identity = normalizeCoffeeIdentity({
+          name: productName,
+          region: input.productOrigin?.trim() || null,
         });
-        if (!product) {
+          const source = await tx.coffeeSource.create({
+            data: {
+              tenantId,
+              code: productCode,
+              name: identity.name,
+              country: identity.country,
+              region: identity.region,
+              farm: identity.farm,
+              species: identity.species,
+              varietal: identity.varietal,
+              processMethod: identity.processMethod,
+              fermentationMethod: identity.fermentationMethod,
+              elevation: identity.elevation,
+              cropYear: identity.cropYear,
+              certifications: identity.certifications,
+              tastingNotes: identity.tastingNotes,
+              isActive: true,
+            },
+            select: { id: true },
+          });
           product = await tx.product.create({
             data: {
               tenantId,
-              code: generateProductCode(productName),
+              code: productCode,
               name: productName,
               type: "GREEN_BEAN",
               origin: input.productOrigin?.trim() || null,
+              coffeeSourceId: source.id,
             },
           });
-        }
       }
       if (!product) throw new Error("Pilih Green Bean atau tulis nama Green Bean baru.");
 
@@ -582,6 +687,7 @@ export async function createGreenBeanPurchase(
 
       await appendLedger(tx, {
         data: {
+          tenantId,
           productId: product.id,
           entryType: "IN",
           refType: "PURCHASE_GB",
@@ -652,8 +758,8 @@ export async function createGreenBeanPurchase(
  * Pencatatan barang datang Roasted Bean (beli jadi).
  * Pola identik dengan createGreenBeanPurchase:
  *   1. Find-or-create Product (ROASTED_BEAN) — materialOrigin PURCHASED_ROASTED,
- *      coffeeSourceId dibiarkan NULL (asal tidak bisa dibuktikan otomatis,
- *      bisa ditautkan manual di master data).
+ *      selalu tertaut CoffeeSource (coffeeSourceId WAJIB terisi; produk tanpa
+ *      sumber kopi ditolak — tidak ada lagi coffeeSourceId NULL di alur ini).
  *   2. Insert Purchase (type = ROASTED_BEAN, status = COMPLETED)
  *   3. Insert Lot + placement, InventoryLedger (IN, refType = PURCHASE_RB),
  *      moving average, jurnal pembelian (1-1210).
@@ -711,15 +817,41 @@ export async function createRoastedBeanPurchase(
       if (!supplier?.isActive) throw new Error("Supplier tidak ditemukan atau sudah nonaktif.");
 
       let product = input.productId
-        ? await tx.product.findUnique({ where: { id: input.productId } })
+        ? await tx.product.findUnique({ where: { id: input.productId, tenantId } })
         : null;
-      if (product && (product.type !== "ROASTED_BEAN" || !product.isActive)) {
-        throw new Error("Produk bukan Roasted Bean aktif.");
+      if (input.productId && !product) {
+        throw new Error("Roasted Bean tidak ditemukan atau bukan milik tenant Anda.");
       }
-      if (!product && input.productName?.trim()) {
-        const productName = input.productName.trim();
+      if (product) {
+        // Hanya Roasted Bean beli jadi aktif dengan sumber kopi tertaut yang
+        // boleh menerima pembelian. Mencampur stok sangrai internal (atau
+        // produk tanpa identitas) dengan pembelian dalam satu Product dilarang.
+        if (
+          product.type !== "ROASTED_BEAN" ||
+          !product.isActive ||
+          product.materialOrigin !== "PURCHASED_ROASTED" ||
+          !product.coffeeSourceId
+        ) {
+          throw new Error("Produk Roasted Bean harus berstatus beli jadi (PURCHASED_ROASTED) dengan sumber kopi tertaut.");
+        }
+      }
+      if (!product) {
+        const productName = input.productName?.trim();
+        if (!productName || productName.length < 2) {
+          throw new Error("Pilih Roasted Bean atau tulis nama Roasted Bean baru.");
+        }
+        const source = await resolveRoastedBeanSource(tx, tenantId, input);
+        // Produk yang dapat dipakai ulang dicocokkan lewat identititas kopi
+        // (sumber + tingkat sangrai + beli jadi), BUKAN lewat nama saja —
+        // nama murni tampilan dan tidak pernah dijadikan kunci identitas.
         product = await tx.product.findFirst({
-          where: { name: { equals: productName, mode: "insensitive" }, type: "ROASTED_BEAN", isActive: true },
+          where: {
+            type: "ROASTED_BEAN",
+            isActive: true,
+            materialOrigin: "PURCHASED_ROASTED",
+            coffeeSourceId: source.id,
+            roastLevel,
+          },
         });
         if (!product) {
           product = await tx.product.create({
@@ -729,13 +861,14 @@ export async function createRoastedBeanPurchase(
               name: productName,
               type: "ROASTED_BEAN",
               roastLevel,
-              origin: input.productOrigin?.trim() || null,
+              origin: input.productOrigin?.trim() || source.region || null,
+              coffeeSpecies: source.species ?? null,
               materialOrigin: "PURCHASED_ROASTED",
+              coffeeSourceId: source.id,
             },
           });
         }
       }
-      if (!product) throw new Error("Pilih Roasted Bean atau tulis nama Roasted Bean baru.");
 
       const purchase = await tx.purchase.create({
         data: {
@@ -850,6 +983,82 @@ export async function createRoastedBeanPurchase(
       });
       if (existing) return { success: true, purchaseCode: existing.code };
     }
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Terjadi kesalahan sistem.",
+    };
+  }
+}
+
+// =============================================================================
+// PREPARE PURCHASED ROASTED BEAN (persiapan sebelum PO)
+// =============================================================================
+
+export type PreparePurchasedRoastedBeanInput = {
+  productName: string;
+  productOrigin?: string;
+  productRoastLevel: string;
+  coffeeSourceId?: string;
+  coffeeSource?: NewCoffeeSourceInput;
+};
+
+export type PreparePurchasedRoastedBeanResult =
+  | { success: true; productId: string; productName: string; created: boolean }
+  | { success: false; error: string };
+
+/**
+ * Siapkan produk Roasted Bean beli jadi tanpa membuat pembelian: cocok untuk
+ * membuat PO sebelum barang datang. Identitas (sumber kopi + tingkat sangrai)
+ * dibuat/terautat atomik; produk yang identik dipakai ulang, bukan diduplikasi.
+ */
+export async function preparePurchasedRoastedBean(
+  input: PreparePurchasedRoastedBeanInput,
+): Promise<PreparePurchasedRoastedBeanResult> {
+  try {
+    await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const tenantId = await getCurrentTenantId();
+    const productName = input.productName.trim();
+    if (productName.length < 2) {
+      return { success: false, error: "Nama minimal 2 karakter." };
+    }
+    const roastLevel = (input.productRoastLevel ?? "").trim().toUpperCase();
+    if (!ROAST_LEVELS.has(roastLevel)) {
+      return { success: false, error: "Tingkat sangrai tidak valid." };
+    }
+
+    const tenantPrisma = await requireTenantPrisma();
+    let created = false;
+    const product = await tenantPrisma.$transaction(async (tx) => {
+      const source = await resolveRoastedBeanSource(tx, tenantId, input);
+      const existing = await tx.product.findFirst({
+        where: {
+          type: "ROASTED_BEAN",
+          isActive: true,
+          materialOrigin: "PURCHASED_ROASTED",
+          coffeeSourceId: source.id,
+          roastLevel,
+        },
+      });
+      if (existing) return existing;
+      created = true;
+      return tx.product.create({
+        data: {
+          tenantId,
+          code: generateRBCode(productName),
+          name: productName,
+          type: "ROASTED_BEAN",
+          roastLevel,
+          origin: input.productOrigin?.trim() || source.region || null,
+          coffeeSpecies: source.species ?? null,
+          materialOrigin: "PURCHASED_ROASTED",
+          coffeeSourceId: source.id,
+        },
+      });
+    }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
+
+    return { success: true, productId: product.id, productName: product.name, created };
+  } catch (err) {
+    console.error("[preparePurchasedRoastedBean]", err);
     return {
       success: false,
       error: err instanceof Error ? err.message : "Terjadi kesalahan sistem.",
