@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash2, Plus } from "lucide-react";
 import { createOffering, updateOffering } from "../actions";
-import type { OfferingRow, CoffeeSourceRow, SupplyItemRow } from "../actions";
+import type { OfferingRow, ProductRow, SupplyItemRow } from "../actions";
 import { cn } from "@/lib/utils";
 
 const glassInput = "bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 focus:border-white/80";
@@ -48,6 +48,7 @@ const schema = z.object({
   roastLevel: z.enum(["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"]).nullable().optional(),
   sourceMode: z.enum(["PURCHASED_ROASTED", "INTERNAL_ROAST"]),
   coffeeSourceId: z.string().min(1, "Pilih sumber kopi"),
+  lineageProductId: z.string().min(1, "Pilih material kopi siap jual"),
   grindOptions: z.array(z.enum(["WHOLE_BEAN", "COARSE", "MEDIUM_COARSE", "MEDIUM", "MEDIUM_FINE", "FINE", "ESPRESSO", "CUSTOM"])).min(1, "Pilih minimal satu opsi gilingan"),
   allowCustomGrind: z.boolean().default(true),
   isActive: z.boolean().default(true),
@@ -62,14 +63,33 @@ interface CoffeeOfferingFormProps {
   onSuccess: () => void;
   onPendingChange?: (isPending: boolean) => void;
   initialData?: OfferingRow;
-  coffeeSources: CoffeeSourceRow[];
+  roastedMaterials: ProductRow[];
   supplyItems: SupplyItemRow[];
 }
 
-export function CoffeeOfferingForm({ id, onSuccess, onPendingChange, initialData, coffeeSources, supplyItems }: CoffeeOfferingFormProps) {
+export function CoffeeOfferingForm({ id, onSuccess, onPendingChange, initialData, roastedMaterials, supplyItems }: CoffeeOfferingFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditMode = !!initialData;
   const packagingItems = supplyItems.filter((item) => item.category === "PACKAGING" && item.isActive);
+  const validMaterials = roastedMaterials.filter((material) => (
+    material.type === "ROASTED_BEAN"
+    && material.isActive
+    && material.coffeeSource
+    && (
+      material.materialOrigin === "PURCHASED_ROASTED"
+      || (material.materialOrigin === "INTERNAL_ROAST" && material.sourceGreenBeanId)
+    )
+  ));
+  const initialMaterial = validMaterials.find((material) => material.id === initialData?.lineageProductId)
+    ?? validMaterials.find((material) => (
+      material.coffeeSource?.id === initialData?.coffeeSourceId
+      && material.materialOrigin === initialData?.sourceMode
+      && (material.roastLevel ?? null) === (initialData?.roastLevel ?? null)
+    ))
+    ?? validMaterials[0];
+  const coffeeSources = Array.from(
+    new Map(validMaterials.flatMap((material) => material.coffeeSource ? [[material.coffeeSource.id, material.coffeeSource]] : [])).values(),
+  );
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -81,6 +101,7 @@ export function CoffeeOfferingForm({ id, onSuccess, onPendingChange, initialData
           roastLevel: (initialData.roastLevel as FormValues["roastLevel"]) ?? null,
           sourceMode: initialData.sourceMode,
           coffeeSourceId: initialData.coffeeSourceId,
+          lineageProductId: initialMaterial?.id ?? "",
           grindOptions: initialData.grindOptions as FormValues["grindOptions"],
           allowCustomGrind: initialData.allowCustomGrind,
           isActive: initialData.isActive,
@@ -98,8 +119,9 @@ export function CoffeeOfferingForm({ id, onSuccess, onPendingChange, initialData
           description: "",
           imageUrl: "",
           roastLevel: "MEDIUM",
-          sourceMode: "PURCHASED_ROASTED",
-          coffeeSourceId: coffeeSources[0]?.id ?? "",
+          sourceMode: initialMaterial?.materialOrigin ?? "PURCHASED_ROASTED",
+          coffeeSourceId: initialMaterial?.coffeeSource?.id ?? "",
+          lineageProductId: initialMaterial?.id ?? "",
           grindOptions: ["WHOLE_BEAN"],
           allowCustomGrind: true,
           isActive: true,
@@ -110,7 +132,18 @@ export function CoffeeOfferingForm({ id, onSuccess, onPendingChange, initialData
 
   const { fields, append, remove } = useFieldArray({ control, name: "variants" });
   const grindOptions = watch("grindOptions");
+  const lineageProductId = watch("lineageProductId");
   const sourceMode = watch("sourceMode");
+  const selectedMaterial = validMaterials.find((material) => material.id === lineageProductId) ?? null;
+
+  const chooseMaterial = (materialId: string) => {
+    const material = validMaterials.find((item) => item.id === materialId);
+    setValue("lineageProductId", materialId, { shouldDirty: true, shouldValidate: true });
+    if (!material?.coffeeSource || !material.materialOrigin) return;
+    setValue("coffeeSourceId", material.coffeeSource.id, { shouldDirty: true, shouldValidate: true });
+    setValue("sourceMode", material.materialOrigin, { shouldDirty: true, shouldValidate: true });
+    setValue("roastLevel", (material.roastLevel as FormValues["roastLevel"]) ?? null, { shouldDirty: true });
+  };
 
   const toggleGrind = (value: string) => {
     const current = grindOptions ?? [];
@@ -151,7 +184,7 @@ export function CoffeeOfferingForm({ id, onSuccess, onPendingChange, initialData
   return (
     <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs text-blue-800">
-        Kode dibuat otomatis (OFR-xxx). Varian adalah ukuran kemasan yang dijual; berat bersih menentukan stok yang ditahan (kg) saat checkout.
+        Pilih kopi siap jual, lalu tentukan ukuran dan harga. Sistem memakai material itu untuk stok; pembeli hanya melihat kopi, kemasan, dan gilingan.
       </div>
 
       <div className="space-y-1.5">
@@ -162,7 +195,32 @@ export function CoffeeOfferingForm({ id, onSuccess, onPendingChange, initialData
         {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white/40 p-3 sm:grid-cols-2">
+      <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+        <Label className="text-xs uppercase font-bold tracking-wider text-slate-600">Kopi siap jual *</Label>
+        <select
+          value={lineageProductId}
+          onChange={(event) => chooseMaterial(event.target.value)}
+          className={cn("h-10 w-full rounded-md border bg-white px-3 text-sm", glassInput)}
+          disabled={validMaterials.length === 0}
+        >
+          {validMaterials.length === 0 ? <option value="">Belum ada roasted bean yang valid</option> : null}
+          {validMaterials.map((material) => (
+            <option key={material.id} value={material.id}>
+              {material.name} · {material.roastLevel?.replaceAll("_", " ") || "tanpa roast"} · {material.materialOrigin === "INTERNAL_ROAST" ? "sangrai sendiri" : "beli jadi"}
+            </option>
+          ))}
+        </select>
+        {errors.lineageProductId ? <p className="text-xs text-red-500">{errors.lineageProductId.message}</p> : null}
+        {selectedMaterial ? (
+          <p className="text-xs leading-5 text-slate-600">
+            Identitas: <strong>{selectedMaterial.coffeeSource?.name}</strong> · roast <strong>{selectedMaterial.roastLevel?.replaceAll("_", " ") || "—"}</strong>. Stok akan ditahan dari material ini.
+          </p>
+        ) : (
+          <p className="text-xs leading-5 text-amber-800">Terima atau sangrai kopi terlebih dahulu, lalu kembali untuk membuat penawaran.</p>
+        )}
+      </div>
+
+      <div className="hidden">
         <div className="space-y-1.5">
           <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Sumber Kopi *</Label>
           <select className={cn("h-9 w-full rounded-md border bg-white/60 px-3 text-sm", glassInput)} {...register("coffeeSourceId")}>
@@ -212,7 +270,7 @@ export function CoffeeOfferingForm({ id, onSuccess, onPendingChange, initialData
       <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white/40 p-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Roast Level</Label>
-          <select className={cn("h-9 w-full rounded-md border bg-white/60 px-3 text-sm", glassInput)} {...register("roastLevel")}>
+          <select disabled className={cn("h-9 w-full rounded-md border bg-white/60 px-3 text-sm", glassInput)} {...register("roastLevel")}>
             <option value="">—</option>
             {ROAST_LEVELS.map((level) => (
               <option key={level.value} value={level.value}>{level.label}</option>
