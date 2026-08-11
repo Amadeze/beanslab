@@ -200,6 +200,7 @@ const ownedRelations: Record<string, OwnedRelation[]> = {
   ],
   CoffeeOffering: [
     { foreignKey: "coffeeSourceId", relation: "coffeeSource", delegate: "coffeeSource" },
+    { foreignKey: "lineageProductId", relation: "lineageProduct", delegate: "product" },
   ],
   OfferingVariant: [
     { foreignKey: "offeringId", relation: "offering", delegate: "coffeeOffering" },

@@ -93,6 +93,7 @@ export type ProductRow = {
   imageUrl: string | null;
   isActive: boolean; createdAt: string;
   materialOrigin: "INTERNAL_ROAST" | "PURCHASED_ROASTED" | null;
+  sourceGreenBeanId: string | null;
   coffeeSource: CoffeeSourceRow | null;
   price: number;
   priceSilver: number;
@@ -164,6 +165,7 @@ export type OfferingRow = {
   description: string | null;
   imageUrl: string | null;
   coffeeSourceId: string;
+  lineageProductId: string | null;
   coffeeSource: CoffeeSourceRow | null;
   sourceMode: "PURCHASED_ROASTED" | "INTERNAL_ROAST";
   roastLevel: string | null;
@@ -216,6 +218,7 @@ export async function getMasterData(): Promise<MasterPageData> {
     origin: true,
     roastLevel: true,
     materialOrigin: true,
+    sourceGreenBeanId: true,
     description: true,
     imageUrl: true,
     isActive: true,
@@ -362,6 +365,7 @@ export async function getMasterData(): Promise<MasterPageData> {
         origin: p.origin,
         roastLevel: p.roastLevel,
         materialOrigin: p.materialOrigin,
+        sourceGreenBeanId: p.sourceGreenBeanId,
         coffeeSource: p.coffeeSource
           ? {
               id: p.coffeeSource.id,
@@ -510,6 +514,7 @@ export async function getMasterData(): Promise<MasterPageData> {
           }
         : null,
       sourceMode: offering.sourceMode,
+      lineageProductId: offering.lineageProductId,
       roastLevel: offering.roastLevel,
       grindOptions: offering.grindOptions,
       allowCustomGrind: offering.allowCustomGrind,
@@ -1752,6 +1757,7 @@ const offeringSchema = z.object({
   roastLevel: z.enum(["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"]).nullable().optional(),
   sourceMode: z.enum(["PURCHASED_ROASTED", "INTERNAL_ROAST"]),
   coffeeSourceId: z.string().min(1, "Pilih sumber kopi"),
+  lineageProductId: z.string().min(1, "Pilih material kopi siap jual"),
   grindOptions: z.array(z.enum(OFFERING_GRIND_OPTIONS)).min(1).default(["WHOLE_BEAN"]),
   allowCustomGrind: z.boolean().default(true),
   isActive: z.boolean().default(true),
@@ -1767,6 +1773,55 @@ const offeringSchema = z.object({
 
 export type OfferingInput = z.infer<typeof offeringSchema>;
 
+type OfferingMaterial = {
+  id: string;
+  type: string;
+  isActive: boolean;
+  coffeeSourceId: string | null;
+  materialOrigin: string | null;
+  roastLevel: string | null;
+  sourceGreenBean: {
+    tenantId: string;
+    type: string;
+    coffeeSourceId: string | null;
+  } | null;
+};
+
+function validateOfferingMaterial(
+  material: OfferingMaterial | null,
+  input: OfferingInput,
+  tenantId: string,
+) {
+  if (!material || material.type !== "ROASTED_BEAN" || !material.isActive || !material.coffeeSourceId) {
+    return "Material kopi siap jual tidak valid atau sedang nonaktif.";
+  }
+  const expectedMode = material.materialOrigin === "INTERNAL_ROAST"
+    ? "INTERNAL_ROAST"
+    : material.materialOrigin === "PURCHASED_ROASTED"
+      ? "PURCHASED_ROASTED"
+      : null;
+  if (
+    !expectedMode
+    || input.sourceMode !== expectedMode
+    || input.coffeeSourceId !== material.coffeeSourceId
+    || (input.roastLevel ?? null) !== (material.roastLevel ?? null)
+  ) {
+    return "Identitas, asal bahan, atau roast tidak cocok dengan material yang dipilih.";
+  }
+  if (
+    expectedMode === "INTERNAL_ROAST"
+    && (
+      !material.sourceGreenBean
+      || material.sourceGreenBean.tenantId !== tenantId
+      || material.sourceGreenBean.type !== "GREEN_BEAN"
+      || material.sourceGreenBean.coffeeSourceId !== material.coffeeSourceId
+    )
+  ) {
+    return "Material sangrai internal belum memiliki lineage green bean yang terbukti.";
+  }
+  return null;
+}
+
 export async function createOffering(input: OfferingInput): Promise<ActionResult> {
   try {
     await requireRole("OWNER", "MANAGER", "OPERATOR");
@@ -1775,6 +1830,20 @@ export async function createOffering(input: OfferingInput): Promise<ActionResult
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data penawaran tidak valid." };
 
     const tp = await requireTenantPrisma();
+    const material = await tp.product.findUnique({
+      where: { id: parsed.data.lineageProductId },
+      select: {
+        id: true,
+        type: true,
+        isActive: true,
+        coffeeSourceId: true,
+        materialOrigin: true,
+        roastLevel: true,
+        sourceGreenBean: { select: { tenantId: true, type: true, coffeeSourceId: true } },
+      },
+    });
+    const materialError = validateOfferingMaterial(material, parsed.data, tenantId);
+    if (materialError) return { success: false, error: materialError };
     let offering: Awaited<ReturnType<typeof tp.coffeeOffering.create>> | null = null;
     for (let attempt = 0; attempt < 4 && !offering; attempt += 1) {
       const rows = await tp.coffeeOffering.findMany({
@@ -1793,6 +1862,7 @@ export async function createOffering(input: OfferingInput): Promise<ActionResult
             roastLevel: parsed.data.roastLevel ?? null,
             sourceMode: parsed.data.sourceMode,
             coffeeSourceId: parsed.data.coffeeSourceId,
+            lineageProductId: parsed.data.lineageProductId,
             grindOptions: parsed.data.grindOptions,
             allowCustomGrind: parsed.data.allowCustomGrind,
             isActive: parsed.data.isActive,
@@ -1832,6 +1902,20 @@ export async function updateOffering(input: OfferingInput & { id: string }): Pro
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data penawaran tidak valid." };
 
     const tp = await requireTenantPrisma();
+    const material = await tp.product.findUnique({
+      where: { id: parsed.data.lineageProductId },
+      select: {
+        id: true,
+        type: true,
+        isActive: true,
+        coffeeSourceId: true,
+        materialOrigin: true,
+        roastLevel: true,
+        sourceGreenBean: { select: { tenantId: true, type: true, coffeeSourceId: true } },
+      },
+    });
+    const materialError = validateOfferingMaterial(material, parsed.data, tenantId);
+    if (materialError) return { success: false, error: materialError };
     const existing = await tp.coffeeOffering.findUnique({
       where: { id: input.id },
       select: { code: true },
@@ -1848,6 +1932,7 @@ export async function updateOffering(input: OfferingInput & { id: string }): Pro
           roastLevel: parsed.data.roastLevel ?? null,
           sourceMode: parsed.data.sourceMode,
           coffeeSourceId: parsed.data.coffeeSourceId,
+          lineageProductId: parsed.data.lineageProductId,
           grindOptions: parsed.data.grindOptions,
           allowCustomGrind: parsed.data.allowCustomGrind,
           isActive: parsed.data.isActive,

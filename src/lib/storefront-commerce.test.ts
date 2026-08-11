@@ -32,9 +32,12 @@ describe("calculateStorefrontTotals", () => {
 describe("allocateProducedStockToDemand", () => {
   function transaction() {
     return {
-      product: { findUnique: vi.fn().mockResolvedValue({ stockUnit: 2000 }) },
+      $queryRawUnsafe: vi.fn().mockResolvedValue([
+        { id: "finished-good-1", type: "FINISHED_GOODS", stockKg: 0, stockUnit: 2000 },
+      ]),
       stockReservation: {
-        aggregate: vi.fn().mockResolvedValue({ _sum: { quantity: null } }),
+        aggregate: vi.fn().mockResolvedValue({ _sum: { quantity: null, quantityKg: null } }),
+        findUnique: vi.fn().mockResolvedValue(null),
         upsert: vi.fn().mockResolvedValue({}),
       },
       fulfillmentTask: {
@@ -59,6 +62,7 @@ describe("allocateProducedStockToDemand", () => {
         status: "UNPAID",
         createdById: "user-1",
         reservationExpiresAt: null,
+        items: [],
       },
     }));
   }

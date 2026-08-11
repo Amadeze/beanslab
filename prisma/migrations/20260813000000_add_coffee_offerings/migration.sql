@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "OfferingSourceMode" AS ENUM ('INTERNAL_ROAST', 'PURCHASED_ROASTED');
 -- AlterTable
 ALTER TABLE "stock_reservations" ADD COLUMN     "quantityKg" DECIMAL(10,3);

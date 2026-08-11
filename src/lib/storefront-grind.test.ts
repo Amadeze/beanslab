@@ -49,12 +49,14 @@ describe("buildOfferingSnapshot", () => {
   it("normalizes a null roast level into the snapshot", () => {
     expect(buildOfferingSnapshot({
       offeringId: "off-1",
+      offeringVariantId: "var-1",
       offeringName: "Kopi Aceh Gayo",
       packageName: "250g Bungkus",
       netWeightGrams: 250,
       roastLevel: null,
     })).toEqual({
       offeringId: "off-1",
+      offeringVariantId: "var-1",
       offeringName: "Kopi Aceh Gayo",
       packageName: "250g Bungkus",
       netWeightGrams: 250,
@@ -65,13 +67,13 @@ describe("buildOfferingSnapshot", () => {
 
 describe("offeringReserveKg", () => {
   it("converts package count and net weight to an exact kg reserve", () => {
-    expect(offeringReserveKg(3, 250)).toEqual({ quantityKg: 0.75, units: 1 });
-    expect(offeringReserveKg(5, 250)).toEqual({ quantityKg: 1.25, units: 2 });
+    expect(offeringReserveKg(3, 250)).toEqual({ quantityKg: 0.75, units: 3 });
+    expect(offeringReserveKg(5, 250)).toEqual({ quantityKg: 1.25, units: 5 });
     expect(offeringReserveKg(1, 1000)).toEqual({ quantityKg: 1, units: 1 });
   });
 
   it("keeps 3 decimals of precision for fractional weights", () => {
     expect(offeringReserveKg(1, 333)).toEqual({ quantityKg: 0.333, units: 1 });
-    expect(offeringReserveKg(2, 333)).toEqual({ quantityKg: 0.666, units: 1 });
+    expect(offeringReserveKg(2, 333)).toEqual({ quantityKg: 0.666, units: 2 });
   });
 });

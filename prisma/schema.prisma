@@ -807,6 +807,12 @@ model CoffeeOffering {
   sourceMode     OfferingSourceMode
   roastLevel     String? // "LIGHT"/"MEDIUM"/... atau label kustom tenant
 
+  // Binding lineage eksplisit (opsional): produk ROASTED_BEAN yang menampung
+  // stok/reservasi untuk offering ini. Saat kosong, resolver storefront
+  // menurunkan lineage otomatis dari (CoffeeSource + sourceMode + roastLevel)
+  // dan WAJIB menghasilkan tepat satu kandidat — ambiguitas ditolak.
+  lineageProductId String? // FK → Product (type = ROASTED_BEAN)
+
   grindOptions     GrindSize[] @default([WHOLE_BEAN])
   allowCustomGrind Boolean     @default(true)
 
@@ -815,15 +821,17 @@ model CoffeeOffering {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenantId     String
-  tenant       Tenant            @relation(fields: [tenantId], references: [id])
-  coffeeSource CoffeeSource      @relation(fields: [coffeeSourceId], references: [id], onDelete: Restrict)
-  variants     OfferingVariant[]
-  invoiceItems InvoiceItem[]
+  tenantId       String
+  tenant         Tenant            @relation(fields: [tenantId], references: [id])
+  coffeeSource   CoffeeSource      @relation(fields: [coffeeSourceId], references: [id], onDelete: Restrict)
+  lineageProduct Product?          @relation("OfferingLineageProduct", fields: [lineageProductId], references: [id], onDelete: SetNull)
+  variants       OfferingVariant[]
+  invoiceItems   InvoiceItem[]
 
   @@unique([tenantId, code])
   @@index([tenantId, isActive, sortOrder])
   @@index([tenantId, coffeeSourceId])
+  @@index([tenantId, lineageProductId])
   @@map("coffee_offerings")
 }
 
@@ -906,6 +914,7 @@ model Product {
   sourceGreenBean    Product?              @relation("GreenBeanRoastOutputs", fields: [sourceGreenBeanId], references: [id], onDelete: SetNull)
   roastLevelOutputs  Product[]             @relation("GreenBeanRoastOutputs")
   coffeeSource       CoffeeSource?         @relation(fields: [coffeeSourceId], references: [id], onDelete: SetNull)
+  offeringLineages   CoffeeOffering[]      @relation("OfferingLineageProduct")
 
   // Relasi resep & produksi
   recipeItems       RecipeItem[]
@@ -1647,11 +1656,12 @@ model InvoiceItem {
   // ── Snapshot penawaran kopi (immutable setelah invoice di-ISSUED) ──
   // Menyimpan paket, berat bersih, roast/base, dan nama penawaran persis
   // seperti saat checkout — tahan terhadap perubahan katalog berikutnya.
-  offeringId     String?
-  offeringName   String?
-  packageName    String?
-  netWeightGrams Decimal? @db.Decimal(8, 2)
-  roastLevel     String?
+  offeringId        String?
+  offeringVariantId String? // immutable identity of the selected sellable variant
+  offeringName      String?
+  packageName       String?
+  netWeightGrams    Decimal? @db.Decimal(8, 2)
+  roastLevel        String?
 
   invoice       Invoice         @relation(fields: [invoiceId], references: [id])
   product       Product         @relation(fields: [productId], references: [id])
@@ -1664,6 +1674,7 @@ model InvoiceItem {
   @@index([invoiceId])
   @@index([contractPriceId])
   @@index([offeringId])
+  @@index([offeringVariantId])
   @@map("invoice_items")
 }
 

@@ -2,8 +2,38 @@ import { appendFefoLedgerOut } from "./stock";
 import { postSalesInvoice } from "./posting";
 
 // Kept structural so the helper works with both PrismaClient and a transaction client.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type StorefrontTx = any;
+
+// KG-based products hold their balance in stockKg; unit-based products in stockUnit.
+export function isKgBasedProductType(type: string | null | undefined) {
+  return type === "GREEN_BEAN" || type === "ROASTED_BEAN";
+}
+
+function roundKg(value: number) {
+  return Math.round(value * 1000) / 1000;
+}
+
+// Lock the product row FOR UPDATE so concurrent checkouts serialize on the
+// same row before reading availability — no oversell under READ COMMITTED.
+async function lockProductForUpdate(tx: StorefrontTx, tenantId: string, productId: string) {
+  const rows = await tx.$queryRawUnsafe(
+    `SELECT "id", "type", "stockKg", "stockUnit" FROM "products" WHERE "id" = $1 AND "tenantId" = $2 FOR UPDATE`,
+    productId,
+    tenantId,
+  ) as Array<{ id: string; type: string; stockKg: string | number | null; stockUnit: string | number | null }>;
+  return rows[0];
+}
+
+async function aggregateActiveReservations(tx: StorefrontTx, tenantId: string, productId: string) {
+  const agg = await tx.stockReservation.aggregate({
+    where: { tenantId, productId, status: "ACTIVE" },
+    _sum: { quantity: true, quantityKg: true },
+  });
+  return {
+    units: Number(agg._sum.quantity ?? 0),
+    kg: Number(agg._sum.quantityKg ?? 0),
+  };
+}
 
 export type StorefrontRules = {
   pickupEnabled: boolean;
@@ -42,30 +72,69 @@ export async function reserveInvoiceStock(
 ) {
   let hasShortage = false;
   for (const item of input.items) {
-    const [product, active] = await Promise.all([
-      tx.product.findUnique({ where: { id: item.productId }, select: { stockUnit: true } }),
-      tx.stockReservation.aggregate({
-        where: { tenantId: input.tenantId, productId: item.productId, status: "ACTIVE" },
-        _sum: { quantity: true },
-      }),
-    ]);
-    const available = Math.max(0, Number(product?.stockUnit ?? 0) - Number(active._sum.quantity ?? 0));
-    const reserved = Math.min(item.quantity, available);
-    const shortage = item.quantity - reserved;
+    const product = await lockProductForUpdate(tx, input.tenantId, item.productId);
+    if (!product) throw new Error("Produk tidak ditemukan.");
+    const reserved = await aggregateActiveReservations(tx, input.tenantId, item.productId);
+
+    const isKgBased = isKgBasedProductType(product.type);
+    if (isKgBased) {
+      // Ketersediaan KG berasal dari stockKg (cache ledger) dikurangi
+      // reservasi ACTIVE dalam kg — bukan dari stockUnit.
+      const requestedKg = Number.isFinite(item.quantityKg ?? NaN) ? Number(item.quantityKg) : item.quantity;
+      if (!Number.isFinite(requestedKg) || requestedKg <= 0) {
+        throw new Error("Berat reservasi harus lebih dari 0 kg.");
+      }
+      const availableKg = Math.max(0, Number(product.stockKg ?? 0) - reserved.kg);
+      const reservedKg = roundKg(Math.min(requestedKg, availableKg));
+      const fullyReserved = reservedKg >= roundKg(requestedKg);
+      hasShortage ||= !fullyReserved;
+
+      if (reservedKg > 0) {
+        await tx.stockReservation.create({
+          data: {
+            tenantId: input.tenantId,
+            invoiceId: input.invoiceId,
+            productId: item.productId,
+            // `quantity` preserves the number of customer packages. For a
+            // kg-backed product, quantityKg is the authoritative stock value.
+            quantity: item.quantity,
+            quantityKg: reservedKg,
+            expiresAt: input.expiresAt,
+          },
+        });
+      }
+      if (!fullyReserved) {
+        await tx.fulfillmentTask.create({
+          data: {
+            tenantId: input.tenantId,
+            invoiceId: input.invoiceId,
+            productId: item.productId,
+            requestedQuantity: item.quantity,
+            // A partial material reservation cannot be mapped safely to a
+            // specific package when variants have different weights. Keep
+            // the whole grouped line open until its exact kg requirement is met.
+            reservedQuantity: 0,
+            shortageQuantity: item.quantity,
+            notes: "Dibuat otomatis dari checkout storefront; prioritaskan produksi dan packing.",
+          },
+        });
+      }
+      continue;
+    }
+
+    const availableUnits = Math.max(0, Number(product.stockUnit ?? 0) - reserved.units);
+    const reservedUnits = Math.min(item.quantity, availableUnits);
+    const shortage = item.quantity - reservedUnits;
     hasShortage ||= shortage > 0;
 
-    if (reserved > 0) {
+    if (reservedUnits > 0) {
       await tx.stockReservation.create({
         data: {
           tenantId: input.tenantId,
           invoiceId: input.invoiceId,
           productId: item.productId,
-          quantity: reserved,
-          // Offering lines hold the reservation in kg (1 stock unit = 1 kg).
-          // The kg cap uses the same available pool as the unit cap.
-          quantityKg: Number.isFinite(item.quantityKg ?? NaN)
-            ? Math.min(item.quantityKg!, available)
-            : null,
+          quantity: reservedUnits,
+          quantityKg: null,
           expiresAt: input.expiresAt,
         },
       });
@@ -77,7 +146,7 @@ export async function reserveInvoiceStock(
           invoiceId: input.invoiceId,
           productId: item.productId,
           requestedQuantity: item.quantity,
-          reservedQuantity: reserved,
+          reservedQuantity: reservedUnits,
           shortageQuantity: shortage,
           notes: "Dibuat otomatis dari checkout storefront; prioritaskan produksi dan packing.",
         },
@@ -228,21 +297,33 @@ export async function allocateProducedStockToDemand(
   input: { tenantId: string; productId: string; createdById: string; now?: Date },
 ) {
   const now = input.now ?? new Date();
-  const [product, active] = await Promise.all([
-    tx.product.findUnique({ where: { id: input.productId }, select: { stockUnit: true, type: true } }),
-    tx.stockReservation.aggregate({
-      where: { tenantId: input.tenantId, productId: input.productId, status: "ACTIVE" },
-      _sum: { quantity: true },
-    }),
-  ]);
+  const product = await lockProductForUpdate(tx, input.tenantId, input.productId);
+  if (!product) throw new Error("Produk tidak ditemukan.");
+  const isKgBased = isKgBasedProductType(product.type);
+  const reserved = await aggregateActiveReservations(tx, input.tenantId, input.productId);
   // GB/RB products hold their balance in kg; FG/PACKAGING products in units.
-  const isKgBased = product?.type === "GREEN_BEAN" || product?.type === "ROASTED_BEAN";
-  let available = Math.max(0, Number(product?.stockUnit ?? 0) - Number(active._sum.quantity ?? 0));
+  let available = isKgBased
+    ? Math.max(0, Number(product.stockKg ?? 0) - reserved.kg)
+    : Math.max(0, Number(product.stockUnit ?? 0) - reserved.units);
   if (available === 0) return { allocatedUnits: 0, completedTasks: 0 };
 
   const tasks = await tx.fulfillmentTask.findMany({
     where: { tenantId: input.tenantId, productId: input.productId, status: { in: ["OPEN", "IN_PROGRESS"] } },
-    include: { invoice: { select: { id: true, code: true, status: true, createdById: true, reservationExpiresAt: true } } },
+    include: {
+      invoice: {
+        select: {
+          id: true,
+          code: true,
+          status: true,
+          createdById: true,
+          reservationExpiresAt: true,
+          items: {
+            where: { productId: input.productId },
+            select: { quantity: true, netWeightGrams: true },
+          },
+        },
+      },
+    },
     orderBy: { createdAt: "asc" },
   });
   let allocatedUnits = 0;
@@ -253,28 +334,98 @@ export async function allocateProducedStockToDemand(
       await tx.fulfillmentTask.update({ where: { id: task.id }, data: { status: "CANCELLED" } });
       continue;
     }
+    if (isKgBased) {
+      const requiredKgFromSnapshot = roundKg(task.invoice.items.reduce(
+        (sum: number, item: { quantity: unknown; netWeightGrams: unknown }) =>
+          sum + (Number(item.quantity) * Number(item.netWeightGrams ?? 0) / 1000),
+        0,
+      ));
+      // Legacy tasks created before offering snapshots used one task unit per
+      // kg. Preserve that fallback, while new offering orders use exact weight.
+      const requiredKg = requiredKgFromSnapshot > 0
+        ? requiredKgFromSnapshot
+        : Number(task.requestedQuantity);
+      const currentReservation = await tx.stockReservation.findUnique({
+        where: {
+          invoiceId_productId: {
+            invoiceId: task.invoiceId,
+            productId: input.productId,
+          },
+        },
+        select: { quantityKg: true },
+      });
+      const alreadyReservedKg = Number(currentReservation?.quantityKg ?? 0);
+      const missingKg = roundKg(Math.max(0, requiredKg - alreadyReservedKg));
+      const allocatedKg = roundKg(Math.min(available, missingKg));
+      if (allocatedKg <= 0) continue;
+
+      await tx.stockReservation.upsert({
+        where: { invoiceId_productId: { invoiceId: task.invoiceId, productId: input.productId } },
+        create: {
+          tenantId: input.tenantId,
+          invoiceId: task.invoiceId,
+          productId: input.productId,
+          quantity: task.requestedQuantity,
+          quantityKg: allocatedKg,
+          expiresAt: task.invoice.reservationExpiresAt ?? new Date(now.getTime() + 24 * 60 * 60 * 1_000),
+        },
+        update: {
+          quantity: task.requestedQuantity,
+          quantityKg: { increment: allocatedKg },
+          status: "ACTIVE",
+          releasedAt: null,
+        },
+      });
+      const completed = roundKg(missingKg - allocatedKg) <= 0;
+      await tx.fulfillmentTask.update({
+        where: { id: task.id },
+        data: {
+          reservedQuantity: completed ? task.requestedQuantity : 0,
+          shortageQuantity: completed ? 0 : task.requestedQuantity,
+          status: completed ? "COMPLETED" : "IN_PROGRESS",
+          completedAt: completed ? now : null,
+        },
+      });
+      if (completed) {
+        completedTasks += 1;
+        const remaining = await tx.fulfillmentTask.count({
+          where: { invoiceId: task.invoiceId, id: { not: task.id }, status: { in: ["OPEN", "IN_PROGRESS"] } },
+        });
+        if (remaining === 0) {
+          await tx.invoice.update({
+            where: { id: task.invoiceId },
+            data: { fulfillmentStatus: task.invoice.status === "PAID" ? "READY_TO_PACK" : "AWAITING_PAYMENT" },
+          });
+        }
+        allocatedUnits += task.requestedQuantity;
+      }
+      available = roundKg(available - allocatedKg);
+      continue;
+    }
+
     const allocated = Math.min(available, task.shortageQuantity);
+    const allocatedUnitsDelta = allocated;
     await tx.stockReservation.upsert({
         where: { invoiceId_productId: { invoiceId: task.invoiceId, productId: input.productId } },
         create: {
           tenantId: input.tenantId, invoiceId: task.invoiceId, productId: input.productId,
-          quantity: allocated,
-          quantityKg: isKgBased ? allocated : null,
+          quantity: allocatedUnitsDelta,
+          quantityKg: null,
           expiresAt: task.invoice.reservationExpiresAt ?? new Date(now.getTime() + 24 * 60 * 60 * 1_000),
         },
         update: {
-          quantity: { increment: allocated },
-          quantityKg: isKgBased ? { increment: allocated } : undefined,
+          quantity: { increment: allocatedUnitsDelta },
+          quantityKg: undefined,
           status: "ACTIVE",
           releasedAt: null,
         },
     });
-    const shortageQuantity = task.shortageQuantity - allocated;
+    const shortageQuantity = task.shortageQuantity - allocatedUnitsDelta;
     const completed = shortageQuantity === 0;
     await tx.fulfillmentTask.update({
       where: { id: task.id },
       data: {
-        reservedQuantity: { increment: allocated }, shortageQuantity,
+        reservedQuantity: { increment: allocatedUnitsDelta }, shortageQuantity,
         status: completed ? "COMPLETED" : "IN_PROGRESS", completedAt: completed ? now : null,
       },
     });
@@ -291,7 +442,7 @@ export async function allocateProducedStockToDemand(
       }
     }
     available -= allocated;
-    allocatedUnits += allocated;
+    allocatedUnits += allocatedUnitsDelta;
   }
   return { allocatedUnits, completedTasks };
 }

@@ -76,6 +76,9 @@ export type StorefrontOffering = {
   grindOptions: StorefrontGrindSize[];
   allowCustomGrind: boolean;
   coffeeSource: { name: string } | null;
+  lineageProductId?: string | null;
+  availableKg?: number | null;
+  unavailableReason?: string | null;
   variants: Array<{
     id: string;
     packageName: string;
@@ -88,6 +91,7 @@ export type StorefrontOffering = {
 // at checkout time so later edits to the offering/variant never rewrite history.
 export type OfferingSnapshot = {
   offeringId: string;
+  offeringVariantId: string;
   offeringName: string;
   packageName: string;
   netWeightGrams: number;
@@ -96,6 +100,7 @@ export type OfferingSnapshot = {
 
 export function buildOfferingSnapshot(fields: {
   offeringId: string;
+  offeringVariantId: string;
   offeringName: string;
   packageName: string;
   netWeightGrams: number;
@@ -103,6 +108,7 @@ export function buildOfferingSnapshot(fields: {
 }): OfferingSnapshot {
   return {
     offeringId: fields.offeringId,
+    offeringVariantId: fields.offeringVariantId,
     offeringName: fields.offeringName,
     packageName: fields.packageName,
     netWeightGrams: fields.netWeightGrams,
@@ -111,11 +117,11 @@ export function buildOfferingSnapshot(fields: {
 }
 
 // Reserved stock for an offering is held in kg on the lineage roasted bean
-// product (1 stock unit = 1 kg). `units` is the ceiling for reservation
-// quantity (integer, min 1); `quantityKg` is the exact weight with 3 decimals.
+// product. `units` preserves the customer package count; `quantityKg` is the
+// authoritative stock amount with 3 decimals.
 export function offeringReserveKg(packageCount: number, netWeightGrams: number) {
   const quantityKg = Math.round((packageCount * netWeightGrams / 1000) * 1000) / 1000;
-  return { quantityKg, units: Math.max(1, Math.ceil(quantityKg)) };
+  return { quantityKg, units: packageCount };
 }
 
 export function aggregateStorefrontStock(
