@@ -37,7 +37,7 @@ export async function reserveInvoiceStock(
     tenantId: string;
     invoiceId: string;
     expiresAt: Date;
-    items: Array<{ productId: string; quantity: number }>;
+    items: Array<{ productId: string; quantity: number; quantityKg?: number | null }>;
   },
 ) {
   let hasShortage = false;
@@ -61,6 +61,11 @@ export async function reserveInvoiceStock(
           invoiceId: input.invoiceId,
           productId: item.productId,
           quantity: reserved,
+          // Offering lines hold the reservation in kg (1 stock unit = 1 kg).
+          // The kg cap uses the same available pool as the unit cap.
+          quantityKg: Number.isFinite(item.quantityKg ?? NaN)
+            ? Math.min(item.quantityKg!, available)
+            : null,
           expiresAt: input.expiresAt,
         },
       });
@@ -109,7 +114,15 @@ export async function fulfillInvoiceAtHandover(
     where: { id: input.invoiceId, tenantId: input.tenantId },
     include: {
       customer: { select: { name: true } },
-      items: { select: { productId: true, quantity: true, hpp: true, product: { select: { type: true } } } },
+      items: {
+        select: {
+          productId: true,
+          quantity: true,
+          hpp: true,
+          netWeightGrams: true,
+          product: { select: { type: true } },
+        },
+      },
     },
   });
   if (!invoice) throw new Error("Invoice tidak ditemukan.");
@@ -124,23 +137,47 @@ export async function fulfillInvoiceAtHandover(
   const reservations = await tx.stockReservation.findMany({
     where: { tenantId: input.tenantId, invoiceId: invoice.id, status: "ACTIVE" },
   });
-  const reservedByProduct = new Map<string, number>();
+  // Offering lines reserve in kg (1 unit = 1 kg on the roasted bean product);
+  // product lines reserve in stock units. A single product is never used in
+  // both modes, so the two maps stay independent per product.
+  const kgReservedByProduct = new Map<string, number>();
+  const unitReservedByProduct = new Map<string, number>();
   for (const reservation of reservations) {
-    reservedByProduct.set(reservation.productId, (reservedByProduct.get(reservation.productId) ?? 0) + Number(reservation.quantity));
+    if (reservation.quantityKg != null) {
+      kgReservedByProduct.set(
+        reservation.productId,
+        (kgReservedByProduct.get(reservation.productId) ?? 0) + Number(reservation.quantityKg),
+      );
+    } else {
+      unitReservedByProduct.set(
+        reservation.productId,
+        (unitReservedByProduct.get(reservation.productId) ?? 0) + Number(reservation.quantity),
+      );
+    }
   }
   for (const item of invoice.items) {
-    if ((reservedByProduct.get(item.productId) ?? 0) < Number(item.quantity)) {
+    const netWeightGrams = Number(item.netWeightGrams ?? 0);
+    if (netWeightGrams > 0) {
+      const requiredKg = Math.round((Number(item.quantity) * netWeightGrams / 1000) * 1000) / 1000;
+      if ((kgReservedByProduct.get(item.productId) ?? 0) < requiredKg) {
+        throw new Error("Stok pesanan belum seluruhnya dialokasikan.");
+      }
+    } else if ((unitReservedByProduct.get(item.productId) ?? 0) < Number(item.quantity)) {
       throw new Error("Stok pesanan belum seluruhnya dialokasikan.");
     }
   }
 
   for (const reservation of reservations) {
+    // Kg-mode reservations (offering lines) consume the roasted bean product
+    // balance in kg; unit-mode reservations consume stock units.
+    const isKgReservation = reservation.quantityKg != null;
     await appendFefoLedgerOut(tx, {
       tenantId: input.tenantId,
       productId: reservation.productId,
       refType: "SALE_FG_OUT",
       refId: invoice.id,
-      quantityUnit: Number(reservation.quantity),
+      quantityUnit: isKgReservation ? 0 : Number(reservation.quantity),
+      quantityKg: isKgReservation ? Number(reservation.quantityKg) : 0,
       notes: `Penyerahan pesanan: ${invoice.code}`,
       createdById: input.createdById,
     });
@@ -192,12 +229,14 @@ export async function allocateProducedStockToDemand(
 ) {
   const now = input.now ?? new Date();
   const [product, active] = await Promise.all([
-    tx.product.findUnique({ where: { id: input.productId }, select: { stockUnit: true } }),
+    tx.product.findUnique({ where: { id: input.productId }, select: { stockUnit: true, type: true } }),
     tx.stockReservation.aggregate({
       where: { tenantId: input.tenantId, productId: input.productId, status: "ACTIVE" },
       _sum: { quantity: true },
     }),
   ]);
+  // GB/RB products hold their balance in kg; FG/PACKAGING products in units.
+  const isKgBased = product?.type === "GREEN_BEAN" || product?.type === "ROASTED_BEAN";
   let available = Math.max(0, Number(product?.stockUnit ?? 0) - Number(active._sum.quantity ?? 0));
   if (available === 0) return { allocatedUnits: 0, completedTasks: 0 };
 
@@ -219,9 +258,16 @@ export async function allocateProducedStockToDemand(
         where: { invoiceId_productId: { invoiceId: task.invoiceId, productId: input.productId } },
         create: {
           tenantId: input.tenantId, invoiceId: task.invoiceId, productId: input.productId,
-          quantity: allocated, expiresAt: task.invoice.reservationExpiresAt ?? new Date(now.getTime() + 24 * 60 * 60 * 1_000),
+          quantity: allocated,
+          quantityKg: isKgBased ? allocated : null,
+          expiresAt: task.invoice.reservationExpiresAt ?? new Date(now.getTime() + 24 * 60 * 60 * 1_000),
         },
-        update: { quantity: { increment: allocated }, status: "ACTIVE", releasedAt: null },
+        update: {
+          quantity: { increment: allocated },
+          quantityKg: isKgBased ? { increment: allocated } : undefined,
+          status: "ACTIVE",
+          releasedAt: null,
+        },
     });
     const shortageQuantity = task.shortageQuantity - allocated;
     const completed = shortageQuantity === 0;

@@ -2,8 +2,9 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Coffee, Package, Phone, X } from "@phosphor-icons/react";
-import { ThemeProps } from "./ThemeProps";
+import { ThemeProps, ExtendedTenant } from "./ThemeProps";
 import { resolveSkin } from "./skins";
+import type { StorefrontOffering } from "@/lib/storefront-grind";
 
 // =============================================================================
 // UNIVERSAL PREMIUM THEME
@@ -20,13 +21,14 @@ import { STOREFRONT_GRIND_LABEL } from "@/lib/storefront-grind";
 
 export function UniversalTheme({
   tenant, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
-  customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleCheckout, mounted, heroGreeting, aboutText,
+  customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleAddOfferingToCart, handleCheckout, mounted, heroGreeting, aboutText,
   catalogTitle, catalogSubtitle, footerText, waLink, emailLink, igLink, iconProps, iconStroke, isDark,
   isCheckingOut, customerTier,
   paymentMethodId, setPaymentMethodId,
 }: ThemeProps) {
 
   const products = tenant.products || [];
+  const offerings: StorefrontOffering[] = (tenant as ExtendedTenant & { offerings?: StorefrontOffering[] }).offerings || [];
   const cartItems = cart.items[tenant.subdomain || ""] || [];
   const themeTenant = {
     ...tenant,
@@ -37,8 +39,8 @@ export function UniversalTheme({
   const skin = resolveSkin(tenant.layoutStyle);
 
   const themeProps = {
-    tenant: themeTenant, products, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
-    customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleCheckout, mounted, heroGreeting, aboutText,
+    tenant: themeTenant, products, offerings, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
+    customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleAddOfferingToCart, handleCheckout, mounted, heroGreeting, aboutText,
     catalogTitle, catalogSubtitle, footerText, waLink, emailLink, igLink, iconProps, iconStroke, isDark, isCheckingOut, customerTier
     , paymentMethodId, setPaymentMethodId
   };
@@ -137,7 +139,8 @@ export function UniversalTheme({
                         <p className="text-xs mb-2 text-[var(--t-text-muted)]">
                           Rp {item.price.toLocaleString("id-ID")}
                         </p>
-                        <p className="mb-2 text-[11px] font-semibold text-[var(--t-primary)]">
+<p className="text-[11px] font-semibold text-[var(--t-primary)]">
+                          {item.packageName ? `${item.packageName} · ` : ""}
                           {item.grindSize
                             ? (item.grindSize === "CUSTOM" ? item.customGrindLabel : STOREFRONT_GRIND_LABEL[item.grindSize as keyof typeof STOREFRONT_GRIND_LABEL])
                             : STOREFRONT_GRIND_LABEL.WHOLE_BEAN}

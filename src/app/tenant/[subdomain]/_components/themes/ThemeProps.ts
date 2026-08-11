@@ -1,7 +1,7 @@
 import { Tenant, Product } from "@prisma/client";
 import { CustomerTier } from "./pricing";
 import type { CartItem } from "../../_store/cartStore";
-import type { StorefrontGrindSize } from "@/lib/storefront-grind";
+import type { StorefrontGrindSize, StorefrontOffering } from "@/lib/storefront-grind";
 
 export type ExtendedTenant = Tenant & {
   portalThemeConfig?: any;
@@ -26,8 +26,9 @@ export interface CartStore {
 }
 
 export interface ThemeProps {
-  tenant: ExtendedTenant & { products: Product[] };
+  tenant: ExtendedTenant & { products: Product[]; offerings?: StorefrontOffering[] };
   products?: Product[];
+  offerings?: StorefrontOffering[];
   cart: CartStore;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
@@ -42,6 +43,12 @@ export interface ThemeProps {
   paymentMethodId?: string;
   setPaymentMethodId?: (val: string) => void;
   handleAddToCart: (product: Product, grindSize?: StorefrontGrindSize, customGrindLabel?: string | null) => void;
+  handleAddOfferingToCart: (
+    offering: StorefrontOffering,
+    variant: StorefrontOffering["variants"][number],
+    grindSize?: StorefrontGrindSize,
+    customGrindLabel?: string | null,
+  ) => void;
   handleCheckout: () => void;
   isCheckingOut?: boolean;
   mounted: boolean;

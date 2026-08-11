@@ -5,7 +5,12 @@ import { useCartStore } from "../_store/cartStore";
 import { useState, useEffect } from "react";
 import { ThemeEngine } from "./themes/ThemeEngine";
 import { UniversalTheme } from "./themes/UniversalTheme";
-import { storefrontLineId, type StorefrontGrindSize } from "@/lib/storefront-grind";
+import {
+  offeringLineId,
+  storefrontLineId,
+  type StorefrontGrindSize,
+  type StorefrontOffering,
+} from "@/lib/storefront-grind";
 
 // =============================================================================
 // TENANT PORTAL CLIENT — $10k Architecture
@@ -45,7 +50,7 @@ type StorefrontProduct = Product & {
 };
 
 interface TenantPortalClientProps {
-  tenant: ExtendedTenant & { products: StorefrontProduct[] };
+  tenant: ExtendedTenant & { products: StorefrontProduct[]; offerings: StorefrontOffering[] };
 }
 
 export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
@@ -132,6 +137,31 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
     setIsCartOpen(true);
   };
 
+  const handleAddOfferingToCart = (
+    offering: StorefrontOffering,
+    variant: StorefrontOffering["variants"][number],
+    grindSize?: StorefrontGrindSize,
+    customGrindLabel: string | null = null,
+  ) => {
+    const resolvedGrindSize = grindSize ?? offering.grindOptions[0] ?? "WHOLE_BEAN";
+    cart.addItem(tenant.subdomain || "", {
+      id: offeringLineId(offering.id, variant.id, resolvedGrindSize, customGrindLabel),
+      productId: null,
+      offeringId: offering.id,
+      variantId: variant.id,
+      code: offering.code,
+      name: offering.name,
+      imageUrl: offering.imageUrl,
+      price: Number(variant.unitPrice || 0),
+      grindSize: resolvedGrindSize,
+      customGrindLabel,
+      packageName: variant.packageName,
+      netWeightGrams: Number(variant.netWeightGrams || 0),
+      roastLevel: offering.roastLevel ?? null,
+    });
+    setIsCartOpen(true);
+  };
+
   const handleCheckout = async () => {
     if (isCheckingOut) return;
     if (!customerName || !customerPhone || (shippingMethod !== "PICKUP" && !customerAddress)) {
@@ -210,7 +240,7 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
   // Always render the full portal with cart, checkout, dashboard
   const themeProps = {
     tenant, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
-    customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleCheckout, mounted, heroGreeting, aboutText,
+    customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleAddOfferingToCart, handleCheckout, mounted, heroGreeting, aboutText,
     catalogTitle, catalogSubtitle, footerText, waLink, emailLink, igLink, iconProps, iconStroke, isDark,
     isCheckingOut,
     paymentMethodId,

@@ -148,6 +148,32 @@ export type SupplyItemRow = {
   reorderLookbackDays: number;
 };
 
+export type OfferingVariantRow = {
+  id: string;
+  packageName: string;
+  netWeightGrams: number;
+  unitPrice: number;
+  supplyItemId: string | null;
+  isActive: boolean;
+};
+
+export type OfferingRow = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  coffeeSourceId: string;
+  coffeeSource: CoffeeSourceRow | null;
+  sourceMode: "PURCHASED_ROASTED" | "INTERNAL_ROAST";
+  roastLevel: string | null;
+  grindOptions: string[];
+  allowCustomGrind: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  variants: OfferingVariantRow[];
+};
+
 export type MasterPageData = {
   suppliers:  SupplierRow[];
   customers:  CustomerRow[];
@@ -155,6 +181,8 @@ export type MasterPageData = {
   packagings: PackagingRow[];
   supplyItems: SupplyItemRow[];
   users:      UserRow[];
+  coffeeSources: CoffeeSourceRow[];
+  offerings:  OfferingRow[];
 };
 
 // =============================================================================
@@ -164,7 +192,7 @@ export type MasterPageData = {
 export async function getMasterData(): Promise<MasterPageData> {
   await requireRole("OWNER", "MANAGER", "OPERATOR");
   const tp = await requireTenantPrisma();
-  const [suppliers, customers, products, packagings, supplyItems, users] = await Promise.all([
+  const [suppliers, customers, products, packagings, supplyItems, users, coffeeSources, offerings] = await Promise.all([
     tp.supplier.findMany({
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { purchases: true } } },
@@ -274,6 +302,32 @@ export async function getMasterData(): Promise<MasterPageData> {
         role: true, 
         isActive: true, 
         createdAt: true 
+      },
+    }),
+
+    tp.coffeeSource.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: {
+        id: true, code: true, name: true, country: true, region: true,
+        farm: true, species: true, varietal: true, processMethod: true,
+        fermentationMethod: true, elevation: true, cropYear: true,
+        certifications: true, tastingNotes: true, isActive: true,
+      },
+    }),
+
+    tp.coffeeOffering.findMany({
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      include: {
+        coffeeSource: {
+          select: {
+            id: true, code: true, name: true, country: true, region: true,
+            farm: true, species: true, varietal: true, processMethod: true,
+            fermentationMethod: true, elevation: true, cropYear: true,
+            certifications: true, tastingNotes: true, isActive: true,
+          },
+        },
+        variants: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
       },
     }),
   ]);
@@ -410,6 +464,66 @@ export async function getMasterData(): Promise<MasterPageData> {
       isActive: user.isActive,
       createdAt: user.createdAt.toISOString(),
     })),
+
+    coffeeSources: coffeeSources.map((source) => ({
+      id: source.id,
+      code: source.code,
+      name: source.name,
+      country: source.country,
+      region: source.region,
+      farm: source.farm,
+      species: source.species,
+      varietal: source.varietal,
+      processMethod: source.processMethod,
+      fermentationMethod: source.fermentationMethod,
+      elevation: source.elevation,
+      cropYear: source.cropYear,
+      certifications: source.certifications,
+      tastingNotes: source.tastingNotes,
+      isActive: source.isActive,
+    })),
+
+    offerings: offerings.map((offering) => ({
+      id: offering.id,
+      code: offering.code,
+      name: offering.name,
+      description: offering.description,
+      imageUrl: offering.imageUrl,
+      coffeeSourceId: offering.coffeeSourceId,
+      coffeeSource: offering.coffeeSource
+        ? {
+            id: offering.coffeeSource.id,
+            code: offering.coffeeSource.code,
+            name: offering.coffeeSource.name,
+            country: offering.coffeeSource.country,
+            region: offering.coffeeSource.region,
+            farm: offering.coffeeSource.farm,
+            species: offering.coffeeSource.species,
+            varietal: offering.coffeeSource.varietal,
+            processMethod: offering.coffeeSource.processMethod,
+            fermentationMethod: offering.coffeeSource.fermentationMethod,
+            elevation: offering.coffeeSource.elevation,
+            cropYear: offering.coffeeSource.cropYear,
+            certifications: offering.coffeeSource.certifications,
+            tastingNotes: offering.coffeeSource.tastingNotes,
+            isActive: offering.coffeeSource.isActive,
+          }
+        : null,
+      sourceMode: offering.sourceMode,
+      roastLevel: offering.roastLevel,
+      grindOptions: offering.grindOptions,
+      allowCustomGrind: offering.allowCustomGrind,
+      isActive: offering.isActive,
+      sortOrder: offering.sortOrder,
+      variants: offering.variants.map((variant) => ({
+        id: variant.id,
+        packageName: variant.packageName,
+        netWeightGrams: Number(variant.netWeightGrams),
+        unitPrice: Number(variant.unitPrice),
+        supplyItemId: variant.supplyItemId,
+        isActive: variant.isActive,
+      })),
+    })),
   };
 }
 
@@ -427,6 +541,8 @@ export async function getCustomerDirectoryData(): Promise<MasterPageData> {
     packagings: [],
     supplyItems: [],
     users: [],
+    coffeeSources: [],
+    offerings: [],
     customers: customers.map((customer) => ({
       id: customer.id,
       code: customer.code,
@@ -1608,5 +1724,159 @@ export async function renameRbProducts(): Promise<{ success: boolean; renamed: n
   } catch (err) {
     console.error("[renameRbProducts]", err);
     return { success: false, renamed: 0, skipped: 0, error: err instanceof Error ? err.message : "Gagal merename produk." };
+  }
+}
+
+// =============================================================================
+// COFFEE OFFERING — CREATE & UPDATE
+// Penawaran kopi: varian kemasan yang dijual di storefront. Identitas akar
+// adalah CoffeeSource; stok ditahan dalam kg pada produk roasted bean terkait
+// saat checkout. Tidak menyentuh ledger/stok/akuntansi di sini.
+// =============================================================================
+
+const OFFERING_GRIND_OPTIONS = [
+  "WHOLE_BEAN",
+  "COARSE",
+  "MEDIUM_COARSE",
+  "MEDIUM",
+  "MEDIUM_FINE",
+  "FINE",
+  "ESPRESSO",
+  "CUSTOM",
+] as const;
+
+const offeringSchema = z.object({
+  name: z.string().trim().min(2, "Nama penawaran minimal 2 karakter").max(120),
+  description: z.string().trim().max(500).nullable().optional(),
+  imageUrl: z.string().trim().max(500).nullable().optional(),
+  roastLevel: z.enum(["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"]).nullable().optional(),
+  sourceMode: z.enum(["PURCHASED_ROASTED", "INTERNAL_ROAST"]),
+  coffeeSourceId: z.string().min(1, "Pilih sumber kopi"),
+  grindOptions: z.array(z.enum(OFFERING_GRIND_OPTIONS)).min(1).default(["WHOLE_BEAN"]),
+  allowCustomGrind: z.boolean().default(true),
+  isActive: z.boolean().default(true),
+  sortOrder: z.number().int().min(0).max(9999).default(0),
+  variants: z.array(z.object({
+    packageName: z.string().trim().min(1, "Nama kemasan wajib diisi").max(80),
+    netWeightGrams: z.number().finite().min(1, "Berat bersih minimal 1 gram").max(1_000_000),
+    unitPrice: z.number().finite().min(0, "Harga tidak boleh negatif").max(1_000_000_000),
+    supplyItemId: z.string().nullable().optional(),
+    isActive: z.boolean().default(true),
+  })).min(1, "Minimal satu varian kemasan").max(20),
+});
+
+export type OfferingInput = z.infer<typeof offeringSchema>;
+
+export async function createOffering(input: OfferingInput): Promise<ActionResult> {
+  try {
+    await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const tenantId = await getCurrentTenantId();
+    const parsed = offeringSchema.safeParse(input);
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data penawaran tidak valid." };
+
+    const tp = await requireTenantPrisma();
+    let offering: Awaited<ReturnType<typeof tp.coffeeOffering.create>> | null = null;
+    for (let attempt = 0; attempt < 4 && !offering; attempt += 1) {
+      const rows = await tp.coffeeOffering.findMany({
+        where: { code: { startsWith: "OFR-" } },
+        select: { code: true },
+      });
+      const code = `OFR-${String(nextSequence(rows.map((row) => row.code), "OFR")).padStart(3, "0")}`;
+      try {
+        offering = await tp.coffeeOffering.create({
+          data: {
+            tenantId,
+            code,
+            name: parsed.data.name,
+            description: emptyToNull(parsed.data.description),
+            imageUrl: emptyToNull(parsed.data.imageUrl),
+            roastLevel: parsed.data.roastLevel ?? null,
+            sourceMode: parsed.data.sourceMode,
+            coffeeSourceId: parsed.data.coffeeSourceId,
+            grindOptions: parsed.data.grindOptions,
+            allowCustomGrind: parsed.data.allowCustomGrind,
+            isActive: parsed.data.isActive,
+            sortOrder: parsed.data.sortOrder,
+            variants: {
+              create: parsed.data.variants.map((variant) => ({
+                tenantId,
+                packageName: variant.packageName,
+                netWeightGrams: variant.netWeightGrams,
+                unitPrice: variant.unitPrice,
+                supplyItemId: variant.supplyItemId || null,
+                isActive: variant.isActive,
+              })),
+            },
+          },
+        });
+      } catch (error) {
+        if (!isUniqueConstraintError(error) || attempt === 3) throw error;
+      }
+    }
+    if (!offering) throw new Error("Offering code allocation failed");
+
+    revalidatePath("/master-data");
+    revalidatePath("/katalog");
+    return { success: true, code: offering.code };
+  } catch (err) {
+    console.error("[createOffering]", err);
+    return { success: false, error: "Gagal menyimpan penawaran. Coba lagi." };
+  }
+}
+
+export async function updateOffering(input: OfferingInput & { id: string }): Promise<ActionResult> {
+  try {
+    await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const tenantId = await getCurrentTenantId();
+    const parsed = offeringSchema.safeParse(input);
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data penawaran tidak valid." };
+
+    const tp = await requireTenantPrisma();
+    const existing = await tp.coffeeOffering.findUnique({
+      where: { id: input.id },
+      select: { code: true },
+    });
+    if (!existing) return { success: false, error: "Penawaran tidak ditemukan." };
+
+    await tp.$transaction(async (tx) => {
+      await tx.coffeeOffering.update({
+        where: { id: input.id },
+        data: {
+          name: parsed.data.name,
+          description: emptyToNull(parsed.data.description),
+          imageUrl: emptyToNull(parsed.data.imageUrl),
+          roastLevel: parsed.data.roastLevel ?? null,
+          sourceMode: parsed.data.sourceMode,
+          coffeeSourceId: parsed.data.coffeeSourceId,
+          grindOptions: parsed.data.grindOptions,
+          allowCustomGrind: parsed.data.allowCustomGrind,
+          isActive: parsed.data.isActive,
+          sortOrder: parsed.data.sortOrder,
+        },
+      });
+
+      // Replace strategy: hapus varian lama, tulis ulang dari form.
+      await tx.offeringVariant.deleteMany({ where: { offeringId: input.id } });
+      if (parsed.data.variants.length > 0) {
+        await tx.offeringVariant.createMany({
+          data: parsed.data.variants.map((variant) => ({
+            tenantId,
+            offeringId: input.id,
+            packageName: variant.packageName,
+            netWeightGrams: variant.netWeightGrams,
+            unitPrice: variant.unitPrice,
+            supplyItemId: variant.supplyItemId || null,
+            isActive: variant.isActive,
+          })),
+        });
+      }
+    });
+
+    revalidatePath("/master-data");
+    revalidatePath("/katalog");
+    return { success: true, code: existing.code };
+  } catch (err) {
+    console.error("[updateOffering]", err);
+    return { success: false, error: "Gagal memperbarui penawaran. Coba lagi." };
   }
 }

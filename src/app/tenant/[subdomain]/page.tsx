@@ -117,6 +117,31 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
           { name: "asc" },
         ],
       },
+      offerings: {
+        where: { isActive: true },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          description: true,
+          imageUrl: true,
+          roastLevel: true,
+          grindOptions: true,
+          allowCustomGrind: true,
+          coffeeSource: { select: { name: true } },
+          variants: {
+            where: { isActive: true },
+            orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+            select: {
+              id: true,
+              packageName: true,
+              netWeightGrams: true,
+              unitPrice: true,
+            },
+          },
+        },
+      },
       tenantPaymentMethods: {
         where: { isActive: true },
         orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
@@ -212,7 +237,16 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
       priceGold: product.priceGold ? Number(product.priceGold) : null,
       stockKg: product.stockKg ? Number(product.stockKg) : null,
       stockUnit: product.stockUnit ? Number(product.stockUnit) : null,
-    }))
+    })),
+    offerings: tenant.offerings.map(offering => ({
+      ...offering,
+      grindOptions: offering.grindOptions,
+      variants: offering.variants.map(variant => ({
+        ...variant,
+        netWeightGrams: Number(variant.netWeightGrams),
+        unitPrice: Number(variant.unitPrice),
+      })),
+    })),
   };
 
   // Type cast back to any or specific shape since Client component expects Decimal type structurally

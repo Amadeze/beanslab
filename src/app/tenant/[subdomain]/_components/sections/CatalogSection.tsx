@@ -12,6 +12,7 @@ import type { Product } from "@prisma/client";
 import {
   STOREFRONT_GRIND_LABEL,
   type StorefrontGrindSize,
+  type StorefrontOffering,
 } from "@/lib/storefront-grind";
 
 type StorefrontProduct = Product & {
@@ -20,9 +21,16 @@ type StorefrontProduct = Product & {
 
 interface CatalogSectionProps {
   products: StorefrontProduct[];
+  offerings?: StorefrontOffering[];
   catalogTitle: string;
   catalogSubtitle: string;
   handleAddToCart: (product: Product, grindSize?: StorefrontGrindSize, customGrindLabel?: string | null) => void;
+  handleAddOfferingToCart: (
+    offering: StorefrontOffering,
+    variant: StorefrontOffering["variants"][number],
+    grindSize?: StorefrontGrindSize,
+    customGrindLabel?: string | null,
+  ) => void;
   customerTier?: CustomerTier;
   skin: ThemeSkin;
 }
@@ -60,7 +68,7 @@ function ProductVisual({ imageUrl, name }: { imageUrl: string | null; name: stri
 }
 
 export function CatalogSection({
-  products, catalogTitle, catalogSubtitle, handleAddToCart, customerTier = "RETAIL", skin,
+  products, offerings = [], catalogTitle, catalogSubtitle, handleAddToCart, handleAddOfferingToCart, customerTier = "RETAIL", skin,
 }: CatalogSectionProps) {
   const [activeCategory, setActiveCategory] = useState<string>("ALL");
   const [activeOrigin, setActiveOrigin] = useState<string>("ALL");
@@ -72,6 +80,37 @@ export function CatalogSection({
   const [showFilters, setShowFilters] = useState(false);
   const [grindSelections, setGrindSelections] = useState<Record<string, StorefrontGrindSize>>({});
   const [customGrindLabels, setCustomGrindLabels] = useState<Record<string, string>>({});
+  const [offeringQuantities, setOfferingQuantities] = useState<Record<string, number>>({});
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+
+  const offeringGrindOptions = (offering: StorefrontOffering): StorefrontGrindSize[] => {
+    const options = [...(offering.grindOptions ?? [])] as StorefrontGrindSize[];
+    if (!offering.allowCustomGrind) {
+      const index = options.indexOf("CUSTOM");
+      if (index !== -1) options.splice(index, 1);
+    }
+    return options.length > 0 ? options : ["WHOLE_BEAN"];
+  };
+
+  const handleOfferingQtyChange = (offeringId: string, delta: number) => {
+    setOfferingQuantities(prev => ({
+      ...prev,
+      [offeringId]: Math.max(1, (prev[offeringId] ?? 1) + delta),
+    }));
+  };
+
+  const handleOfferingAdd = (offering: StorefrontOffering) => {
+    const variant = offering.variants.find((v) => v.id === selectedVariants[offering.id])
+      ?? offering.variants[0];
+    if (!variant) return;
+    const options = offeringGrindOptions(offering);
+    const grindSize = grindSelections[offering.id] ?? options[0] ?? "WHOLE_BEAN";
+    const customLabel = grindSize === "CUSTOM" ? customGrindLabels[offering.id]?.trim() || null : null;
+    if (grindSize === "CUSTOM" && !customLabel) return;
+    const qty = offeringQuantities[offering.id] ?? 1;
+    for (let i = 0; i < qty; i++) handleAddOfferingToCart(offering, variant, grindSize, customLabel);
+    setOfferingQuantities(prev => ({ ...prev, [offering.id]: 1 }));
+  };
 
   const categories = useMemo(() => {
     const set = new Set(products.filter(p => p.category).map(p => p.category!));
@@ -272,6 +311,170 @@ export function CatalogSection({
               )}
             </p>
           </motion.div>
+        )}
+
+        {/* ═══ COFFEE OFFERINGS — katalog penawaran kopi ═══ */}
+        {offerings.length > 0 && (
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-[1px] bg-[var(--t-accent)]" />
+              <span
+                className="text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--t-text-muted)]"
+                style={{ fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}
+              >
+                Penawaran Kopi
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {offerings.map((offering, i) => {
+                const options = offeringGrindOptions(offering);
+                const selectedVariant = offering.variants.find((v) => v.id === selectedVariants[offering.id])
+                  ?? offering.variants[0];
+                const selectedGrind = grindSelections[offering.id] ?? options[0] ?? "WHOLE_BEAN";
+                const qty = offeringQuantities[offering.id] ?? 1;
+                const available = Boolean(selectedVariant);
+
+                return (
+                  <motion.div
+                    key={offering.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: Math.min(i * 0.06, 0.3), ease: [0.22, 1, 0.36, 1] }}
+                    whileHover={{ y: -4, transition: { duration: 0.35 } }}
+                    className="group"
+                  >
+                    <div className="relative rounded-[20px] overflow-hidden bg-[var(--t-surface)] border border-[var(--t-border)] transition-all duration-500 group-hover:shadow-[0_16px_40px_rgba(107,68,35,0.08)] group-hover:border-[var(--t-accent)]/30 h-full flex flex-col">
+                      <div className="relative w-full aspect-[4/3] overflow-hidden bg-[var(--t-surface)]">
+                        <ProductVisual imageUrl={offering.imageUrl} name={offering.name} />
+                        <span className="absolute top-3 left-3 text-xs uppercase font-medium tracking-[0.1em] px-2.5 py-1 rounded-lg bg-[#6b4423]/85 text-white backdrop-blur-md"
+                          style={{ fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}
+                        >
+                          {offering.roastLevel ? offering.roastLevel.replace("_", " ") : "Kopi"}
+                        </span>
+                      </div>
+
+                      <div className="p-5 flex flex-col flex-1">
+                        <div className="flex items-baseline justify-between gap-3 mb-1">
+                          <h3
+                            className="text-base font-semibold text-[var(--t-text)] line-clamp-1"
+                            style={{ fontFamily: "'Playfair Display', 'Source Serif 4', Georgia, serif" }}
+                          >
+                            {offering.name}
+                          </h3>
+                          {offering.coffeeSource?.name && (
+                            <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--t-text-muted)] whitespace-nowrap">
+                              {offering.coffeeSource.name}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[var(--t-text-muted)] line-clamp-2 mb-4 font-normal leading-[1.7]"
+                          style={{ fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}
+                        >
+                          {offering.description || "Penawaran kopi pilihan roastery."}
+                        </p>
+
+                        <div className="mt-auto space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--t-text-muted)]">
+                              Kemasan
+                              <select
+                                value={selectedVariant?.id ?? ""}
+                                onChange={(event) => setSelectedVariants((current) => ({ ...current, [offering.id]: event.target.value }))}
+                                disabled={!available}
+                                className="mt-1 h-9 w-full rounded-xl border border-[var(--t-border)] bg-[var(--t-surface)] px-2.5 text-xs text-[var(--t-text)] disabled:opacity-40"
+                              >
+                                {offering.variants.map((variant) => (
+                                  <option key={variant.id} value={variant.id}>
+                                    {variant.packageName} · {variant.netWeightGrams.toLocaleString("id-ID")}g
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--t-text-muted)]">
+                              Mau digiling?
+                              <select
+                                value={selectedGrind}
+                                onChange={(event) => setGrindSelections((current) => ({ ...current, [offering.id]: event.target.value as StorefrontGrindSize }))}
+                                disabled={!available}
+                                className="mt-1 h-9 w-full rounded-xl border border-[var(--t-border)] bg-[var(--t-surface)] px-2.5 text-xs text-[var(--t-text)] disabled:opacity-40"
+                              >
+                                {options.map((option) => (
+                                  <option key={option} value={option}>{STOREFRONT_GRIND_LABEL[option]}</option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+
+                          {selectedGrind === "CUSTOM" && (
+                            <input
+                              value={customGrindLabels[offering.id] ?? ""}
+                              onChange={(event) => setCustomGrindLabels((current) => ({ ...current, [offering.id]: event.target.value }))}
+                              placeholder="Contoh: Comandante 22 klik"
+                              className="h-9 w-full rounded-xl border border-[var(--t-border)] bg-[var(--t-surface)] px-3 text-xs text-[var(--t-text)]"
+                            />
+                          )}
+
+                          <div className="flex justify-between items-end bg-[var(--t-bg)] p-3 rounded-2xl border border-[var(--t-border)]">
+                            <div className="flex flex-col">
+                              <span className="text-xs text-[var(--t-text-muted)] uppercase tracking-[0.1em] font-medium"
+                                style={{ fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}
+                              >
+                                Harga
+                              </span>
+                              <span className="text-[11px] text-[var(--t-text-muted)]">per {selectedVariant?.packageName ?? "paket"}</span>
+                            </div>
+                            <span
+                              className="text-base font-semibold text-[var(--t-primary)]"
+                              style={{ fontFamily: "'Playfair Display', 'Source Serif 4', Georgia, serif" }}
+                            >
+                              {selectedVariant ? formatPrice(Number(selectedVariant.unitPrice)) : "—"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center border border-[var(--t-border)] rounded-2xl overflow-hidden bg-[var(--t-surface)]">
+                              <button
+                                onClick={() => handleOfferingQtyChange(offering.id, -1)}
+                                disabled={qty <= 1}
+                                className="w-9 h-9 flex items-center justify-center text-sm font-medium hover:bg-[var(--t-bg)] disabled:opacity-30 transition-colors"
+                              >
+                                <Minus size={14} strokeWidth={1.5} />
+                              </button>
+                              <span className="text-sm font-medium w-8 text-center text-[var(--t-text)]"
+                                style={{ fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}
+                              >
+                                {qty}
+                              </span>
+                              <button
+                                onClick={() => handleOfferingQtyChange(offering.id, 1)}
+                                className="w-9 h-9 flex items-center justify-center text-sm font-medium hover:bg-[var(--t-bg)] transition-colors"
+                              >
+                                <Plus size={14} strokeWidth={1.5} />
+                              </button>
+                            </div>
+
+                            <motion.button
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => handleOfferingAdd(offering)}
+                              disabled={!available}
+                              aria-label={available ? `Add ${offering.name} to cart` : `${offering.name} belum tersedia`}
+                              className="flex-1 flex items-center justify-center gap-2 py-2.5 font-medium text-sm rounded-2xl transition-all duration-300 bg-[var(--t-accent)] text-white hover:brightness-90 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_2px_8px_rgba(107,68,35,0.15)]"
+                              style={{ fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}
+                            >
+                              <ShoppingBag size={14} strokeWidth={1.5} />
+                              <span>{available ? "Pesan" : "Belum Tersedia"}</span>
+                            </motion.button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {/* Search + Filters Bar */}

@@ -452,6 +452,8 @@ model Tenant {
   grindingBatches                  GrindingBatch[]
   experimentalProductions          ExperimentalProduction[]
   experimentalProductionComponents ExperimentalProductionComponent[]
+  offerings                        CoffeeOffering[]
+  offeringVariants                 OfferingVariant[]
   contracts                        Contract[]
   contractPrices                   ContractPrice[]
   tenantPaymentMethods             TenantPaymentMethod[]
@@ -760,11 +762,94 @@ model CoffeeSource {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  products Product[]
+  products  Product[]
+  offerings CoffeeOffering[]
 
   @@unique([tenantId, code])
   @@index([tenantId, isActive])
   @@map("coffee_sources")
+}
+
+// =============================================================================
+// CoffeeOffering · Penawaran katalog yang bisa dijual (COMMIT 3)
+//
+// SATU offering = SATU basis identitas kopi (CoffeeSource + tingkat sangrai).
+// Offering mengekspos varian KEMASAN (OfferingVariant) — berat bersih + harga
+// per paket — dan opsi gilingan (grindOptions). Kartu katalog storefront
+// memilih varian + gilingan di dalam kartu; TIDAK ada kartu duplikat per
+// gilingan.
+//
+// sourceMode:
+//  - INTERNAL_ROAST      → identity root = Green Bean dari CoffeeSource;
+//                          RB sangrai internal bisa muncul belakangan.
+//  - PURCHASED_ROASTED   → identity root = RB beli jadi dari CoffeeSource;
+//                          dijual langsung tanpa Green Bean.
+// Whole bean & ground memakai line of custody RB yang sama; grind adalah
+// pilihan persiapan pesanan (order-prep), bukan varian SKU.
+//
+// Offering TIDAK pernah menulis ledger/stok/lot/akuntansi — murni konfigurasi
+// katalog. Varian mengacu supply item PACKAGING asli (berat/kemasan nyata).
+// =============================================================================
+
+enum OfferingSourceMode {
+  INTERNAL_ROAST
+  PURCHASED_ROASTED
+}
+
+model CoffeeOffering {
+  id          String  @id @default(cuid())
+  code        String // e.g., "OF-GAYO-MED-001"
+  name        String // e.g., "Gayo Medium"
+  description String?
+  imageUrl    String?
+
+  coffeeSourceId String // identitas kopi akar (CoffeeSource)
+  sourceMode     OfferingSourceMode
+  roastLevel     String? // "LIGHT"/"MEDIUM"/... atau label kustom tenant
+
+  grindOptions     GrindSize[] @default([WHOLE_BEAN])
+  allowCustomGrind Boolean     @default(true)
+
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantId     String
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  coffeeSource CoffeeSource      @relation(fields: [coffeeSourceId], references: [id], onDelete: Restrict)
+  variants     OfferingVariant[]
+  invoiceItems InvoiceItem[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive, sortOrder])
+  @@index([tenantId, coffeeSourceId])
+  @@map("coffee_offerings")
+}
+
+model OfferingVariant {
+  id         String @id @default(cuid())
+  offeringId String
+
+  // Pilihan paket mereferensi konfigurasi kemasan/supply asli (net weight
+  // dari sana), bukan teks bebas. NULL untuk paket manual/kemasan legacy.
+  supplyItemId   String?
+  packageName    String // tampilan, e.g., "Box 250g"
+  netWeightGrams Decimal  @db.Decimal(8, 2)
+  unitPrice      Decimal  @db.Decimal(12, 2) // harga jual per paket (snapshot line nanti)
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenantId   String
+  tenant     Tenant               @relation(fields: [tenantId], references: [id])
+  offering   CoffeeOffering       @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  supplyItem InventorySupplyItem? @relation(fields: [supplyItemId], references: [id], onDelete: SetNull)
+
+  @@unique([offeringId, supplyItemId])
+  @@index([tenantId, offeringId, isActive])
+  @@map("offering_variants")
 }
 
 // =============================================================================
@@ -954,6 +1039,7 @@ model InventorySupplyItem {
   recipeItems            RecipeSupplyItem[]
   productionUsages       ProductionSupplyUsage[]
   experimentalComponents ExperimentalProductionComponent[]
+  offeringVariants       OfferingVariant[]
   tenantId               String
   tenant                 Tenant                            @relation(fields: [tenantId], references: [id])
 
@@ -1492,6 +1578,9 @@ model StockReservation {
   invoiceId  String
   productId  String
   quantity   Int
+  // Berat terjanji (kg) untuk reservasi berbasis kg (penawaran kopi:
+  // jalur RB yang sama dikonsumsi dalam kg). NULL = reservasi unit legacy.
+  quantityKg Decimal?               @db.Decimal(10, 3)
   status     StockReservationStatus @default(ACTIVE)
   expiresAt  DateTime
   consumedAt DateTime?
@@ -1555,15 +1644,26 @@ model InvoiceItem {
   grindSize        GrindSize?
   customGrindLabel String?
 
-  invoice       Invoice        @relation(fields: [invoiceId], references: [id])
-  product       Product        @relation(fields: [productId], references: [id])
-  contractPrice ContractPrice? @relation(fields: [contractPriceId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  // ── Snapshot penawaran kopi (immutable setelah invoice di-ISSUED) ──
+  // Menyimpan paket, berat bersih, roast/base, dan nama penawaran persis
+  // seperti saat checkout — tahan terhadap perubahan katalog berikutnya.
+  offeringId     String?
+  offeringName   String?
+  packageName    String?
+  netWeightGrams Decimal? @db.Decimal(8, 2)
+  roastLevel     String?
+
+  invoice       Invoice         @relation(fields: [invoiceId], references: [id])
+  product       Product         @relation(fields: [productId], references: [id])
+  contractPrice ContractPrice?  @relation(fields: [contractPriceId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  offering      CoffeeOffering? @relation(fields: [offeringId], references: [id], onDelete: SetNull)
   tenantId      String
-  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@index([invoiceId])
   @@index([contractPriceId])
+  @@index([offeringId])
   @@map("invoice_items")
 }
 

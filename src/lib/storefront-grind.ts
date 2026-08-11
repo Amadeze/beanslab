@@ -48,6 +48,76 @@ export function storefrontLineId(
   return `${productId}:${grindSize}:${customGrindLabel?.trim().toLocaleLowerCase("id-ID") ?? ""}`;
 }
 
+// ─── Coffee offerings (katalog penawaran kopi) ──────────────────────────────
+// Line id for offering lines is namespaced so it can never collide with the
+// product-based line id format above.
+
+export function offeringLineId(
+  offeringId: string,
+  variantId: string,
+  grindSize: StorefrontGrindSize,
+  customGrindLabel: string | null,
+) {
+  return `offering:${offeringId}:${variantId}:${grindSize}:${customGrindLabel?.trim().toLocaleLowerCase("id-ID") ?? ""}`;
+}
+
+export function isOfferingLineId(lineId: string) {
+  return lineId.startsWith("offering:");
+}
+
+// Client-serialized shape of a coffee offering (storefront read model).
+export type StorefrontOffering = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  roastLevel: string | null;
+  grindOptions: StorefrontGrindSize[];
+  allowCustomGrind: boolean;
+  coffeeSource: { name: string } | null;
+  variants: Array<{
+    id: string;
+    packageName: string;
+    netWeightGrams: number;
+    unitPrice: number;
+  }>;
+};
+
+// Immutable snapshot contract for an offering line. Persisted on InvoiceItem
+// at checkout time so later edits to the offering/variant never rewrite history.
+export type OfferingSnapshot = {
+  offeringId: string;
+  offeringName: string;
+  packageName: string;
+  netWeightGrams: number;
+  roastLevel: string | null;
+};
+
+export function buildOfferingSnapshot(fields: {
+  offeringId: string;
+  offeringName: string;
+  packageName: string;
+  netWeightGrams: number;
+  roastLevel: string | null;
+}): OfferingSnapshot {
+  return {
+    offeringId: fields.offeringId,
+    offeringName: fields.offeringName,
+    packageName: fields.packageName,
+    netWeightGrams: fields.netWeightGrams,
+    roastLevel: fields.roastLevel ?? null,
+  };
+}
+
+// Reserved stock for an offering is held in kg on the lineage roasted bean
+// product (1 stock unit = 1 kg). `units` is the ceiling for reservation
+// quantity (integer, min 1); `quantityKg` is the exact weight with 3 decimals.
+export function offeringReserveKg(packageCount: number, netWeightGrams: number) {
+  const quantityKg = Math.round((packageCount * netWeightGrams / 1000) * 1000) / 1000;
+  return { quantityKg, units: Math.max(1, Math.ceil(quantityKg)) };
+}
+
 export function aggregateStorefrontStock(
   lines: Array<{ productId: string; quantity: number }>,
 ) {

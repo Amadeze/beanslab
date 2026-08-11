@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Plus, Building2, Users, Package, CheckCircle2, XCircle, Pencil, UserCog, Loader2, PackageOpen } from "lucide-react";
+import { Plus, Building2, Users, Package, CheckCircle2, XCircle, Pencil, UserCog, Loader2, PackageOpen, Coffee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -18,7 +18,8 @@ import { ProductForm } from "./ProductForm";
 import { PackagingForm } from "./PackagingForm";
 import { UserForm } from "./UserForm";
 import { SupplyItemForm } from "./SupplyItemForm";
-import type { MasterPageData, SupplierRow, CustomerRow, ProductRow, UserRow, PackagingRow, SupplyItemRow } from "../actions";
+import { CoffeeOfferingForm } from "./CoffeeOfferingForm";
+import type { MasterPageData, SupplierRow, CustomerRow, ProductRow, UserRow, PackagingRow, SupplyItemRow, OfferingRow } from "../actions";
 
 interface MasterDataClientProps {
   data: MasterPageData;
@@ -30,12 +31,13 @@ interface MasterDataClientProps {
   workspace?: "supply" | "sales" | "settings";
 }
 
-type Tab = "supplier" | "pelanggan" | "produk" | "kemasan" | "supply" | "pengguna";
+type Tab = "supplier" | "pelanggan" | "produk" | "kemasan" | "supply" | "pengguna" | "penawaran";
 
 const ALL_TABS: { id: Tab; label: string; icon: React.ElementType; count: (d: MasterPageData) => number }[] = [
   { id: "supplier",  label: "Supplier",  icon: Building2, count: (d) => d.suppliers.length },
   { id: "pelanggan", label: "Pelanggan", icon: Users,     count: (d) => d.customers.length },
   { id: "produk",    label: "Produk",    icon: Package,   count: (d) => d.products.length  },
+  { id: "penawaran", label: "Penawaran", icon: Coffee,    count: (d) => d.offerings.length },
   { id: "kemasan",   label: "Kemasan",   icon: Package,   count: (d) => d.packagings.length },
   { id: "supply",    label: "Non-Kopi",  icon: PackageOpen, count: (d) => d.supplyItems.length },
   { id: "pengguna",  label: "Pengguna",  icon: UserCog,   count: (d) => d.users.length     },
@@ -371,6 +373,67 @@ function UserTable({ rows, onEdit }: { rows: UserRow[]; onEdit: (r: UserRow) => 
   );
 }
 
+const SOURCE_MODE_LABEL: Record<OfferingRow["sourceMode"], string> = {
+  PURCHASED_ROASTED: "Beli jadi",
+  INTERNAL_ROAST: "Sangrai sendiri",
+};
+
+function OfferingTable({ rows, onEdit }: { rows: OfferingRow[]; onEdit: (r: OfferingRow) => void }) {
+  if (rows.length === 0) return <EmptyState label="penawaran kopi" />;
+  return (
+    <EntityTable>
+      <thead className="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md">
+        <tr>
+          <Th>Kode</Th>
+          <Th>Nama</Th>
+          <Th hide="hidden md:table-cell">Sumber</Th>
+          <Th hide="hidden lg:table-cell">Varian</Th>
+          <Th hide="hidden xl:table-cell">Giling</Th>
+          <Th className="text-center">Status</Th>
+          <Th className="text-center">Aksi</Th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-[var(--glass-border)]">
+        {rows.map((row) => (
+          <tr key={row.id} className="hover:bg-[var(--glass-bg-hover)] transition-colors">
+            <td className="px-4 py-3 font-mono text-xs font-semibold text-zinc-700">{row.code}</td>
+            <td className="px-4 py-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-medium text-zinc-800">{row.name}</p>
+                {row.roastLevel && (
+                  <span className="rounded-full bg-amber-100 border border-amber-200 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-700">
+                    {row.roastLevel.replace("_", " ")}
+                  </span>
+                )}
+                <span className="rounded-full bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                  {SOURCE_MODE_LABEL[row.sourceMode]}
+                </span>
+              </div>
+              {row.description && <p className="text-[11px] text-zinc-400 truncate max-w-[220px]">{row.description}</p>}
+            </td>
+            <td className="px-4 py-3 text-xs text-zinc-500 hidden md:table-cell">{row.coffeeSource?.name ?? "\u2014"}</td>
+            <td className="px-4 py-3 hidden lg:table-cell">
+              <div className="flex flex-col gap-0.5">
+                {row.variants.slice(0, 3).map((variant) => (
+                  <span key={variant.id} className="text-[11px] text-zinc-600">
+                    {variant.packageName} · {variant.netWeightGrams.toLocaleString("id-ID")}g · Rp {variant.unitPrice.toLocaleString("id-ID")}
+                  </span>
+                ))}
+                {row.variants.length > 3 && <span className="text-[11px] text-zinc-400">+{row.variants.length - 3} lagi</span>}
+              </div>
+            </td>
+            <td className="px-4 py-3 hidden xl:table-cell">
+              <span className="text-[11px] text-zinc-500">{row.grindOptions.length} opsi{row.allowCustomGrind ? " · custom" : ""}</span>
+            </td>
+            <td className="px-4 py-3 text-center"><ActiveBadge active={row.isActive} /></td>
+            <td className="px-4 py-3 text-center"><EditButton onClick={() => onEdit(row)} /></td>
+          </tr>
+        ))}
+      </tbody>
+    </EntityTable>
+  );
+}
+
 export function MasterDataClient({
   data,
   userRole,
@@ -398,6 +461,7 @@ export function MasterDataClient({
   const [editProduct, setEditProduct] = useState<ProductRow | null>(null);
   const [editPackaging, setEditPackaging] = useState<PackagingRow | null>(null);
   const [editSupplyItem, setEditSupplyItem] = useState<SupplyItemRow | null>(null);
+  const [editOffering, setEditOffering] = useState<OfferingRow | null>(null);
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const rawMaterials = useMemo(() => data.products.filter((p) => p.type === "ROASTED_BEAN" || p.type === "GREEN_BEAN"), [data.products]);
@@ -409,19 +473,20 @@ export function MasterDataClient({
       products: data.products.filter(r => showInactive || r.isActive),
       packagings: data.packagings.filter(r => showInactive || r.isActive),
       supplyItems: data.supplyItems.filter(r => showInactive || r.isActive),
+      offerings: data.offerings.filter(r => showInactive || r.isActive),
       users: data.users.filter(r => showInactive || r.isActive),
     };
   }, [data, showInactive]);
 
   const handleTabChange = (tab: Tab) => {
     setDrawerOpen(false); setMode("create");
-    setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null); setEditSupplyItem(null);
+    setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null); setEditSupplyItem(null); setEditOffering(null);
     setActiveTab(tab);
   };
 
   const openCreate = () => {
     setMode("create");
-    setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null); setEditSupplyItem(null);
+    setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null); setEditSupplyItem(null); setEditOffering(null);
     setDrawerOpen(true);
   };
 
@@ -430,11 +495,12 @@ export function MasterDataClient({
   const openEditProduct = (row: ProductRow) => { setMode("edit"); setEditProduct(row); setActiveTab("produk"); setDrawerOpen(true); };
   const openEditPackaging = (row: PackagingRow) => { setMode("edit"); setEditPackaging(row); setActiveTab("kemasan"); setDrawerOpen(true); };
   const openEditSupplyItem = (row: SupplyItemRow) => { setMode("edit"); setEditSupplyItem(row); setActiveTab("supply"); setDrawerOpen(true); };
+  const openEditOffering = (row: OfferingRow) => { setMode("edit"); setEditOffering(row); setActiveTab("penawaran"); setDrawerOpen(true); };
   const openEditUser = (row: UserRow) => { setMode("edit"); setEditUser(row); setActiveTab("pengguna"); setDrawerOpen(true); };
 
   const handleSuccess = () => {
     setDrawerOpen(false); setMode("create");
-    setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null); setEditSupplyItem(null);
+    setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditUser(null); setEditPackaging(null); setEditSupplyItem(null); setEditOffering(null);
     router.refresh();
   };
 
@@ -447,12 +513,14 @@ export function MasterDataClient({
       : activeTab === "produk"    ? `Edit Produk${editProduct     ? ` \u00b7 ${editProduct.code}`   : ""}`
       : activeTab === "kemasan"   ? `Edit Kemasan${editPackaging   ? ` \u00b7 ${editPackaging.code}`   : ""}`
       : activeTab === "supply"    ? `Edit Persediaan${editSupplyItem ? ` \u00b7 ${editSupplyItem.code}` : ""}`
+      : activeTab === "penawaran" ? `Edit Penawaran${editOffering ? ` \u00b7 ${editOffering.code}` : ""}`
       :                             `Edit Pengguna${editUser      ? ` \u00b7 ${editUser.email}`      : ""}`
       : activeTab === "supplier"  ? "Tambah Supplier"
       : activeTab === "pelanggan" ? "Tambah Pelanggan"
       : activeTab === "produk"    ? "Tambah Produk"
       : activeTab === "kemasan"   ? "Tambah Kemasan"
       : activeTab === "supply"    ? "Tambah Persediaan Non-Kopi"
+      : activeTab === "penawaran" ? "Tambah Penawaran Kopi"
       :                             "Tambah Pengguna";
 
   const submitFormId =
@@ -461,9 +529,10 @@ export function MasterDataClient({
     activeTab === "produk"    ? "product-form"   :
     activeTab === "kemasan"   ? "packaging-form" :
     activeTab === "supply"    ? "supply-item-form" :
+    activeTab === "penawaran" ? "offering-form" :
                                 "user-form";
 
-  const drawerSize = activeTab === "produk" || activeTab === "supply" ? "lg" : "md";
+  const drawerSize = activeTab === "produk" || activeTab === "supply" || activeTab === "penawaran" ? "lg" : "md";
 
   return (
     <>
@@ -542,6 +611,7 @@ export function MasterDataClient({
               {activeTab === "supplier"  && <SupplierTable rows={filteredData.suppliers} onEdit={openEditSupplier} />}
               {activeTab === "pelanggan" && <CustomerTable rows={filteredData.customers} onEdit={openEditCustomer} />}
               {activeTab === "produk"    && <ProductTable  rows={filteredData.products}  onEdit={openEditProduct}  />}
+              {activeTab === "penawaran" && <OfferingTable rows={filteredData.offerings} onEdit={openEditOffering} />}
               {activeTab === "kemasan"   && <PackagingTable rows={filteredData.packagings} onEdit={openEditPackaging} />}
               {activeTab === "supply"    && <SupplyTable   rows={filteredData.supplyItems} onEdit={openEditSupplyItem} />}
               {activeTab === "pengguna"  && <UserTable     rows={filteredData.users}     onEdit={openEditUser}     />}
@@ -552,7 +622,7 @@ export function MasterDataClient({
       </div>
 
       <StandardDrawer open={drawerOpen}
-        onOpenChange={(v) => { if (!isSubmitting) { setDrawerOpen(v); if (!v) { setMode("create"); setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditPackaging(null); setEditSupplyItem(null); setEditUser(null); } } }}
+        onOpenChange={(v) => { if (!isSubmitting) { setDrawerOpen(v); if (!v) { setMode("create"); setEditSupplier(null); setEditCustomer(null); setEditProduct(null); setEditPackaging(null); setEditSupplyItem(null); setEditOffering(null); setEditUser(null); } } }}
         title={drawerTitle} size={drawerSize}
         submitButton={
           <Button type="submit" form={submitFormId} size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-bold shadow-md disabled:opacity-60">
@@ -563,6 +633,7 @@ export function MasterDataClient({
         {activeTab === "supplier" && <SupplierForm id="supplier-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editSupplier ?? undefined : undefined} />}
         {activeTab === "pelanggan" && <CustomerForm id="customer-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editCustomer ?? undefined : undefined} />}
         {activeTab === "produk" && <ProductForm id="product-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editProduct ?? undefined : undefined} rawMaterials={rawMaterials} packagings={data.packagings} />}
+        {activeTab === "penawaran" && <CoffeeOfferingForm id="offering-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editOffering ?? undefined : undefined} coffeeSources={data.coffeeSources} supplyItems={data.supplyItems} />}
         {activeTab === "kemasan" && <PackagingForm id="packaging-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editPackaging ?? undefined : undefined} />}
         {activeTab === "supply" && <SupplyItemForm id="supply-item-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editSupplyItem ?? undefined : undefined} />}
         {activeTab === "pengguna" && <UserForm id="user-form" onSuccess={handleSuccess} onPendingChange={setIsSubmitting} initialData={mode === "edit" ? editUser ?? undefined : undefined} />}

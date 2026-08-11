@@ -4,7 +4,9 @@ import type { StorefrontGrindSize } from '@/lib/storefront-grind';
 
 export interface CartItem {
   id: string;
-  productId: string;
+  productId: string | null;
+  offeringId?: string | null;
+  variantId?: string | null;
   code: string;
   name: string;
   imageUrl: string | null;
@@ -12,6 +14,9 @@ export interface CartItem {
   quantity: number;
   grindSize: StorefrontGrindSize;
   customGrindLabel: string | null;
+  packageName?: string | null;
+  netWeightGrams?: number | null;
+  roastLevel?: string | null;
 }
 
 interface CartState {

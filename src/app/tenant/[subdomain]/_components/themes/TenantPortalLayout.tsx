@@ -26,7 +26,7 @@ interface TenantPortalLayoutProps extends ThemeProps {
 
 export function TenantPortalLayout(props: TenantPortalLayoutProps) {
   const {
-    tenant, cart, setIsCartOpen, handleAddToCart,
+    tenant, cart, setIsCartOpen, handleAddToCart, handleAddOfferingToCart,
     heroGreeting, aboutText: aText, catalogTitle, catalogSubtitle,
     footerText, waLink, emailLink, igLink,
     iconStroke = 2, skin, customerTier, mounted,
@@ -68,12 +68,13 @@ export function TenantPortalLayout(props: TenantPortalLayoutProps) {
     (tenant?.faqs && Array.isArray(tenant.faqs) && tenant.faqs.length > 0)
       ? (tenant.faqs as any) : defaultFaqs;
 
-  const title = catalogTitle || "Daftar Produk";
+const title = catalogTitle || "Daftar Produk";
   const subtitle = catalogSubtitle || "Katalog Grosir B2B";
   const footer = footerText || tenant?.footerText || "Didukung oleh roastd.id — Roastery Operating System.";
   // Tenant media can replace the dependable code-native coffee visual.
   const bgImage = tenant?.backgroundImageUrl || "";
   const products = props.products || [];
+  const offerings = props.offerings || [];
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -88,9 +89,11 @@ export function TenantPortalLayout(props: TenantPortalLayoutProps) {
       <UspSection uspStmt={uspStmt} skin={skin} />
       <CatalogSection
         products={products}
+        offerings={offerings}
         catalogTitle={title}
         catalogSubtitle={subtitle}
         handleAddToCart={handleAddToCart}
+        handleAddOfferingToCart={handleAddOfferingToCart}
         customerTier={customerTier}
         skin={skin}
       />

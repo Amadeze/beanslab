@@ -19,14 +19,20 @@ export default async function CatalogPage({
   ]);
   const requestedTab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
 
+  const tab = requestedTab === "supply"
+    ? "supply"
+    : requestedTab === "penawaran"
+      ? "penawaran"
+      : "produk";
+
   return (
     <MasterDataClient
       data={data}
       userRole={session.user?.role || "OWNER"}
-      allowedTabs={["produk", "supply"]}
-      initialTab={requestedTab === "supply" ? "supply" : "produk"}
+      allowedTabs={["produk", "supply", "penawaran"]}
+      initialTab={tab}
       title="Katalog"
-      description="Bahan baku, roasted bean, produk jual, resep, harga, dan persediaan non-kopi"
+      description="Bahan baku, roasted bean, produk jual, penawaran kopi, resep, harga, dan persediaan non-kopi"
     />
   );
 }

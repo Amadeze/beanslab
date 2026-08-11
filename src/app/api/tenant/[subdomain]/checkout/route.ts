@@ -29,8 +29,8 @@ import { getCurrentDate } from "@/lib/date-utils";
 import { paymentDestinationSnapshot, toPublicPaymentMethod } from "@/lib/manual-payments";
 import { calculateStorefrontTotals, reserveInvoiceStock } from "@/lib/storefront-commerce";
 import {
-  aggregateStorefrontStock,
   normalizeStorefrontGrind,
+  offeringReserveKg,
   STOREFRONT_GRIND_SIZES,
   type StorefrontGrindSize,
 } from "@/lib/storefront-grind";
@@ -38,6 +38,8 @@ import {
 type CheckoutItemInput = {
   id?: string;
   productId?: string;
+  offeringId?: string;
+  variantId?: string;
   quantity?: number;
   grindSize?: StorefrontGrindSize;
   customGrindLabel?: string | null;
@@ -53,6 +55,11 @@ type InvoiceItemCreateData = {
   hpp: number;
   grindSize: StorefrontGrindSize;
   customGrindLabel: string | null;
+  offeringId?: string | null;
+  offeringName?: string | null;
+  packageName?: string | null;
+  netWeightGrams?: number | null;
+  roastLevel?: string | null;
 };
 
 type MidtransItemDetail = {
@@ -76,6 +83,8 @@ const CheckoutSchema = z.object({
       z.object({
         id: z.string().optional(),
         productId: z.string().optional(),
+        offeringId: z.string().optional(),
+        variantId: z.string().optional(),
         quantity: z.coerce.number().int().positive().max(10_000),
         grindSize: z.enum(STOREFRONT_GRIND_SIZES).default("WHOLE_BEAN"),
         customGrindLabel: z.string().trim().max(100).nullable().optional(),
@@ -84,6 +93,43 @@ const CheckoutSchema = z.object({
     .min(1)
     .max(50),
 });
+
+async function findOfferingRows(tenantId: string, offeringIds: string[]) {
+  return prisma.coffeeOffering.findMany({
+    where: { tenantId, id: { in: offeringIds }, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      roastLevel: true,
+      sourceMode: true,
+      coffeeSourceId: true,
+      grindOptions: true,
+      allowCustomGrind: true,
+      variants: {
+        where: { isActive: true },
+        select: { id: true, packageName: true, netWeightGrams: true, unitPrice: true },
+      },
+    },
+  });
+}
+
+type CoffeeOfferingRow = Awaited<ReturnType<typeof findOfferingRows>>[number];
+
+async function findLineageProducts(tenantId: string, coffeeSourceIds: string[]) {
+  return prisma.product.findMany({
+    where: {
+      tenantId,
+      coffeeSourceId: { in: coffeeSourceIds },
+      type: "ROASTED_BEAN",
+      materialOrigin: "PURCHASED_ROASTED",
+      isActive: true,
+    },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, coffeeSourceId: true, avgCostPerKg: true },
+  });
+}
+
+type LineageRow = Awaited<ReturnType<typeof findLineageProducts>>[number];
 
 export async function POST(
   req: NextRequest,
@@ -157,17 +203,25 @@ export async function POST(
     const normalizedItems = (items as CheckoutItemInput[])
       .map((item) => ({
         productId: item.productId || item.id,
+        offeringId: item.offeringId ?? null,
+        variantId: item.variantId ?? null,
         quantity: Number(item.quantity || 0),
         grindSize: item.grindSize ?? "WHOLE_BEAN",
         customGrindLabel: item.customGrindLabel ?? null,
       }))
-      .filter((item) => item.productId && Number.isInteger(item.quantity) && item.quantity > 0);
+      .filter((item) => {
+        if (item.offeringId) return Boolean(item.variantId);
+        return Boolean(item.productId && Number.isInteger(item.quantity) && item.quantity > 0);
+      });
 
     if (normalizedItems.length !== items.length) {
       return NextResponse.json({ error: "Item checkout tidak valid" }, { status: 400 });
     }
 
-    const productIds = Array.from(new Set(normalizedItems.map((item) => item.productId!)));
+    const productLines = normalizedItems.filter((item) => !item.offeringId);
+    const offeringLines = normalizedItems.filter((item) => item.offeringId);
+
+    const productIds = Array.from(new Set(productLines.map((item) => item.productId!)));
     const products = await prisma.product.findMany({
       where: {
         tenantId: tenant.id,
@@ -207,13 +261,32 @@ export async function POST(
       lastBatches.map(b => [b.outputProductId, Number(b.hppPerUnit || 0)])
     );
 
+    // ── Coffee offering lines: validate offering + variant, resolve the
+    // lineage roasted bean product that will carry the kg reservation. ──
+    let offeringById = new Map<string, CoffeeOfferingRow>();
+    let lineageBySourceId = new Map<string | null, LineageRow>();
+    if (offeringLines.length > 0) {
+      const offeringIds = Array.from(new Set(offeringLines.map((line) => line.offeringId!)));
+      const offeringRows = await findOfferingRows(tenant.id, offeringIds);
+      if (offeringRows.length !== offeringIds.length) {
+        return NextResponse.json({ error: "Ada penawaran yang tidak valid atau tidak aktif" }, { status: 400 });
+      }
+      offeringById = new Map(offeringRows.map((offering) => [offering.id, offering]));
+
+      const lineageProducts = await findLineageProducts(
+        tenant.id,
+        offeringRows.map((o) => o.coffeeSourceId),
+      );
+      lineageBySourceId = new Map(lineageProducts.map((p) => [p.coffeeSourceId, p]));
+    }
+
     // 2. Kalkulasi Subtotal & Buat Items Array dari data server
     let subtotal = 0;
     const invoiceItemsData: InvoiceItemCreateData[] = [];
     const midtransItemDetails: MidtransItemDetail[] = [];
     
     const productById = new Map(products.map((product) => [product.id, product]));
-    for (const line of normalizedItems) {
+    for (const line of productLines) {
       const product = productById.get(line.productId!);
       if (!product) {
         return NextResponse.json({ error: "Produk checkout tidak ditemukan" }, { status: 400 });
@@ -253,6 +326,64 @@ export async function POST(
         price: Math.round(unitPrice),
         quantity: qty,
         name: `${product.name} - ${preparation.grindSize}`.substring(0, 50)
+      });
+    }
+
+    for (const line of offeringLines) {
+      const offering = offeringById.get(line.offeringId!);
+      const variant = offering?.variants.find((v: { id: string }) => v.id === line.variantId);
+      const lineage = offering ? lineageBySourceId.get(offering.coffeeSourceId) : undefined;
+      if (!offering || !variant || !lineage) {
+        return NextResponse.json(
+          { error: "Belum ada stok roasted bean untuk penawaran ini. Silakan hubungi roastery." },
+          { status: 400 },
+        );
+      }
+      const qty = line.quantity;
+      let allowed = (offering.grindOptions ?? ["WHOLE_BEAN"]) as StorefrontGrindSize[];
+      if (!offering.allowCustomGrind) allowed = allowed.filter((g) => g !== "CUSTOM");
+      let preparation;
+      try {
+        preparation = normalizeStorefrontGrind(
+          line.grindSize,
+          line.customGrindLabel ?? undefined,
+          allowed.length > 0 ? allowed : ["WHOLE_BEAN"],
+        );
+      } catch (error) {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "Pilihan gilingan tidak valid" },
+          { status: 400 },
+        );
+      }
+      const netWeightGrams = Number(variant.netWeightGrams);
+      const unitPrice = Number(variant.unitPrice);
+      const itemSub = unitPrice * qty;
+      subtotal += itemSub;
+
+      invoiceItemsData.push({
+        tenantId: tenant.id,
+        productId: lineage.id,
+        quantity: qty,
+        unitPrice,
+        discount: 0,
+        subtotal: itemSub,
+        // Proxy cost basis until packing flows compute exact COGS (next commit):
+        // WAC per kg of the lineage roasted bean × package net weight.
+        hpp: Math.round((Number(lineage.avgCostPerKg ?? 0) * netWeightGrams / 1000) * 100) / 100,
+        grindSize: preparation.grindSize,
+        customGrindLabel: preparation.customGrindLabel,
+        offeringId: offering.id,
+        offeringName: offering.name,
+        packageName: variant.packageName,
+        netWeightGrams,
+        roastLevel: offering.roastLevel ?? null,
+      });
+
+      midtransItemDetails.push({
+        id: `OFF-${offering.id}-${variant.id}`.substring(0, 50),
+        price: Math.round(unitPrice),
+        quantity: qty,
+        name: `${offering.name} ${variant.packageName}`.substring(0, 50)
       });
     }
 
@@ -370,11 +501,25 @@ export async function POST(
         }
       });
 
+      // Aggregate per lineage product: product lines reserve stock units,
+      // offering lines reserve kg on the roasted bean product (1 unit = 1 kg).
+      const reserveMap = new Map<string, { productId: string; quantity: number; quantityKg: number | null }>();
+      for (const item of invoiceItemsData) {
+        const entry = reserveMap.get(item.productId) ?? { productId: item.productId, quantity: 0, quantityKg: null };
+        if (item.offeringId && item.netWeightGrams) {
+          const { units, quantityKg } = offeringReserveKg(item.quantity, item.netWeightGrams);
+          entry.quantity += units;
+          entry.quantityKg = (entry.quantityKg ?? 0) + quantityKg;
+        } else {
+          entry.quantity += item.quantity;
+        }
+        reserveMap.set(item.productId, entry);
+      }
       const reservation = await reserveInvoiceStock(tx, {
         tenantId: tenant.id,
         invoiceId: inv.id,
         expiresAt: paymentExpiresAt,
-        items: aggregateStorefrontStock(invoiceItemsData),
+        items: Array.from(reserveMap.values()),
       });
       if (reservation.hasShortage) {
         await tx.invoice.update({ where: { id: inv.id }, data: { fulfillmentStatus: "NEEDS_PRODUCTION" } });

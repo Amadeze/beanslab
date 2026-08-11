@@ -94,6 +94,7 @@ const ownedRelations: Record<string, OwnedRelation[]> = {
     { foreignKey: "invoiceId", relation: "invoice", delegate: "invoice" },
     { foreignKey: "productId", relation: "product", delegate: "product" },
     { foreignKey: "contractPriceId", relation: "contractPrice", delegate: "contractPrice" },
+    { foreignKey: "offeringId", relation: "offering", delegate: "coffeeOffering" },
   ],
   Payment: [
     { foreignKey: "invoiceId", relation: "invoice", delegate: "invoice" },
@@ -196,6 +197,13 @@ const ownedRelations: Record<string, OwnedRelation[]> = {
     { foreignKey: "locationId", relation: "location", delegate: "location" },
     { foreignKey: "createdById", relation: "createdBy", delegate: "user" },
     { foreignKey: "confirmedById", relation: "confirmedBy", delegate: "user" },
+  ],
+  CoffeeOffering: [
+    { foreignKey: "coffeeSourceId", relation: "coffeeSource", delegate: "coffeeSource" },
+  ],
+  OfferingVariant: [
+    { foreignKey: "offeringId", relation: "offering", delegate: "coffeeOffering" },
+    { foreignKey: "supplyItemId", relation: "supplyItem", delegate: "inventorySupplyItem" },
   ],
   Warehouse: [],
 };
