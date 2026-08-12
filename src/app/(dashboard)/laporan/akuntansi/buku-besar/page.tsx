@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { ReportLayout } from "../../_shared/ReportLayout";
 import { requireFeature } from "@/lib/auth";
 import { getChartOfAccounts, getBukuBesar } from "../actions";
 import { BukuBesarClient } from "./BukuBesarClient";
@@ -24,11 +24,7 @@ export default async function BukuBesarPage({
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Buku Besar"
-        description="Riwayat mutasi per akun dengan saldo berjalan"
-      />
+    <ReportLayout activeTab="akuntansi/buku-besar">
       <Suspense fallback={<div className="p-8 text-sm text-slate-400">Memuat...</div>}>
         <BukuBesarClient
           accounts={accounts}
@@ -39,6 +35,6 @@ export default async function BukuBesarPage({
           toDate={params.to ?? null}
         />
       </Suspense>
-    </div>
+    </ReportLayout>
   );
 }

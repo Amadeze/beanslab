@@ -5,7 +5,7 @@ import {
   ReceiptText,
   WalletCards,
   Package,
-Flame,
+  Flame,
   Factory,
   Calendar,
   BadgeDollarSign,
@@ -16,6 +16,14 @@ Flame,
   Activity,
   Beaker,
   ChartPie,
+  BookOpen,
+  Landmark,
+  Wallet,
+  Layers,
+  PiggyBank,
+  TableProperties,
+  RefreshCcw,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,7 +41,14 @@ export type ReportTab =
   | "analisa/neraca"
   | "analisa/alur-kopi"
   | "analisa/sample"
-  | "daily";
+  | "daily"
+  | "akuntansi"
+  | "akuntansi/arus-kas"
+  | "akuntansi/buku-besar"
+  | "akuntansi/integrity"
+  | "akuntansi/laba-ditahan"
+  | "akuntansi/neraca-lajur"
+  | "akuntansi/perubahan-ekuitas";
 
 interface TabConfig {
   id: ReportTab;
@@ -46,7 +61,18 @@ const SUPER_TABS: TabConfig[] = [
   { id: "keuangan", label: "Keuangan", icon: BadgeDollarSign, href: "/laporan/keuangan" },
   { id: "inventory", label: "Inventory", icon: Package, href: "/laporan/inventory" },
   { id: "analisa/laba-rugi", label: "Analisa", icon: ChartPie, href: "/laporan/analisa/laba-rugi" },
+  { id: "akuntansi", label: "Akuntansi", icon: BookOpen, href: "/laporan/akuntansi" },
   { id: "daily", label: "Harian", icon: Calendar, href: "/laporan/daily" },
+];
+
+const AKUNTANSI_TABS: TabConfig[] = [
+  { id: "akuntansi", label: "Akuntansi", icon: Landmark, href: "/laporan/akuntansi" },
+  { id: "akuntansi/arus-kas", label: "Arus Kas", icon: Wallet, href: "/laporan/akuntansi/arus-kas" },
+  { id: "akuntansi/buku-besar", label: "Buku Besar", icon: Layers, href: "/laporan/akuntansi/buku-besar" },
+  { id: "akuntansi/laba-ditahan", label: "Laba Ditahan", icon: PiggyBank, href: "/laporan/akuntansi/laba-ditahan" },
+  { id: "akuntansi/neraca-lajur", label: "Neraca Lajur", icon: TableProperties, href: "/laporan/akuntansi/neraca-lajur" },
+  { id: "akuntansi/perubahan-ekuitas", label: "Perubahan Ekuitas", icon: RefreshCcw, href: "/laporan/akuntansi/perubahan-ekuitas" },
+  { id: "akuntansi/integrity", label: "Integritas GL", icon: ShieldCheck, href: "/laporan/akuntansi/integrity" },
 ];
 
 const KEUANGAN_TABS: TabConfig[] = [
@@ -66,7 +92,7 @@ const ANALISA_TABS: TabConfig[] = [
   { id: "analisa/laba-rugi", label: "Laba Rugi", icon: FileText, href: "/laporan/analisa/laba-rugi" },
   { id: "analisa/neraca", label: "Neraca", icon: Scale, href: "/laporan/analisa/neraca" },
   { id: "analisa/alur-kopi", label: "Alur Kopi", icon: Activity, href: "/laporan/analisa/alur-kopi" },
-  { id: "analisa/nilai-stok", label: "Nilai Stok", icon: Database, href: "/laporan/analisa/nilai-stok" },
+  { id: "analisa/nilai-stok", label: "Valuasi Stok", icon: Database, href: "/laporan/analisa/nilai-stok" },
   { id: "analisa/sample", label: "Sample", icon: Beaker, href: "/laporan/analisa/sample" },
 ];
 
@@ -81,12 +107,22 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
   const isKeuangan = activeTab.startsWith("keuangan");
   const isInventory = activeTab.startsWith("inventory");
   const isAnalisa = activeTab.startsWith("analisa");
-  const subTabs = isKeuangan ? KEUANGAN_TABS : isInventory ? INVENTORY_TABS : isAnalisa ? ANALISA_TABS : [];
+  const isAkuntansi = activeTab.startsWith("akuntansi");
+  const subTabs = isKeuangan
+    ? KEUANGAN_TABS
+    : isInventory
+      ? INVENTORY_TABS
+      : isAnalisa
+        ? ANALISA_TABS
+        : isAkuntansi
+          ? AKUNTANSI_TABS
+          : [];
 
   const currentMain = SUPER_TABS.find((t) => {
     if (isKeuangan) return t.id === "keuangan";
     if (isInventory) return t.id === "inventory";
     if (isAnalisa) return t.id === "analisa/laba-rugi";
+    if (isAkuntansi) return t.id === "akuntansi";
     return t.id === activeTab;
   });
 
@@ -111,7 +147,8 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
               const isActive = tab.id === activeTab ||
                 (tab.id === "keuangan" && isKeuangan) ||
                 (tab.id === "inventory" && isInventory) ||
-                (tab.id === "analisa/laba-rugi" && isAnalisa);
+                (tab.id === "analisa/laba-rugi" && isAnalisa) ||
+                (tab.id === "akuntansi" && isAkuntansi);
               return (
                 <Link
                   key={tab.id}

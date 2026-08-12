@@ -127,7 +127,7 @@ function AccountFormDialog({
   );
 }
 
-export function CoaListClient({ accounts, entries, trialBalance }: Props) {
+export function CoaListClient({ accounts, entries, trialBalance, embedded = false }: Props & { embedded?: boolean }) {
   const [tab, setTab] = useState<"coa" | "jurnal" | "neraca">("coa");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editAccount, setEditAccount] = useState<CoaRow | null>(null);
@@ -160,11 +160,13 @@ export function CoaListClient({ accounts, entries, trialBalance }: Props) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageHeader
-        title="Akuntansi"
-        eyebrow="Double Entry"
-        description="Chart of Accounts & Journal Entries"
-      />
+      {!embedded && (
+        <PageHeader
+          title="Akuntansi"
+          eyebrow="Double Entry"
+          description="Chart of Accounts & Journal Entries"
+        />
+      )}
       <div className="custom-scrollbar flex-1 overflow-auto">
         <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8 space-y-6">
           {/* Tabs */}

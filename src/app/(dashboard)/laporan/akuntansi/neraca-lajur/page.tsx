@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { ReportLayout } from "../../_shared/ReportLayout";
 import { requireFeature } from "@/lib/auth";
 import { getNeracaLajur } from "../actions";
 import { NeracaLajurClient } from "./NeracaLajurClient";
@@ -25,11 +25,10 @@ export default async function NeracaLajurPage({
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Neraca Lajur" description="Kertas kerja 10 kolom — Trial Balance, Laba Rugi, Neraca" />
+    <ReportLayout activeTab="akuntansi/neraca-lajur">
       <Suspense fallback={<div className="p-8 text-sm text-slate-400">Memuat...</div>}>
         <NeracaLajurClient data={data} error={error} fromDate={from} toDate={to} />
       </Suspense>
-    </div>
+    </ReportLayout>
   );
 }
