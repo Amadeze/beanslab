@@ -68,6 +68,7 @@ export type ParentRoastingBatchRow = {
   referenceProfile: { id: string; title: string } | null;
   childBatches: ChildBatchRow[];
   downstreamBatches: Array<{ type: string; code: string; id: string }>;
+  cuppingScore: number | null;
 };
 
 export type MachineOption = {
@@ -318,6 +319,7 @@ async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
       outputProduct: { select: { name: true } },
       machine: { select: { id: true, name: true } },
       referenceRoast: { select: { id: true, title: true } },
+      cuppingSessions: { select: { scores: { select: { score: true } } } },
       childBatches: {
         select: {
           id: true,
@@ -376,35 +378,47 @@ async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
     downstreamMap.set(e.parentRoastBatchId!, arr);
   }
 
-  return batches.map((b) => ({
-    id: b.id,
-    code: b.code,
-    inputProductId: b.inputProductId,
-    outputProductId: b.outputProductId,
-    inputProductName:  b.inputProduct.name,
-    outputProductName: b.outputProduct.name,
-    targetWeightKg:     Number(b.targetWeightKg),
-    actualOutputKg:    b.actualOutputKg ? Number(b.actualOutputKg) : null,
-    totalShrinkagePercent: b.totalShrinkagePercent ? Number(b.totalShrinkagePercent) : null,
-    status:            b.status,
-    lifecycleStatus:   b.lifecycleStatus,
-    notes:             b.notes,
-    machineId:         b.machine?.id ?? null,
-    machineName:       b.machine?.name ?? null,
-    referenceProfile: b.referenceRoast
-      ? { id: b.referenceRoast.id, title: b.referenceRoast.title || "Profil tanpa nama" }
-      : null,
-    createdAt:         b.createdAt.toISOString(),
-    childBatches: b.childBatches.map((c) => ({
-      id: c.id,
-      roastId: c.roastId,
-      roastDuration: c.roastDuration,
-      dropTemp: c.dropTemp ? Number(c.dropTemp) : null,
-      roastTitle: c.roastId ? childRoastMap.get(c.roastId)?.title ?? null : null,
-      roastedWeightGrams: c.roastId ? childRoastMap.get(c.roastId)?.roastedWeightGrams ? Number(childRoastMap.get(c.roastId)!.roastedWeightGrams) : null : null,
-    })),
-    downstreamBatches: downstreamMap.get(b.id) ?? [],
-  }));
+  return batches.map((b) => {
+    // Hitung rata-rata nilai cupping dari batch ini (jika ada)
+    let cuppingScore = null;
+    if (b.cuppingSessions && b.cuppingSessions.length > 0) {
+      const allScores = b.cuppingSessions.flatMap(s => s.scores);
+      if (allScores.length > 0) {
+        cuppingScore = allScores.reduce((sum, s) => sum + Number(s.score), 0) / allScores.length;
+      }
+    }
+
+    return {
+      id: b.id,
+      code: b.code,
+      inputProductId: b.inputProductId,
+      outputProductId: b.outputProductId,
+      inputProductName:  b.inputProduct.name,
+      outputProductName: b.outputProduct.name,
+      targetWeightKg:     Number(b.targetWeightKg),
+      actualOutputKg:    b.actualOutputKg ? Number(b.actualOutputKg) : null,
+      totalShrinkagePercent: b.totalShrinkagePercent ? Number(b.totalShrinkagePercent) : null,
+      status:            b.status,
+      lifecycleStatus:   b.lifecycleStatus,
+      notes:             b.notes,
+      machineId:         b.machine?.id ?? null,
+      machineName:       b.machine?.name ?? null,
+      referenceProfile: b.referenceRoast
+        ? { id: b.referenceRoast.id, title: b.referenceRoast.title || "Profil tanpa nama" }
+        : null,
+      createdAt:         b.createdAt.toISOString(),
+      cuppingScore,
+      childBatches: b.childBatches.map((c) => ({
+        id: c.id,
+        roastId: c.roastId,
+        roastDuration: c.roastDuration,
+        dropTemp: c.dropTemp ? Number(c.dropTemp) : null,
+        roastTitle: c.roastId ? childRoastMap.get(c.roastId)?.title ?? null : null,
+        roastedWeightGrams: c.roastId ? childRoastMap.get(c.roastId)?.roastedWeightGrams ? Number(childRoastMap.get(c.roastId)!.roastedWeightGrams) : null : null,
+      })),
+      downstreamBatches: downstreamMap.get(b.id) ?? [],
+    };
+  });
 }
 
 export async function fetchMachineOptions(): Promise<MachineOption[]> {

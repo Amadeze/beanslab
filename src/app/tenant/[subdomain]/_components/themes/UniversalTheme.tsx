@@ -1,8 +1,9 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Coffee, Package, Phone, X } from "@phosphor-icons/react";
+import { Coffee, Package, Phone, X, CheckCircle } from "@phosphor-icons/react";
 import { ThemeProps, ExtendedTenant } from "./ThemeProps";
+import { useState } from "react";
 import { resolveSkin } from "./skins";
 import type { StorefrontOffering } from "@/lib/storefront-grind";
 
@@ -34,6 +35,8 @@ export function UniversalTheme({
     ...tenant,
     backgroundImageUrl: tenant.heroImageUrl || tenant.backgroundImageUrl,
   };
+
+  const [isConfirmingOrder, setIsConfirmingOrder] = useState(false);
 
   // Resolve the visual skin from tenant's layoutStyle
   const skin = resolveSkin(tenant.layoutStyle);
@@ -192,21 +195,21 @@ export function UniversalTheme({
                       value={customerName} 
                       onChange={e => setCustomerName(e.target.value)} 
                       placeholder="Full Name" 
-                      className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-sm focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
+                      className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
                     />
                     <input 
                       value={customerPhone} 
                       onChange={e => setCustomerPhone(e.target.value)} 
                       placeholder="WhatsApp Number" 
                       type="tel"
-                      className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-sm focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
+                      className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
                     />
                     {shippingMethod !== "PICKUP" ? <textarea
                       value={customerAddress} 
                       onChange={e => setCustomerAddress(e.target.value)} 
                       placeholder="Alamat Lengkap (Jalan, Kec, Kota, Kode Pos)" 
                       rows={3}
-                      className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-sm focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
+                      className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
                     /> : null}
 
                     <div className="mb-4 mt-2">
@@ -214,7 +217,7 @@ export function UniversalTheme({
                       <select 
                         value={shippingMethod} 
                         onChange={e => setShippingMethod(e.target.value)}
-                        className="w-full border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-sm focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors bg-[var(--t-bg)] text-[var(--t-text)]"
+                        className="w-full border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors bg-[var(--t-bg)] text-[var(--t-text)]"
                       >
                         {tenant.storefrontPickupEnabled ? <option value="PICKUP">Ambil di roastery · gratis</option> : null}
                         {tenant.storefrontDeliveryEnabled ? <>
@@ -257,16 +260,94 @@ export function UniversalTheme({
                     </span>
                   </div>
                   <button
-                    onClick={handleCheckout}
+                    onClick={() => {
+                      if (!customerName || !customerPhone || (shippingMethod !== "PICKUP" && !customerAddress)) {
+                        handleCheckout();
+                        return;
+                      }
+                      if (tenant.paymentMethods?.length && !paymentMethodId) {
+                        handleCheckout();
+                        return;
+                      }
+                      setIsConfirmingOrder(true);
+                    }}
                     disabled={isCheckingOut}
                     className="w-full py-4 rounded-[var(--t-radius)] font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 bg-[var(--t-primary)] text-[var(--t-bg)] shadow-lg disabled:cursor-wait disabled:opacity-60"
                   >
                     <Phone size={18} weight="bold" />
-                    {isCheckingOut ? "Memproses Pesanan..." : tenant.paymentMethods?.length ? "Buat Pesanan" : "Checkout via WhatsApp"}
+                    {isCheckingOut ? "Memproses Pesanan..." : tenant.paymentMethods?.length ? "Lanjut Konfirmasi" : "Lanjut Checkout"}
                   </button>
                 </div>
               )}
             </motion.div>
+            
+            {/* Order Confirmation Modal */}
+            <AnimatePresence>
+              {isConfirmingOrder && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                >
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="w-full max-w-sm overflow-hidden rounded-[var(--t-radius)] bg-[var(--t-surface)] p-6 text-[var(--t-text)] shadow-2xl"
+                  >
+                    <div className="mb-4 text-center">
+                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--t-primary)]/10 text-[var(--t-primary)]">
+                        <CheckCircle size={32} weight="fill" />
+                      </div>
+                      <h3 className="text-xl font-bold">Konfirmasi Pesanan</h3>
+                      <p className="mt-2 text-sm text-[var(--t-text-muted)]">
+                        Pastikan detail pesanan Anda sudah benar sebelum diproses.
+                      </p>
+                    </div>
+
+                    <div className="mb-6 space-y-3 rounded-lg border border-[var(--t-border)] bg-[var(--t-bg)] p-4 text-sm">
+                      <div className="flex justify-between border-b border-[var(--t-border)] pb-2">
+                        <span className="text-[var(--t-text-muted)]">Penerima</span>
+                        <span className="font-semibold text-right">{customerName}<br/><span className="text-xs font-normal">{customerPhone}</span></span>
+                      </div>
+                      <div className="flex justify-between border-b border-[var(--t-border)] pb-2">
+                        <span className="text-[var(--t-text-muted)]">Pengiriman</span>
+                        <span className="font-semibold text-right max-w-[150px] truncate">{shippingMethod === "PICKUP" ? "Ambil Sendiri" : "Kirim Kurir"}</span>
+                      </div>
+                      <div className="flex justify-between font-bold">
+                        <span>Total Tagihan</span>
+                        <span>Rp {cart.getTotalPrice(tenant.subdomain || "").toLocaleString("id-ID")}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setIsConfirmingOrder(false)}
+                        disabled={isCheckingOut}
+                        className="w-1/2 rounded-[var(--t-radius)] border border-[var(--t-border)] py-3 font-semibold text-[var(--t-text)] transition-colors hover:bg-[var(--t-bg)] disabled:opacity-50"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleCheckout();
+                          if (!tenant.paymentMethods?.length) {
+                             setIsConfirmingOrder(false);
+                          }
+                        }}
+                        disabled={isCheckingOut}
+                        className="w-1/2 rounded-[var(--t-radius)] bg-[var(--t-primary)] py-3 font-bold text-[var(--t-bg)] transition-transform hover:scale-[1.02] active:scale-[0.95] disabled:cursor-wait disabled:opacity-70 flex justify-center"
+                      >
+                        {isCheckingOut ? <Phone className="animate-spin" size={20} /> : "Konfirmasi"}
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
       </AnimatePresence>

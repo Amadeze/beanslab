@@ -3,6 +3,16 @@
 import { useState, useTransition } from "react";
 import { Building2, ImagePlus, Pencil, Plus, QrCode, Trash2 } from "lucide-react";
 import { deleteTenantPaymentMethod, saveTenantPaymentMethod, setTenantPaymentMethodActive } from "./actions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type MethodRow = {
   id: string;
@@ -34,6 +44,7 @@ export function PaymentMethodsClient({ initialMethods }: { initialMethods: Metho
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isUploading, setIsUploading] = useState(false);
+  const [methodToDelete, setMethodToDelete] = useState<MethodRow | null>(null);
 
   async function uploadQris(file: File) {
     setIsUploading(true);
@@ -97,12 +108,22 @@ export function PaymentMethodsClient({ initialMethods }: { initialMethods: Metho
   }
 
   function remove(method: MethodRow) {
-    if (!window.confirm(`Hapus ${method.label}? Pesanan lama tetap menyimpan detail tujuan pembayarannya.`)) return;
+    setMethodToDelete(method);
+  }
+
+  function confirmRemove() {
+    const method = methodToDelete;
+    if (!method) return;
     startTransition(async () => {
       const result = await deleteTenantPaymentMethod(method.id);
-      if (!result.success) return setMessage(result.error);
+      if (!result.success) {
+        setMessage(result.error);
+        setMethodToDelete(null);
+        return;
+      }
       setMethods((current) => current.filter((item) => item.id !== method.id));
       if (form.id === method.id) setForm(EMPTY);
+      setMethodToDelete(null);
     });
   }
 
@@ -156,6 +177,26 @@ export function PaymentMethodsClient({ initialMethods }: { initialMethods: Metho
           </article>;
         })}
       </section>
+      
+      <AlertDialog open={!!methodToDelete} onOpenChange={(open) => !open && setMethodToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus {methodToDelete?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pesanan lama tetap menyimpan detail tujuan pembayarannya. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={confirmRemove}
+            >
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

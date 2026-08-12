@@ -57,7 +57,7 @@ export function PaymentProofForm({ endpoint, expectedAmount }: { endpoint: strin
     );
   }
 
-  const inputClass = "mt-1.5 w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-stone-500 focus:ring-2 focus:ring-stone-200";
+  const inputClass = "mt-1.5 w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-base outline-none focus:border-stone-500 focus:ring-2 focus:ring-stone-200";
 
   return (
     <section className="rounded-xl border border-stone-200 p-5">

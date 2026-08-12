@@ -659,10 +659,10 @@ function LinkToBatchButton({
         setIsOpen(false);
         window.location.reload();
       } else {
-        alert(data.error || "Gagal menghubungkan.");
+        toast.error(data.error || "Gagal menghubungkan.");
       }
     } catch {
-      alert("Gagal menghubungkan.");
+      toast.error("Gagal menghubungkan.");
     } finally {
       setLinking(false);
     }

@@ -163,13 +163,18 @@ function CompactDashboardHeader({
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">Stok Kritis</span>
+            <span className="text-xs font-bold tabular-nums text-red-400">{data.kpi.lowStockCount}</span>
+          </div>
+          <div className="hidden h-3 w-px bg-white/10 sm:block" />
+          <div className="flex items-center gap-1.5">
             <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">Penjualan</span>
             <span className="text-xs font-bold tabular-nums text-white/80">{formatRupiah(data.kpi.revenueToday)}</span>
           </div>
           <div className="hidden h-3 w-px bg-white/10 sm:block" />
           <div className="hidden items-center gap-1.5 sm:flex">
-            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">Kas</span>
-            <span className="text-xs font-bold tabular-nums text-white/80">{formatRupiah(data.kpi.kasToday)}</span>
+            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">Margin</span>
+            <span className="text-xs font-bold tabular-nums text-emerald-400">{data.kpi.averageGrossMargin.toFixed(1)}%</span>
           </div>
           <div className="hidden h-3 w-px bg-white/10 sm:block" />
           <div className="hidden items-center gap-1.5 sm:flex">

@@ -36,6 +36,23 @@ export default async function DashboardLayout({
         })
       : 0;
 
+  const lowStockCount =
+    accessState === "ACTIVE"
+      ? await prisma.product.count({
+          where: { tenantId: user.tenantId, stockKg: { lt: prisma.product.fields.safetyStockQuantity }, isActive: true },
+        })
+      : 0;
+      
+  const unfulfilledOrders =
+    accessState === "ACTIVE"
+      ? await prisma.invoice.count({
+          where: { 
+            tenantId: user.tenantId, 
+            fulfillmentStatus: { in: ["PAID", "NEEDS_PRODUCTION", "READY_TO_PACK", "PACKED"] },
+            status: { not: "VOID" }
+          },
+        })
+      : 0;
   if (
     !tenant?.setupCompletedAt &&
     !pathname.startsWith("/onboarding") &&
@@ -50,6 +67,8 @@ export default async function DashboardLayout({
         userRole={user.role}
         subscriptionTier={tenant?.subscriptionTier || "TRIAL"}
         pendingPaymentReviews={pendingPaymentReviews}
+        lowStockCount={lowStockCount}
+        unfulfilledOrders={unfulfilledOrders}
       >
         {children}
         <OfflineIndicator />

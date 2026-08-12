@@ -12,6 +12,16 @@ import {
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import { formatRupiah, formatDate as formatDateUtil } from "@/lib/format";
@@ -74,6 +84,7 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
   const [loading, setLoading] = useState(true);
   const [actionPending, setActionPending] = useState(false);
   const [showReceiveForm, setShowReceiveForm] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
@@ -90,7 +101,6 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
   }, [loadDetail]);
 
   const handleCancel = async () => {
-    if (!confirm("Batalkan PO ini?")) return;
     const result = await cancelPOAction(poId);
     if (result.success) {
       onUpdate();
@@ -265,9 +275,38 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
           Tutup
         </Button>
         {canCancel && (
-          <Button variant="outline" onClick={handleCancel} disabled={actionPending} className="text-red-600 border-red-200 hover:bg-red-50">
-            Batalkan
-          </Button>
+          <>
+            <Button 
+              variant="outline" 
+              className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+              onClick={() => setIsCancelDialogOpen(true)}
+              disabled={actionPending}
+            >
+              Batalkan
+            </Button>
+            <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Batalkan PO ini?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Purchase order yang dibatalkan tidak dapat dipulihkan.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Kembali</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-red-600 text-white hover:bg-red-700"
+                    onClick={() => {
+                      handleCancel();
+                      setIsCancelDialogOpen(false);
+                    }}
+                  >
+                    Ya, Batalkan
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         )}
         {canSend && (
           <Button onClick={handleSend} disabled={actionPending} className="bg-primary text-primary-foreground hover:bg-primary/90">

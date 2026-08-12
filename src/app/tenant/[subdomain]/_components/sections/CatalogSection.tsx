@@ -320,7 +320,7 @@ export function CatalogSection({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search coffee, origin, or category..."
-              className="w-full pl-10 pr-10 py-3 text-sm rounded-2xl bg-[var(--t-surface)] border border-[var(--t-border)] text-[var(--t-text)] placeholder:text-[var(--t-text-muted)]/50 focus:outline-none focus:border-[var(--t-accent)] focus:ring-1 focus:ring-[#c8956c]/20 transition-all duration-300"
+              className="w-full pl-10 pr-10 py-3 text-base rounded-2xl bg-[var(--t-surface)] border border-[var(--t-border)] text-[var(--t-text)] placeholder:text-[var(--t-text-muted)]/50 focus:outline-none focus:border-[var(--t-accent)] focus:ring-1 focus:ring-[#c8956c]/20 transition-all duration-300"
               style={{ fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif" }}
             />
             {searchQuery && (

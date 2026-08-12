@@ -178,11 +178,15 @@ export function AppShell({
   userRole,
   subscriptionTier,
   pendingPaymentReviews,
+  lowStockCount = 0,
+  unfulfilledOrders = 0,
 }: {
   children: React.ReactNode;
   userRole: string;
   subscriptionTier: PlanTier;
   pendingPaymentReviews: number;
+  lowStockCount?: number;
+  unfulfilledOrders?: number;
 }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
@@ -228,6 +232,8 @@ export function AppShell({
             userRole={userRole}
             subscriptionTier={subscriptionTier}
             pendingPaymentReviews={pendingPaymentReviews}
+            lowStockCount={lowStockCount}
+            unfulfilledOrders={unfulfilledOrders}
             forceExpanded
           />
           <button
@@ -242,7 +248,7 @@ export function AppShell({
       </div>
 
       <div className="hidden h-full md:flex">
-        <Sidebar userRole={userRole} subscriptionTier={subscriptionTier} pendingPaymentReviews={pendingPaymentReviews} />
+        <Sidebar userRole={userRole} subscriptionTier={subscriptionTier} pendingPaymentReviews={pendingPaymentReviews} lowStockCount={lowStockCount} unfulfilledOrders={unfulfilledOrders} />
       </div>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background md:my-2 md:mr-2 md:rounded-[18px] md:border md:border-white/10 md:shadow-[0_24px_90px_rgba(0,0,0,.48)]">

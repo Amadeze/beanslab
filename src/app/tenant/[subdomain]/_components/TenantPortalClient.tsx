@@ -51,9 +51,10 @@ type StorefrontProduct = Product & {
 
 interface TenantPortalClientProps {
   tenant: ExtendedTenant & { products: StorefrontProduct[]; offerings: StorefrontOffering[] };
+  isPreviewMode?: boolean;
 }
 
-export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
+export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClientProps) {
   const [mounted, setMounted] = useState(false);
   const cart = useCartStore();
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -164,12 +165,16 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
 
   const handleCheckout = async () => {
     if (isCheckingOut) return;
+    if (isPreviewMode) {
+      toast.error("Checkout dinonaktifkan dalam mode preview.");
+      return;
+    }
     if (!customerName || !customerPhone || (shippingMethod !== "PICKUP" && !customerAddress)) {
-      alert("Mohon lengkapi Nama, Nomor HP, dan alamat jika pesanan dikirim.");
+      toast.error("Mohon lengkapi Nama, Nomor HP, dan alamat jika pesanan dikirim.");
       return;
     }
     if (tenant.paymentMethods?.length && !paymentMethodId) {
-      alert("Mohon pilih metode pembayaran.");
+      toast.error("Mohon pilih metode pembayaran.");
       return;
     }
 
@@ -204,7 +209,7 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
 
       if (!res.ok) {
         const errorData = await res.json();
-        alert("Gagal merekam pesanan: " + (errorData.error || "Terjadi kesalahan server."));
+        toast.error("Gagal merekam pesanan: " + (errorData.error || "Terjadi kesalahan server."));
         return;
       }
 
@@ -240,7 +245,7 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
       if (!cleanWa) {
         cart.clearCart(tenant.subdomain || "");
         setIsCartOpen(false);
-        alert("Pesanan terekam (Ref: " + invoiceCode + ") tapi nomor WhatsApp admin belum diatur di sistem.");
+        toast.success(`Pesanan terekam (Ref: ${invoiceCode}) tapi nomor WhatsApp admin belum diatur di sistem.`);
         return;
       }
       
@@ -249,7 +254,7 @@ export function TenantPortalClient({ tenant }: TenantPortalClientProps) {
       setIsCartOpen(false);
     } catch (error) {
       console.error(error);
-      alert("Terjadi kesalahan sistem saat memproses checkout.");
+      toast.error("Terjadi kesalahan sistem saat memproses checkout.");
     } finally {
       setIsCheckingOut(false);
     }

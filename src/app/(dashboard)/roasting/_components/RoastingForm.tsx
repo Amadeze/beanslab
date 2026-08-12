@@ -4,6 +4,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -188,6 +189,7 @@ export function RoastingForm({
 }: RoastingFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitLockRef = useRef(false);
+  const router = useRouter();
   const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -300,12 +302,24 @@ export function RoastingForm({
       if (result.outcome?.status === "REVIEW") {
         toast.warning(
           `Batch ${result.batchCode} tersimpan. Susut ${result.outcome.lossPercent.toFixed(1)}% di luar acuan ${result.outcome.expectedMinPercent.toFixed(1)}–${result.outcome.expectedMaxPercent.toFixed(1)}%; periksa timbangan atau profil.`,
+          {
+            action: {
+              label: "Ke Produksi",
+              onClick: () => router.push("/produksi"),
+            },
+          }
         );
       } else {
         toast.success(
           values.mode === "ARTISAN"
             ? `Sesi roasting dimulai — ${result.batchCode}`
-            : `Batch roasting masuk stok — ${result.batchCode}`
+            : `Batch roasting masuk stok — ${result.batchCode}`,
+          {
+            action: {
+              label: "Lanjut Produksi",
+              onClick: () => router.push("/produksi"),
+            },
+          }
         );
       }
       reset();

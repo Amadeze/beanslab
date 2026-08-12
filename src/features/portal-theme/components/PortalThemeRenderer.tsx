@@ -311,7 +311,7 @@ export function PortalThemeRenderer({ config, isPreview = false, products = [], 
         if (!Component) {
           return (
             <SectionErrorBoundary key={section.id} sectionType={section.type}>
-              <UnknownSectionFallback type={section.id} />
+              <UnknownSectionFallback type={section.type} />
             </SectionErrorBoundary>
           );
         }

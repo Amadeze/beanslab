@@ -4,6 +4,15 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import { Check, X, Clock, AlertTriangle, Package, MapPin, User, Calendar, Warehouse } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 import { confirmOpname, cancelOpname, type LocationOpnameDraft } from "../actions";
 
@@ -12,6 +21,8 @@ const BTN_GHOST_ICON =
 
 export function OpnameDraftList({ initialDrafts }: { initialDrafts: LocationOpnameDraft[] }) {
   const [drafts, setDrafts] = useState(initialDrafts);
+  const [cancelDraftId, setCancelDraftId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
 
   async function handleConfirm(id: string) {
     const res = await confirmOpname(id);
@@ -23,15 +34,22 @@ export function OpnameDraftList({ initialDrafts }: { initialDrafts: LocationOpna
     }
   }
 
-  async function handleCancel(id: string) {
-    const reason = prompt("Masukkan alasan pembatalan (opsional):");
-    const res = await cancelOpname(id, reason || undefined);
+  async function requestCancel(id: string) {
+    setCancelDraftId(id);
+    setCancelReason("");
+  }
+
+  async function confirmCancel() {
+    if (!cancelDraftId) return;
+    const id = cancelDraftId;
+    const res = await cancelOpname(id, cancelReason || undefined);
     if (res.success) {
       toast.success("Opname dibatalkan.");
       setDrafts((prev) => prev.filter((d) => d.id !== id));
     } else {
       toastSafe.error(res.error || "Gagal membatalkan opname.");
     }
+    setCancelDraftId(null);
   }
 
   if (drafts.length === 0) {
@@ -140,13 +158,46 @@ export function OpnameDraftList({ initialDrafts }: { initialDrafts: LocationOpna
               >
                 <Check size={18} className="text-emerald-600" />
               </button>
-              <button onClick={() => handleCancel(d.id)} className={BTN_GHOST_ICON} title="Batal">
-                <X size={18} className="text-rose-600" />
+              <button
+                onClick={() => requestCancel(d.id)}
+                className={BTN_GHOST_ICON}
+                title="Batalkan Opname"
+              >
+                <X className="h-4 w-4 text-rose-600" />
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      <Dialog open={!!cancelDraftId} onOpenChange={(open) => !open && setCancelDraftId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Batalkan Draft Opname</DialogTitle>
+            <DialogDescription>
+              Masukkan alasan pembatalan opname (opsional). Draft ini akan ditandai sebagai dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <input
+              type="text"
+              className="w-full rounded-md border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+              placeholder="Alasan pembatalan..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelDraftId(null)}>
+              Tutup
+            </Button>
+            <Button variant="destructive" onClick={confirmCancel}>
+              Batalkan Opname
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

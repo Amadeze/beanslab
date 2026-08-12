@@ -246,7 +246,13 @@ export function WholesaleRadarSection({ settings, blocks }: WholesaleRadarProps)
               </div>
 
               {/* Action Button */}
-              <button className="w-full py-4 rounded-2xl bg-[var(--portal-accent,#D4A574)] hover:bg-[var(--portal-accent,#D4A574)]/90 text-black font-black text-sm uppercase tracking-widest transition-all duration-300 shadow-xl flex items-center justify-center gap-2">
+              <button 
+                onClick={() => {
+                  const el = document.getElementById("catalog") || document.getElementById("contact");
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="w-full py-4 rounded-2xl bg-[var(--portal-accent,#D4A574)] hover:bg-[var(--portal-accent,#D4A574)]/90 text-black font-black text-sm uppercase tracking-widest transition-all duration-300 shadow-xl flex items-center justify-center gap-2"
+              >
                 <span>Request Wholesale Sample & Contract</span>
               </button>
 

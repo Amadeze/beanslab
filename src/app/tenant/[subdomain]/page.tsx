@@ -187,6 +187,7 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
   return (
     <TenantPortalClient
       tenant={serializedTenant as any}
+      isPreviewMode={isPreviewMode}
     />
   );
 }

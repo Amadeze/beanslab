@@ -6,6 +6,17 @@ import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import { Tenant } from "@prisma/client";
 import { Save, ExternalLink, Upload, Phone, Plus, Trash2, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { resetOnboarding } from "@/app/onboarding/actions";
 import { tenantStorefrontUrl } from "@/lib/tenant-host";
 
@@ -98,6 +109,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
   const [defaultTaxRate, setDefaultTaxRate] = useState(Number(tenant.defaultTaxRate ?? 11));
 
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [previewEnabled, setPreviewEnabled] = useState(false);
 
   useEffect(() => {
@@ -504,21 +516,39 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
             </p>
             <button
               type="button"
-              onClick={async () => {
-                if (!confirm("Yakin ingin mengulangi panduan awal? Anda akan diarahkan ke /onboarding.")) return;
-                const res = await resetOnboarding();
-                if (res.success) {
-                  toast.success("Panduan awal direset. Mengalihkan...");
-                  setTimeout(() => { window.location.href = "/onboarding"; }, 1000);
-                } else {
-                  toastSafe.error("Gagal reset panduan awal.");
-                }
-              }}
+              onClick={() => setIsResetDialogOpen(true)}
               className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-xs font-bold text-red-700 shadow-sm transition-colors hover:bg-red-50"
             >
               <RotateCcw size={14} />
               Ulangi Panduan Awal
             </button>
+            <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Yakin ingin mengulangi panduan awal?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Anda akan diarahkan ke /onboarding. Data operasional Anda (supplier, produk, stok, resep, pelanggan) tidak akan terhapus.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Batal</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-red-600 text-white hover:bg-red-700"
+                    onClick={async () => {
+                      const res = await resetOnboarding();
+                      if (res.success) {
+                        toast.success("Panduan awal direset. Mengalihkan...");
+                        setTimeout(() => { window.location.href = "/onboarding"; }, 1000);
+                      } else {
+                        toastSafe.error("Gagal reset panduan awal.");
+                      }
+                    }}
+                  >
+                    Ya, Reset
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       )}

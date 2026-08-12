@@ -17,6 +17,7 @@ import {
   Trash2,
   ChevronsUpDown,
   Check,
+  Package,
 } from "lucide-react";
 import { toast } from "sonner";
 import { createInvoice } from "../../penjualan/actions";
@@ -31,6 +32,7 @@ import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 type PaymentMethod = "CASH" | "QRIS" | "TRANSFER";
 
@@ -56,6 +58,7 @@ export function CashierClient({
   const [completedSale, setCompletedSale] = useState<{ id: string; code: string } | null>(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [customerDrawerOpen, setCustomerDrawerOpen] = useState(false);
+  const [stockDrawerOpen, setStockDrawerOpen] = useState(false);
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
   const [isCustomerSubmitting, setIsCustomerSubmitting] = useState(false);
 
@@ -184,24 +187,38 @@ export function CashierClient({
       />
       <WorkspaceNav kind="sales" />
 
-      {completedSale ? (
-        <div className="border-b border-emerald-200 bg-emerald-50">
-          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6 lg:px-8">
-            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
-              <CheckCircle2 size={17} />
-              {completedSale.code} sudah dibayar dan stok telah diperbarui.
+      {/* Receipt Modal */}
+      <Dialog open={!!completedSale} onOpenChange={(open) => !open && setCompletedSale(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="text-center sm:text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 mb-4">
+              <CheckCircle2 size={32} className="text-emerald-600" />
             </div>
+            <DialogTitle className="text-xl">Pembayaran Berhasil</DialogTitle>
+            <DialogDescription className="text-base mt-2">
+              Invoice <strong>{completedSale?.code}</strong> telah lunas dan stok diperbarui.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <DialogFooter className="mt-6 flex flex-col gap-2 sm:flex-col sm:space-x-0">
             <Link
-              href={`/nota/${completedSale.id}?print=true`}
+              href={`/nota/${completedSale?.id}?print=true`}
               target="_blank"
-              className="inline-flex min-h-9 items-center gap-2 rounded-md border border-emerald-300 bg-white px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+              className="flex w-full min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--amber-warm)] px-4 text-sm font-bold text-white hover:opacity-90 transition shadow-sm"
+              onClick={() => setCompletedSale(null)}
             >
-              <Printer size={14} />
-              Cetak nota
+              <Printer size={18} />
+              Cetak Struk Sekarang
             </Link>
-          </div>
-        </div>
-      ) : null}
+            <button
+              onClick={() => setCompletedSale(null)}
+              className="flex w-full min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 transition"
+            >
+              Lanjut Transaksi Baru
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_390px]">
         <section className="custom-scrollbar min-h-0 overflow-y-auto p-4 pb-24 md:p-6 lg:pb-6" aria-label="Daftar produk">
@@ -308,6 +325,14 @@ export function CashierClient({
                   title="Tambah Pelanggan Baru"
                 >
                   <Plus size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStockDrawerOpen(true)}
+                  className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 text-xs font-bold text-stone-700 hover:bg-stone-50"
+                >
+                  <Package size={14} />
+                  <span className="hidden sm:inline">Cek Stok</span>
                 </button>
               </div>
             </div>
@@ -601,6 +626,48 @@ export function CashierClient({
             setCustomerDrawerOpen(false);
           }}
         />
+      </StandardDrawer>
+
+      {/* Stock Drawer */}
+      <StandardDrawer
+        open={stockDrawerOpen}
+        onOpenChange={setStockDrawerOpen}
+        title="Ketersediaan Stok"
+        description="Cek ketersediaan stok produk jadi."
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-stone-200 bg-white">
+            <div className="max-h-[60vh] overflow-y-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="sticky top-0 bg-stone-100 text-stone-600">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Produk</th>
+                    <th className="px-4 py-3 text-right font-semibold">Stok (Pcs)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {products.map((p) => (
+                    <tr key={p.id} className="hover:bg-stone-50">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-stone-900">{p.name}</div>
+                        <div className="text-xs text-stone-500">{p.code}</div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={cn(
+                          "font-bold",
+                          p.stockUnit > 10 ? "text-stone-900" : 
+                          p.stockUnit > 0 ? "text-amber-600" : "text-red-600"
+                        )}>
+                          {p.stockUnit}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </StandardDrawer>
     </div>
   );

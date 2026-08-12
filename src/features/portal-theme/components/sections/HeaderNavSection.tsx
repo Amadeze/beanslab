@@ -27,12 +27,23 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
     return () => window.removeEventListener("scroll", onScroll);
   }, [isPreview]);
 
-  const navLinks = [
+  const defaultNavLinks = [
     { label: "Collection", href: "#catalog" },
     { label: "Sensory Matrix", href: "#matrix" },
     { label: "Narrative", href: "#narrative" },
     { label: "FAQ", href: "#faq" },
   ];
+
+  const [navLinks, setNavLinks] = useState(defaultNavLinks);
+
+  useEffect(() => {
+    // Only show links if their target section actually exists on the page
+    const filtered = defaultNavLinks.filter(link => {
+      const el = document.querySelector(link.href) || document.getElementById(link.href.replace("#", ""));
+      return !!el;
+    });
+    setNavLinks(filtered);
+  }, []);
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();

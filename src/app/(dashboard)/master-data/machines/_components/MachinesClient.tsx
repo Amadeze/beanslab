@@ -15,7 +15,7 @@ type Machine = {
   _count: { roastdStudios: number; artisanImports: number };
 };
 
-export function MachinesClient({ machines }: { machines: Machine[] }) {
+export function MachinesClient({ machines, readonly }: { machines: Machine[]; readonly?: boolean }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -74,16 +74,18 @@ export function MachinesClient({ machines }: { machines: Machine[] }) {
             Kelola mesin roasting yang terhubung dengan akun Anda.
           </p>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowForm(!showForm);
-          }}
-          className="flex items-center gap-2 rounded-xl bg-[var(--amber-warm)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition"
-        >
-          <Plus size={16} />
-          Tambah Mesin
-        </button>
+        {!readonly && (
+          <button
+            onClick={() => {
+              resetForm();
+              setShowForm(!showForm);
+            }}
+            className="flex items-center gap-2 rounded-xl bg-[var(--amber-warm)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition"
+          >
+            <Plus size={16} />
+            Tambah Mesin
+          </button>
+        )}
       </div>
 
       {showForm && (
@@ -185,25 +187,27 @@ export function MachinesClient({ machines }: { machines: Machine[] }) {
                 {m.capacityKg && (
                   <span>Kapasitas: <strong>{m.capacityKg} kg</strong></span>
                 )}
-                <span>{m._count.roastdStudios} connector Â· {m._count.artisanImports} import</span>
+                <span>{m._count.roastdStudios} connector · {m._count.artisanImports} import</span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => startEdit(m)}
-                className="rounded-lg p-2 text-[var(--text-tertiary)] hover:bg-[var(--glass-bg-hover)] hover:text-[var(--text-primary)] transition"
-                title="Edit"
-              >
-                <Pencil size={16} />
-              </button>
-              <button
-                onClick={() => handleToggle(m.id, m.isActive)}
-                className="rounded-lg p-2 text-[var(--text-tertiary)] hover:bg-[var(--glass-bg-hover)] hover:text-[var(--text-primary)] transition"
-                title={m.isActive ? "Nonaktifkan" : "Aktifkan"}
-              >
-                {m.isActive ? <ToggleRight size={20} className="text-emerald-500" /> : <ToggleLeft size={20} />}
-              </button>
-            </div>
+            {!readonly && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => startEdit(m)}
+                  className="rounded-lg p-2 text-[var(--text-tertiary)] hover:bg-[var(--glass-bg-hover)] hover:text-[var(--text-primary)] transition"
+                  title="Edit"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  onClick={() => handleToggle(m.id, m.isActive)}
+                  className="rounded-lg p-2 text-[var(--text-tertiary)] hover:bg-[var(--glass-bg-hover)] hover:text-[var(--text-primary)] transition"
+                  title={m.isActive ? "Nonaktifkan" : "Aktifkan"}
+                >
+                  {m.isActive ? <ToggleRight size={20} className="text-emerald-500" /> : <ToggleLeft size={20} />}
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>

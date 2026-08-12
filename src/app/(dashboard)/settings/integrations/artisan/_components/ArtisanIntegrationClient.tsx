@@ -4,6 +4,16 @@ import { useCallback, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { revokeConnector } from "../actions";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ResponsiveContainer,
   LineChart,
   Line,
@@ -68,6 +78,8 @@ export function ArtisanIntegrationClient({
   downloadUrl,
 }: Props) {
   const [connectors, setConnectors] = useState(initialConnectors);
+  const [connectorToRevoke, setConnectorToRevoke] = useState<string | null>(null);
+  const [connectorToDelete, setConnectorToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     const refreshConnectors = async () => {
@@ -91,40 +103,46 @@ export function ArtisanIntegrationClient({
   }, []);
 
   async function handleRevoke(connectorId: string) {
-    if (!confirm("Yakin ingin memutuskan connector ini?")) return;
-    const result = await revokeConnector(connectorId);
+    setConnectorToRevoke(connectorId);
+  }
+  
+  async function confirmRevoke() {
+    if (!connectorToRevoke) return;
+    const result = await revokeConnector(connectorToRevoke);
     if (result.success) {
       toast.success("Connector berhasil dicabut.");
+      setConnectors((prev) => prev.map(c => c.id === connectorToRevoke ? { ...c, status: 'REVOKED' } : c));
     } else {
       toast.error(result.error);
     }
+    setConnectorToRevoke(null);
   }
 
   async function handleDelete(connectorId: string) {
-    if (
-      !confirm(
-        "Yakin ingin menghapus connector ini? Data tidak dapat dikembalikan.",
-      )
-    )
-      return;
+    setConnectorToDelete(connectorId);
+  }
+  
+  async function confirmDelete() {
+    if (!connectorToDelete) return;
     try {
       const res = await fetch("/api/integrations/artisan/connectors/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ connectorId }),
+        body: JSON.stringify({ connectorId: connectorToDelete }),
       });
       const data = await res.json();
       if (data.success) {
         toast.success("Connector berhasil dihapus.");
         // Refresh connectors list
-        setConnectors((prev) => prev.filter((c) => c.id !== connectorId));
+        setConnectors((prev) => prev.filter((c) => c.id !== connectorToDelete));
       } else {
         toast.error(data.error || "Gagal menghapus.");
       }
     } catch {
       toast.error("Gagal menghapus connector.");
     }
+    setConnectorToDelete(null);
   }
 
   return (
@@ -262,6 +280,40 @@ export function ArtisanIntegrationClient({
           </div>
         )}
       </section>
+
+      <AlertDialog open={!!connectorToRevoke} onOpenChange={(open) => !open && setConnectorToRevoke(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Putuskan Connector?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Yakin ingin memutuskan connector ini? Koneksi dengan mesin roaster akan terhenti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 text-white hover:bg-red-700" onClick={confirmRevoke}>
+              Ya, Putuskan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!connectorToDelete} onOpenChange={(open) => !open && setConnectorToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Connector?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Yakin ingin menghapus connector ini? Data tidak dapat dikembalikan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 text-white hover:bg-red-700" onClick={confirmDelete}>
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Live Telemetry */}
       <LiveTelemetrySection />

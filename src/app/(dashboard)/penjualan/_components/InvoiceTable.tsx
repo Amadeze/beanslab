@@ -85,7 +85,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
     const res = await approveInvoiceForMidtrans(inv.id);
     setIsApproving(null);
     if (!res.success) {
-      alert(res.error);
+      toast.error(res.error || "Gagal membatalkan invoice.");
     } else if (res.paymentLink) {
       // Buka link payment di tab baru agar Admin bisa copy atau langsung bayar (opsional)
       // atau redirect WhatsApp? Kita buka link Midtrans di tab baru dan refresh halaman

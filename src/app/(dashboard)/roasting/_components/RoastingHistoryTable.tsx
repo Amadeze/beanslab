@@ -53,6 +53,24 @@ function ShrinkageBadge({ percent }: { percent: number | null }) {
 }
 
 // ─────────────────────────────────────────────
+// Cupping badge
+// ─────────────────────────────────────────────
+
+function CuppingBadge({ score }: { score: number | null }) {
+  if (score === null) return null;
+  const colorClass = 
+    score >= 85 ? "bg-purple-50 text-purple-700 border-purple-200" :
+    score >= 80 ? "bg-blue-50 text-blue-700 border-blue-200" :
+    "bg-zinc-50 text-zinc-600 border-zinc-200";
+
+  return (
+    <Badge variant="outline" className={`ml-1.5 font-mono text-[11px] ${colorClass}`} title="Cupping Score">
+      {score.toFixed(1)}
+    </Badge>
+  );
+}
+
+// ─────────────────────────────────────────────
 // Empty state
 // ─────────────────────────────────────────────
 
@@ -279,7 +297,10 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
                   {b.actualOutputKg ? formatKg(b.actualOutputKg) : "-"}
                 </TableCell>
                 <TableCell className="text-center">
-                  <ShrinkageBadge percent={b.totalShrinkagePercent} />
+                  <div className="flex items-center justify-center">
+                    <ShrinkageBadge percent={b.totalShrinkagePercent} />
+                    <CuppingBadge score={b.cuppingScore ?? null} />
+                  </div>
                 </TableCell>
                 <TableCell className="text-sm text-zinc-500">
                   {formatDate(b.createdAt)}
@@ -411,6 +432,7 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
                 <div className="flex items-center gap-2">
                   <StatusBadge status={b.status} />
                   <ShrinkageBadge percent={b.totalShrinkagePercent} />
+                  <CuppingBadge score={b.cuppingScore ?? null} />
                 </div>
                 <span className="text-xs font-semibold text-slate-500">{formatDate(b.createdAt)}</span>
               </div>

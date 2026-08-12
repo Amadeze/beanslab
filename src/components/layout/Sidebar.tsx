@@ -114,6 +114,13 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "inventory",
       },
       {
+        label: "Supplier",
+        shortLabel: "Supplier",
+        href: "/inventory/suppliers",
+        icon: Boxes,
+        tone: "inventory",
+      },
+      {
         label: "Gudang & Lokasi",
         shortLabel: "Gudang",
         href: "/gudang",
@@ -162,6 +169,13 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         icon: Beaker,
         tone: "roasting",
       },
+      {
+        label: "Fulfillment",
+        shortLabel: "Fulfillment",
+        href: "/penjualan/fulfillment",
+        icon: PackageSearch,
+        tone: "sales",
+      },
     ],
   },
   {
@@ -179,6 +193,13 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         label: "Penjualan",
         shortLabel: "Penjualan",
         href: "/penjualan",
+        icon: ShoppingBag,
+        tone: "sales",
+      },
+      {
+        label: "Pelanggan",
+        shortLabel: "Pelanggan",
+        href: "/penjualan/pelanggan",
         icon: ShoppingBag,
         tone: "sales",
       },
@@ -237,6 +258,13 @@ export const APP_NAV_SECTIONS: NavSection[] = [
     caption: "Data dan konfigurasi",
     items: [
       {
+        label: "Tim & Akses",
+        shortLabel: "Tim",
+        href: "/settings/team",
+        icon: Settings2,
+        tone: "neutral",
+      },
+      {
         label: "Pengaturan",
         shortLabel: "Setting",
         href: "/settings",
@@ -267,6 +295,8 @@ export function canAccessNavigation(
       "/eksperimen",
       "/cupping",
       "/katalog",
+      "/penjualan/fulfillment",
+      "/roasting/machines",
     ].includes(href);
   }
   if (userRole === "CASHIER") {
@@ -287,13 +317,17 @@ export function getActiveNavigation(pathname: string, items: AppNavLink[]) {
 export function Sidebar({
   userRole,
   subscriptionTier,
-  forceExpanded,
   pendingPaymentReviews,
+  lowStockCount = 0,
+  unfulfilledOrders = 0,
+  forceExpanded = false,
 }: {
   userRole: string;
   subscriptionTier: PlanTier;
-  forceExpanded?: boolean;
   pendingPaymentReviews: number;
+  lowStockCount?: number;
+  unfulfilledOrders?: number;
+  forceExpanded?: boolean;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -447,13 +481,21 @@ export function Sidebar({
                           {item.label}
                         </span>
                         {item.href === "/penjualan" && pendingPaymentReviews > 0 ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 font-mono text-[9px] font-black text-white">{Math.min(pendingPaymentReviews, 99)}</span> : null}
+                        {item.href === "/inventory" && lowStockCount > 0 ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 font-mono text-[9px] font-black text-white">{Math.min(lowStockCount, 99)}</span> : null}
+                        {item.href === "/produksi" && unfulfilledOrders > 0 ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 font-mono text-[9px] font-black text-white">{Math.min(unfulfilledOrders, 99)}</span> : null}
                         {item.step ? (
                           <span className={cn("font-mono text-[8px] tracking-[0.12em]", active ? "text-current opacity-50" : "text-white/20")}>
                             {item.step}
                           </span>
                         ) : null}
                       </>
-                    ) : item.href === "/penjualan" && pendingPaymentReviews > 0 ? <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#05090D] bg-red-500" /> : null}
+                    ) : (
+                          <>
+                            {item.href === "/penjualan" && pendingPaymentReviews > 0 ? <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#05090D] bg-red-500" /> : null}
+                            {item.href === "/inventory" && lowStockCount > 0 ? <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#05090D] bg-red-500" /> : null}
+                            {item.href === "/produksi" && unfulfilledOrders > 0 ? <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#05090D] bg-amber-500" /> : null}
+                          </>
+                        )}
                   </Link>
                 );
               })}
