@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { Boxes, History, ClipboardList, ClipboardCheck, Download, FileText, FileSpreadsheet, Loader2, MoreHorizontal, Package, Plus, Settings2, Truck, ArrowDownCircle, ArrowUpCircle, AlertTriangle, XCircle, Clock, CheckCircle2, CircleDot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -773,6 +774,12 @@ export function InventoryClient({
             setSelectedReceivingPoId(null);
             handlePORefresh();
             router.refresh();
+            toast.success("Penerimaan tercatat — stok otomatis masuk.", {
+              action: {
+                label: "Atur lokasi lot",
+                onClick: () => router.push("/inventory?view=stock", { scroll: false }),
+              },
+            });
           }}
           onCancel={() => setReceiptDrawerOpen(false)}
         />

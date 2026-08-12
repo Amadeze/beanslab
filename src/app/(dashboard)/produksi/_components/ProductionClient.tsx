@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { Factory, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassPanel } from "@/components/ui/glass-panel";
@@ -179,6 +180,12 @@ export function ProductionClient({
             onSuccess={() => {
               setDrawerOpen(false);
               router.refresh();
+              toast.success("Batch produksi tercatat — stok FG bertambah.", {
+                action: {
+                  label: "Lihat stok FG",
+                  onClick: () => router.push("/inventory?view=stock&cat=fg", { scroll: false }),
+                },
+              });
             }}
             onPendingChange={setIsSubmitting}
           />
