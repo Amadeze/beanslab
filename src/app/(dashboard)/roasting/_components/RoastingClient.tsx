@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Flame, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -177,6 +178,12 @@ export function RoastingClient({
             <p className="text-xs text-zinc-400">
               Catat Barang Datang di halaman Inventory terlebih dahulu.
             </p>
+            <Link
+              href="/inventory?view=receiving"
+              className="mt-1 inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-4 text-xs font-bold text-white transition hover:bg-slate-700"
+            >
+              Catat Barang Datang →
+            </Link>
           </div>
         ) : (
           <RoastingForm

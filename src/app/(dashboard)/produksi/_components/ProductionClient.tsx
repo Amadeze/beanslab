@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Factory, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -151,6 +152,20 @@ export function ProductionClient({
               {packagingOptions.length === 0 && "Kemasan stok kosong. "}
               Tambahkan melalui Pasokan dan Roasting terlebih dahulu.
             </p>
+            <div className="mt-1 flex flex-wrap justify-center gap-2">
+              <Link
+                href="/inventory?view=receiving"
+                className="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-4 text-xs font-bold text-white transition hover:bg-slate-700"
+              >
+                Terima Barang →
+              </Link>
+              <Link
+                href="/roasting?mulai=1"
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 px-4 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+              >
+                Mulai Roasting →
+              </Link>
+            </div>
           </div>
         ) : (
           <ProductionForm
