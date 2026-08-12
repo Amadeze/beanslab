@@ -72,7 +72,7 @@ const WORKSPACES = {
   sales: [
     { label: "Invoice & pesanan", href: "/penjualan", icon: ReceiptText },
     { label: "Fulfillment", href: "/penjualan/fulfillment", icon: PackageCheck },
-    { label: "Bukti bayar", href: "/penjualan/pembayaran", icon: BadgeCheck },
+    { label: "Review bukti bayar", href: "/penjualan/pembayaran", icon: BadgeCheck },
     { label: "Kasir", href: "/kasir", icon: ShoppingCart },
     { label: "Pelanggan", href: "/penjualan/pelanggan", icon: Users },
   ],

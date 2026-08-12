@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
+import Link from "next/link";
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
 import { PaymentReviewClient } from "./PaymentReviewClient";
 
@@ -37,5 +38,5 @@ export default async function PaymentReviewPage() {
   }));
   const pending = serialized.filter((row) => row.status === "AWAITING_VERIFICATION").length;
 
-  return <div className="flex min-h-0 flex-1 flex-col"><PageHeader title="Verifikasi Pembayaran" eyebrow="Penjualan" description={`${pending} bukti menunggu keputusan. Hanya bukti yang disetujui membentuk Payment dan jurnal kas.`} /><WorkspaceNav kind="sales" /><div className="custom-scrollbar flex-1 overflow-auto"><div className="mx-auto max-w-6xl p-4 md:p-6 lg:p-8"><PaymentReviewClient rows={serialized} /></div></div></div>;
+  return <div className="flex min-h-0 flex-1 flex-col"><PageHeader title="Review Bukti Bayar" eyebrow="Penjualan" description={`${pending} bukti menunggu keputusan. Hanya bukti yang disetujui membentuk Payment dan jurnal kas.`} actions={<Link href="/keuangan?tab=piutang" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white/60 px-3 text-xs font-semibold text-slate-700 transition hover:bg-white">Terima Pembayaran (piutang) →</Link>} /><WorkspaceNav kind="sales" /><div className="custom-scrollbar flex-1 overflow-auto"><div className="mx-auto max-w-6xl p-4 md:p-6 lg:p-8"><PaymentReviewClient rows={serialized} /></div></div></div>;
 }

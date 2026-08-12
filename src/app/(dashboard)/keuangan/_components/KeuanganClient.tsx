@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Minus, Plus, HandCoins } from "lucide-react";
@@ -125,15 +126,23 @@ export function KeuanganClient({
             { label: "60+hr", value: kpi.agingBuckets.overdue61Plus.count },
           ]}
           actions={
-            <Button
-              variant="destructive"
-              size="sm"
-              className="h-8 gap-1.5 text-xs font-medium"
-              onClick={() => setExpenseOpen(true)}
-            >
-              <Minus size={14} />
-              Catat Pengeluaran
-            </Button>
+            <>
+              <Link
+                href="/penjualan/pembayaran"
+                className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-slate-300 bg-white/60 px-3 text-xs font-semibold text-slate-700 transition hover:bg-white"
+              >
+                Review Bukti Bayar →
+              </Link>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 gap-1.5 text-xs font-medium"
+                onClick={() => setExpenseOpen(true)}
+              >
+                <Minus size={14} />
+                Catat Pengeluaran
+              </Button>
+            </>
           }
           mobileActions={
             <Button
