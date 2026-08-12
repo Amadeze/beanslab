@@ -27,7 +27,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
     return () => window.removeEventListener("scroll", onScroll);
   }, [isPreview]);
 
-  const defaultNavLinks = [
+  const defaultNavLinks = Array.isArray(settings.navLinks) ? settings.navLinks : [
     { label: "Collection", href: "#catalog" },
     { label: "Sensory Matrix", href: "#matrix" },
     { label: "Narrative", href: "#narrative" },

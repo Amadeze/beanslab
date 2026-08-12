@@ -3,7 +3,7 @@ import { formatRupiah } from './format';
 import { interpretFonnteResponse, normalizeWhatsAppTarget } from "./notification-providers";
 
 // Helper for Resend (Email)
-const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder_key_here');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 function escapeHtml(value: string) {
   return value.replace(
