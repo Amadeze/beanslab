@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -137,7 +138,13 @@ function LotBreakdown({ lots, unit }: { lots: LotDisplayRow[]; unit: string | nu
           className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-slate-100/70 py-1.5 last:border-0"
         >
           <span className="flex items-center gap-2 truncate text-xs font-medium text-slate-800">
-            <span className="truncate">{lot.batchCode}</span>
+            <Link
+              href={`/inventory/lots/${lot.id}`}
+              className="truncate underline-offset-2 transition hover:text-slate-950 hover:underline"
+              title="Buka detail & atur lokasi lot"
+            >
+              {lot.batchCode}
+            </Link>
             <LotStatusBadge status={lot.status} />
           </span>
           <span className="truncate text-xs text-slate-500">{lot.supplierName ?? "—"}</span>

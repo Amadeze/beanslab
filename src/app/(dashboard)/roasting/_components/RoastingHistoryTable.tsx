@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Target, X } from "lucide-react";
+import { Search, Target, X, Flame } from "lucide-react";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import {
@@ -56,7 +56,7 @@ function ShrinkageBadge({ percent }: { percent: number | null }) {
 // Empty state
 // ─────────────────────────────────────────────
 
-function EmptyState({ isFiltered }: { isFiltered: boolean }) {
+function EmptyState({ isFiltered, onStart }: { isFiltered: boolean; onStart?: () => void }) {
   return (
     <TableRow>
       <TableCell colSpan={10} className="py-12 text-center">
@@ -64,9 +64,22 @@ function EmptyState({ isFiltered }: { isFiltered: boolean }) {
           {isFiltered ? "Tidak ada batch roasting yang cocok." : "Belum ada batch roasting."}
         </p>
         {!isFiltered && (
-          <p className="mt-1 text-xs text-zinc-300">
-            Klik "Mulai Roasting" di pojok kanan atas untuk mencatat batch pertama.
-          </p>
+          <>
+            <p className="mt-1 text-xs text-zinc-300">
+              Mulai batch pertama untuk mencatat hasil roasting.
+            </p>
+            {onStart && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-3 gap-1.5 border-amber-700/40 text-amber-900 hover:bg-amber-50"
+                onClick={onStart}
+              >
+                <Flame size={14} />
+                Mulai Roasting
+              </Button>
+            )}
+          </>
         )}
       </TableCell>
     </TableRow>
@@ -80,13 +93,14 @@ function EmptyState({ isFiltered }: { isFiltered: boolean }) {
 interface RoastingHistoryTableProps {
   batches: ParentRoastingBatchRow[];
   machineOptions: { id: string; name: string; capacityKg: number | null }[];
+  onStartRoasting?: () => void;
 }
 
 // ─────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────
 
-export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistoryTableProps) {
+export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting }: RoastingHistoryTableProps) {
   const [voidTarget, setVoidTarget] = useState<ParentRoastingBatchRow | null>(null);
   const [scrapTarget, setScrapTarget] = useState<ParentRoastingBatchRow | null>(null);
   const [completeTarget, setCompleteTarget] = useState<ParentRoastingBatchRow | null>(null);
@@ -240,7 +254,7 @@ export function RoastingHistoryTable({ batches, machineOptions }: RoastingHistor
         </TableHeader>
         <TableBody>
           {filteredBatches.length === 0 ? (
-            <EmptyState isFiltered={batches.length > 0} />
+            <EmptyState isFiltered={batches.length > 0} onStart={onStartRoasting} />
           ) : (
             filteredBatches.map((b) => (
               <TableRow key={b.id}>

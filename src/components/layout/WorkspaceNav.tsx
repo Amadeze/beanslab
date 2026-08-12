@@ -59,7 +59,7 @@ const WORKSPACES = {
   roastery: [
     { label: "Batch roasting", href: "/roasting", icon: Flame },
     {
-      label: "Profil & log",
+      label: "Log Roast",
       href: "/roasting",
       query: "tab=profiles",
       icon: Waves,

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search } from "lucide-react";
+import { Search, Factory } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -11,7 +11,7 @@ import { VoidConfirmDialog } from "@/components/VoidConfirmDialog";
 import { voidProductionBatch } from "../actions";
 import type { ProductionBatchRow } from "../actions";
 
-function EmptyState({ isFiltered }: { isFiltered: boolean }) {
+function EmptyState({ isFiltered, onStart }: { isFiltered: boolean; onStart?: () => void }) {
   return (
     <TableRow>
       <TableCell colSpan={9} className="py-12 text-center">
@@ -19,9 +19,22 @@ function EmptyState({ isFiltered }: { isFiltered: boolean }) {
           {isFiltered ? "Tidak ada batch produksi yang cocok." : "Belum ada batch produksi."}
         </p>
         {!isFiltered && (
-          <p className="mt-1 text-xs text-zinc-300">
-            Klik "Batch Baru" di pojok kanan atas untuk mencatat produksi pertama.
-          </p>
+          <>
+            <p className="mt-1 text-xs text-zinc-300">
+              Catat batch pertama untuk memulai produksi.
+            </p>
+            {onStart && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-3 gap-1.5 border-amber-700/40 text-amber-900 hover:bg-amber-50"
+                onClick={onStart}
+              >
+                <Factory size={14} />
+                Batch Baru
+              </Button>
+            )}
+          </>
         )}
       </TableCell>
     </TableRow>
@@ -30,9 +43,10 @@ function EmptyState({ isFiltered }: { isFiltered: boolean }) {
 
 interface ProductionHistoryTableProps {
   batches: ProductionBatchRow[];
+  onStartProduction?: () => void;
 }
 
-export function ProductionHistoryTable({ batches }: ProductionHistoryTableProps) {
+export function ProductionHistoryTable({ batches, onStartProduction }: ProductionHistoryTableProps) {
   const [voidTarget, setVoidTarget] = useState<ProductionBatchRow | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -89,7 +103,7 @@ export function ProductionHistoryTable({ batches }: ProductionHistoryTableProps)
         </TableHeader>
         <TableBody>
           {filteredBatches.length === 0 ? (
-            <EmptyState isFiltered={batches.length > 0} />
+            <EmptyState isFiltered={batches.length > 0} onStart={onStartProduction} />
           ) : (
             filteredBatches.map((b) => (
               <TableRow key={b.id} className="hover:bg-white/40 transition-colors">

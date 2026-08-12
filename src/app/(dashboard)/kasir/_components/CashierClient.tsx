@@ -158,9 +158,17 @@ export function CashierClient({
         description={`${totalUnits} item · ${formatRupiah(total)}`}
         stage="sales"
         actions={
-          <div className="flex items-center gap-2 px-2 text-xs font-semibold text-white/70">
-            <ShoppingCart size={15} />
-            {totalUnits} item · {formatRupiah(total)}
+          <div className="flex items-center gap-3 px-2 text-xs font-semibold text-white/70">
+            <Link
+              href="/penjualan"
+              className="hidden items-center gap-1.5 rounded-[8px] border border-white/15 px-2.5 py-1.5 transition hover:border-white/35 hover:text-white sm:flex"
+            >
+              Lihat semua invoice →
+            </Link>
+            <span className="flex items-center gap-1.5">
+              <ShoppingCart size={15} />
+              {totalUnits} item · {formatRupiah(total)}
+            </span>
           </div>
         }
         mobileActions={

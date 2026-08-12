@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ReceiptText,
@@ -9,6 +10,7 @@ import {
   FileText as FileTextIcon,
   FileSpreadsheet,
   Gift,
+  ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatRupiah, formatDate } from "@/lib/format";
@@ -238,6 +240,13 @@ export function SalesClient({
           next={{ label: "Lanjut ke Kas & Piutang", href: "/keuangan" }}
           actions={
             <>
+              <Link
+                href="/kasir"
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold transition hover:bg-slate-100"
+              >
+                <ShoppingCart size={16} />
+                Buka Kasir
+              </Link>
               <Button
                 size="default"
                 variant="outline"

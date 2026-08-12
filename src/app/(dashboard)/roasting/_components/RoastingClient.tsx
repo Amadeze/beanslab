@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Flame, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassPanel } from "@/components/ui/glass-panel";
@@ -43,7 +43,10 @@ export function RoastingClient({
   customRoastLevels,
 }: RoastingClientProps) {
   const router = useRouter();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const [drawerOpen, setDrawerOpen] = useState(
+    searchParams.get("mulai") === "1" && activeTab === "batches",
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const kpi = useMemo(() => {
@@ -128,6 +131,7 @@ export function RoastingClient({
                   <RoastingHistoryTable
                     batches={batches}
                     machineOptions={machineOptions}
+                    onStartRoasting={() => setDrawerOpen(true)}
                   />
                 </GlassPanel>
               </div>

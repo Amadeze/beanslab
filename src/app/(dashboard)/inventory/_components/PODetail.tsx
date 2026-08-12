@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -253,7 +254,13 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
       )}
 
       {/* Actions */}
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+        <Link
+          href="/keuangan?tab=pembelian"
+          className="mr-auto text-xs font-semibold text-slate-600 transition hover:text-slate-900 hover:underline"
+        >
+          Bayar ke supplier (hutang) →
+        </Link>
         <Button variant="outline" onClick={onClose} className="bg-white/40 border-white/60">
           Tutup
         </Button>

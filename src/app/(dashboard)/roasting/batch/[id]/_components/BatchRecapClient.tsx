@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Flame, Clock, Thermometer, ArrowDown, ChevronDown, ChevronUp,
   Package, Scale, TrendingDown, CheckCircle, AlertCircle,
@@ -151,6 +152,22 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
             <span className="font-medium">Catatan:</span> {data.notes}
           </div>
         )}
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <Link
+            href="/inventory?view=stock&category=rb"
+            className="text-xs font-semibold text-[var(--domain-roasting)] transition hover:underline"
+          >
+            Lihat stok roasted bean →
+          </Link>
+          {data.referenceProfile && (
+            <Link
+              href="/roasting/profiles"
+              className="text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] hover:underline"
+            >
+              Buka profil acuan →
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Child Batches */}

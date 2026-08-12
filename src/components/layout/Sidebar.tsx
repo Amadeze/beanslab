@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Beaker,
   Boxes,
   BookOpen,
   ChartNoAxesCombined,
@@ -13,6 +14,7 @@ import {
   Factory,
   Flame,
   FileSignature,
+  FlaskConical,
   LayoutDashboard,
   LogOut,
   PackageSearch,
@@ -112,6 +114,13 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "inventory",
       },
       {
+        label: "Gudang & Lokasi",
+        shortLabel: "Gudang",
+        href: "/gudang",
+        icon: Warehouse,
+        tone: "inventory",
+      },
+      {
         label: "Roasting",
         shortLabel: "Roast",
         href: "/roasting",
@@ -119,7 +128,7 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "roasting",
       },
       {
-        label: "Profil Roasting",
+        label: "Profil Roast",
         shortLabel: "Profil",
         href: "/roasting/profiles",
         icon: Target,
@@ -133,11 +142,25 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "production",
       },
       {
-        label: "Gudang & Lokasi",
-        shortLabel: "Gudang",
-        href: "/gudang",
-        icon: Warehouse,
-        tone: "inventory",
+        label: "Penggilingan",
+        shortLabel: "Giling",
+        href: "/grinding",
+        icon: Coffee,
+        tone: "production",
+      },
+      {
+        label: "Eksperimen",
+        shortLabel: "Eksperimen",
+        href: "/eksperimen",
+        icon: FlaskConical,
+        tone: "production",
+      },
+      {
+        label: "Cupping",
+        shortLabel: "Cupping",
+        href: "/cupping",
+        icon: Beaker,
+        tone: "roasting",
       },
     ],
   },
@@ -166,15 +189,22 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         icon: FileSignature,
         tone: "sales",
       },
+      {
+        label: "Katalog",
+        shortLabel: "Katalog",
+        href: "/katalog",
+        icon: PackageSearch,
+        tone: "production",
+      },
     ],
   },
   {
-    label: "Kontrol",
+    label: "Keuangan",
     caption: "Uang dan kinerja",
     items: [
       {
-        label: "Keuangan",
-        shortLabel: "Keuangan",
+        label: "Kas & Piutang",
+        shortLabel: "Kas",
         href: "/keuangan",
         icon: WalletCards,
         tone: "finance",
@@ -207,13 +237,6 @@ export const APP_NAV_SECTIONS: NavSection[] = [
     caption: "Data dan konfigurasi",
     items: [
       {
-        label: "Katalog",
-        shortLabel: "Katalog",
-        href: "/katalog",
-        icon: PackageSearch,
-        tone: "production",
-      },
-      {
         label: "Pengaturan",
         shortLabel: "Setting",
         href: "/settings",
@@ -237,8 +260,12 @@ export function canAccessNavigation(
       "/dashboard",
       "/inventory",
       "/roasting",
+      "/roasting/profiles",
       "/produksi",
       "/gudang",
+      "/grinding",
+      "/eksperimen",
+      "/cupping",
       "/katalog",
     ].includes(href);
   }

@@ -11,6 +11,7 @@ import {
   getActiveNavigation,
   type AppNavLink,
 } from "@/components/layout/Sidebar";
+import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { cn } from "@/lib/utils";
 import type { PlanTier } from "@/lib/plans";
 
@@ -273,6 +274,7 @@ export function AppShell({
         </header>
 
         <div className="dashboard-canvas custom-scrollbar relative z-0 flex-1 overflow-auto">
+          <Breadcrumbs />
           <div className="flex h-full w-full flex-col">{children}</div>
         </div>
 

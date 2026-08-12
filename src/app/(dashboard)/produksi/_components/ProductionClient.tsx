@@ -40,7 +40,9 @@ export function ProductionClient({
   const initialUnits = Number.isInteger(requestedUnits) && requestedUnits > 0
     ? requestedUnits
     : 1;
-  const [drawerOpen, setDrawerOpen] = useState(Boolean(requestedProductId));
+  const [drawerOpen, setDrawerOpen] = useState(
+    Boolean(requestedProductId) || searchParams.get("mulai") === "1",
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canProduce = rbOptions.length > 0 && packagingOptions.length > 0;
@@ -108,7 +110,10 @@ export function ProductionClient({
 
           <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8">
             <GlassPanel padding="md">
-              <ProductionHistoryTable batches={batches} />
+              <ProductionHistoryTable
+                batches={batches}
+                onStartProduction={() => setDrawerOpen(true)}
+              />
             </GlassPanel>
           </div>
         </div>

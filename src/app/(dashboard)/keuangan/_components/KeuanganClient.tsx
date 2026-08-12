@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Minus, Plus, HandCoins } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -57,12 +58,27 @@ export function KeuanganClient({
   capitalTransactions,
   capitalSummary,
 }: KeuanganClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const TABS: Tab[] = [
+    "piutang",
+    "pembayaran",
+    "pengeluaran",
+    "pembelian",
+    "pembayaranSupplier",
+    "modal",
+  ];
+  const paramTab = searchParams.get("tab");
+  const initialTab: Tab =
+    paramTab && (TABS as string[]).includes(paramTab)
+      ? (paramTab as Tab)
+      : "piutang";
   const [selectedInvoice, setSelectedInvoice] = useState<PiutangRow | null>(
     null,
   );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("piutang");
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [selectedPurchase, setSelectedPurchase] = useState<PurchaseRow | null>(
     null,
   );
@@ -136,7 +152,10 @@ export function KeuanganClient({
           <div className="relative z-10 mx-auto max-w-[1600px] px-4 pb-8 sm:px-5 md:px-6 lg:px-8">
             <Tabs
               value={activeTab}
-              onValueChange={(v) => setActiveTab(v as Tab)}
+              onValueChange={(v) => {
+                setActiveTab(v as Tab);
+                router.replace(`/keuangan?tab=${v}`, { scroll: false });
+              }}
               className="w-full"
             >
               <div className="custom-scrollbar mb-5 overflow-x-auto border-b border-border pb-1">
