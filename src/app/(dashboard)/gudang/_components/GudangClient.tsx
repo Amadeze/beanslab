@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, MapPin, ChevronDown, ChevronRight, LayoutGrid } from "lucide-react";
+import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, MapPin, ChevronDown, ChevronRight, LayoutGrid, Package } from "lucide-react";
 import { createWarehouse, updateWarehouse, toggleWarehouseActive, type WarehouseRow } from "../warehouses/actions";
 import { createLocation, updateLocation, toggleLocationActive, type LocationRow } from "../locations/actions";
 
@@ -260,6 +260,12 @@ export function GudangClient({
                           {l.zone && <p className="text-xs text-[var(--text-tertiary)]">Zona: {l.zone}</p>}
                         </div>
                         <div className="flex items-center gap-1">
+                          <Link
+                            href={`/gudang/scan?code=${encodeURIComponent(l.code)}`}
+                            className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-white/10 hover:text-white"
+                          >
+                            <Package size={13} /> Lihat stok
+                          </Link>
                           {qrMap[l.id] && (
                             <button
                               onClick={() => {
@@ -372,6 +378,12 @@ export function GudangClient({
                   {l.zone && <p className="text-xs text-[var(--text-tertiary)]">Zona: {l.zone}</p>}
                 </div>
                 <div className="flex items-center gap-2">
+                  <Link
+                    href={`/gudang/scan?code=${encodeURIComponent(l.code)}`}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-white/10 hover:text-white"
+                  >
+                    <Package size={13} /> Lihat stok
+                  </Link>
                   <button onClick={() => startEditLocation(l)} className={BTN_GHOST_ICON} title="Edit">
                     <Pencil size={16} />
                   </button>
