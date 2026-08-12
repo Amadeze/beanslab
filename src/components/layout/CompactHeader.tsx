@@ -78,7 +78,7 @@ export function CompactHeader({
             </h1>
             {activeIndex >= 0 && (
               <span className="hidden font-mono text-[9px] font-bold tracking-[0.16em] text-white/30 sm:inline">
-                SYS 0{activeIndex + 1} / 05
+                SYS 0{activeIndex + 1} / {String(operatingStages.length).padStart(2, "0")}
               </span>
             )}
           </div>
@@ -94,7 +94,7 @@ export function CompactHeader({
             aria-label="Alur operasional roastery"
             className="hidden min-w-0 xl:block"
           >
-            <div className="grid h-10 w-full grid-cols-5">
+            <div className="grid h-10 w-full grid-cols-6">
               {operatingStages.map((item, index) => {
                 const isActive = item.id === activeStage;
                 const isComplete = activeIndex > index;
@@ -229,7 +229,7 @@ export function CompactHeader({
           aria-label="Alur operasional roastery"
           className="border-t border-white/[0.08] bg-[#0B141B]/95 xl:hidden"
         >
-          <div className="mx-auto grid h-[40px] w-full max-w-[1600px] grid-cols-5 px-2 sm:px-6 lg:px-8">
+          <div className="mx-auto grid h-[40px] w-full max-w-[1600px] grid-cols-6 px-2 sm:px-6 lg:px-8">
             {operatingStages.map((item, index) => {
               const isActive = item.id === activeStage;
               const isComplete = activeIndex > index;
@@ -316,8 +316,8 @@ export function CompactHeaderSkeleton({
         </div>
       )}
       {stage && (
-        <div className="grid h-[40px] grid-cols-5 border-t border-white/10 bg-[#0B141B] px-6 xl:hidden">
-          {Array.from({ length: 5 }).map((_, index) => (
+        <div className="grid h-[40px] grid-cols-6 border-t border-white/10 bg-[#0B141B] px-6 xl:hidden">
+          {Array.from({ length: 6 }).map((_, index) => (
             <div
               key={index}
               className="flex flex-col items-center justify-center gap-1"

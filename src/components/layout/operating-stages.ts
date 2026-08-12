@@ -4,11 +4,13 @@ import {
   Flame,
   ReceiptText,
   WalletCards,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 
 export type OperatingStage =
   | "inventory"
+  | "warehouse"
   | "roasting"
   | "production"
   | "sales"
@@ -19,11 +21,16 @@ export const titleStages: Record<string, OperatingStage | undefined> = {
   Pasokan: "inventory",
   "Pasokan & Stok": "inventory",
   "Bahan & Stok": "inventory",
+  Gudang: "warehouse",
+  "Gudang & Lokasi": "warehouse",
+  "Stok per Lokasi": "warehouse",
+  "Opname Lokasi": "warehouse",
   Roasting: "roasting",
   Produksi: "production",
   "Produksi & Packing": "production",
   Penjualan: "sales",
   "Penjualan & Pesanan": "sales",
+  "Buka Kasir": "sales",
   Keuangan: "finance",
   "Kas & Piutang": "finance",
 };
@@ -37,10 +44,11 @@ export const operatingStages: Array<{
   icon: LucideIcon;
 }> = [
   { id: "inventory", number: "01", shortLabel: "Stok", label: "Pasokan & Stok", href: "/inventory", icon: Boxes },
-  { id: "roasting", number: "02", shortLabel: "Roast", label: "Roasting", href: "/roasting", icon: Flame },
-  { id: "production", number: "03", shortLabel: "Produksi", label: "Produksi", href: "/produksi", icon: Factory },
-  { id: "sales", number: "04", shortLabel: "Jual", label: "Penjualan", href: "/penjualan", icon: ReceiptText },
-  { id: "finance", number: "05", shortLabel: "Kas", label: "Kas & Piutang", href: "/keuangan", icon: WalletCards },
+  { id: "warehouse", number: "02", shortLabel: "Gudang", label: "Gudang & Lokasi", href: "/gudang", icon: Warehouse },
+  { id: "roasting", number: "03", shortLabel: "Roast", label: "Roasting", href: "/roasting", icon: Flame },
+  { id: "production", number: "04", shortLabel: "Produksi", label: "Produksi", href: "/produksi", icon: Factory },
+  { id: "sales", number: "05", shortLabel: "Jual", label: "Penjualan", href: "/penjualan", icon: ReceiptText },
+  { id: "finance", number: "06", shortLabel: "Kas", label: "Kas & Piutang", href: "/keuangan", icon: WalletCards },
 ];
 
 export const operatingStageTones = {
@@ -83,5 +91,13 @@ export const operatingStageTones = {
     label: "text-[#B7CE9F]",
     line: "bg-[#4B6B3C]",
     signal: "text-[#A8C390]",
+  },
+  warehouse: {
+    eyebrow: "text-[#9FB8C9]",
+    active: "border-[#4A6B84] bg-[#4A6B84] text-white shadow-[0_0_22px_rgba(74,107,132,.3)]",
+    complete: "border-[#4A6B84]/55 bg-[#4A6B84]/14 text-[#9FB8C9]",
+    label: "text-[#B7CBD9]",
+    line: "bg-[#4A6B84]",
+    signal: "text-[#9FB8C9]",
   },
 } as const;

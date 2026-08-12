@@ -14,6 +14,7 @@ import {
   RefreshCw,
   TriangleAlert,
   WalletCards,
+  Warehouse,
 } from "lucide-react";
 import {
   Area,
@@ -87,6 +88,16 @@ function CompactDashboardHeader({
     },
     {
       number: "02",
+      label: "Gudang",
+      status: "Lokasi & lot",
+      href: "/gudang",
+      icon: Warehouse,
+      attention: false,
+      tone: "border-[#4A6B84]/60 bg-[#4A6B84]/16 text-[#9FB8C9]",
+      line: "bg-[#4A6B84]",
+    },
+    {
+      number: "03",
       label: "Roasting",
       status: data.operationalQueue.roastingBatchesOpen > 0
         ? `${data.operationalQueue.roastingBatchesOpen} aktif`
@@ -98,7 +109,7 @@ function CompactDashboardHeader({
       line: "bg-[#B65331]",
     },
     {
-      number: "03",
+      number: "04",
       label: "Produksi",
       status: data.operationalQueue.fulfillmentNeedsProduction > 0
         ? `${data.operationalQueue.fulfillmentNeedsProduction} pesanan`
@@ -110,7 +121,7 @@ function CompactDashboardHeader({
       line: "bg-[#A66F12]",
     },
     {
-      number: "04",
+      number: "05",
       label: "Penjualan",
       status: formatRupiah(data.kpi.revenueToday),
       href: "/penjualan",
@@ -120,7 +131,7 @@ function CompactDashboardHeader({
       line: "bg-[#6F4A6A]",
     },
     {
-      number: "05",
+      number: "06",
       label: "Kas",
       status: data.operationalQueue.paymentReviews > 0
         ? `${data.operationalQueue.paymentReviews} verifikasi`
@@ -204,9 +215,9 @@ function CompactDashboardHeader({
         </div>
       </div>
 
-      {/* 5-stage pipeline */}
+      {/* 6-stage pipeline */}
       <div className="border-t border-white/[0.06]">
-        <div className="mx-auto grid w-full max-w-[1600px] grid-cols-5">
+        <div className="mx-auto grid w-full max-w-[1600px] grid-cols-6">
           {stages.map(({ number, label, status, href, icon: Icon, attention, tone, line }, index) => (
             <Link
               key={label}
