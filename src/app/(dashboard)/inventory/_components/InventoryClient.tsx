@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Boxes, History, ClipboardList, Download, FileText, FileSpreadsheet, Loader2, MoreHorizontal, Package, Plus, Settings2, Truck, ArrowDownCircle, ArrowUpCircle, AlertTriangle, XCircle, Clock, CheckCircle2, CircleDot } from "lucide-react";
+import { Boxes, History, ClipboardList, ClipboardCheck, Download, FileText, FileSpreadsheet, Loader2, MoreHorizontal, Package, Plus, Settings2, Truck, ArrowDownCircle, ArrowUpCircle, AlertTriangle, XCircle, Clock, CheckCircle2, CircleDot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { StandardDrawer } from "@/components/StandardDrawer";
@@ -190,13 +191,16 @@ function ActionsDropdown({ onStockOpname }: { onStockOpname: () => void }) {
     <div ref={ref} className="relative z-50">
       <button onClick={() => setOpen((p) => !p)} className="flex h-8 items-center gap-1 rounded-lg border border-slate-200/60 bg-white/50 px-2.5 text-xs font-medium text-slate-600 hover:bg-white/70 transition-colors" aria-label="Aksi lainnya">
         <Settings2 size={14} />
-        <span className="hidden sm:inline">Opname</span>
+        <span className="hidden sm:inline">Penyesuaian</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-44 rounded-xl border border-slate-200 bg-white shadow-xl py-1 overflow-hidden animate-in slide-in-from-top-1 fade-in">
+        <div className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-slate-200 bg-white shadow-xl py-1 overflow-hidden animate-in slide-in-from-top-1 fade-in">
           <button onClick={() => { onStockOpname(); setOpen(false); }} className="flex w-full items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left">
-            <Settings2 size={14} className="text-slate-400" /> Stock Opname
+            <Settings2 size={14} className="text-slate-400" /> Penyesuaian Stok (koreksi cepat)
           </button>
+          <Link href="/gudang/opname" className="flex w-full items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left">
+            <ClipboardCheck size={14} className="text-slate-400" /> Opname Lokasi (per lokasi) →
+          </Link>
         </div>
       )}
     </div>
@@ -205,7 +209,7 @@ function ActionsDropdown({ onStockOpname }: { onStockOpname: () => void }) {
 
 // ── Barang Datang Popup ──
 
-function BarangDatangPopup({ onGBDatang, onRBDatang, onKemasanDatang, onSupplyDatang }: { onGBDatang: () => void; onRBDatang: () => void; onKemasanDatang: () => void; onSupplyDatang: () => void }) {
+function BarangDatangPopup({ onGBDatang, onRBDatang, onKemasanDatang, onSupplyDatang, onTerimaPO, waitingCount }: { onGBDatang: () => void; onRBDatang: () => void; onKemasanDatang: () => void; onSupplyDatang: () => void; onTerimaPO: () => void; waitingCount: number }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -217,8 +221,40 @@ function BarangDatangPopup({ onGBDatang, onRBDatang, onKemasanDatang, onSupplyDa
       <DialogContent className="sm:max-w-md border border-[var(--glass-border)] bg-white/95 shadow-2xl p-6 rounded-2xl">
         <DialogHeader className="mb-4">
           <DialogTitle className="text-xl font-bold text-slate-800">Barang apa yang datang?</DialogTitle>
-          <DialogDescription className="text-sm text-slate-500">Pilih jenis persediaan yang baru saja diterima.</DialogDescription>
+          <DialogDescription className="text-sm text-slate-500">Pilih cara penerimaan, lalu jenis persediaan bila membeli langsung.</DialogDescription>
         </DialogHeader>
+
+        <div className="mb-5 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            className="flex flex-col items-start gap-1 rounded-xl border-2 border-amber-500 bg-amber-50 p-3.5 text-left transition-all"
+          >
+            <span className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
+              <Plus size={15} className="text-amber-600" />
+              Beli langsung
+            </span>
+            <span className="text-[11px] leading-4 text-slate-500">
+              Catat pembelian & terima stok sekaligus, tanpa PO.
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setOpen(false); onTerimaPO(); }}
+            className="flex flex-col items-start gap-1 rounded-xl border-2 border-slate-100 bg-white p-3.5 text-left transition-all hover:border-emerald-400 hover:bg-emerald-50"
+          >
+            <span className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
+              <Truck size={15} className="text-emerald-600" />
+              Terima dari PO ({waitingCount})
+            </span>
+            <span className="text-[11px] leading-4 text-slate-500">
+              Pesanan yang sudah dikirim supplier. {waitingCount > 0 ? `${waitingCount} PO menunggu.` : "Tidak ada PO aktif."}
+            </span>
+          </button>
+        </div>
+
+        <DialogDescription className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+          {waitingCount > 0 ? "Atau beli langsung:" : "Jenis pembelian langsung:"}
+        </DialogDescription>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button 
             onClick={() => { setOpen(false); onGBDatang(); }} 
@@ -518,7 +554,7 @@ export function InventoryClient({
         return [
           { label: "Masuk", value: mutationMetrics.inbound },
           { label: "Keluar", value: mutationMetrics.outbound },
-          { label: "Opname", value: mutationMetrics.opname },
+          { label: "Penyesuaian", value: mutationMetrics.opname },
         ];
     }
   }, [activeView, mutationMetrics, poMetrics, receivingMetrics, stockMetrics]);
@@ -526,7 +562,7 @@ export function InventoryClient({
   const mobileFabItems = useMemo(() => {
     switch (activeView) {
       case "stock": return [
-        { label: "Stock Opname", icon: <Settings2 size={16} />, onClick: () => setAdjDrawerOpen(true), variant: "secondary" as const },
+        { label: "Penyesuaian Stok", icon: <Settings2 size={16} />, onClick: () => setAdjDrawerOpen(true), variant: "secondary" as const },
         { label: "Kemasan Datang", icon: <Package size={16} />, onClick: () => setPkgDrawerOpen(true), variant: "secondary" as const },
         { label: "Barang Datang", icon: <Plus size={16} />, onClick: () => setGbDrawerOpen(true), variant: "primary" as const },
       ];
@@ -567,7 +603,7 @@ export function InventoryClient({
               {activeView === "stock" ? (
                 <>
                   <ActionsDropdown onStockOpname={() => setAdjDrawerOpen(true)} />
-                  <BarangDatangPopup onGBDatang={() => setGbDrawerOpen(true)} onRBDatang={() => setRbDrawerOpen(true)} onKemasanDatang={() => setPkgDrawerOpen(true)} onSupplyDatang={() => setSupDrawerOpen(true)} />
+                  <BarangDatangPopup onGBDatang={() => setGbDrawerOpen(true)} onRBDatang={() => setRbDrawerOpen(true)} onKemasanDatang={() => setPkgDrawerOpen(true)} onSupplyDatang={() => setSupDrawerOpen(true)} onTerimaPO={() => router.push("/inventory?view=po", { scroll: false })} waitingCount={receivingMetrics.waitingToReceive} />
                 </>
               ) : (
                 <>
@@ -591,7 +627,7 @@ export function InventoryClient({
             ) : (
               <Button size="sm" variant="outline" className="gap-1.5 px-3" onClick={() => setAdjDrawerOpen(true)}>
                 <Settings2 size={14} />
-                Opname
+                Penyesuaian
               </Button>
             )
           }
@@ -700,9 +736,15 @@ export function InventoryClient({
         />
       </StandardDrawer>
 
-      <StandardDrawer open={adjDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setAdjDrawerOpen(open); }} title="Penyesuaian Stok (Opname)" description="Gunakan fitur ini untuk menyamakan stok digital dengan fisik." size="md"
-        submitButton={<Button type="submit" form="adjustment-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan Opname"}</Button>}>
+      <StandardDrawer open={adjDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setAdjDrawerOpen(open); }} title="Penyesuaian Stok" description="Koreksi cepat stok digital agar sama dengan fisik. Untuk penghitungan per lokasi, gunakan Opname Lokasi." size="md"
+        submitButton={<Button type="submit" form="adjustment-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan Penyesuaian"}</Button>}>
         <StockAdjustmentDrawer id="adjustment-form" items={adjustmentItems} onSuccess={() => setAdjDrawerOpen(false)} onPendingChange={setIsSubmitting} />
+        <div className="mt-3 flex justify-end">
+          <Link href="/gudang/opname" className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 transition hover:text-slate-900 hover:underline">
+            <ClipboardCheck size={13} />
+            Butuh opname per lokasi? Buka Opname Lokasi →
+          </Link>
+        </div>
       </StandardDrawer>
 
       <StandardDrawer open={poDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setPoDrawerOpen(open); }} title="Buat Purchase Order" description="Buat PO baru untuk supplier." size="lg" showFooter={false}>

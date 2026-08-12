@@ -34,7 +34,7 @@ const WORKSPACES = {
       icon: Boxes,
     },
     {
-      label: "Pembelian",
+      label: "Pesanan & PO",
       href: "/inventory",
       query: "view=po",
       icon: ClipboardList,

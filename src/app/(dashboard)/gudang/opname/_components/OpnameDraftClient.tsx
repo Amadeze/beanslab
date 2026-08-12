@@ -111,7 +111,7 @@ export function OpnameDraftClient({ items, warehouses }: OpnameDraftClientProps)
       {!showForm && (
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-[var(--text-primary)]">Opname Stok Lokasi</h2>
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">Opname Lokasi</h2>
             <p className="text-sm text-[var(--text-secondary)]">
               Hitung stok fisik per lot per lokasi. {items.length} lot dengan penempatan aktif.
             </p>
