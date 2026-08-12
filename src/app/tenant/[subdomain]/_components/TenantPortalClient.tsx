@@ -3,6 +3,7 @@
 import { Tenant, Product } from "@prisma/client";
 import { useCartStore } from "../_store/cartStore";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { ThemeEngine } from "./themes/ThemeEngine";
 import { UniversalTheme } from "./themes/UniversalTheme";
 import {
