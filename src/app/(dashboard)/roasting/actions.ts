@@ -310,6 +310,84 @@ async function fetchRBOptions(): Promise<RBProductOption[]> {
   });
 }
 
+export type DownstreamBatchRecord = {
+  type: "PRD" | "GRD" | "EXP";
+  id: string;
+  code: string;
+  parentRoastBatchId: string;
+  status: string;
+  productName: string;
+  quantity: number;
+  createdAt: string;
+};
+
+// Canonical source for batches downstream of a roast batch (PRD / GRD / EXP).
+// Consumed by the batch list (fetchBatchHistory) and the recap page.
+// Tenant-scoped via requireTenantPrisma.
+export async function fetchDownstreamBatches(batchIds: string[]): Promise<DownstreamBatchRecord[]> {
+  if (batchIds.length === 0) return [];
+  const tp = await requireTenantPrisma();
+  const [production, grinding, experimental] = await Promise.all([
+    tp.productionBatch.findMany({
+      where: { parentRoastBatchId: { in: batchIds } },
+      select: {
+        id: true, code: true, parentRoastBatchId: true, status: true,
+        unitsProduced: true, createdAt: true,
+        outputProduct: { select: { name: true } },
+      },
+    }),
+    tp.grindingBatch.findMany({
+      where: { parentRoastBatchId: { in: batchIds } },
+      select: {
+        id: true, code: true, parentRoastBatchId: true, status: true,
+        outputKg: true, createdAt: true,
+        outputProduct: { select: { name: true } },
+      },
+    }),
+    tp.experimentalProduction.findMany({
+      where: { parentRoastBatchId: { in: batchIds } },
+      select: {
+        id: true, code: true, parentRoastBatchId: true, status: true,
+        outputKg: true, createdAt: true,
+        outputProduct: { select: { name: true } },
+      },
+    }),
+  ]);
+
+  return [
+    ...production.map((b) => ({
+      type: "PRD" as const,
+      id: b.id,
+      code: b.code,
+      parentRoastBatchId: b.parentRoastBatchId!,
+      status: b.status,
+      productName: b.outputProduct.name,
+      quantity: b.unitsProduced,
+      createdAt: b.createdAt.toISOString(),
+    })),
+    ...grinding.map((b) => ({
+      type: "GRD" as const,
+      id: b.id,
+      code: b.code,
+      parentRoastBatchId: b.parentRoastBatchId!,
+      status: b.status,
+      productName: b.outputProduct.name,
+      quantity: Number(b.outputKg),
+      createdAt: b.createdAt.toISOString(),
+    })),
+    ...experimental.map((b) => ({
+      type: "EXP" as const,
+      id: b.id,
+      code: b.code,
+      parentRoastBatchId: b.parentRoastBatchId!,
+      status: b.status,
+      productName: b.outputProduct.name,
+      quantity: Number(b.outputKg),
+      createdAt: b.createdAt.toISOString(),
+    })),
+  ];
+}
+
 async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
   const batches = await (await requireTenantPrisma()).parentRoastingBatch.findMany({
     orderBy: { createdAt: "desc" },
@@ -346,36 +424,13 @@ async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
 
   // Fetch downstream batches (production, grinding, experimental)
   const batchIds = batches.map((b) => b.id);
-  const [productionChildren, grindingChildren, experimentalChildren] = await Promise.all([
-    (await requireTenantPrisma()).productionBatch.findMany({
-      where: { parentRoastBatchId: { in: batchIds } },
-      select: { id: true, code: true, parentRoastBatchId: true },
-    }),
-    (await requireTenantPrisma()).grindingBatch.findMany({
-      where: { parentRoastBatchId: { in: batchIds } },
-      select: { id: true, code: true, parentRoastBatchId: true },
-    }),
-    (await requireTenantPrisma()).experimentalProduction.findMany({
-      where: { parentRoastBatchId: { in: batchIds } },
-      select: { id: true, code: true, parentRoastBatchId: true },
-    }),
-  ]);
+  const downstreamRows = await fetchDownstreamBatches(batchIds);
 
   const downstreamMap = new Map<string, Array<{ type: string; code: string; id: string }>>();
-  for (const p of productionChildren) {
-    const arr = downstreamMap.get(p.parentRoastBatchId!) ?? [];
-    arr.push({ type: "PRD", code: p.code, id: p.id });
-    downstreamMap.set(p.parentRoastBatchId!, arr);
-  }
-  for (const g of grindingChildren) {
-    const arr = downstreamMap.get(g.parentRoastBatchId!) ?? [];
-    arr.push({ type: "GRD", code: g.code, id: g.id });
-    downstreamMap.set(g.parentRoastBatchId!, arr);
-  }
-  for (const e of experimentalChildren) {
-    const arr = downstreamMap.get(e.parentRoastBatchId!) ?? [];
-    arr.push({ type: "EXP", code: e.code, id: e.id });
-    downstreamMap.set(e.parentRoastBatchId!, arr);
+  for (const d of downstreamRows) {
+    const arr = downstreamMap.get(d.parentRoastBatchId) ?? [];
+    arr.push({ type: d.type, code: d.code, id: d.id });
+    downstreamMap.set(d.parentRoastBatchId, arr);
   }
 
   return batches.map((b) => {
@@ -404,7 +459,7 @@ async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
       machineId:         b.machine?.id ?? null,
       machineName:       b.machine?.name ?? null,
       referenceProfile: b.referenceRoast
-        ? { id: b.referenceRoast.id, title: b.referenceRoast.title || "Profil tanpa nama" }
+        ? { id: b.referenceRoast.id, title: b.referenceRoast.title || "Kurva tanpa nama" }
         : null,
       createdAt:         b.createdAt.toISOString(),
       cuppingScore,
@@ -530,7 +585,7 @@ export async function searchRoastReferenceProfiles(
       success: true,
       data: roasts.map((roast) => ({
         id: roast.id,
-        title: roast.title || "Profil tanpa nama",
+        title: roast.title || "Kurva tanpa nama",
         machineId: roast.machineId,
         machineName: roast.machine.name,
         roastDate: roast.roastDate?.toISOString() ?? null,
@@ -539,7 +594,7 @@ export async function searchRoastReferenceProfiles(
     };
   } catch (error) {
     console.error("[searchRoastReferenceProfiles]", error);
-    return { success: false, error: "Profil acuan gagal dimuat." };
+    return { success: false, error: "Kurva acuan gagal dimuat." };
   }
 }
 
@@ -550,7 +605,7 @@ export async function setBatchReferenceProfile(input: {
   try {
     const user = await requireRole("OWNER", "MANAGER", "OPERATOR");
     const parsed = setBatchReferenceSchema.safeParse(input);
-    if (!parsed.success) return { success: false, error: "Batch atau profil acuan tidak valid." };
+    if (!parsed.success) return { success: false, error: "Batch atau kurva acuan tidak valid." };
 
     const tenantId = user.tenantId;
     const tenantPrisma = await requireTenantPrisma();
@@ -559,7 +614,7 @@ export async function setBatchReferenceProfile(input: {
         where: { id: parsed.data.batchId, tenantId, status: "PENDING" },
         select: { id: true, code: true, machineId: true, referenceRoastId: true },
       });
-      if (!batch) throw new Error("Hanya batch yang masih proses yang dapat diubah acuannya.");
+      if (!batch) throw new Error("Hanya batch yang masih proses yang dapat diubah kurva acuannya.");
 
       if (!parsed.data.referenceRoastId) {
         await tx.parentRoastingBatch.update({
@@ -588,12 +643,12 @@ export async function setBatchReferenceProfile(input: {
           beanTemperatureSeries: true,
         },
       });
-      if (!reference) throw new Error("Profil acuan tidak ditemukan.");
+      if (!reference) throw new Error("Kurva acuan tidak ditemukan.");
       if (!Array.isArray(reference.beanTemperatureSeries) || reference.beanTemperatureSeries.length < 2) {
-        throw new Error("Profil acuan belum memiliki kurva Bean Temperature yang dapat dibandingkan.");
+        throw new Error("Kurva acuan belum memiliki data Bean Temperature yang dapat dibandingkan.");
       }
       if (batch.machineId && batch.machineId !== reference.machineId) {
-        throw new Error("Profil acuan berasal dari mesin yang berbeda dengan batch ini.");
+        throw new Error("Kurva acuan berasal dari mesin yang berbeda dengan batch ini.");
       }
 
       await tx.parentRoastingBatch.update({
@@ -613,7 +668,7 @@ export async function setBatchReferenceProfile(input: {
         after: { referenceRoastId: reference.id, machineId: batch.machineId ?? reference.machineId },
         metadata: { source: "WEB_PROFILE_REFERENCE" },
       });
-      return { title: reference.title || "Profil tanpa nama" };
+      return { title: reference.title || "Kurva tanpa nama" };
     });
 
     revalidatePath("/roasting");
@@ -621,7 +676,7 @@ export async function setBatchReferenceProfile(input: {
     return { success: true, data: result };
   } catch (error) {
     console.error("[setBatchReferenceProfile]", error);
-    return { success: false, error: error instanceof Error ? error.message : "Profil acuan gagal disimpan." };
+    return { success: false, error: error instanceof Error ? error.message : "Kurva acuan gagal disimpan." };
   }
 }
 

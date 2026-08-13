@@ -31,7 +31,6 @@ import {
   type RBProductOption,
   type MachineOption,
   type ReusableRoastProfileRow,
-  type TenantRoastLevelRow,
 } from "../actions";
 
 // =============================================================================
@@ -46,10 +45,8 @@ const ROAST_LEVEL_LABELS: Record<string, string> = {
   DARK:        "Dark",
 };
 
-function buildRoastLevelOptions(customLevels: TenantRoastLevelRow[]) {
-  const defaults = ROAST_LEVELS.map((level) => ({ value: level, label: ROAST_LEVEL_LABELS[level] }));
-  const customs = customLevels.map((l) => ({ value: l.label, label: l.label }));
-  return [...defaults, ...customs];
+function buildRoastLevelOptions() {
+  return ROAST_LEVELS.map((level) => ({ value: level, label: ROAST_LEVEL_LABELS[level] }));
 }
 
 const schema = z
@@ -167,7 +164,6 @@ interface RoastingFormProps {
   machineOptions: MachineOption[];
   batches: ParentRoastingBatchRow[];
   reusableProfiles: ReusableRoastProfileRow[];
-  customRoastLevels: TenantRoastLevelRow[];
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
 }
@@ -183,7 +179,6 @@ export function RoastingForm({
   machineOptions,
   batches,
   reusableProfiles,
-  customRoastLevels,
   onSuccess,
   onPendingChange,
 }: RoastingFormProps) {
@@ -219,7 +214,7 @@ export function RoastingForm({
     },
   });
 
-  const [mode, inputProductId, targetWeightKg, actualOutputKg, outputMode, outputProductId, outputRoastLevel, referenceProfileId] = watch([
+  const [mode, inputProductId, targetWeightKg, actualOutputKg, outputMode, outputProductId, outputRoastLevel, referenceProfileId, machineId] = watch([
     "mode",
     "inputProductId",
     "targetWeightKg",
@@ -228,9 +223,11 @@ export function RoastingForm({
     "outputProductId",
     "outputRoastLevel",
     "referenceProfileId",
+    "machineId",
   ]);
 
   const selectedGB = gbOptions.find((g) => g.id === inputProductId);
+  const selectedMachine = machineOptions.find((m) => m.id === machineId);
 
   const likelyRbOptions = useMemo(() => rbOptions.filter((rb) => {
     if (!selectedGB || !selectedGB.origin) return true;
@@ -415,10 +412,10 @@ export function RoastingForm({
         <FieldError message={errors.machineId?.message} />
       </FieldGroup>
 
-      {/* ── Profil Roasting ── */}
+      {/* ── Profil Target ── */}
       <FieldGroup>
         <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-          Profil Roasting (Opsional)
+          Profil Target (Opsional)
         </Label>
         <Controller
           control={control}
@@ -462,6 +459,11 @@ export function RoastingForm({
             Melebihi stok tersedia ({formatKg(selectedGB.stockKg)})
           </p>
         )}
+        {selectedMachine?.capacityKg && Number(targetWeightKg) > Number(selectedMachine.capacityKg) && (
+          <p className="text-xs font-medium text-amber-600">
+            Target {formatKg(Number(targetWeightKg))} melebihi kapasitas mesin {formatKg(Number(selectedMachine.capacityKg))}. Pastikan batch ini memang akan dilakukan dalam beberapa charge atau sesuaikan jumlah.
+          </p>
+        )}
         <FieldError message={errors.targetWeightKg?.message} />
       </FieldGroup>
 
@@ -483,7 +485,7 @@ export function RoastingForm({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {buildRoastLevelOptions(customRoastLevels).map((level) => (
+                {buildRoastLevelOptions().map((level) => (
                   <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -581,7 +583,7 @@ export function RoastingForm({
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {buildRoastLevelOptions(customRoastLevels).map((level) => (
+                      {buildRoastLevelOptions().map((level) => (
                         <SelectItem key={level.value} value={level.value}>
                           {level.label}
                         </SelectItem>

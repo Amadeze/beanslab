@@ -180,8 +180,8 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
       return;
     }
     toast.success(result.data.title
-      ? `${result.data.title} menjadi acuan ${referenceTarget.code}.`
-      : `Acuan ${referenceTarget.code} dihapus.`);
+      ? `${result.data.title} menjadi kurva acuan ${referenceTarget.code}.`
+      : `Kurva acuan ${referenceTarget.code} dihapus.`);
     setReferenceTarget(null);
     setReferenceSearch("");
   };
@@ -320,7 +320,7 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
                       }}
                     >
                       <Target size={13} />
-                      <span className="truncate">{b.referenceProfile?.title ?? "Atur acuan"}</span>
+                      <span className="truncate">{b.referenceProfile?.title ?? "Atur kurva acuan"}</span>
                     </Button>
                   ) : (
                     <span className="block max-w-48 truncate text-xs text-zinc-500">
@@ -438,7 +438,7 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
               </div>
               <div className="flex items-center gap-1.5">
                 {b.status === "COMPLETED" && (
-                  <Button size="sm" variant="ghost" onClick={() => setVoidTarget(b)} className="h-7 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg">
+                  <Button size="sm" variant="ghost" onClick={() => setVoidTarget(b)} className="h-9 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg">
                     Void
                   </Button>
                 )}
@@ -454,14 +454,14 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
                       } else {
                         setActualOutputKg("");
                       }
-                    }} className="h-7 px-2.5 text-[11px] font-bold uppercase text-indigo-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                    }} className="h-9 px-2.5 text-[11px] font-bold uppercase text-indigo-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
                       Validasi Sore
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setVoidTarget(b)} className="h-7 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg">
+                    <Button size="sm" variant="ghost" onClick={() => setVoidTarget(b)} className="h-9 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg">
                       {b.lifecycleStatus === "CHARGED" ? "Kembalikan" : "Batalkan"}
                     </Button>
                     {b.lifecycleStatus === "CHARGED" && (
-                      <Button size="sm" variant="ghost" onClick={() => setScrapTarget(b)} className="h-7 px-2.5 text-[11px] font-bold uppercase text-red-700 hover:bg-red-100 hover:text-red-800 rounded-lg">
+                      <Button size="sm" variant="ghost" onClick={() => setScrapTarget(b)} className="h-9 px-2.5 text-[11px] font-bold uppercase text-red-700 hover:bg-red-100 hover:text-red-800 rounded-lg">
                         Scrap
                       </Button>
                     )}
@@ -478,7 +478,7 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
                   setReferenceSearch("");
                 }}
               >
-                <span className="flex items-center gap-1.5 font-semibold"><Target size={13} /> Profil acuan</span>
+                <span className="flex items-center gap-1.5 font-semibold"><Target size={13} /> Kurva acuan</span>
                 <span className="max-w-44 truncate">{b.referenceProfile?.title ?? "Atur dari web"}</span>
               </button>
             )}
@@ -492,7 +492,7 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
         <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl">
           <div className="flex items-start justify-between border-b border-stone-100 p-5">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-500">Acuan dari web</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-500">Kurva acuan dari web</p>
               <h3 className="mt-1 text-lg font-bold text-slate-900">{referenceTarget.code}</h3>
               <p className="mt-1 text-xs text-slate-500">
                 Studio hanya membaca pilihan ini dan tidak dapat menggantinya.
@@ -516,15 +516,15 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
                 autoFocus
                 value={referenceSearch}
                 onChange={(event) => setReferenceSearch(event.target.value)}
-                placeholder="Cari nama profil roasting..."
+                placeholder="Cari nama kurva roasting..."
                 className="pl-9"
               />
             </div>
             <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
               {referencePending ? (
-                <p className="py-8 text-center text-sm text-slate-400">Mencari profil...</p>
+                <p className="py-8 text-center text-sm text-slate-400">Mencari kurva...</p>
               ) : referenceOptions.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-400">Profil tidak ditemukan.</p>
+                <p className="py-8 text-center text-sm text-slate-400">Kurva tidak ditemukan.</p>
               ) : referenceOptions.map((profile) => {
                 const incompatible = Boolean(referenceTarget.machineId && referenceTarget.machineId !== profile.machineId);
                 return (
@@ -560,7 +560,7 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
                 className="text-red-600 hover:bg-red-50 hover:text-red-700"
                 onClick={() => void handleSetReference(null)}
               >
-                Hapus acuan
+                Hapus kurva acuan
               </Button>
             )}
           </div>

@@ -19,7 +19,6 @@ import type {
   MachineOption,
   RoastProfileRow,
   ReusableRoastProfileRow,
-  TenantRoastLevelRow,
 } from "../actions";
 
 interface RoastingClientProps {
@@ -30,7 +29,6 @@ interface RoastingClientProps {
   machineOptions: MachineOption[];
   roastProfiles: RoastProfileRow[];
   reusableProfiles: ReusableRoastProfileRow[];
-  customRoastLevels: TenantRoastLevelRow[];
 }
 
 export function RoastingClient({
@@ -41,7 +39,6 @@ export function RoastingClient({
   machineOptions,
   roastProfiles,
   reusableProfiles,
-  customRoastLevels,
 }: RoastingClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -193,7 +190,6 @@ export function RoastingClient({
             machineOptions={machineOptions}
             batches={batches}
             reusableProfiles={reusableProfiles}
-            customRoastLevels={customRoastLevels}
             onSuccess={() => {
               setDrawerOpen(false);
               router.refresh();

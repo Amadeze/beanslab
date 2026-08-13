@@ -159,13 +159,13 @@ export function RoastsClient({ roasts }: { roasts: RoastProfileRow[] }) {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cari profil, bean, mesin, atau roaster..."
+            placeholder="Cari kurva, bean, mesin, atau roaster..."
             className="h-10 w-full rounded-[10px] border border-[var(--glass-border)] bg-[var(--glass-bg)] pl-9 pr-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--domain-roasting)] focus:ring-2 focus:ring-[var(--domain-roasting)]/10"
           />
         </div>
         <div className="flex items-center justify-between gap-3 sm:justify-end">
           <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
-            {filteredRoasts.length} / {roasts.length} profil
+            {filteredRoasts.length} / {roasts.length} kurva
           </span>
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -197,7 +197,7 @@ export function RoastsClient({ roasts }: { roasts: RoastProfileRow[] }) {
         <div className="px-6 py-12 text-center">
           <Search className="mx-auto mb-3 size-6 text-[var(--text-tertiary)]" />
           <p className="text-sm font-semibold text-[var(--text-primary)]">
-            Profil tidak ditemukan
+            Kurva tidak ditemukan
           </p>
           <p className="mt-1 text-xs text-[var(--text-tertiary)]">
             Coba nama bean, mesin, atau roaster lain.
@@ -206,7 +206,7 @@ export function RoastsClient({ roasts }: { roasts: RoastProfileRow[] }) {
       ) : (
         <div>
           <div className="hidden grid-cols-[minmax(260px,1.5fr)_120px_90px_90px_150px_28px] items-center gap-4 border-b border-[var(--glass-border)] bg-black/[0.025] px-4 py-2 font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-[var(--text-tertiary)] lg:grid">
-            <span>Profil roast</span>
+            <span>Kurva Artisan</span>
             <span>Mesin</span>
             <span>Durasi</span>
             <span>Susut</span>

@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { BatchRecapClient } from "./_components/BatchRecapClient";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { fetchDownstreamBatches } from "../../actions";
 
 export default async function BatchRecapPage({
   params,
@@ -58,6 +59,18 @@ export default async function BatchRecapPage({
 
   const roastMap = new Map(roasts.map((r) => [r.id, r]));
 
+  // Fetch downstream batches that consume this roast's RB output (canonical source)
+  const downstreamBatches = (await fetchDownstreamBatches([batch.id]))
+    .filter((d) => d.status === "COMPLETED")
+    .map((d) => ({
+      type: d.type,
+      id: d.id,
+      code: d.code,
+      productName: d.productName,
+      quantity: d.quantity,
+      createdAt: d.createdAt,
+    }));
+
   // Calculate recap stats
   const totalInputKg = Number(batch.targetWeightKg);
   const totalOutputKg = batch.actualOutputKg ? Number(batch.actualOutputKg) : null;
@@ -108,7 +121,7 @@ export default async function BatchRecapPage({
     referenceProfile: batch.referenceRoast
       ? {
           id: batch.referenceRoast.id,
-          title: batch.referenceRoast.title ?? "Profil tanpa nama",
+          title: batch.referenceRoast.title ?? "Kurva tanpa nama",
           duration: batch.referenceRoast.duration,
           beanTemperatureSeries: batch.referenceRoast.beanTemperatureSeries as any,
           environmentalTemperatureSeries: batch.referenceRoast.environmentalTemperatureSeries as any,
@@ -154,6 +167,7 @@ export default async function BatchRecapPage({
       avgDuration,
       roastCount,
     },
+    downstreamBatches,
   };
 
   return (

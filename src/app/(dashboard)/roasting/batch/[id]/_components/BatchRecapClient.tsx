@@ -46,6 +46,15 @@ type ChildBatch = {
   roast: RoastData | null;
 };
 
+type DownstreamBatch = {
+  type: "PRD" | "GRD" | "EXP";
+  id: string;
+  code: string;
+  productName: string;
+  quantity: number;
+  createdAt: string;
+};
+
 type RecapData = {
   id: string;
   code: string;
@@ -78,6 +87,7 @@ type RecapData = {
     avgDuration: number | null;
     roastCount: number;
   };
+  downstreamBatches: DownstreamBatch[];
 };
 
 function formatDuration(seconds: number | null): string {
@@ -145,7 +155,7 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
           <InfoField label="Tanggal" value={formatDate(data.createdAt)} />
           <InfoField label="Selesai" value={formatDate(data.completedAt)} />
           <InfoField label="Total Batch" value={`${data.completedCount}/${data.childCount} selesai`} />
-          <InfoField label="Profil Acuan" value={data.referenceProfile?.title ?? "Belum dipilih"} />
+          <InfoField label="Kurva Acuan" value={data.referenceProfile?.title ?? "Belum dipilih"} />
         </div>
         {data.notes && (
           <div className="mt-3 text-xs text-[var(--text-secondary)]">
@@ -164,7 +174,7 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
               href="/roasting/profiles"
               className="text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] hover:underline"
             >
-              Buka profil acuan →
+              Buka kurva acuan →
             </Link>
           )}
         </div>
@@ -263,6 +273,50 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
           })}
         </div>
       </div>
+
+      {/* Downstream Batches */}
+      {data.downstreamBatches.length > 0 && (
+        <div>
+          <h3 className="text-sm font-bold text-[var(--text-primary)] mb-3">
+            Hasil Lanjutan ({data.downstreamBatches.length} batch)
+          </h3>
+          <div className="space-y-2">
+            {data.downstreamBatches.map((downstream) => {
+              const href =
+                downstream.type === "PRD" ? "/produksi"
+                : downstream.type === "GRD" ? "/grinding"
+                : "/eksperimen";
+              const label =
+                downstream.type === "PRD" ? "Produksi"
+                : downstream.type === "GRD" ? "Grinding"
+                : "Eksperimen";
+              return (
+                <Link
+                  key={downstream.id}
+                  href={href}
+                  className="glass-card flex items-center gap-3 rounded-xl p-3 transition hover:bg-[var(--glass-bg-hover)]"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-xs font-bold text-indigo-600">
+                    {downstream.type}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-[var(--text-primary)]">
+                      {downstream.productName}
+                    </p>
+                    <p className="text-xs text-[var(--text-tertiary)]">
+                      {label} · {formatDate(downstream.createdAt)}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-mono text-xs font-bold text-[var(--text-tertiary)]">
+                    {downstream.quantity} {downstream.type === "PRD" ? "unit" : "kg"}
+                  </span>
+                  <ChevronDown size={14} className="shrink-0 -rotate-90 text-[var(--text-tertiary)]" />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
