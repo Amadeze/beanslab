@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import {
   Boxes,
   ClipboardList,
+  ClipboardCheck,
   Coffee,
   Factory,
   Flame,
@@ -54,6 +55,7 @@ const WORKSPACES = {
     { label: "Supplier", href: "/inventory/suppliers", icon: Users },
     { label: "Lot & FEFO", href: "/inventory/lots", icon: PackageCheck },
     { label: "Gudang & Lokasi", href: "/gudang", icon: Warehouse },
+    { label: "Opname", href: "/gudang/opname", icon: ClipboardCheck },
     { label: "Persediaan Non-Kopi", href: "/katalog", query: "tab=supply", icon: PackageOpen },
   ],
   roastery: [

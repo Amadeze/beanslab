@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { generateQrDataUrl, encodeLocationQr } from "@/lib/qr";
-import { PageHeader } from "@/components/layout/PageHeader";
-import Link from "next/link";
+import { CompactHeader } from "@/components/layout/CompactHeader";
+import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
+import { Suspense } from "react";
 import { GudangClient } from "./_components/GudangClient";
 import { WarehouseRow } from "./warehouses/actions";
 import { LocationRow } from "./locations/actions";
@@ -57,19 +58,15 @@ export default async function GudangPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageHeader
+      <CompactHeader
         title="Gudang & Lokasi"
         description="Kelola gudang, rak, dan lokasi penyimpanan stok fisik."
-        actions={
-          <Link
-            href="/inventory"
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white/60 px-3 text-xs font-semibold text-slate-700 transition hover:bg-white"
-          >
-            Pasokan & Stok →
-          </Link>
-        }
+        stage="inventory"
       />
       <div className="custom-scrollbar flex-1 overflow-auto">
+        <Suspense fallback={null}>
+          <WorkspaceNav kind="supply" />
+        </Suspense>
         <div className="mx-auto max-w-[1200px] p-4 md:p-6 lg:p-8">
           <GudangClient warehouses={warehouseRows} locations={locationRows} qrMap={qrMap} />
         </div>
