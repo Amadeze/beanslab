@@ -3,7 +3,13 @@ import { formatRupiah } from './format';
 import { interpretFonnteResponse, normalizeWhatsAppTarget } from "./notification-providers";
 
 // Helper for Resend (Email)
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resendClient: Resend | null = null;
+function getResendClient(): Resend {
+  if (!_resendClient) {
+    _resendClient = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resendClient;
+}
 
 function escapeHtml(value: string) {
   return value.replace(
@@ -51,7 +57,7 @@ export async function sendInvoiceEmail(to: string, invoiceCode: string, paymentU
         : { success: true, mocked: true };
     }
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResendClient().emails.send({
       from: process.env.EMAIL_FROM || 'roastd.id <hello@roastd.id>',
       to: [to],
       subject: `Invoice Anda: ${invoiceCode}`,
@@ -100,7 +106,7 @@ export async function sendPasswordResetEmail(
     return { success: true, mocked: true };
   }
 
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResendClient().emails.send({
     from: process.env.EMAIL_FROM || "roastd.id <hello@roastd.id>",
     to: [to],
     subject: "Reset password roastd.id",
@@ -153,7 +159,7 @@ export async function sendOrderStatusEmail(input: {
   const tracking = input.trackingNumber
     ? `<p>Kurir: <strong>${escapeHtml(input.courierName || "Kurir")}</strong><br>Nomor resi: <strong>${escapeHtml(input.trackingNumber)}</strong></p>`
     : "";
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResendClient().emails.send({
     from: process.env.EMAIL_FROM || "roastd.id <no-reply@roastd.id>",
     to: [input.to],
     subject: `${input.statusLabel} · ${input.invoiceCode}`,
@@ -183,7 +189,7 @@ export async function sendPaymentProofSubmittedEmail(input: {
       ? { success: false as const, error: "RESEND_API_KEY belum dikonfigurasi." }
       : { success: true as const, mocked: true as const };
   }
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResendClient().emails.send({
     from: process.env.EMAIL_FROM || "roastd.id <no-reply@roastd.id>",
     to: [input.to],
     subject: `Bukti pembayaran baru ${input.invoiceCode}`,
@@ -231,7 +237,7 @@ export async function sendPaymentReviewEmail(input: {
       : { success: true as const, mocked: true as const };
   }
   const verified = input.status === "VERIFIED";
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResendClient().emails.send({
     from: process.env.EMAIL_FROM || "roastd.id <no-reply@roastd.id>",
     to: [input.to],
     subject: `${verified ? "Pembayaran terverifikasi" : "Bukti perlu diperbaiki"} ${input.invoiceCode}`,
@@ -281,7 +287,7 @@ export async function sendOverdueReminderEmail(input: {
       : { success: true as const, mocked: true as const };
   }
   const currency = formatRupiah(input.balance);
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResendClient().emails.send({
     from: process.env.EMAIL_FROM || "roastd.id <no-reply@roastd.id>",
     to: [input.to],
     subject: `Pengingat tagihan ${input.invoiceCode}`,
