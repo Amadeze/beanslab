@@ -90,8 +90,8 @@ type NavSection = {
 
 export const APP_NAV_SECTIONS: NavSection[] = [
   {
-    label: "Hari ini",
-    caption: "Fokus dan tindakan",
+    label: "Operasional",
+    caption: "Aktivitas Inti",
     items: [
       {
         label: "Ringkasan",
@@ -103,18 +103,18 @@ export const APP_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Operasional",
-    caption: "Bahan menjadi produk",
+    label: "Inventory",
+    caption: "Stok & Gudang",
     items: [
       {
-        label: "Pasokan",
-        shortLabel: "Pasokan",
+        label: "Stok & Mutasi",
+        shortLabel: "Stok",
         href: "/inventory",
         icon: Boxes,
         tone: "inventory",
       },
       {
-        label: "Supplier",
+        label: "Supplier & PO",
         shortLabel: "Supplier",
         href: "/inventory/suppliers",
         icon: Boxes,
@@ -128,7 +128,20 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "inventory",
       },
       {
-        label: "Roasting",
+        label: "Opname Fisik",
+        shortLabel: "Opname",
+        href: "/gudang/opname",
+        icon: PackageSearch,
+        tone: "inventory",
+      },
+    ],
+  },
+  {
+    label: "Roasting",
+    caption: "Proses & Kualitas",
+    items: [
+      {
+        label: "Jadwal & Riwayat",
         shortLabel: "Roast",
         href: "/roasting",
         icon: Flame,
@@ -142,7 +155,20 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "roasting",
       },
       {
-        label: "Produksi",
+        label: "Cupping & QC",
+        shortLabel: "Cupping",
+        href: "/cupping",
+        icon: Beaker,
+        tone: "roasting",
+      },
+    ],
+  },
+  {
+    label: "Produksi",
+    caption: "Pabrikasi & Eksperimen",
+    items: [
+      {
+        label: "Produksi & Job",
         shortLabel: "Produksi",
         href: "/produksi",
         icon: Factory,
@@ -162,25 +188,11 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         icon: FlaskConical,
         tone: "production",
       },
-      {
-        label: "Cupping",
-        shortLabel: "Cupping",
-        href: "/cupping",
-        icon: Beaker,
-        tone: "roasting",
-      },
-      {
-        label: "Fulfillment",
-        shortLabel: "Fulfillment",
-        href: "/penjualan/fulfillment",
-        icon: PackageSearch,
-        tone: "sales",
-      },
     ],
   },
   {
-    label: "Komersial",
-    caption: "Pesanan dan pelanggan",
+    label: "Penjualan",
+    caption: "Pesanan & Pelanggan",
     items: [
       {
         label: "Buka Kasir",
@@ -190,10 +202,17 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "sales",
       },
       {
-        label: "Penjualan",
+        label: "Sales & B2B",
         shortLabel: "Penjualan",
         href: "/penjualan",
         icon: ShoppingBag,
+        tone: "sales",
+      },
+      {
+        label: "Fulfillment",
+        shortLabel: "Fulfillment",
+        href: "/penjualan/fulfillment",
+        icon: PackageSearch,
         tone: "sales",
       },
       {
@@ -211,17 +230,17 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "sales",
       },
       {
-        label: "Katalog",
+        label: "Katalog Storefront",
         shortLabel: "Katalog",
         href: "/katalog",
         icon: PackageSearch,
-        tone: "production",
+        tone: "sales",
       },
     ],
   },
   {
     label: "Keuangan",
-    caption: "Uang dan kinerja",
+    caption: "Uang dan Kinerja",
     items: [
       {
         label: "Kas & Piutang",
@@ -230,6 +249,12 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         icon: WalletCards,
         tone: "finance",
       },
+    ],
+  },
+  {
+    label: "Analitik",
+    caption: "Data & Metrik",
+    items: [
       {
         label: "Laporan",
         shortLabel: "Laporan",
@@ -254,8 +279,8 @@ export const APP_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Kelola",
-    caption: "Data dan konfigurasi",
+    label: "Sistem",
+    caption: "Pengaturan & Master Data",
     items: [
       {
         label: "Tim & Akses",
@@ -291,6 +316,7 @@ export function canAccessNavigation(
       "/roasting/profiles",
       "/produksi",
       "/gudang",
+      "/gudang/opname",
       "/grinding",
       "/eksperimen",
       "/cupping",
