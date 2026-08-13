@@ -2,6 +2,12 @@
 
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import {
+  isSystemLocation,
+  SYSTEM_LOCATION_CODE_ERROR,
+  SYSTEM_LOCATION_CODE_PREFIX,
+  SYSTEM_LOCATION_ERROR,
+} from "@/lib/system-location";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -28,6 +34,10 @@ export async function createLocation(data: unknown): Promise<LocationActionResul
         success: false,
         error: parsed.error.issues[0]?.message ?? "Data tidak valid.",
       };
+    }
+
+    if (parsed.data.code.startsWith(SYSTEM_LOCATION_CODE_PREFIX)) {
+      return { success: false, error: SYSTEM_LOCATION_CODE_ERROR };
     }
 
     await tenantPrisma.$transaction(async (tx) => {
@@ -82,6 +92,20 @@ export async function updateLocation(
       };
     }
 
+    const existing = await tenantPrisma.location.findUnique({
+      where: { id },
+      select: { tenantId: true, isSystem: true, code: true },
+    });
+    if (!existing || existing.tenantId !== user.tenantId) {
+      return { success: false, error: "Lokasi tidak ditemukan." };
+    }
+    if (isSystemLocation(existing)) {
+      return { success: false, error: SYSTEM_LOCATION_ERROR };
+    }
+    if (parsed.data.code.startsWith(SYSTEM_LOCATION_CODE_PREFIX)) {
+      return { success: false, error: SYSTEM_LOCATION_CODE_ERROR };
+    }
+
     await tenantPrisma.$transaction(async (tx) => {
       await tx.location.update({
         where: { id },
@@ -120,6 +144,17 @@ export async function toggleLocationActive(
     const user = await requireRole("OWNER", "MANAGER");
     const tenantPrisma = await requireTenantPrisma();
 
+    const existing = await tenantPrisma.location.findUnique({
+      where: { id },
+      select: { tenantId: true, isSystem: true },
+    });
+    if (!existing || existing.tenantId !== user.tenantId) {
+      return { success: false, error: "Lokasi tidak ditemukan." };
+    }
+    if (isSystemLocation(existing)) {
+      return { success: false, error: SYSTEM_LOCATION_ERROR };
+    }
+
     await tenantPrisma.$transaction(async (tx) => {
       await tx.location.update({
         where: { id },
@@ -152,5 +187,7 @@ export interface LocationRow {
   zone: string | null;
   isActive: boolean;
   isDefault: boolean;
+  isSystem: boolean;
+  systemPurpose: string | null;
   createdAt: string;
 }

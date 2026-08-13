@@ -9,6 +9,7 @@ type LocationOption = {
   id: string;
   code: string;
   name: string;
+  isSystem: boolean;
   warehouseName: string;
 };
 
@@ -87,11 +88,13 @@ export function PlacementForm({
             className="w-full rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] px-4 py-2.5 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber-warm)]/50"
           >
             <option value="">Pilih lokasi</option>
-            {availableLocations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.warehouseName} — {loc.name} [{loc.code}]
-              </option>
-            ))}
+            {availableLocations
+              .filter((loc) => !loc.isSystem)
+              .map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.warehouseName} — {loc.name} [{loc.code}]
+                </option>
+              ))}
           </select>
           <div>
             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">

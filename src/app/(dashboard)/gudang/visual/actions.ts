@@ -11,6 +11,8 @@ export type VisualLocation = {
   zone: string | null;
   isActive: boolean;
   isDefault: boolean;
+  isSystem: boolean;
+  systemPurpose: string | null;
   rackGroup: string;
   placements: Array<{
     lotId: string;
@@ -132,6 +134,8 @@ export async function getVisualWarehouseMap(): Promise<VisualWarehouseMap> {
         zone: loc.zone,
         isActive: loc.isActive,
         isDefault: loc.isDefault,
+        isSystem: loc.isSystem,
+        systemPurpose: loc.systemPurpose,
         rackGroup,
         placements,
         totalKg,

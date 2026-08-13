@@ -22,13 +22,14 @@ export default async function LotTracePage({ params }: { params: Promise<{ id: s
   const tenantId = await getCurrentTenantId();
   const locations = await prisma.location.findMany({
     where: { tenantId, isActive: true },
-    select: { id: true, code: true, name: true, warehouse: { select: { name: true } } },
+    select: { id: true, code: true, name: true, isSystem: true, warehouse: { select: { name: true } } },
   });
 
   const availableLocations = locations.map((loc) => ({
     id: loc.id,
     code: loc.code,
     name: loc.name,
+    isSystem: loc.isSystem,
     warehouseName: loc.warehouse.name,
   }));
 

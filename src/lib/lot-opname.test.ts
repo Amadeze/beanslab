@@ -45,6 +45,7 @@ import {
 function buildMockPrisma(overrides: {
   lot?: any;
   location?: any;
+  locationFindFirst?: any;
   placement?: any;
   opnameCreate?: any;
   opnameFindUnique?: any;
@@ -125,6 +126,9 @@ function buildMockPrisma(overrides: {
     $transaction: vi.fn(async (cb: (tx: any) => Promise<any>) => {
       const tx = {
         locationOpname: prisma.locationOpname,
+        location: {
+          findFirst: vi.fn().mockResolvedValue(overrides.locationFindFirst ?? { isSystem: false }),
+        },
         lotPlacement: {
           findFirst: prisma.lotPlacement.findFirst,
           upsert: lotPlacementUpsert,
@@ -254,6 +258,30 @@ describe("createLocationOpname", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("Lokasi tidak ditemukan");
+  });
+
+  it("rejects opname creation at a system location", async () => {
+    const prisma = buildMockPrisma({
+      location: {
+        id: "loc-sys",
+        tenantId: TENANT_ID,
+        name: "Roasting WIP",
+        isSystem: true,
+        warehouse: { name: "Gudang Utama" },
+      },
+    });
+
+    (requireTenantPrisma as any).mockResolvedValue(prisma);
+
+    const result = await createLocationOpname({
+      lotId: "lot-1",
+      locationId: "loc-sys",
+      countedQuantityKg: 5,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Lokasi sistem dikelola otomatis");
+    expect(prisma.locationOpname.create).not.toHaveBeenCalled();
   });
 });
 
@@ -580,6 +608,40 @@ describe("confirmLocationOpname", () => {
 
     expect(r1.success || r2.success).toBe(true);
     expect(updateManyCount).toBe(2);
+  });
+
+  it("rejects confirming an opname at a system location", async () => {
+    const prisma = buildMockPrisma({
+      locationFindFirst: { isSystem: true },
+      opnameFindUnique: {
+        id: "opname-1",
+        tenantId: TENANT_ID,
+        lotId: "lot-1",
+        locationId: "loc-sys",
+        status: "DRAFT",
+        countedQuantityKg: 29,
+        countedQuantityUnit: null,
+        countedSupplyQty: null,
+        systemQuantityKg: 30,
+        systemQuantityUnit: 0,
+        systemSupplyQty: 0,
+        lot: {
+          id: "lot-1",
+          productId: "prod-1",
+          packagingId: null,
+          supplyItemId: null,
+        },
+      },
+    });
+
+    (requireTenantPrisma as any).mockResolvedValue(prisma);
+
+    const result = await confirmLocationOpname("opname-1");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Lokasi sistem dikelola otomatis");
+    expect(prisma.lotPlacement.upsert).not.toHaveBeenCalled();
+    expect(prisma.locationOpname.updateMany).not.toHaveBeenCalled();
   });
 });
 

@@ -46,6 +46,8 @@ export default async function GudangPage() {
     zone: loc.zone,
     isActive: loc.isActive,
     isDefault: loc.isDefault,
+    isSystem: loc.isSystem,
+    systemPurpose: loc.systemPurpose,
     createdAt: loc.createdAt.toISOString(),
   }));
 

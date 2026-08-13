@@ -4,6 +4,7 @@ import { requireRole, requireTenantPrisma, getCurrentTenantId, getSystemUserId }
 import { recordAudit } from "./audit";
 import { appendLedger } from "./stock";
 import { postStockAdjustment } from "./posting";
+import { isSystemLocation, SYSTEM_LOCATION_ERROR } from "./system-location";
 import { revalidatePath } from "next/cache";
 
 export type OpnameStatus = "DRAFT" | "CONFIRMED" | "CANCELLED";
@@ -62,10 +63,13 @@ export async function createLocationOpname(input: CreateOpnameInput): Promise<{ 
 
     const location = await tp.location.findUnique({
       where: { id: input.locationId },
-      select: { tenantId: true, name: true, warehouse: { select: { name: true } } },
+      select: { tenantId: true, name: true, isSystem: true, warehouse: { select: { name: true } } },
     });
     if (!location || location.tenantId !== tenantId) {
       return { success: false, error: "Lokasi tidak ditemukan." };
+    }
+    if (isSystemLocation(location)) {
+      return { success: false, error: SYSTEM_LOCATION_ERROR };
     }
 
     const placement = await tp.lotPlacement.findFirst({
@@ -146,6 +150,15 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
       if (!opname) throw new Error("Opname tidak ditemukan.");
       if (opname.status === "CONFIRMED") throw new Error("Opname sudah disahkan.");
       if (opname.status === "CANCELLED") throw new Error("Opname sudah dibatalkan.");
+
+      const location = await tx.location.findFirst({
+        where: { id: opname.locationId, tenantId },
+        select: { isSystem: true },
+      });
+      if (!location) throw new Error("Lokasi tidak ditemukan.");
+      if (isSystemLocation(location)) {
+        throw new Error(SYSTEM_LOCATION_ERROR);
+      }
 
       // Stale-draft guard: physical count must be confirmed against the CURRENT
       // placement. If quantity changed since the draft was created (e.g. a

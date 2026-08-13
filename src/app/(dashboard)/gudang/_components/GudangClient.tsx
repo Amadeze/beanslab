@@ -17,6 +17,18 @@ const BTN_GHOST =
 const BTN_GHOST_ICON =
   "rounded-lg p-2 text-[var(--text-tertiary)] hover:bg-[var(--glass-bg-hover)] hover:text-[var(--text-primary)] transition";
 
+const SYSTEM_PURPOSE_LABELS: Record<string, string> = {
+  ROASTING_WIP: "Roasting WIP",
+};
+
+function SystemBadge({ purpose }: { purpose: string | null }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-sky-500">
+      Sistem{purpose ? ` · ${SYSTEM_PURPOSE_LABELS[purpose] ?? purpose}` : ""}
+    </span>
+  );
+}
+
 export function GudangClient({
   warehouses: initialWarehouses,
   locations: initialLocations,
@@ -257,7 +269,10 @@ export function GudangClient({
                       <div key={l.id} className="flex items-center justify-between rounded-lg bg-white/2 py-2 px-3">
                         <div>
                           <p className="text-sm font-medium text-[var(--text-primary)]">{l.name} <span className="text-xs text-[var(--text-tertiary)]">[{l.code}]</span></p>
-                          {l.zone && <p className="text-xs text-[var(--text-tertiary)]">Zona: {l.zone}</p>}
+                          <div className="flex items-center gap-1.5">
+                            {l.zone && <p className="text-xs text-[var(--text-tertiary)]">Zona: {l.zone}</p>}
+                            {l.isSystem && <SystemBadge purpose={l.systemPurpose} />}
+                          </div>
                         </div>
                         <div className="flex items-center gap-1">
                           <Link
@@ -278,12 +293,16 @@ export function GudangClient({
                               <Image src={qrMap[l.id]} alt={`QR ${l.code}`} width={32} height={32} className="h-8 w-8 rounded" />
                             </button>
                           )}
-                          <button onClick={() => startEditLocation(l)} className={BTN_GHOST_ICON} title="Edit">
-                            <Pencil size={14} />
-                          </button>
-                          <button onClick={() => handleLocationToggle(l.id, l.isActive)} className={BTN_GHOST_ICON} title={l.isActive ? "Nonaktifkan" : "Aktifkan"}>
-                            {l.isActive ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} />}
-                          </button>
+                          {!l.isSystem && (
+                            <>
+                              <button onClick={() => startEditLocation(l)} className={BTN_GHOST_ICON} title="Edit">
+                                <Pencil size={14} />
+                              </button>
+                              <button onClick={() => handleLocationToggle(l.id, l.isActive)} className={BTN_GHOST_ICON} title={l.isActive ? "Nonaktifkan" : "Aktifkan"}>
+                                {l.isActive ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} />}
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -373,6 +392,7 @@ export function GudangClient({
                     {l.isDefault && (
                       <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold uppercase text-emerald-500">Default</span>
                     )}
+                    {l.isSystem && <SystemBadge purpose={l.systemPurpose} />}
                   </div>
                   <p className="text-xs text-[var(--text-tertiary)]">Gudang: {l.warehouseName}</p>
                   {l.zone && <p className="text-xs text-[var(--text-tertiary)]">Zona: {l.zone}</p>}
@@ -384,12 +404,16 @@ export function GudangClient({
                   >
                     <Package size={13} /> Lihat stok
                   </Link>
-                  <button onClick={() => startEditLocation(l)} className={BTN_GHOST_ICON} title="Edit">
-                    <Pencil size={16} />
-                  </button>
-                  <button onClick={() => handleLocationToggle(l.id, l.isActive)} className={BTN_GHOST_ICON} title={l.isActive ? "Nonaktifkan" : "Aktifkan"}>
-                    {l.isActive ? <ToggleRight size={20} className="text-emerald-500" /> : <ToggleLeft size={20} />}
-                  </button>
+                  {!l.isSystem && (
+                    <>
+                      <button onClick={() => startEditLocation(l)} className={BTN_GHOST_ICON} title="Edit">
+                        <Pencil size={16} />
+                      </button>
+                      <button onClick={() => handleLocationToggle(l.id, l.isActive)} className={BTN_GHOST_ICON} title={l.isActive ? "Nonaktifkan" : "Aktifkan"}>
+                        {l.isActive ? <ToggleRight size={20} className="text-emerald-500" /> : <ToggleLeft size={20} />}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

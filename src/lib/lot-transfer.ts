@@ -2,6 +2,7 @@
 
 import { requireRole, requireTenantPrisma, getCurrentTenantId, getSystemUserId } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { isSystemLocation, SYSTEM_LOCATION_ERROR } from "@/lib/system-location";
 import { revalidatePath } from "next/cache";
 
 export type TransferActionResult =
@@ -86,6 +87,26 @@ export async function transferLot(data: {
       });
       if (!lot) {
         throw new Error("LOT_NOT_FOUND");
+      }
+
+      const [sourceLocation, destinationLocation] = await Promise.all([
+        tx.location.findFirst({
+          where: { id: data.sourceLocationId, tenantId },
+          select: { isSystem: true },
+        }),
+        tx.location.findFirst({
+          where: { id: data.destinationLocationId, tenantId },
+          select: { isSystem: true },
+        }),
+      ]);
+      if (!sourceLocation || !destinationLocation) {
+        throw new Error("LOCATION_NOT_FOUND");
+      }
+      if (isSystemLocation(sourceLocation)) {
+        throw new Error("SYS_LOCATION_SOURCE");
+      }
+      if (isSystemLocation(destinationLocation)) {
+        throw new Error("SYS_LOCATION_DESTINATION");
       }
 
       const sourcePlacement = await tx.lotPlacement.findFirst({
@@ -187,6 +208,10 @@ export async function transferLot(data: {
     console.error("[transferLot]", err);
     const msg = err?.message ?? "Gagal memindah lot.";
     if (msg === "LOT_NOT_FOUND") return { success: false, error: "Lot tidak ditemukan." };
+    if (msg === "LOCATION_NOT_FOUND") return { success: false, error: "Lokasi tidak ditemukan." };
+    if (msg === "SYS_LOCATION_SOURCE" || msg === "SYS_LOCATION_DESTINATION") {
+      return { success: false, error: SYSTEM_LOCATION_ERROR };
+    }
     if (msg === "SOURCE_PLACEMENT_NOT_FOUND") return { success: false, error: "Lot tidak ditempatkan di lokasi sumber." };
     if (msg === "INSUFFICIENT_SOURCE_KG") return { success: false, error: "Stok kg di lokasi sumber tidak mencukupi." };
     if (msg === "INSUFFICIENT_SOURCE_UNIT") return { success: false, error: "Stok unit di lokasi sumber tidak mencukupi." };

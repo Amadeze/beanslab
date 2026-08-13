@@ -11,9 +11,13 @@ import { transferLot, type TransferActionResult } from "@/lib/lot-transfer";
 import { createLocationOpname } from "@/lib/lot-opname";
 
 const BTN_GHOST =
-  "rounded-xl border border-[var(--glass-border)] px-4 py-2.5 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--glass-bg-hover)] transition";
+  "rounded-xl border border-[var(--glass-border)] px-4 py-2.5 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--glass-bg-hover)] transition disabled:opacity-50 disabled:pointer-events-none";
 const BTN_PRIMARY =
   "rounded-xl bg-[var(--amber-warm)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition disabled:opacity-50";
+
+const SYSTEM_PURPOSE_LABELS: Record<string, string> = {
+  ROASTING_WIP: "Roasting WIP",
+};
 
 export function LocationDetailDrawer({
   loc,
@@ -99,7 +103,14 @@ export function LocationDetailDrawer({
               <MapPin className="h-5 w-5 text-[var(--amber-warm)]" />
             </div>
             <div>
-              <h3 className="font-bold text-[var(--text-primary)]">{loc.name}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-[var(--text-primary)]">{loc.name}</h3>
+                {loc.isSystem && (
+                  <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-sky-500">
+                    Sistem{loc.systemPurpose ? ` · ${SYSTEM_PURPOSE_LABELS[loc.systemPurpose] ?? loc.systemPurpose}` : ""}
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-[var(--text-tertiary)]">
                 Kode: {loc.code} · {!loc.isActive && "Non-aktif"}
               </p>
@@ -177,10 +188,20 @@ export function LocationDetailDrawer({
           <Link href={`/inventory/lots/${loc.placements[0]?.lotId ?? ""}`} className={BTN_GHOST}>
             <Package size={14} className="mr-1" /> Lihat Lot
           </Link>
-          <button onClick={handleTransfer} disabled={isTransferring || loc.placements.length === 0} className={BTN_GHOST}>
+          <button
+            onClick={handleTransfer}
+            disabled={isTransferring || loc.placements.length === 0 || loc.isSystem}
+            title={loc.isSystem ? "Lokasi sistem dikelola otomatis" : undefined}
+            className={BTN_GHOST}
+          >
             <Archive size={14} className="mr-1" /> Pindahkan Stok
           </button>
-          <button onClick={handleOpname} disabled={isOpname || loc.placements.length === 0} className={BTN_GHOST}>
+          <button
+            onClick={handleOpname}
+            disabled={isOpname || loc.placements.length === 0 || loc.isSystem}
+            title={loc.isSystem ? "Lokasi sistem dikelola otomatis" : undefined}
+            className={BTN_GHOST}
+          >
             <Weight size={14} className="mr-1" /> {isOpname ? "Membuat..." : "Stock Opname"}
           </button>
           <a

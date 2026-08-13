@@ -38,6 +38,10 @@ type PlacementQuantityField = "quantityKg" | "quantityUnit" | "supplyQty";
  * Keep Smart Storage's physical dimension in lockstep with a canonical lot
  * consumption. Lots can remain partially or wholly unplaced for historical
  * stock, so this only depletes quantities that are actually placed.
+ *
+ * Placements at system locations (isSystem = true, e.g. SYS-ROASTING-WIP)
+ * are lifecycle-controlled and are never depleted by ordinary FEFO
+ * consumption — only the roast lifecycle consumes them.
  */
 async function consumeLotPlacements(
   tx: TransactionClient,
@@ -52,6 +56,7 @@ async function consumeLotPlacements(
     where: {
       tenantId,
       lotId,
+      location: { isSystem: false },
       [field]: { gt: 0 },
     },
     orderBy: [{ updatedAt: "asc" }, { createdAt: "asc" }],
@@ -216,10 +221,31 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
     }
 
     if (quantityKg > 0) {
+      // Canonical availability for ordinary outbound stock: committed roast
+      // material (ACTIVE/CHARGED reservations) is lifecycle-controlled and
+      // must not be consumable by user-driven flows — canonical stockKg stays
+      // unchanged at charge. The lifecycle's own completion (GB_OUT with
+      // refId = parentBatchId) excludes its own reservation so roast
+      // semantics are preserved.
+      let committedKg = 0;
+      if (!isInbound && payload.tenantId) {
+        const committed = await tx.roastMaterialReservation.aggregate({
+          _sum: { quantityKg: true },
+          where: {
+            tenantId: payload.tenantId,
+            status: { in: ["ACTIVE", "CHARGED"] },
+            ...(payload.refId
+              ? { parentBatchId: { not: payload.refId } }
+              : {}),
+            lot: { productId: payload.productId },
+          },
+        });
+        committedKg = Number(committed._sum.quantityKg ?? 0);
+      }
       const result = await tx.product.updateMany({
         where: {
           id: payload.productId,
-          ...(isInbound ? {} : { stockKg: { gte: quantityKg } }),
+          ...(isInbound ? {} : { stockKg: { gte: quantityKg + committedKg } }),
         },
         data: {
           stockKg: isInbound
@@ -229,7 +255,11 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
         },
       });
       if (result.count !== 1) {
-        throw new Error("Stok kopi tidak cukup untuk menyelesaikan transaksi.");
+        throw new Error(
+          committedKg > 0
+            ? `Stok kopi tidak cukup untuk menyelesaikan transaksi (${committedKg.toFixed(3)} kg sedang dicadangkan untuk roasting).`
+            : "Stok kopi tidak cukup untuk menyelesaikan transaksi.",
+        );
       }
     }
   } else if (payload.packagingId) {

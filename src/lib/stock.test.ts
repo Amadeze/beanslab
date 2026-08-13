@@ -27,6 +27,9 @@ function transaction(updateCount = 1) {
       findUnique: vi.fn(),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
+    roastMaterialReservation: {
+      aggregate: vi.fn().mockResolvedValue({ _sum: { quantityKg: null } }),
+    },
     $queryRaw: vi.fn().mockResolvedValue([]),
   };
 }
@@ -71,6 +74,80 @@ describe("appendLedger", () => {
     ).rejects.toThrow("Stok produk tidak cukup");
 
     expect(tx.inventoryLedger.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects kg OUT when the quantity is committed to active/charged roast reservations", async () => {
+    const tx = transaction(0);
+    tx.roastMaterialReservation.aggregate.mockResolvedValue({
+      _sum: { quantityKg: 8 },
+    });
+
+    await expect(
+      appendLedger(tx, {
+        data: {
+          tenantId: "tenant-1",
+          productId: "green-bean-1",
+          entryType: "OUT",
+          refType: "EXPERIMENTAL_COMPONENT_OUT",
+          refId: "eksperimen-batch-1",
+          quantityKg: 5,
+          createdById: "user-1",
+        },
+      }),
+    ).rejects.toThrow("sedang dicadangkan untuk roasting");
+
+    expect(tx.product.updateMany).toHaveBeenCalledWith({
+      where: { id: "green-bean-1", stockKg: { gte: 13 } },
+      data: { stockKg: { decrement: 5 }, avgCostPerKg: undefined },
+    });
+    expect(tx.inventoryLedger.create).not.toHaveBeenCalled();
+  });
+
+  it("counts only ACTIVE/CHARGED reservations of the same product, excluding the caller's own batch", async () => {
+    const tx = transaction(0);
+    tx.roastMaterialReservation.aggregate.mockResolvedValue({
+      _sum: { quantityKg: 8 },
+    });
+
+    await appendLedger(tx, {
+      data: {
+        tenantId: "tenant-1",
+        productId: "green-bean-1",
+        entryType: "OUT",
+        refType: "ROASTING_GB_OUT",
+        refId: "batch-1",
+        quantityKg: 8,
+        createdById: "user-1",
+      },
+    }).catch(() => {});
+
+    expect(tx.roastMaterialReservation.aggregate).toHaveBeenCalledWith({
+      _sum: { quantityKg: true },
+      where: {
+        tenantId: "tenant-1",
+        status: { in: ["ACTIVE", "CHARGED"] },
+        parentBatchId: { not: "batch-1" },
+        lot: { productId: "green-bean-1" },
+      },
+    });
+  });
+
+  it("does not query reservations for inbound or unit-only entries", async () => {
+    const tx = transaction();
+
+    await appendLedger(tx, {
+      data: {
+        tenantId: "tenant-1",
+        productId: "product-1",
+        entryType: "IN",
+        refType: "PURCHASE_GB",
+        refId: "purchase-1",
+        quantityKg: 5,
+        createdById: "user-1",
+      },
+    });
+
+    expect(tx.roastMaterialReservation.aggregate).not.toHaveBeenCalled();
   });
 
   it("requires exactly one inventory target and a positive quantity", async () => {
@@ -354,10 +431,44 @@ describe("appendFefoLedgerOut", () => {
       where: { id: "placement-a", tenantId: "tenant-1", quantityKg: { gte: 4 } },
       data: { quantityKg: { decrement: 4 } },
     });
-    expect(tx.lotPlacement.updateMany).toHaveBeenNthCalledWith(2, {
+expect(tx.lotPlacement.updateMany).toHaveBeenNthCalledWith(2, {
       where: { id: "placement-b", tenantId: "tenant-1", quantityKg: { gte: 3 } },
       data: { quantityKg: { decrement: 3 } },
     });
+  });
+
+  it("never targets placements at system locations (e.g. Roasting WIP)", async () => {
+    const tx = transaction();
+    tx.$queryRaw.mockResolvedValue([{ id: "lot-1" }]);
+    tx.lot.findMany.mockResolvedValue([
+      {
+        id: "lot-1",
+        batchCode: "LOT-1",
+        expiryDate: null,
+        quantityKg: 10,
+        quantityUnit: 0,
+        supplyQuantity: 0,
+        inventoryLedgers: [{ entryType: "IN", quantityKg: 10, quantityUnit: null, supplyQuantity: null }],
+      },
+    ]);
+    tx.lotPlacement.findMany.mockResolvedValue([
+      { id: "placement-wip", quantityKg: 10, quantityUnit: 0, supplyQty: 0 },
+    ]);
+
+    await appendFefoLedgerOut(tx, {
+      tenantId: "tenant-1",
+      productId: "green-bean-1",
+      quantityKg: 7,
+      refType: "GRINDING_RB_OUT",
+      refId: "grind-1",
+      createdById: "user-1",
+    });
+
+    expect(tx.lotPlacement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ location: { isSystem: false } }),
+      }),
+    );
   });
 
   it("supply FEFO: allocates supplyQuantity from earliest expiry lot first", async () => {

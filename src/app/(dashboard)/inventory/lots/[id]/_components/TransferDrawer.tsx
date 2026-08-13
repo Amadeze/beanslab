@@ -9,6 +9,7 @@ type LocationOption = {
   id: string;
   code: string;
   name: string;
+  isSystem: boolean;
   warehouseName: string;
 };
 
@@ -39,6 +40,17 @@ export function TransferDrawer({
   const [loading, setLoading] = useState(false);
 
   const sourcePlacement = existingPlacements.find((p) => p.locationId === sourceLocationId);
+
+  const movableSources = existingPlacements.filter((p) => {
+    if (p.quantityKg > 0 || p.quantityUnit > 0 || p.supplyQty > 0) {
+      const loc = availableLocations.find((l) => l.id === p.locationId);
+      return !loc?.isSystem;
+    }
+    return false;
+  });
+  const allLockedBySystem =
+    existingPlacements.length > 0 &&
+    existingPlacements.every((p) => availableLocations.find((l) => l.id === p.locationId)?.isSystem);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -76,6 +88,14 @@ export function TransferDrawer({
     );
   }
 
+  if (allLockedBySystem) {
+    return (
+      <div className="rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] px-4 py-3 text-sm text-[var(--text-secondary)]">
+        Stok di lokasi sistem dikelola otomatis oleh sistem dan tidak dapat dipindahkan secara manual.
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:pt-0">
       <div className="absolute inset-0 bg-stone-950/60 backdrop-blur-sm" onClick={() => !loading && setOpen(false)} />
@@ -104,7 +124,7 @@ export function TransferDrawer({
               className="w-full rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] px-4 py-2.5 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber-warm)]/50"
             >
               <option value="">Pilih lokasi sumber</option>
-              {existingPlacements.filter((p) => p.quantityKg > 0 || p.quantityUnit > 0 || p.supplyQty > 0).map((p) => {
+              {movableSources.map((p) => {
                 const loc = availableLocations.find((l) => l.id === p.locationId);
                 return (
                   <option key={p.locationId} value={p.locationId}>
@@ -129,11 +149,13 @@ export function TransferDrawer({
               className="w-full rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] px-4 py-2.5 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber-warm)]/50"
             >
               <option value="">Pilih lokasi tujuan</option>
-              {availableLocations.filter((l) => l.id !== sourceLocationId).map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.warehouseName} — {loc.name} [{loc.code}]
-                </option>
-              ))}
+              {availableLocations
+                .filter((l) => !l.isSystem && l.id !== sourceLocationId)
+                .map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.warehouseName} — {loc.name} [{loc.code}]
+                  </option>
+                ))}
             </select>
           </div>
 

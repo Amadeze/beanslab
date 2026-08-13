@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole, requireTenantPrisma, getCurrentTenantId, getSystemUserId } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { isSystemLocation, SYSTEM_LOCATION_ERROR } from "@/lib/system-location";
 import { revalidatePath } from "next/cache";
 import { summarizeLotInventory } from "@/lib/lot";
 import { Prisma } from "@prisma/client";
@@ -76,6 +77,15 @@ export async function placeLot(data: {
 
       if (!lot) {
         throw new Error("LOT_NOT_FOUND");
+      }
+
+      const destinationLocation = await tx.location.findFirst({
+        where: { id: data.locationId, tenantId },
+        select: { isSystem: true },
+      });
+      if (!destinationLocation) throw new Error("LOCATION_NOT_FOUND");
+      if (isSystemLocation(destinationLocation)) {
+        throw new Error("SYS_LOCATION_DESTINATION");
       }
 
       const inventory = summarizeLotInventory({
@@ -167,6 +177,10 @@ export async function placeLot(data: {
     console.error("[placeLot]", err);
     const msg = err instanceof Error ? err.message : "Gagal menempatkan lot.";
     if (msg === "LOT_NOT_FOUND") return { success: false, error: "Lot tidak ditemukan." };
+    if (msg === "LOCATION_NOT_FOUND") return { success: false, error: "Lokasi tidak ditemukan." };
+    if (msg === "SYS_LOCATION_DESTINATION") {
+      return { success: false, error: SYSTEM_LOCATION_ERROR };
+    }
     if (msg === "TOTAL_PLACED_EXCEEDS_LOT") {
       return { success: false, error: "Total penempatan melebihi stok tersisa lot." };
     }
@@ -188,6 +202,15 @@ export async function removePlacement(
     const tp = await requireTenantPrisma();
 
     await tp.$transaction(async (tx) => {
+      const location = await tx.location.findFirst({
+        where: { id: locationId, tenantId },
+        select: { isSystem: true },
+      });
+      if (!location) throw new Error("LOCATION_NOT_FOUND");
+      if (isSystemLocation(location)) {
+        throw new Error("SYS_LOCATION_DESTINATION");
+      }
+
       await tx.lotPlacement.deleteMany({
         where: { tenantId, lotId, locationId },
       });
@@ -207,6 +230,10 @@ export async function removePlacement(
     return { success: true };
   } catch (err) {
     console.error("[removePlacement]", err);
+    const msg = err instanceof Error ? err.message : "Gagal menghapus penempatan.";
+    if (msg === "SYS_LOCATION_DESTINATION") {
+      return { success: false, error: SYSTEM_LOCATION_ERROR };
+    }
     return { success: false, error: "Gagal menghapus penempatan." };
   }
 }

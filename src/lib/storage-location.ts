@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { SYSTEM_LOCATION_ERROR } from "./system-location";
 
 const DEFAULT_WAREHOUSE_NAME = "Gudang Utama";
 const DEFAULT_LOCATION_NAME = "Penyimpanan Utama";
@@ -74,7 +75,7 @@ async function getDefaultLocationWithClient(
   tenantId: string,
 ): Promise<string | null> {
   const location = await client.location.findFirst({
-    where: { tenantId, isDefault: true, isActive: true },
+    where: { tenantId, isDefault: true, isActive: true, isSystem: false },
     select: { id: true },
   });
   return location?.id ?? null;
@@ -106,6 +107,11 @@ export async function resolveOrCreateDefaultLocation(tenantId: string): Promise<
  *
  * This is the single integration point used by receiving, roasting,
  * grinding, production, and eksperimen flows.
+ *
+ * System locations (isSystem = true, e.g. SYS-ROASTING-WIP) are rejected as
+ * destinations here: they are lifecycle-controlled and ordinary user-driven
+ * inventory operations must never place stock into them. Internal lifecycle
+ * flows use their own placement helpers (transferLotInTx).
  */
 export async function createLotPlacementInTx(
   tx: any,
@@ -132,6 +138,13 @@ export async function createLotPlacementInTx(
   const qtySupply = Number(opts.supplyQty ?? 0);
 
   if (qtyKg === 0 && qtyUnit === 0 && qtySupply === 0) return null;
+
+  const location = await tx.location.findFirst({
+    where: { id: locationId, tenantId },
+    select: { isSystem: true },
+  });
+  if (!location) throw new Error("Lokasi tidak ditemukan.");
+  if (location.isSystem) throw new Error(SYSTEM_LOCATION_ERROR);
 
   return await tx.lotPlacement.create({
     data: {
