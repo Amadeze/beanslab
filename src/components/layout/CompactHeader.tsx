@@ -11,6 +11,8 @@ import {
 interface CompactHeaderMetric {
   label: string;
   value: React.ReactNode;
+  onClick?: () => void;
+  active?: boolean;
 }
 
 interface CompactHeaderSignal {
@@ -189,16 +191,41 @@ export function CompactHeader({
               <>
                 <span className="hidden h-4 w-px bg-white/10 sm:block" aria-hidden />
                 <div className="grid w-full min-w-0 grid-cols-4 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-4">
-                  {metrics.map((metric) => (
-                    <div key={metric.label} className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-1.5">
-                      <span className="truncate font-mono text-[7px] font-bold uppercase tracking-[0.1em] text-white/30 sm:text-[8px] sm:tracking-[0.12em]">
-                        {metric.label}
-                      </span>
-                      <span className="max-w-full truncate font-heading text-xs font-bold tabular-nums text-white/80 sm:text-xs">
-                        {metric.value}
-                      </span>
-                    </div>
-                  ))}
+                  {metrics.map((metric) => {
+                    const metricContent = (
+                      <>
+                        <span className="truncate font-mono text-[7px] font-bold uppercase tracking-[0.1em] text-white/30 sm:text-[8px] sm:tracking-[0.12em]">
+                          {metric.label}
+                        </span>
+                        <span className="max-w-full truncate font-heading text-xs font-bold tabular-nums text-white/80 sm:text-xs">
+                          {metric.value}
+                        </span>
+                      </>
+                    );
+                    if (metric.onClick) {
+                      return (
+                        <button
+                          type="button"
+                          key={metric.label}
+                          onClick={metric.onClick}
+                          aria-pressed={metric.active ?? false}
+                          className={cn(
+                            "-mx-1 flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-lg px-1 py-0.5 text-left transition-colors sm:flex-row sm:items-center sm:gap-1.5",
+                            metric.active
+                              ? "bg-white/10 ring-1 ring-white/20"
+                              : "hover:bg-white/5",
+                          )}
+                        >
+                          {metricContent}
+                        </button>
+                      );
+                    }
+                    return (
+                      <div key={metric.label} className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-1.5">
+                        {metricContent}
+                      </div>
+                    );
+                  })}
                 </div>
               </>
             )}

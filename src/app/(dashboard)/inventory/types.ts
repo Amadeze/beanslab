@@ -55,6 +55,14 @@ export type FGStockRow = {
   latestHppPerUnit: number | null;
 };
 
+export type LotPlacementRow = {
+  warehouseName: string;
+  locationName: string;
+  quantityKg: number;
+  quantityUnit: number;
+  supplyQty: number;
+};
+
 export type ProductLotRow = {
   id: string;
   batchCode: string;
@@ -64,6 +72,7 @@ export type ProductLotRow = {
   remainingKg: number;
   remainingUnit: number;
   status: LotOperationalStatus;
+  placements: LotPlacementRow[];
 };
 
 export type SupplyLotRow = {
@@ -74,6 +83,7 @@ export type SupplyLotRow = {
   supplierName: string | null;
   remainingQty: number;
   status: LotOperationalStatus;
+  placements: LotPlacementRow[];
 };
 
 export type SupplierOption = {

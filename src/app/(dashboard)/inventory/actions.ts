@@ -394,6 +394,19 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
           inventoryLedgers: {
             select: { entryType: true, quantityKg: true, quantityUnit: true, supplyQuantity: true },
           },
+          placements: {
+            select: {
+              quantityKg: true,
+              quantityUnit: true,
+              supplyQty: true,
+              location: {
+                select: {
+                  name: true,
+                  warehouse: { select: { name: true } },
+                },
+              },
+            },
+          },
         },
       }),
       tp.packaging.findMany({
@@ -432,6 +445,13 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
         remainingKg: inv.remainingKg,
         remainingUnit: inv.remainingUnit,
         status: inv.status,
+        placements: lot.placements.map((p) => ({
+          warehouseName: p.location.warehouse.name,
+          locationName: p.location.name,
+          quantityKg: Number(p.quantityKg),
+          quantityUnit: p.quantityUnit,
+          supplyQty: Number(p.supplyQty),
+        })),
       });
       continue;
     }
@@ -459,6 +479,13 @@ export async function getInventoryPageData(): Promise<InventoryPageData> {
       supplierName: lot.supplier?.name ?? null,
       remainingQty: inv.remainingQty,
       status: inv.status,
+      placements: lot.placements.map((p) => ({
+        warehouseName: p.location.warehouse.name,
+        locationName: p.location.name,
+        quantityKg: Number(p.quantityKg),
+        quantityUnit: p.quantityUnit,
+        supplyQty: Number(p.supplyQty),
+      })),
     });
   }
   for (const key of Object.keys(lotsByProduct)) {

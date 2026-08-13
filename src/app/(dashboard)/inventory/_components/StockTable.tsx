@@ -13,9 +13,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowUpDown, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, ArrowUpDown, ChevronDown, ChevronRight, MapPin } from "lucide-react";
 import { formatKg, formatRupiah, formatUnit } from "@/lib/format";
-import type { ProductStockRow, FGStockRow, ProductLotRow, SupplyLotRow, SupplyStockRow } from "../types";
+import type { ProductStockRow, FGStockRow, ProductLotRow, SupplyLotRow, SupplyStockRow, LotPlacementRow } from "../types";
 import { SUPPLY_CATEGORY_LABEL } from "../types";
 import type { ReorderSummary } from "@/lib/reorder";
 import { CategoryTabs, type CategoryId } from "./CategoryTabs";
@@ -68,6 +68,7 @@ interface StockTableProps {
   metricFilter?: string | null;
   lotsByProduct?: Record<string, ProductLotRow[]>;
   supplyLotsByItem?: Record<string, SupplyLotRow[]>;
+  onEmptyAction?: () => void;
 }
 
 const LOT_STATUS_META: Record<LotOperationalStatus, { label: string; className: string }> = {
@@ -77,6 +78,12 @@ const LOT_STATUS_META: Record<LotOperationalStatus, { label: string; className: 
   consumed: { label: "Habis", className: "bg-slate-100 text-slate-500 border-slate-200" },
 };
 
+type LotPlacementDisplay = {
+  key: string;
+  label: string;
+  qtyText: string;
+};
+
 type LotDisplayRow = {
   id: string;
   batchCode: string;
@@ -84,7 +91,28 @@ type LotDisplayRow = {
   supplierName: string | null;
   remainingText: string;
   status: LotOperationalStatus;
+  placements: LotPlacementDisplay[];
 };
+
+function formatProductPlacement(p: LotPlacementRow, unitIsKg: boolean): string {
+  if (unitIsKg) return formatKg(p.quantityKg);
+  return `${p.quantityUnit.toLocaleString("id-ID")} unit`;
+}
+
+function formatSupplyPlacement(p: LotPlacementRow, supplyUnit: string | null): string {
+  if (p.supplyQty > 0) {
+    return `${p.supplyQty.toLocaleString("id-ID", { maximumFractionDigits: 2 })} ${supplyUnit ?? "pcs"}`;
+  }
+  return `${p.quantityUnit.toLocaleString("id-ID")} unit`;
+}
+
+function toPlacementDisplays(placements: LotPlacementRow[], formatQty: (p: LotPlacementRow) => string): LotPlacementDisplay[] {
+  return placements.map((p) => ({
+    key: `${p.warehouseName}·${p.locationName}`,
+    label: `${p.warehouseName} · ${p.locationName}`,
+    qtyText: formatQty(p),
+  }));
+}
 
 function toLotDisplayRows(
   row: UnifiedRow,
@@ -99,6 +127,7 @@ function toLotDisplayRows(
       supplierName: lot.supplierName,
       remainingText: `${lot.remainingQty.toLocaleString("id-ID", { maximumFractionDigits: 2 })} ${row._supplyUnit ?? "unit"}`,
       status: lot.status,
+      placements: toPlacementDisplays(lot.placements, (p) => formatSupplyPlacement(p, row._supplyUnit)),
     }));
   }
   return (lotsByProduct?.[row.id] ?? []).map((lot) => ({
@@ -108,6 +137,7 @@ function toLotDisplayRows(
     supplierName: lot.supplierName,
     remainingText: row._unit === "kg" ? formatKg(lot.remainingKg) : formatUnit(lot.remainingUnit),
     status: lot.status,
+    placements: toPlacementDisplays(lot.placements, (p) => formatProductPlacement(p, row._unit === "kg")),
   }));
 }
 
@@ -124,6 +154,7 @@ function LotBreakdown({ lots, unit }: { lots: LotDisplayRow[]; unit: string | nu
   if (lots.length === 0) {
     return <p className="pl-6 text-xs text-slate-500">Tidak ada lot aktif untuk item ini.</p>;
   }
+  const locationCount = new Set(lots.flatMap((l) => l.placements.map((p) => p.key))).size;
   return (
     <div className="pl-6">
       <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-slate-100 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
@@ -132,28 +163,47 @@ function LotBreakdown({ lots, unit }: { lots: LotDisplayRow[]; unit: string | nu
         <span className="pr-2">Kedaluwarsa</span>
         <span className="text-right w-24">Sisa</span>
       </div>
+      {locationCount > 0 && (
+        <p className="pb-1 pt-1.5 text-[11px] font-medium text-slate-400">
+          {lots.length} lot · {locationCount} lokasi
+        </p>
+      )}
       {lots.map((lot) => (
-        <div
-          key={lot.id}
-          className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-slate-100/70 py-1.5 last:border-0"
-        >
-          <span className="flex items-center gap-2 truncate text-xs font-medium text-slate-800">
-            <Link
-              href={`/inventory/lots/${lot.id}`}
-              className="truncate underline-offset-2 transition hover:text-slate-950 hover:underline"
-              title="Buka detail & atur lokasi lot"
-            >
-              {lot.batchCode}
-            </Link>
-            <LotStatusBadge status={lot.status} />
-          </span>
-          <span className="truncate text-xs text-slate-500">{lot.supplierName ?? "—"}</span>
-          <span className="pr-2 text-xs tabular-nums text-slate-500">
-            {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "—"}
-          </span>
-          <span className="w-24 text-right text-xs font-semibold tabular-nums text-slate-900">
-            {lot.remainingText}
-          </span>
+        <div key={lot.id} className="border-b border-slate-100/70 py-1.5 last:border-0">
+          <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] items-center gap-3">
+            <span className="flex items-center gap-2 truncate text-xs font-medium text-slate-800">
+              <Link
+                href={`/inventory/lots/${lot.id}`}
+                className="truncate underline-offset-2 transition hover:text-slate-950 hover:underline"
+                title="Buka detail & atur lokasi lot"
+              >
+                {lot.batchCode}
+              </Link>
+              <LotStatusBadge status={lot.status} />
+            </span>
+            <span className="truncate text-xs text-slate-500">{lot.supplierName ?? "—"}</span>
+            <span className="pr-2 text-xs tabular-nums text-slate-500">
+              {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "—"}
+            </span>
+            <span className="w-24 text-right text-xs font-semibold tabular-nums text-slate-900">
+              {lot.remainingText}
+            </span>
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {lot.placements.length === 0 ? (
+              <span className="text-[11px] text-slate-400">Belum ditempatkan</span>
+            ) : (
+              lot.placements.map((p) => (
+                <span
+                  key={p.key}
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-200/70 bg-white/60 px-1.5 py-0.5 text-[11px] text-slate-500"
+                >
+                  <MapPin size={10} className="text-slate-400" />
+                  {p.label} · {p.qtyText}
+                </span>
+              ))
+            )}
+          </div>
         </div>
       ))}
     </div>
@@ -172,6 +222,7 @@ export function StockTable({
   metricFilter,
   lotsByProduct,
   supplyLotsByItem,
+  onEmptyAction,
 }: StockTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -330,6 +381,33 @@ export function StockTable({
     }
   };
 
+  const hasActiveFilters = searchQuery.trim().length > 0 || statusFilter !== "all" || !!metricFilter;
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setExpandedId(null);
+    updateUrl({ status: null, metric: null });
+  };
+
+  const emptyAction = hasActiveFilters ? (
+    <button
+      type="button"
+      onClick={clearFilters}
+      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+    >
+      Bersihkan filter
+    </button>
+  ) : onEmptyAction ? (
+    <button
+      type="button"
+      onClick={onEmptyAction}
+      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
+    >
+      Barang Datang
+    </button>
+  ) : undefined;
+
   return (
     <div className="space-y-0">
       {/* Category Tabs */}
@@ -399,8 +477,9 @@ export function StockTable({
               <TableRow>
                 <TableCell colSpan={5} className="py-8">
                   <InventoryEmptyState
-                    label={searchQuery || statusFilter !== "all" ? "Tidak ada item yang cocok" : "Belum ada data"}
-                    description={searchQuery || statusFilter !== "all" ? "Coba ubah filter atau pencarian." : "Belum ada item di kategori ini."}
+                    label={hasActiveFilters ? "Tidak ada item yang cocok" : "Belum ada data"}
+                    description={hasActiveFilters ? "Coba ubah filter atau pencarian." : "Belum ada item di kategori ini."}
+                    action={emptyAction}
                   />
                 </TableCell>
               </TableRow>
@@ -431,9 +510,15 @@ export function StockTable({
                           )}
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-slate-900">{row.name}</p>
-                            {row._meta && (
-                              <p className="text-xs text-slate-500">{row._meta}</p>
-                            )}
+                            <p className="truncate text-xs text-slate-500">
+                              <span className="font-mono text-[11px]">{row.code}</span>
+                              {row._meta ? (
+                                <>
+                                  <span className="px-1 text-slate-300">·</span>
+                                  {row._meta}
+                                </>
+                              ) : null}
+                            </p>
                           </div>
                         </div>
                       </TableCell>
@@ -474,7 +559,8 @@ export function StockTable({
         {rows.length === 0 ? (
           <div className="py-8 text-center rounded-lg border border-slate-200/60 bg-white/50">
             <InventoryEmptyState
-              label={searchQuery || statusFilter !== "all" ? "Tidak ada item yang cocok" : "Belum ada data"}
+              label={hasActiveFilters ? "Tidak ada item yang cocok" : "Belum ada data"}
+              action={emptyAction}
             />
           </div>
         ) : (
@@ -497,9 +583,15 @@ export function StockTable({
                 <div className="flex justify-between items-center px-3 py-2.5">
                   <div className="min-w-0 flex-1 mr-3">
                     <p className="text-sm font-medium text-slate-900 truncate">{row.name}</p>
-                    {row._meta && (
-                      <p className="text-xs text-slate-500 truncate">{row._meta}</p>
-                    )}
+                    <p className="truncate text-xs text-slate-500">
+                      <span className="font-mono text-[11px]">{row.code}</span>
+                      {row._meta ? (
+                        <>
+                          <span className="px-1 text-slate-300">·</span>
+                          {row._meta}
+                        </>
+                      ) : null}
+                    </p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <InventoryStatusBadge status={row._status} />
                       <span className="text-xs text-slate-500 tabular-nums" title={valueInfo.unavailable ? "HPP belum tersedia" : undefined}>
@@ -525,14 +617,36 @@ export function StockTable({
                       lotList.map((lot) => (
                         <div
                           key={lot.id}
-                          className="flex items-center justify-between rounded-md border border-slate-200/70 bg-white/70 px-2.5 py-1.5"
+                          className="flex items-center justify-between rounded-md border border-slate-200/70 bg-white/70 px-2.5 py-2"
                         >
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-medium text-slate-800">{lot.batchCode}</p>
+                          <div className="min-w-0 pr-2">
+                            <Link
+                              href={`/inventory/lots/${lot.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="block truncate py-0.5 text-xs font-medium text-slate-800 underline-offset-2 transition hover:text-slate-950 hover:underline"
+                              title="Buka detail & atur lokasi lot"
+                            >
+                              {lot.batchCode}
+                            </Link>
                             <p className="text-[11px] text-slate-500">
                               {lot.supplierName ?? "—"} ·{" "}
                               {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "tanpa kedaluwarsa"}
                             </p>
+                            {lot.placements.length === 0 ? (
+                              <p className="text-[11px] text-slate-400">Belum ditempatkan</p>
+                            ) : (
+                              <div className="mt-0.5 flex flex-wrap gap-1">
+                                {lot.placements.map((p) => (
+                                  <span
+                                    key={p.key}
+                                    className="inline-flex items-center gap-0.5 rounded border border-slate-200/70 bg-white/70 px-1 py-0.5 text-[10px] text-slate-500"
+                                  >
+                                    <MapPin size={9} className="text-slate-400" />
+                                    {p.label} · {p.qtyText}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
                             <LotStatusBadge status={lot.status} />

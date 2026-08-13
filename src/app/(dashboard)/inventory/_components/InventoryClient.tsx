@@ -4,11 +4,12 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Boxes, History, ClipboardList, ClipboardCheck, Download, FileText, FileSpreadsheet, Loader2, MoreHorizontal, Package, Plus, Settings2, Truck, ArrowDownCircle, ArrowUpCircle, AlertTriangle, XCircle, Clock, CheckCircle2, CircleDot } from "lucide-react";
+import { Boxes, History, ClipboardCheck, Download, FileText, FileSpreadsheet, Loader2, MoreHorizontal, Package, Plus, Settings2, Truck, ArrowDownCircle, ArrowUpCircle, AlertTriangle, XCircle, Clock, CheckCircle2, CircleDot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { StandardDrawer } from "@/components/StandardDrawer";
 import { StockTable } from "./StockTable";
+import type { CategoryId } from "./CategoryTabs";
 import { CoffeePurchaseForm } from "./CoffeePurchaseForm";
 import { PackagingPurchaseForm } from "./PackagingPurchaseForm";
 import { SupplyPurchaseForm } from "./SupplyPurchaseForm";
@@ -80,40 +81,106 @@ interface InventoryClientProps {
 
 // ── Export helpers ──
 
-function exportPDF(isLedger: boolean, gbStocks: ProductStockRow[], filteredLedger: LedgerHistoryRow[]) {
+type ExportData = {
+  title: string;
+  sheet: string;
+  filename: string;
+  headers: string[];
+  rows: (string | number)[][];
+};
+
+function exportPDF({ title, headers, rows, filename }: ExportData) {
   import('jspdf').then(({ jsPDF }) => {
     import('jspdf-autotable').then(({ default: autoTable }) => {
       const doc = new jsPDF();
-      doc.text(isLedger ? "Riwayat Mutasi Stok" : "Laporan Stok Green Bean", 14, 15);
-      const tableData = isLedger
-        ? filteredLedger.map((entry) => [
-            new Date(entry.createdAt).toLocaleString("id-ID"),
-            entry.itemCode,
-            entry.itemName,
-            entry.entryType,
-            entry.quantity,
-            entry.unit,
-            entry.refType,
-          ])
-        : gbStocks.map(i => [i.name, i.stockKg, i.latestHppPerKg || 0]);
+      doc.text(title, 14, 15);
       autoTable(doc, {
-        head: isLedger
-          ? [["Waktu", "Kode", "Item", "Arah", "Jumlah", "Unit", "Referensi"]]
-          : [['Nama Green Bean', 'Stok (Kg)', 'HPP/Kg']],
-        body: tableData,
+        head: [headers],
+        body: rows,
         startY: 20
       });
-      doc.save(isLedger ? "Mutasi_Stok.pdf" : "Laporan_Stok.pdf");
+      doc.save(`${filename}.pdf`);
     });
   });
 }
 
-async function exportExcel(isLedger: boolean, gbStocks: ProductStockRow[], filteredLedger: LedgerHistoryRow[]) {
-  const { default: writeXlsxFile } = await import("write-excel-file/browser");
-  const rows = isLedger
-    ? [
-        ["Waktu", "Kode", "Item", "Arah", "Jumlah", "Unit", "Referensi", "ID Referensi", "Catatan", "Operator"],
-        ...filteredLedger.map((entry) => [
+function exportExcel({ sheet, headers, rows, filename }: ExportData) {
+  import("write-excel-file/browser").then(async ({ default: writeXlsxFile }) => {
+    const data = [headers, ...rows];
+    await writeXlsxFile(data, {
+      sheet,
+    }).toFile(`${filename}.xlsx`);
+  });
+}
+
+/** Rows for the active stock category — reuses canonical row projections. */
+function buildStockExportData(
+  category: CategoryId,
+  gbStocks: ProductStockRow[],
+  rbStocks: ProductStockRow[],
+  fgStocks: FGStockRow[],
+  pkgItems: SupplyStockRow[],
+  supplyItems: SupplyStockRow[],
+): ExportData {
+  const value = (stock: number, hpp: number | null) => (hpp != null ? hpp * stock : "");
+
+  switch (category) {
+    case "rb":
+      return {
+        title: "Laporan Stok Roasted Bean",
+        sheet: "Stok RB",
+        filename: "Stok_Roasted_Bean",
+        headers: ["Nama", "Kode", "Stok (kg)", "HPP/Kg", "Nilai"],
+        rows: rbStocks.map((i) => [i.name, i.code, Number(i.stockKg), i.latestHppPerKg ?? 0, value(i.stockKg, i.latestHppPerKg)]),
+      };
+    case "fg":
+      return {
+        title: "Laporan Stok Produk Jadi",
+        sheet: "Stok FG",
+        filename: "Stok_Produk_Jadi",
+        headers: ["Nama", "Kode", "Stok (unit)", "HPP/Unit", "Nilai"],
+        rows: fgStocks.map((i) => [i.name, i.code, Number(i.stockUnit), i.latestHppPerUnit ?? 0, value(i.stockUnit, i.latestHppPerUnit)]),
+      };
+    case "pkg":
+      return {
+        title: "Laporan Stok Kemasan",
+        sheet: "Stok PKG",
+        filename: "Stok_Kemasan",
+        headers: ["Nama", "Kode", "Stok", "HPP/Unit", "Nilai"],
+        rows: pkgItems.map((i) => [i.name, i.code, i.stockUnit, i.costPerUnit, hppValue(i.stockUnit, i.costPerUnit)]),
+      };
+    case "supply":
+      return {
+        title: "Laporan Stok Non-Kopi",
+        sheet: "Stok Non-Kopi",
+        filename: "Stok_Non_Kopi",
+        headers: ["Nama", "Kode", "Stok", "HPP/Unit", "Nilai"],
+        rows: supplyItems.map((i) => [i.name, i.code, i.stockUnit, i.costPerUnit, hppValue(i.stockUnit, i.costPerUnit)]),
+      };
+    default:
+      return {
+        title: "Laporan Stok Green Bean",
+        sheet: "Stok GB",
+        filename: "Stok_Green_Bean",
+        headers: ["Nama", "Kode", "Stok (kg)", "HPP/Kg", "Nilai"],
+        rows: gbStocks.map((i) => [i.name, i.code, Number(i.stockKg), i.latestHppPerKg ?? 0, value(i.stockKg, i.latestHppPerKg)]),
+      };
+  }
+}
+
+function hppValue(stock: number, hpp: number): number | "" {
+  return hpp > 0 ? stock * hpp : "";
+}
+
+/** Ledger export — unchanged behavior (separate format/content). */
+function exportLedgerPDF(filteredLedger: LedgerHistoryRow[]) {
+  import('jspdf').then(({ jsPDF }) => {
+    import('jspdf-autotable').then(({ default: autoTable }) => {
+      const doc = new jsPDF();
+      doc.text("Riwayat Mutasi Stok", 14, 15);
+      autoTable(doc, {
+        head: [["Waktu", "Kode", "Item", "Arah", "Jumlah", "Unit", "Referensi"]],
+        body: filteredLedger.map((entry) => [
           new Date(entry.createdAt).toLocaleString("id-ID"),
           entry.itemCode,
           entry.itemName,
@@ -121,22 +188,34 @@ async function exportExcel(isLedger: boolean, gbStocks: ProductStockRow[], filte
           entry.quantity,
           entry.unit,
           entry.refType,
-          entry.refId,
-          entry.notes ?? "",
-          entry.createdByName,
         ]),
-      ]
-    : [
-        ["Nama", "Stok (Kg)", "HPP/Kg"],
-        ...gbStocks.map((item) => [
-          item.name,
-          item.stockKg,
-          item.latestHppPerKg || 0,
-        ]),
-      ];
+        startY: 20
+      });
+      doc.save("Mutasi_Stok.pdf");
+    });
+  });
+}
+
+async function exportLedgerExcel(filteredLedger: LedgerHistoryRow[]) {
+  const { default: writeXlsxFile } = await import("write-excel-file/browser");
+  const rows = [
+    ["Waktu", "Kode", "Item", "Arah", "Jumlah", "Unit", "Referensi", "ID Referensi", "Catatan", "Operator"],
+    ...filteredLedger.map((entry) => [
+      new Date(entry.createdAt).toLocaleString("id-ID"),
+      entry.itemCode,
+      entry.itemName,
+      entry.entryType,
+      entry.quantity,
+      entry.unit,
+      entry.refType,
+      entry.refId,
+      entry.notes ?? "",
+      entry.createdByName,
+    ]),
+  ];
   await writeXlsxFile(rows, {
-    sheet: isLedger ? "Ledger" : "Stok GB",
-  }).toFile(isLedger ? "Mutasi_Stok.xlsx" : "Laporan_Stok.xlsx");
+    sheet: "Ledger",
+  }).toFile("Mutasi_Stok.xlsx");
 }
 
 // ── Export dropdown ──
@@ -195,12 +274,20 @@ function ActionsDropdown({ onStockOpname }: { onStockOpname: () => void }) {
         <span className="hidden sm:inline">Penyesuaian</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-slate-200 bg-white shadow-xl py-1 overflow-hidden animate-in slide-in-from-top-1 fade-in">
-          <button onClick={() => { onStockOpname(); setOpen(false); }} className="flex w-full items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left">
-            <Settings2 size={14} className="text-slate-400" /> Penyesuaian Stok (koreksi cepat)
+        <div className="absolute right-0 top-full mt-1 w-72 rounded-xl border border-slate-200 bg-white shadow-xl py-1 overflow-hidden animate-in slide-in-from-top-1 fade-in">
+          <button onClick={() => { onStockOpname(); setOpen(false); }} className="flex w-full items-start gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors text-left">
+            <Settings2 size={14} className="mt-0.5 shrink-0 text-slate-400" />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-xs font-semibold text-slate-700">Penyesuaian Stok</span>
+              <span className="text-[11px] leading-4 text-slate-400">Koreksi cepat stok sistem — tidak per lokasi.</span>
+            </span>
           </button>
-          <Link href="/gudang/opname" className="flex w-full items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left">
-            <ClipboardCheck size={14} className="text-slate-400" /> Opname Lokasi (per lokasi) →
+          <Link href="/gudang/opname" className="flex w-full items-start gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors text-left">
+            <ClipboardCheck size={14} className="mt-0.5 shrink-0 text-slate-400" />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-xs font-semibold text-slate-700">Opname Lokasi →</span>
+              <span className="text-[11px] leading-4 text-slate-400">Hitung fisik stok per lot pada lokasi gudang.</span>
+            </span>
           </Link>
         </div>
       )}
@@ -210,11 +297,14 @@ function ActionsDropdown({ onStockOpname }: { onStockOpname: () => void }) {
 
 // ── Barang Datang Popup ──
 
-function BarangDatangPopup({ onGBDatang, onRBDatang, onKemasanDatang, onSupplyDatang, onTerimaPO, waitingCount }: { onGBDatang: () => void; onRBDatang: () => void; onKemasanDatang: () => void; onSupplyDatang: () => void; onTerimaPO: () => void; waitingCount: number }) {
-  const [open, setOpen] = useState(false);
+function BarangDatangPopup({ onGBDatang, onRBDatang, onKemasanDatang, onSupplyDatang, onTerimaPO, waitingCount, open, onOpenChange }: { onGBDatang: () => void; onRBDatang: () => void; onKemasanDatang: () => void; onSupplyDatang: () => void; onTerimaPO: () => void; waitingCount: number; open?: boolean; onOpenChange?: (o: boolean) => void }) {
+  const [localOpen, setLocalOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const isOpen = isControlled ? open : localOpen;
+  const setOpen = (o: boolean) => { if (isControlled) onOpenChange?.(o); else setLocalOpen(o); };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={setOpen}>
       <button onClick={() => setOpen(true)} className="flex h-9 items-center gap-1.5 rounded-[9px] bg-primary px-3 text-xs font-bold text-primary-foreground shadow-[0_8px_20px_-14px_rgba(91,32,17,.65)] transition-colors hover:bg-primary/90" aria-label="Barang Datang">
         <Plus size={14} />
         <span>Barang Datang</span>
@@ -333,6 +423,7 @@ export function InventoryClient({
   const [pkgDrawerOpen, setPkgDrawerOpen] = useState(false);
   const [supDrawerOpen, setSupDrawerOpen] = useState(false);
   const [adjDrawerOpen, setAdjDrawerOpen] = useState(false);
+  const [barangDatangOpen, setBarangDatangOpen] = useState(false);
   const [poDrawerOpen, setPoDrawerOpen] = useState(false);
   const [poDetailOpen, setPoDetailOpen] = useState(false);
   const [receiptDrawerOpen, setReceiptDrawerOpen] = useState(false);
@@ -365,6 +456,7 @@ export function InventoryClient({
   // URL-synced workspace tab
   const viewParam = searchParams.get("view");
   const metricParam = searchParams.get("metric");
+  const categoryParam = searchParams.get("category");
   const activeView: WorkspaceTab =
     viewParam === "po" || viewParam === "receiving" || viewParam === "mutations" ? viewParam : "stock";
 
@@ -483,7 +575,7 @@ export function InventoryClient({
 
   const primaryAction = useMemo(() => {
     switch (activeView) {
-      case "stock": return { label: "Barang Datang", icon: <Plus size={14} />, onClick: () => setGbDrawerOpen(true) };
+      case "stock": return { label: "Barang Datang", icon: <Plus size={14} />, onClick: () => setBarangDatangOpen(true) };
       case "po": return { label: "Buat PO", icon: <Plus size={14} />, onClick: () => setPoDrawerOpen(true) };
       case "receiving": return {
         label: "Catat Penerimaan",
@@ -493,6 +585,18 @@ export function InventoryClient({
       case "mutations": return null;
     }
   }, [activeView]);
+
+  // ── Stock export follows the active category (URL-synced `?category=`) ──
+
+  const activeCategory: CategoryId =
+    categoryParam === "rb" || categoryParam === "fg" || categoryParam === "pkg" || categoryParam === "supply"
+      ? categoryParam
+      : "gb";
+
+  const stockExportData = useMemo(
+    () => buildStockExportData(activeCategory, gbStocks, rbStocks, fgStocks, supplyPackagingItems, supplyNonPackagingItems),
+    [activeCategory, gbStocks, rbStocks, fgStocks, supplyPackagingItems, supplyNonPackagingItems],
+  );
 
   // ── Compact header signal ──
   const headerSignal = useMemo(() => {
@@ -537,8 +641,8 @@ export function InventoryClient({
       case "stock":
         return [
           { label: "Nilai", value: formatRupiah(stockMetrics.totalValue) },
-          { label: "Habis", value: stockMetrics.outOfStockCount },
-          { label: "Perlu pesan", value: stockMetrics.needsOrderCount },
+          { label: "Perlu pesan", value: stockMetrics.needsOrderCount, onClick: () => toggleMetric("needs-reorder"), active: metricParam === "needs-reorder" },
+          { label: "Belum Diatur", value: notConfiguredCount, onClick: () => toggleMetric("not-configured"), active: metricParam === "not-configured" },
         ];
       case "po":
         return [
@@ -558,29 +662,7 @@ export function InventoryClient({
           { label: "Penyesuaian", value: mutationMetrics.opname },
         ];
     }
-  }, [activeView, mutationMetrics, poMetrics, receivingMetrics, stockMetrics]);
-
-  const mobileFabItems = useMemo(() => {
-    switch (activeView) {
-      case "stock": return [
-        { label: "Penyesuaian Stok", icon: <Settings2 size={16} />, onClick: () => setAdjDrawerOpen(true), variant: "secondary" as const },
-        { label: "Kemasan Datang", icon: <Package size={16} />, onClick: () => setPkgDrawerOpen(true), variant: "secondary" as const },
-        { label: "Barang Datang", icon: <Plus size={16} />, onClick: () => setGbDrawerOpen(true), variant: "primary" as const },
-      ];
-      case "po": return [
-        { label: "Buat PO", icon: <ClipboardList size={16} />, onClick: () => setPoDrawerOpen(true), variant: "primary" as const },
-      ];
-      case "receiving": return [
-        {
-          label: "Catat Penerimaan",
-          icon: <Truck size={16} />,
-          onClick: () => { setSelectedReceivingPoId(null); setReceiptDrawerOpen(true); },
-          variant: "primary" as const,
-        },
-      ];
-      case "mutations": return undefined; // no FAB for mutations
-    }
-  }, [activeView]);
+  }, [activeView, mutationMetrics, poMetrics, receivingMetrics, stockMetrics, notConfiguredCount, metricParam, toggleMetric]);
 
   // ── Export context ──
   const isMutations = activeView === "mutations";
@@ -597,14 +679,22 @@ export function InventoryClient({
           next={{ label: "Lanjut ke Roasting", href: "/roasting" }}
           actions={
             <>
-              <ExportMenu
-                onExportPDF={() => exportPDF(isMutations, gbStocks, filteredLedger)}
-                onExportExcel={() => exportExcel(isMutations, gbStocks, filteredLedger)}
-              />
+              {!isMutations && (
+                <ExportMenu
+                  onExportPDF={() => exportPDF(stockExportData)}
+                  onExportExcel={() => exportExcel(stockExportData)}
+                />
+              )}
+              {isMutations && (
+                <ExportMenu
+                  onExportPDF={() => exportLedgerPDF(filteredLedger)}
+                  onExportExcel={() => exportLedgerExcel(filteredLedger)}
+                />
+              )}
               {activeView === "stock" ? (
                 <>
                   <ActionsDropdown onStockOpname={() => setAdjDrawerOpen(true)} />
-                  <BarangDatangPopup onGBDatang={() => setGbDrawerOpen(true)} onRBDatang={() => setRbDrawerOpen(true)} onKemasanDatang={() => setPkgDrawerOpen(true)} onSupplyDatang={() => setSupDrawerOpen(true)} onTerimaPO={() => router.push("/inventory?view=po", { scroll: false })} waitingCount={receivingMetrics.waitingToReceive} />
+                  <BarangDatangPopup onGBDatang={() => setGbDrawerOpen(true)} onRBDatang={() => setRbDrawerOpen(true)} onKemasanDatang={() => setPkgDrawerOpen(true)} onSupplyDatang={() => setSupDrawerOpen(true)} onTerimaPO={() => router.push("/inventory?view=receiving", { scroll: false })} waitingCount={receivingMetrics.waitingToReceive} open={barangDatangOpen} onOpenChange={setBarangDatangOpen} />
                 </>
               ) : (
                 <>
@@ -620,16 +710,21 @@ export function InventoryClient({
             </>
           }
           mobileActions={
-            primaryAction ? (
-              <Button size="sm" className="gap-1.5 px-3" onClick={primaryAction.onClick}>
-                {primaryAction.icon}
-                {primaryAction.label}
-              </Button>
-            ) : (
+            activeView === "mutations" ? (
               <Button size="sm" variant="outline" className="gap-1.5 px-3" onClick={() => setAdjDrawerOpen(true)}>
                 <Settings2 size={14} />
                 Penyesuaian
               </Button>
+            ) : (
+              <>
+                <ActionsDropdown onStockOpname={() => setAdjDrawerOpen(true)} />
+                {primaryAction && (
+                  <Button size="sm" className="gap-1.5 px-3" onClick={primaryAction.onClick}>
+                    {primaryAction.icon}
+                    {primaryAction.label}
+                  </Button>
+                )}
+              </>
             )
           }
         />
@@ -639,33 +734,6 @@ export function InventoryClient({
 
         {/* ── Workspace Content ── */}
         <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">
-      {/* ── Sample Consumption Summary (Stock tab only) ── */}
-      {activeView === "stock" && (sampleConsumption.rbConsumedKg > 0 || sampleConsumption.fgConsumedUnits > 0 || sampleConsumption.pkgConsumedUnits > 0) && (
-        <div className="page-surface relative mb-5 overflow-hidden px-5 py-4 animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5 pointer-events-none" />
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-[11px] font-black uppercase tracking-[0.1em] text-violet-700 dark:text-violet-400">Sample Bulan Ini</span>
-                <span className="flex items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/50 px-2 py-0.5 text-[9px] font-bold text-violet-600 dark:text-violet-300">
-                  {sampleConsumption.sampleCount} Transaksi
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[var(--text-secondary)]">
-                {sampleConsumption.rbConsumedKg > 0 && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-violet-400" />RB: <strong className="text-[var(--text-primary)]">{sampleConsumption.rbConsumedKg.toLocaleString("id-ID", { maximumFractionDigits: 2 })} kg</strong></span>}
-                {sampleConsumption.fgConsumedUnits > 0 && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-purple-400" />FG: <strong className="text-[var(--text-primary)]">{sampleConsumption.fgConsumedUnits.toLocaleString("id-ID")} unit</strong></span>}
-                {sampleConsumption.pkgConsumedUnits > 0 && <span className="flex items-center gap-1.5"><div className="size-1.5 rounded-full bg-domain-sales" />PKG: <strong className="text-[var(--text-primary)]">{sampleConsumption.pkgConsumedUnits.toLocaleString("id-ID")} pcs</strong></span>}
-              </div>
-            </div>
-            <div className="shrink-0 text-right">
-              <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-0.5">Total Biaya Sample</p>
-              <p className="text-xl font-black text-[var(--text-primary)] tabular-nums tracking-tight">{formatRupiah(sampleConsumption.totalCost)}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-        {/* ── Workspace Content ── */}
         <div>
           {activeView === "stock" && (
             <StockTable
@@ -678,6 +746,7 @@ export function InventoryClient({
               metricFilter={metricParam}
               lotsByProduct={lotsByProduct}
               supplyLotsByItem={supplyLotsByItem}
+              onEmptyAction={() => setBarangDatangOpen(true)}
             />
           )}
           {activeView === "po" && (
@@ -700,6 +769,32 @@ export function InventoryClient({
             <LedgerHistoryTable entries={ledgerEntries} onFilteredEntriesChange={setFilteredLedger} />
           )}
         </div>
+
+        {/* ── Sample Consumption Summary (Stock tab only, lower emphasis) ── */}
+        {activeView === "stock" && (sampleConsumption.rbConsumedKg > 0 || sampleConsumption.fgConsumedUnits > 0 || sampleConsumption.pkgConsumedUnits > 0) && (
+          <div className="page-surface relative mt-5 overflow-hidden px-5 py-4 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5 pointer-events-none" />
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[11px] font-black uppercase tracking-[0.1em] text-violet-700 dark:text-violet-400">Sample Bulan Ini</span>
+                  <span className="flex items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/50 px-2 py-0.5 text-[9px] font-bold text-violet-600 dark:text-violet-300">
+                    {sampleConsumption.sampleCount} Transaksi
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[var(--text-secondary)]">
+                  {sampleConsumption.rbConsumedKg > 0 && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-violet-400" />RB: <strong className="text-[var(--text-primary)]">{sampleConsumption.rbConsumedKg.toLocaleString("id-ID", { maximumFractionDigits: 2 })} kg</strong></span>}
+                  {sampleConsumption.fgConsumedUnits > 0 && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-purple-400" />FG: <strong className="text-[var(--text-primary)]">{sampleConsumption.fgConsumedUnits.toLocaleString("id-ID")} unit</strong></span>}
+                  {sampleConsumption.pkgConsumedUnits > 0 && <span className="flex items-center gap-1.5"><div className="size-1.5 rounded-full bg-domain-sales" />PKG: <strong className="text-[var(--text-primary)]">{sampleConsumption.pkgConsumedUnits.toLocaleString("id-ID")} pcs</strong></span>}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-0.5">Total Biaya Sample</p>
+                <p className="text-xl font-black text-[var(--text-primary)] tabular-nums tracking-tight">{formatRupiah(sampleConsumption.totalCost)}</p>
+              </div>
+            </div>
+          </div>
+        )}
           </div>
         </div>
       </div>
