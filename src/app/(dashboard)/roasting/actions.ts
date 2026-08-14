@@ -77,6 +77,18 @@ export type MachineOption = {
   capacityKg: number | null;
 };
 
+// Read-only destination projection for Roasting (OPERATOR-accessible).
+// Mirrors resolveOutputLocationInTx's canonical resolution order so the UI
+// default matches the server default: isDefault desc → createdAt asc, only
+// active non-system locations of the current tenant.
+export type RoastingLocationOption = {
+  id: string;
+  code: string;
+  name: string;
+  warehouseName: string;
+  isDefault: boolean;
+};
+
 export type RoastingPageData = {
   batches: ParentRoastingBatchRow[];
   gbOptions: GBStockOption[];
@@ -84,6 +96,7 @@ export type RoastingPageData = {
   machineOptions: MachineOption[];
   reusableProfiles: ReusableRoastProfileRow[];
   customRoastLevels: TenantRoastLevelRow[];
+  locationOptions: RoastingLocationOption[];
 };
 
 export type ReusableRoastProfileRow = {
@@ -499,17 +512,39 @@ export async function getMachineOptions(): Promise<MachineOption[]> {
 // PUBLIC SERVER ACTIONS
 // =============================================================================
 
+export async function fetchRoastingLocationOptions(): Promise<RoastingLocationOption[]> {
+  const locations = await (await requireTenantPrisma()).location.findMany({
+    where: { isActive: true, isSystem: false },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      isDefault: true,
+      warehouse: { select: { name: true } },
+    },
+    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+  });
+  return locations.map((location) => ({
+    id: location.id,
+    code: location.code,
+    name: location.name,
+    warehouseName: location.warehouse.name,
+    isDefault: location.isDefault,
+  }));
+}
+
 export async function getRoastingPageData(): Promise<RoastingPageData> {
   await requireRole("OWNER", "MANAGER", "OPERATOR");
-  const [batches, gbOptions, rbOptions, machineOptions, reusableProfiles, customRoastLevels] = await Promise.all([
+  const [batches, gbOptions, rbOptions, machineOptions, reusableProfiles, customRoastLevels, locationOptions] = await Promise.all([
     fetchBatchHistory(),
     fetchGBOptions(),
     fetchRBOptions(),
     fetchMachineOptions(),
     fetchReusableRoastProfiles(),
     fetchTenantRoastLevels(),
+    fetchRoastingLocationOptions(),
   ]);
-  return { batches, gbOptions, rbOptions, machineOptions, reusableProfiles, customRoastLevels };
+  return { batches, gbOptions, rbOptions, machineOptions, reusableProfiles, customRoastLevels, locationOptions };
 }
 
 export async function getRoastProfiles(): Promise<RoastProfileRow[]> {

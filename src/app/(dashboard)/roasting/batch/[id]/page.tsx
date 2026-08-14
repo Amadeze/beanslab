@@ -40,6 +40,23 @@ export default async function BatchRecapPage({
     prisma.user.findUnique({ where: { id: batch.createdById }, select: { id: true, name: true } }),
   ]);
 
+  // Actual persisted Roasted Bean placement(s) — recap shows where the output
+  // really landed, never an inferred/requested destination.
+  const outputPlacements = batch.status === "COMPLETED"
+    ? await prisma.lotPlacement.findMany({
+        where: {
+          tenantId: user.tenantId,
+          lot: { productId: batch.outputProductId, batchCode: `${batch.code}-RB` },
+        },
+        select: {
+          quantityKg: true,
+          lot: { select: { batchCode: true } },
+          location: { select: { code: true, name: true, warehouse: { select: { name: true } } } },
+        },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+
   // Fetch roast data for each child batch
   const roastIds = batch.childBatches.filter((c) => c.roastId).map((c) => c.roastId!);
 
@@ -168,6 +185,15 @@ export default async function BatchRecapPage({
       roastCount,
     },
     downstreamBatches,
+    outputPlacements: outputPlacements.map((placement) => ({
+      quantityKg: Number(placement.quantityKg),
+      batchCode: placement.lot.batchCode,
+      location: {
+        code: placement.location.code,
+        name: placement.location.name,
+        warehouseName: placement.location.warehouse.name,
+      },
+    })),
   };
 
   return (

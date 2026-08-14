@@ -24,6 +24,7 @@ export default async function RoastingPage({
       machineOptions={data.machineOptions}
       roastProfiles={roastProfiles}
       reusableProfiles={data.reusableProfiles}
+      locationOptions={data.locationOptions}
     />
   );
 }

@@ -28,7 +28,9 @@ import {
   splitBatchByCapacity,
   type ParentRoastingBatchRow,
   type RoastReferenceOption,
+  type RoastingLocationOption,
 } from "../actions";
+import { RoastingDestinationField } from "./RoastingDestinationField";
 
 // ─────────────────────────────────────────────
 // Shrinkage badge
@@ -111,6 +113,7 @@ function EmptyState({ isFiltered, onStart }: { isFiltered: boolean; onStart?: ()
 interface RoastingHistoryTableProps {
   batches: ParentRoastingBatchRow[];
   machineOptions: { id: string; name: string; capacityKg: number | null }[];
+  locationOptions: RoastingLocationOption[];
   onStartRoasting?: () => void;
 }
 
@@ -118,7 +121,7 @@ interface RoastingHistoryTableProps {
 // Component
 // ─────────────────────────────────────────────
 
-export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting }: RoastingHistoryTableProps) {
+export function RoastingHistoryTable({ batches, machineOptions, locationOptions, onStartRoasting }: RoastingHistoryTableProps) {
   const [voidTarget, setVoidTarget] = useState<ParentRoastingBatchRow | null>(null);
   const [scrapTarget, setScrapTarget] = useState<ParentRoastingBatchRow | null>(null);
   const [completeTarget, setCompleteTarget] = useState<ParentRoastingBatchRow | null>(null);
@@ -126,6 +129,7 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [selectedMachineId, setSelectedMachineId] = useState("");
   const [actualOutputKg, setActualOutputKg] = useState("");
+  const [destinationLocationId, setDestinationLocationId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [referenceTarget, setReferenceTarget] = useState<ParentRoastingBatchRow | null>(null);
   const [referenceSearch, setReferenceSearch] = useState("");
@@ -195,7 +199,11 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
     }
 
     setIsSubmitting(true);
-    const result = await completeParentRoastingBatch(completeTarget.id, kg);
+    const result = await completeParentRoastingBatch(
+      completeTarget.id,
+      kg,
+      destinationLocationId || undefined,
+    );
     setIsSubmitting(false);
 
     if (result.success) {
@@ -208,6 +216,7 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
       }
       setCompleteTarget(null);
       setActualOutputKg("");
+      setDestinationLocationId("");
     } else {
       toastSafe.error(result.error);
     }
@@ -446,6 +455,7 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
                   <>
                     <Button size="sm" variant="ghost" onClick={() => {
                       setCompleteTarget(b);
+                      setDestinationLocationId(locationOptions[0]?.id ?? "");
                       const totalRoasted = b.childBatches
                         .filter((c) => c.roastedWeightGrams)
                         .reduce((sum, c) => sum + (c.roastedWeightGrams || 0), 0);
@@ -629,10 +639,15 @@ export function RoastingHistoryTable({ batches, machineOptions, onStartRoasting 
                   return null;
                 })()}
               </div>
+              <RoastingDestinationField
+                value={destinationLocationId}
+                onChange={setDestinationLocationId}
+                options={locationOptions}
+              />
             </div>
           </div>
           <div className="bg-slate-50 p-4 border-t flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => { setCompleteTarget(null); setActualOutputKg(""); }}>Batal</Button>
+            <Button variant="ghost" onClick={() => { setCompleteTarget(null); setActualOutputKg(""); setDestinationLocationId(""); }}>Batal</Button>
             <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" disabled={isSubmitting} onClick={handleComplete}>
               {isSubmitting ? "Menyimpan..." : "Selesaikan Laporan"}
             </Button>

@@ -24,6 +24,7 @@ import {
 import { formatKg } from "@/lib/format";
 import { analyzeRoastOutcome } from "@/lib/roast-intent";
 import { roastedBeanName, greenBeanIdentity, getRoastLevelLabel, type RoastLevelValue } from "@/lib/roast-product";
+import { RoastingDestinationField } from "./RoastingDestinationField";
 import {
   createParentRoastingBatch,
   type GBStockOption,
@@ -31,6 +32,7 @@ import {
   type RBProductOption,
   type MachineOption,
   type ReusableRoastProfileRow,
+  type RoastingLocationOption,
 } from "../actions";
 
 // =============================================================================
@@ -63,6 +65,7 @@ const schema = z
     notes: z.string().optional(),
     machineId: z.string().optional(),
     referenceProfileId: z.string().optional(),
+    destinationLocationId: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (!data.outputRoastLevel) {
@@ -164,6 +167,7 @@ interface RoastingFormProps {
   machineOptions: MachineOption[];
   batches: ParentRoastingBatchRow[];
   reusableProfiles: ReusableRoastProfileRow[];
+  locationOptions: RoastingLocationOption[];
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
 }
@@ -179,6 +183,7 @@ export function RoastingForm({
   machineOptions,
   batches,
   reusableProfiles,
+  locationOptions,
   onSuccess,
   onPendingChange,
 }: RoastingFormProps) {
@@ -211,6 +216,7 @@ export function RoastingForm({
       notes: "",
       machineId: "",
       referenceProfileId: "",
+      destinationLocationId: locationOptions[0]?.id ?? "",
     },
   });
 
@@ -289,6 +295,7 @@ export function RoastingForm({
         notes: values.notes,
         machineId: values.machineId && values.machineId !== "none" ? values.machineId : undefined,
         referenceProfileId: values.referenceProfileId || undefined,
+        destinationLocationId: values.destinationLocationId || undefined,
       });
 
       if (!result.success) {
@@ -615,6 +622,19 @@ export function RoastingForm({
             />
             <FieldError message={errors.actualOutputKg?.message} />
           </FieldGroup>
+
+          {/* ── Lokasi Hasil (opsional, default server dipilih otomatis) ── */}
+          <Controller
+            control={control}
+            name="destinationLocationId"
+            render={({ field }) => (
+              <RoastingDestinationField
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                options={locationOptions}
+              />
+            )}
+          />
 
           {/* ── Shrinkage kalkulasi realtime ── */}
           <ShrinkageDisplay

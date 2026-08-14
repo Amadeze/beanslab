@@ -19,6 +19,7 @@ import type {
   MachineOption,
   RoastProfileRow,
   ReusableRoastProfileRow,
+  RoastingLocationOption,
 } from "../actions";
 
 interface RoastingClientProps {
@@ -29,6 +30,7 @@ interface RoastingClientProps {
   machineOptions: MachineOption[];
   roastProfiles: RoastProfileRow[];
   reusableProfiles: ReusableRoastProfileRow[];
+  locationOptions: RoastingLocationOption[];
 }
 
 export function RoastingClient({
@@ -39,6 +41,7 @@ export function RoastingClient({
   machineOptions,
   roastProfiles,
   reusableProfiles,
+  locationOptions,
 }: RoastingClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -129,6 +132,7 @@ export function RoastingClient({
                   <RoastingHistoryTable
                     batches={batches}
                     machineOptions={machineOptions}
+                    locationOptions={locationOptions}
                     onStartRoasting={() => setDrawerOpen(true)}
                   />
                 </GlassPanel>
@@ -190,6 +194,7 @@ export function RoastingClient({
             machineOptions={machineOptions}
             batches={batches}
             reusableProfiles={reusableProfiles}
+            locationOptions={locationOptions}
             onSuccess={() => {
               setDrawerOpen(false);
               router.refresh();

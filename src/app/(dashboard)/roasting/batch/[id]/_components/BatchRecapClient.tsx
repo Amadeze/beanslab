@@ -55,6 +55,16 @@ type DownstreamBatch = {
   createdAt: string;
 };
 
+type OutputPlacement = {
+  quantityKg: number;
+  batchCode: string;
+  location: {
+    code: string;
+    name: string;
+    warehouseName: string;
+  };
+};
+
 type RecapData = {
   id: string;
   code: string;
@@ -88,6 +98,7 @@ type RecapData = {
     roastCount: number;
   };
   downstreamBatches: DownstreamBatch[];
+  outputPlacements: OutputPlacement[];
 };
 
 function formatDuration(seconds: number | null): string {
@@ -273,6 +284,31 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
           })}
         </div>
       </div>
+
+      {/* Hasil Roasted Bean — actual persisted placement(s) */}
+      {data.outputPlacements.length > 0 && (
+        <div className="glass-card rounded-2xl p-5">
+          <h3 className="text-sm font-bold text-[var(--text-primary)] mb-3">Hasil Roasted Bean</h3>
+          <div className="space-y-2">
+            {data.outputPlacements.map((placement) => (
+              <div
+                key={`${placement.batchCode}-${placement.location.code}`}
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-[var(--glass-border)] px-3 py-2.5 text-sm"
+              >
+                <span className="font-bold text-[var(--text-primary)] tabular-nums">
+                  {placement.quantityKg.toFixed(1)} kg
+                </span>
+                <span className="font-mono text-xs text-[var(--text-tertiary)]">
+                  Lot {placement.batchCode}
+                </span>
+                <span className="text-[var(--text-secondary)]">
+                  {placement.location.warehouseName} · {placement.location.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Downstream Batches */}
       {data.downstreamBatches.length > 0 && (
