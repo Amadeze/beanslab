@@ -39,6 +39,7 @@ export function ProductionClient({
   const searchParams = useSearchParams();
   const requestedProductId = searchParams.get("productId") ?? "";
   const requestedUnits = Number(searchParams.get("units") ?? 0);
+  const parentRoastBatchId = searchParams.get("parentRoastBatchId") ?? "";
   const initialUnits = Number.isInteger(requestedUnits) && requestedUnits > 0
     ? requestedUnits
     : 1;
@@ -177,6 +178,7 @@ export function ProductionClient({
             supplyOptions={supplyOptions}
             initialOutputProductId={requestedProductId}
             initialUnitsProduced={initialUnits}
+            parentRoastBatchId={parentRoastBatchId}
             onSuccess={() => {
               setDrawerOpen(false);
               router.refresh();

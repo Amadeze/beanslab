@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Flame, Clock, Thermometer, ArrowDown, ChevronDown, ChevronUp,
   Package, Scale, TrendingDown, CheckCircle, AlertCircle,
+  Factory, Coffee, FlaskConical,
 } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis,
@@ -306,6 +307,36 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Lanjutkan ke proses berikutnya — dari hasil batch roasting ini */}
+      {data.status === "COMPLETED" && (
+        <div className="glass-card rounded-2xl p-5">
+          <h3 className="text-sm font-bold text-[var(--text-primary)] mb-1">Lanjutkan</h3>
+          <p className="text-xs text-[var(--text-tertiary)] mb-3">
+            Mulai proses berikutnya dengan hasil roasting ini — tautan ke batch ini tercatat otomatis.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/produksi?productId=${data.outputProduct.id}&parentRoastBatchId=${data.id}`}
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-zinc-900 px-4 text-xs font-bold text-white transition hover:bg-zinc-700"
+            >
+              <Factory size={15} /> Buat Produksi
+            </Link>
+            <Link
+              href={`/grinding?sourceProductId=${data.outputProduct.id}&parentRoastBatchId=${data.id}`}
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-300 px-4 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
+            >
+              <Coffee size={15} /> Grinding
+            </Link>
+            <Link
+              href={`/eksperimen?parentRoastBatchId=${data.id}`}
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-300 px-4 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
+            >
+              <FlaskConical size={15} /> Eksperimen
+            </Link>
           </div>
         </div>
       )}

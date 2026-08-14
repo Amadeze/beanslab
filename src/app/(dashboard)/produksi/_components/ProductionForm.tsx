@@ -205,6 +205,8 @@ interface ProductionFormProps {
   supplyOptions: SupplyConsumptionOption[];
   initialOutputProductId?: string;
   initialUnitsProduced?: number;
+  /** Batch roasting sumber (dari aksi di rekap roasting). Opsional. */
+  parentRoastBatchId?: string;
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
 }
@@ -221,6 +223,7 @@ export function ProductionForm({
   supplyOptions,
   initialOutputProductId = "",
   initialUnitsProduced = 1,
+  parentRoastBatchId,
   onSuccess,
   onPendingChange,
 }: ProductionFormProps) {
@@ -359,6 +362,7 @@ export function ProductionForm({
         laborCost:         values.laborCost,
         overheadAllocated: values.overheadAllocated,
         notes: values.notes,
+        parentRoastBatchId: parentRoastBatchId || undefined,
       });
 
       if (!result.success) {

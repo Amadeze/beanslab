@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FlaskConical, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassPanel } from "@/components/ui/glass-panel";
@@ -32,7 +32,9 @@ export function ExperimentalClient({
   fgOptions,
 }: ExperimentalClientProps) {
   const router = useRouter();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const parentRoastBatchId = searchParams.get("parentRoastBatchId") ?? "";
+  const [drawerOpen, setDrawerOpen] = useState(Boolean(parentRoastBatchId));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [promoteBatch, setPromoteBatch] = useState<ExperimentalProductionRow | null>(null);
 
@@ -144,6 +146,7 @@ export function ExperimentalClient({
             rbOptions={rbOptions}
             supplyOptions={supplyOptions}
             fgOptions={fgOptions}
+            parentRoastBatchId={parentRoastBatchId}
             onSuccess={() => {
               setDrawerOpen(false);
               router.refresh();

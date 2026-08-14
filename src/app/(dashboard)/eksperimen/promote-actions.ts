@@ -46,7 +46,7 @@ const PromoteToCatalogSchema = z.object({
   code: z.string().min(1, "SKU wajib diisi"),
   name: z.string().min(2, "Nama minimal 2 karakter"),
   category: z.string().optional(),
-  price: z.number().nonnegative().optional(),
+  price: z.number({ message: "Harga retail wajib diisi (lebih dari 0) untuk publikasi katalog." }).positive("Harga retail wajib lebih dari 0 (publikasi katalog)."),
   priceSilver: z.number().nonnegative().optional(),
   priceGold: z.number().nonnegative().optional(),
   netWeightGrams: z.number().nonnegative().optional(),
@@ -127,7 +127,7 @@ export async function promoteExperimentalToCatalog(
 
       await tx.product.update({
         where: { id: current.id },
-        data: { code: parsed.code, name: parsed.name, category: parsed.category ?? null, price: parsed.price ?? 0, priceSilver: parsed.priceSilver ?? 0, priceGold: parsed.priceGold ?? 0, netWeightGrams, isActive: true },
+        data: { code: parsed.code, name: parsed.name, category: parsed.category ?? null, price: parsed.price, priceSilver: parsed.priceSilver ?? 0, priceGold: parsed.priceGold ?? 0, netWeightGrams, isActive: true },
       });
       const outputLot = await tx.lot.create({ data: { tenantId, productId: current.id, batchCode: `${batch.code}-CAT`, quantityUnit: units, receivedAt: getCurrentDate(), notes: `Konversi katalog dari ${batch.code}` } });
       await createLotPlacementInTx(tx, tenantId, outputLot.id, { quantityUnit: units });

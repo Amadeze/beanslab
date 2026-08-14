@@ -85,6 +85,9 @@ suite("createGrindingBatch", () => {
     await tx.inventoryLedger.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.lot.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.grindingBatch.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.roastMaterialReservation.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.childRoastingBatch.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.parentRoastingBatch.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.productionBatch.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.productionSupplyUsage.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.experimentalProduction.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
@@ -171,6 +174,24 @@ suite("createGrindingBatch", () => {
         tenantId: TEST_TENANT_ID,
         name: `Grinder ${machineId}`,
         isActive: true,
+      },
+    });
+  }
+
+  async function createRoastBatch(tx: any, roastId: string, tenantId: string, gbId: string, outputRbId: string, opts: { status?: string } = {}) {
+    const status = opts.status ?? "COMPLETED";
+    await tx.parentRoastingBatch.create({
+      data: {
+        id: roastId,
+        code: `PRST-${roastId.slice(-8)}`,
+        tenantId,
+        inputProductId: gbId,
+        outputProductId: outputRbId,
+        targetWeightKg: 10,
+        status,
+        lifecycleStatus: status === "COMPLETED" ? "COMPLETED" : "PLANNED",
+        createdById: TEST_USER_ID,
+        actualOutputKg: 8.5,
       },
     });
   }
@@ -332,5 +353,124 @@ suite("createGrindingBatch", () => {
     expect(Array.isArray(data.groundCoffeeOptions)).toBe(true);
     expect(data.grinderOptions).toBeDefined();
     expect(Array.isArray(data.grinderOptions)).toBe(true);
+  });
+
+  it("Phase 2D.1: parentRoastBatchId terekam saat grinding diluncurkan dari rekap roasting", async () => {
+    const gbId = `gb-trace-grind-${Date.now()}`;
+    const rbId = `rb-trace-grind-${Date.now()}`;
+    const groundCoffeeId = `ground-trace-grind-${Date.now()}`;
+    const roastId = `roast-trace-grind-${Date.now()}`;
+
+    await client.$transaction(async (tx) => {
+      await tx.product.create({ data: { id: gbId, tenantId: TEST_TENANT_ID, code: gbId, name: `GB ${gbId}`, type: "GREEN_BEAN", stockKg: 10, isActive: true } });
+      await createRB(tx, rbId, 10, 50000);
+      await createGroundCoffeeSku(tx, groundCoffeeId);
+      await createRoastBatch(tx, roastId, TEST_TENANT_ID, gbId, rbId);
+    });
+
+    const result = await createGrindingBatch({
+      operationKey: randomUUID(),
+      sourceProductId: rbId,
+      outputProductId: groundCoffeeId,
+      grindSize: "MEDIUM",
+      inputKg: 5,
+      outputKg: 4.5,
+      grindingCost: 5000,
+      parentRoastBatchId: roastId,
+    });
+
+    if (!result.success) {
+      throw new Error(`grinding traceability happy path failed: ${result.error}`);
+    }
+    const traced = await client.grindingBatch.findFirst({ where: { tenantId: TEST_TENANT_ID }, orderBy: { createdAt: "desc" } });
+    expect(traced!.parentRoastBatchId).toBe(roastId);
+  });
+
+  it("Phase 2D.1: sumber bukan hasil batch roasting tersebut ditolak", async () => {
+    const gbId = `gb-incompat-grind-${Date.now()}`;
+    const rbRoastOutput = `rb-roast-grind-${Date.now()}`;
+    const rbOther = `rb-other-grind-${Date.now()}`;
+    const groundCoffeeId = `ground-incompat-grind-${Date.now()}`;
+    const roastId = `roast-incompat-grind-${Date.now()}`;
+
+    await client.$transaction(async (tx) => {
+      await tx.product.create({ data: { id: gbId, tenantId: TEST_TENANT_ID, code: gbId, name: `GB ${gbId}`, type: "GREEN_BEAN", stockKg: 10, isActive: true } });
+      await createRB(tx, rbRoastOutput, 10, 50000);
+      await createRB(tx, rbOther, 10, 50000);
+      await createGroundCoffeeSku(tx, groundCoffeeId);
+      await createRoastBatch(tx, roastId, TEST_TENANT_ID, gbId, rbRoastOutput);
+    });
+
+    const result = await createGrindingBatch({
+      operationKey: randomUUID(),
+      sourceProductId: rbOther,
+      outputProductId: groundCoffeeId,
+      grindSize: "COARSE",
+      inputKg: 3,
+      outputKg: 2.8,
+      parentRoastBatchId: roastId,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/harus merupakan hasil dari batch roasting tersebut/);
+    }
+  });
+
+  it("Phase 2D.1: batch roasting dari tenant lain ditolak", async () => {
+    const otherTenant = `tenant-other-grind-${Date.now()}`;
+    const otherUser = `user-other-grind-${Date.now()}`;
+    const gbId = `gb-x-grind-${Date.now()}`;
+    const rbOtherTenant = `rb-x-grind-${Date.now()}`;
+    const rbLocal = `rb-local-grind-${Date.now()}`;
+    const groundCoffeeId = `ground-x-grind-${Date.now()}`;
+    const roastId = `roast-x-grind-${Date.now()}`;
+
+    await client.$transaction(async (tx) => {
+      await tx.tenant.create({ data: { id: otherTenant, code: otherTenant, name: "Other Tenant" } });
+      await tx.user.create({ data: { id: otherUser, name: "Other", email: `${otherUser}@test.local`, password: "hashed", tenantId: otherTenant } });
+      await tx.product.create({ data: { id: gbId, tenantId: otherTenant, code: gbId, name: `GB ${gbId}`, type: "GREEN_BEAN", stockKg: 10, isActive: true } });
+      await createRB(tx, rbOtherTenant, 10, 50000);
+      await createRB(tx, rbLocal, 10, 50000);
+      await createGroundCoffeeSku(tx, groundCoffeeId);
+      await tx.parentRoastingBatch.create({
+        data: {
+          id: roastId,
+          code: `PRST-${roastId.slice(-8)}`,
+          tenantId: otherTenant,
+          inputProductId: gbId,
+          outputProductId: rbOtherTenant,
+          targetWeightKg: 10,
+          status: "COMPLETED",
+          lifecycleStatus: "COMPLETED",
+          createdById: otherUser,
+          actualOutputKg: 8.5,
+        },
+      });
+    });
+
+    try {
+      const result = await createGrindingBatch({
+        operationKey: randomUUID(),
+        sourceProductId: rbLocal,
+        outputProductId: groundCoffeeId,
+        grindSize: "COARSE",
+        inputKg: 3,
+        outputKg: 2.8,
+        parentRoastBatchId: roastId,
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/Batch roasting sumber tidak ditemukan/);
+      }
+    } finally {
+      await client.$transaction(async (tx) => {
+        await tx.parentRoastingBatch.deleteMany({ where: { id: roastId } });
+        await tx.product.deleteMany({ where: { id: { in: [gbId, rbOtherTenant] } } });
+        await tx.user.deleteMany({ where: { id: otherUser } });
+        await tx.tenant.deleteMany({ where: { id: otherTenant } });
+      });
+    }
   });
 });

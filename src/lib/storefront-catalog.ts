@@ -188,7 +188,7 @@ export async function loadStorefrontCatalog(
 ): Promise<StorefrontCatalog> {
   const [productRows, offeringRows] = await Promise.all([
     db.product.findMany({
-      where: { tenantId, type: "FINISHED_GOODS", isActive: true },
+      where: { tenantId, type: "FINISHED_GOODS", isActive: true, price: { gt: 0 } },
       select: {
         id: true,
         code: true,

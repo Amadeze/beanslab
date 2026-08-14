@@ -78,6 +78,8 @@ interface ExperimentalFormProps {
   rbOptions: RBStockOption[];
   supplyOptions: SupplyOption[];
   fgOptions: FGProductOption[];
+  /** Batch roasting sumber (dari aksi di rekap roasting). Opsional. */
+  parentRoastBatchId?: string;
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
 }
@@ -91,6 +93,7 @@ export function ExperimentalForm({
   rbOptions,
   supplyOptions,
   fgOptions,
+  parentRoastBatchId,
   onSuccess,
   onPendingChange,
 }: ExperimentalFormProps) {
@@ -149,6 +152,7 @@ export function ExperimentalForm({
         outputKg: values.outputKg,
         grindingCost: values.grindingCost,
         notes: values.notes,
+        parentRoastBatchId: parentRoastBatchId || undefined,
       });
 
       if (!result.success) {

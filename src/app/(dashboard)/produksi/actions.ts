@@ -42,6 +42,8 @@ export type CreateProductionBatchInput = {
   overheadAllocated?: number;
   notes?: string;
   destinationLocationId?: string | null;
+  /** Link opsional ke batch roasting yang menghasilkan RB yang dipakai. */
+  parentRoastBatchId?: string | null;
 };
 
 export type ProductionActionResult =
@@ -502,6 +504,30 @@ export async function createProductionBatch(
         return { success: false, error: "Total berat Roasted Bean yang digunakan adalah 0." };
       }
 
+      // Traceability: bila produksi dimulai dari rekap batch roasting, pastikan
+      // tautannya valid (tenant sama, COMPLETED, dan hasil RB-nya benar-benar dipakai).
+      let resolvedParentRoastBatchId: string | null = null;
+      if (input.parentRoastBatchId) {
+        const parentRoast = await tx.parentRoastingBatch.findUnique({
+          where: { id: input.parentRoastBatchId, tenantId },
+          select: { id: true, status: true, outputProductId: true },
+        });
+        if (!parentRoast) {
+          return { success: false, error: "Batch roasting sumber tidak ditemukan untuk tenant ini." };
+        }
+        if (parentRoast.status !== "COMPLETED") {
+          return { success: false, error: "Batch roasting sumber belum selesai (COMPLETED)." };
+        }
+        const usesOutput = rbDetails.some((d) => d.productId === parentRoast.outputProductId);
+        if (!usesOutput) {
+          return {
+            success: false,
+            error: "Produksi harus menggunakan hasil Roasted Bean dari batch roasting tersebut sebagai komponen.",
+          };
+        }
+        resolvedParentRoastBatchId = parentRoast.id;
+      }
+
       // 3b. Validasi & hitung HPP setiap komponen supply
       let totalSupplyCost = 0;
       const supplyDetails: Array<{
@@ -631,6 +657,7 @@ export async function createProductionBatch(
           laborCost:         laborCost > 0 ? laborCost : undefined,
           overheadAllocated: overheadCost > 0 ? overheadCost : undefined,
           status:            "COMPLETED",
+          parentRoastBatchId: resolvedParentRoastBatchId,
           notes:             input.notes?.trim() || null,
           createdById:       userId,
         },

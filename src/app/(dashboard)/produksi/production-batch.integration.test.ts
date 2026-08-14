@@ -88,6 +88,9 @@ suite("createProductionBatch — supply items (Commit 4)", () => {
     await tx.inventoryLedger.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.lot.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.productionBatch.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.roastMaterialReservation.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.childRoastingBatch.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
+    await tx.parentRoastingBatch.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.recipeSupplyItem.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.recipeItem.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
     await tx.recipe.deleteMany({ where: { tenantId: TEST_TENANT_ID } });
@@ -188,6 +191,24 @@ suite("createProductionBatch — supply items (Commit 4)", () => {
         })),
       });
     }
+  }
+
+  async function createRoastBatch(tx: any, roastId: string, tenantId: string, inputProductId: string, outputProductId: string, opts: { status?: string } = {}) {
+    const status = opts.status ?? "COMPLETED";
+    await tx.parentRoastingBatch.create({
+      data: {
+        id: roastId,
+        code: `PRST-${roastId.slice(-8)}`,
+        tenantId,
+        inputProductId,
+        outputProductId,
+        targetWeightKg: 10,
+        status,
+        lifecycleStatus: status === "COMPLETED" ? "COMPLETED" : "PLANNED",
+        createdById: TEST_USER_ID,
+        actualOutputKg: 8.5,
+      },
+    });
   }
 
   it("recipe dengan dua supply", async () => {
@@ -602,5 +623,230 @@ suite("createProductionBatch — supply items (Commit 4)", () => {
     expect(Number(supplyLedger!.supplyQuantity)).toBe(4);
     const pkgLedger = await client.inventoryLedger.count({ where: { refId: batch!.id, refType: "PRODUCTION_PKG_OUT" } });
     expect(pkgLedger).toBe(0);
+  });
+
+  it("Phase 2D.1: parentRoastBatchId terekam saat produksi diluncurkan dari rekap roasting", async () => {
+    const tenantId = "test-tenant";
+    const userId = `user-trace-${Date.now()}`;
+    const productId = `prod-trace-${Date.now()}`;
+    const packagingId = `pkg-trace-${Date.now()}`;
+    const gbId = `gb-trace-${Date.now()}`;
+    const rbProductId = `rb-trace-${Date.now()}`;
+    const roastId = `roast-trace-${Date.now()}`;
+    cleanupIds.push(userId, productId, packagingId, gbId, rbProductId, roastId);
+
+    await client.$transaction(async (tx) => {
+      await createUser(tx, userId, tenantId);
+      await createProduct(tx, productId, tenantId);
+      await createPackaging(tx, packagingId, tenantId);
+      await createProduct(tx, gbId, tenantId, "GREEN_BEAN", 10);
+      await createProduct(tx, rbProductId, tenantId, "ROASTED_BEAN", 10);
+      await createRoastBatch(tx, roastId, tenantId, gbId, rbProductId);
+    });
+
+    const result = await createProductionBatch({
+      operationKey: randomUUID(),
+      outputProductId: productId,
+      packagingId,
+      unitsProduced: 4,
+      rbComponents: [{ productId: rbProductId, productName: "Test RB", actualGrams: 400 }],
+      parentRoastBatchId: roastId,
+    });
+
+    if (!result.success) {
+      throw new Error(`traceability happy path failed: ${result.error}`);
+    }
+    const batch = await client.productionBatch.findFirst({ where: { code: result.batchCode } });
+    expect(batch!.parentRoastBatchId).toBe(roastId);
+  });
+
+  it("Phase 2D.1: batch roasting dari tenant lain ditolak", async () => {
+    const tenantId = "test-tenant";
+    const otherTenant = `tenant-other-${Date.now()}`;
+    const otherUser = `user-other-${Date.now()}`;
+    const userId = `user-x-tenant-${Date.now()}`;
+    const productId = `prod-x-tenant-${Date.now()}`;
+    const packagingId = `pkg-x-tenant-${Date.now()}`;
+    const gbId = `gb-x-tenant-${Date.now()}`;
+    const rbProductId = `rb-x-tenant-${Date.now()}`;
+    const roastId = `roast-x-tenant-${Date.now()}`;
+    cleanupIds.push(userId, productId, packagingId, gbId, rbProductId, roastId);
+
+    await client.$transaction(async (tx) => {
+      await tx.tenant.create({ data: { id: otherTenant, code: otherTenant, name: "Other Tenant" } });
+      await tx.user.create({ data: { id: otherUser, name: "Other", email: `${otherUser}@test.local`, password: "hashed", tenantId: otherTenant } });
+      await createUser(tx, userId, tenantId);
+      await createProduct(tx, productId, tenantId);
+      await createPackaging(tx, packagingId, tenantId);
+      await createProduct(tx, gbId, otherTenant, "GREEN_BEAN", 10);
+      await createProduct(tx, rbProductId, otherTenant, "ROASTED_BEAN", 10);
+      await tx.parentRoastingBatch.create({
+        data: {
+          id: roastId,
+          code: `PRST-${roastId.slice(-8)}`,
+          tenantId: otherTenant,
+          inputProductId: gbId,
+          outputProductId: rbProductId,
+          targetWeightKg: 10,
+          status: "COMPLETED",
+          lifecycleStatus: "COMPLETED",
+          createdById: otherUser,
+          actualOutputKg: 8.5,
+        },
+      });
+    });
+
+    try {
+      const result = await createProductionBatch({
+        operationKey: randomUUID(),
+        outputProductId: productId,
+        packagingId,
+        unitsProduced: 1,
+        rbComponents: [{ productId: rbProductId, productName: "Test RB", actualGrams: 100 }],
+        parentRoastBatchId: roastId,
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/Batch roasting sumber tidak ditemukan/);
+      }
+    } finally {
+      await client.$transaction(async (tx) => {
+        await tx.parentRoastingBatch.deleteMany({ where: { id: roastId } });
+        await tx.product.deleteMany({ where: { id: { in: [gbId, rbProductId] } } });
+        await tx.user.deleteMany({ where: { id: otherUser } });
+        await tx.tenant.deleteMany({ where: { id: otherTenant } });
+      });
+    }
+  });
+
+  it("Phase 2D.1: batch roasting belum COMPLETED ditolak", async () => {
+    const tenantId = "test-tenant";
+    const userId = `user-pending-${Date.now()}`;
+    const productId = `prod-pending-${Date.now()}`;
+    const packagingId = `pkg-pending-${Date.now()}`;
+    const gbId = `gb-pending-${Date.now()}`;
+    const rbProductId = `rb-pending-${Date.now()}`;
+    const roastId = `roast-pending-${Date.now()}`;
+    cleanupIds.push(userId, productId, packagingId, gbId, rbProductId, roastId);
+
+    await client.$transaction(async (tx) => {
+      await createUser(tx, userId, tenantId);
+      await createProduct(tx, productId, tenantId);
+      await createPackaging(tx, packagingId, tenantId);
+      await createProduct(tx, gbId, tenantId, "GREEN_BEAN", 10);
+      await createProduct(tx, rbProductId, tenantId, "ROASTED_BEAN", 10);
+      await createRoastBatch(tx, roastId, tenantId, gbId, rbProductId, { status: "PENDING" });
+    });
+
+    const result = await createProductionBatch({
+      operationKey: randomUUID(),
+      outputProductId: productId,
+      packagingId,
+      unitsProduced: 1,
+      rbComponents: [{ productId: rbProductId, productName: "Test RB", actualGrams: 100 }],
+      parentRoastBatchId: roastId,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/belum selesai/);
+    }
+  });
+
+  it("Phase 2D.1: batch roasting yang tidak ada ditolak", async () => {
+    const tenantId = "test-tenant";
+    const userId = `user-missing-${Date.now()}`;
+    const productId = `prod-missing-${Date.now()}`;
+    const packagingId = `pkg-missing-${Date.now()}`;
+    const rbProductId = `rb-missing-${Date.now()}`;
+    cleanupIds.push(userId, productId, packagingId, rbProductId);
+
+    await client.$transaction(async (tx) => {
+      await createUser(tx, userId, tenantId);
+      await createProduct(tx, productId, tenantId);
+      await createPackaging(tx, packagingId, tenantId);
+      await createProduct(tx, rbProductId, tenantId, "ROASTED_BEAN", 10);
+    });
+
+    const result = await createProductionBatch({
+      operationKey: randomUUID(),
+      outputProductId: productId,
+      packagingId,
+      unitsProduced: 1,
+      rbComponents: [{ productId: rbProductId, productName: "Test RB", actualGrams: 100 }],
+      parentRoastBatchId: "roast-does-not-exist",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/Batch roasting sumber tidak ditemukan/);
+    }
+  });
+
+  it("Phase 2D.1: RB komponen bukan hasil batch roasting tersebut ditolak", async () => {
+    const tenantId = "test-tenant";
+    const userId = `user-incompat-${Date.now()}`;
+    const productId = `prod-incompat-${Date.now()}`;
+    const packagingId = `pkg-incompat-${Date.now()}`;
+    const gbId = `gb-incompat-${Date.now()}`;
+    const rbRoastOutput = `rb-roast-out-${Date.now()}`;
+    const rbOther = `rb-other-${Date.now()}`;
+    const roastId = `roast-incompat-${Date.now()}`;
+    cleanupIds.push(userId, productId, packagingId, gbId, rbRoastOutput, rbOther, roastId);
+
+    await client.$transaction(async (tx) => {
+      await createUser(tx, userId, tenantId);
+      await createProduct(tx, productId, tenantId);
+      await createPackaging(tx, packagingId, tenantId);
+      await createProduct(tx, gbId, tenantId, "GREEN_BEAN", 10);
+      await createProduct(tx, rbRoastOutput, tenantId, "ROASTED_BEAN", 10);
+      await createProduct(tx, rbOther, tenantId, "ROASTED_BEAN", 10);
+      await createRoastBatch(tx, roastId, tenantId, gbId, rbRoastOutput);
+    });
+
+    const result = await createProductionBatch({
+      operationKey: randomUUID(),
+      outputProductId: productId,
+      packagingId,
+      unitsProduced: 1,
+      rbComponents: [{ productId: rbOther, productName: "Test RB", actualGrams: 100 }],
+      parentRoastBatchId: roastId,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/harus menggunakan hasil Roasted Bean dari batch roasting tersebut/);
+    }
+  });
+
+  it("Phase 2D.1: GREEN_BEAN tetap diterima sebagai komponen produksi (fitur disengaja, Commit 4d4c6b0)", async () => {
+    const tenantId = "test-tenant";
+    const userId = `user-gb-${Date.now()}`;
+    const productId = `prod-gb-${Date.now()}`;
+    const packagingId = `pkg-gb-${Date.now()}`;
+    const gbProductId = `gb-direct-${Date.now()}`;
+    cleanupIds.push(userId, productId, packagingId, gbProductId);
+
+    await client.$transaction(async (tx) => {
+      await createUser(tx, userId, tenantId);
+      await createProduct(tx, productId, tenantId);
+      await createPackaging(tx, packagingId, tenantId);
+      await createProduct(tx, gbProductId, tenantId, "GREEN_BEAN", 10);
+    });
+
+    const result = await createProductionBatch({
+      operationKey: randomUUID(),
+      outputProductId: productId,
+      packagingId,
+      unitsProduced: 4,
+      rbComponents: [{ productId: gbProductId, productName: "Test GB", actualGrams: 400 }],
+    });
+
+    if (!result.success) {
+      throw new Error(`GREEN_BEAN direct production should succeed: ${result.error}`);
+    }
+    const batch = await client.productionBatch.findFirst({ where: { code: result.batchCode } });
+    expect(batch!.parentRoastBatchId).toBeNull();
   });
 });

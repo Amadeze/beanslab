@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Coffee, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassPanel } from "@/components/ui/glass-panel";
@@ -31,7 +31,10 @@ export function GrindingClient({
   grinderOptions,
 }: GrindingClientProps) {
   const router = useRouter();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const requestedSourceProductId = searchParams.get("sourceProductId") ?? "";
+  const parentRoastBatchId = searchParams.get("parentRoastBatchId") ?? "";
+  const [drawerOpen, setDrawerOpen] = useState(Boolean(requestedSourceProductId));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canGrind = rbOptions.length > 0 && groundCoffeeOptions.length > 0;
@@ -144,6 +147,8 @@ export function GrindingClient({
             rbOptions={rbOptions}
             groundCoffeeOptions={groundCoffeeOptions}
             grinderOptions={grinderOptions}
+            initialSourceProductId={requestedSourceProductId}
+            parentRoastBatchId={parentRoastBatchId}
             onSuccess={() => {
               setDrawerOpen(false);
               router.refresh();

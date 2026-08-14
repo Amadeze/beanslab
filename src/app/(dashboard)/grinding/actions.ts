@@ -78,6 +78,8 @@ export type CreateGrindingBatchInput = {
   batchReference?: string;
   notes?: string;
   destinationLocationId?: string | null;
+  /** Batch roasting sumber (dari aksi di rekap roasting). Opsional. */
+  parentRoastBatchId?: string | null;
 };
 
 const CreateGrindingBatchSchema = z.object({
@@ -93,6 +95,7 @@ const CreateGrindingBatchSchema = z.object({
   batchReference: z.string().optional(),
   notes: z.string().optional(),
   destinationLocationId: z.string().optional().nullable(),
+  parentRoastBatchId: z.string().optional().nullable(),
 });
 
 export type GrindingActionResult =
@@ -261,6 +264,26 @@ export async function createGrindingBatch(
         throw new Error("SKU kopi giling harus berbeda dari Roasted Bean sumber.");
       }
 
+      // Traceability: bila grinding dimulai dari rekap batch roasting, pastikan
+      // tautannya valid dan sumber RB sesuai hasil roasting tersebut.
+      let resolvedParentRoastBatchId: string | null = null;
+      if (parsed.parentRoastBatchId) {
+        const parentRoast = await tx.parentRoastingBatch.findUnique({
+          where: { id: parsed.parentRoastBatchId, tenantId },
+          select: { id: true, status: true, outputProductId: true },
+        });
+        if (!parentRoast) {
+          throw new Error("Batch roasting sumber tidak ditemukan untuk tenant ini.");
+        }
+        if (parentRoast.status !== "COMPLETED") {
+          throw new Error("Batch roasting sumber belum selesai (COMPLETED).");
+        }
+        if (parentRoast.outputProductId !== sourceProduct.id) {
+          throw new Error("Roasted Bean sumber harus merupakan hasil dari batch roasting tersebut.");
+        }
+        resolvedParentRoastBatchId = parentRoast.id;
+      }
+
       const currentStock = Number(sourceProduct.stockKg);
       if (currentStock < parsed.inputKg) {
         throw new Error(
@@ -297,6 +320,7 @@ export async function createGrindingBatch(
           batchReference: parsed.batchReference?.trim() || null,
           notes: parsed.notes?.trim() || null,
           status: "COMPLETED",
+          parentRoastBatchId: resolvedParentRoastBatchId,
         },
       });
 

@@ -80,6 +80,8 @@ export type CreateExperimentalProductionInput = {
   grindingCost?: number;
   notes?: string;
   destinationLocationId?: string | null;
+  /** Link opsional ke batch roasting yang menghasilkan RB yang dipakai. */
+  parentRoastBatchId?: string | null;
 };
 
 const CreateExperimentalProductionSchema = z.object({
@@ -98,6 +100,7 @@ const CreateExperimentalProductionSchema = z.object({
   grindingCost: z.number().nonnegative().optional(),
   notes: z.string().optional(),
   destinationLocationId: z.string().optional().nullable(),
+  parentRoastBatchId: z.string().optional().nullable(),
 }).superRefine((data, ctx) => {
   for (let i = 0; i < data.components.length; i++) {
     const comp = data.components[i];
@@ -365,6 +368,30 @@ export async function createExperimentalProduction(
       const totalCostWithGrinding = totalCost + grindingCost;
       const hppPerUnit = totalCostWithGrinding / parsed.outputKg;
 
+      // Traceability: bila eksperimen dimulai dari rekap batch roasting, pastikan
+      // tautannya valid dan hasil RB-nya benar-benar dipakai sebagai komponen.
+      let resolvedParentRoastBatchId: string | null = null;
+      if (parsed.parentRoastBatchId) {
+        const parentRoast = await tx.parentRoastingBatch.findUnique({
+          where: { id: parsed.parentRoastBatchId, tenantId },
+          select: { id: true, status: true, outputProductId: true },
+        });
+        if (!parentRoast) {
+          throw new Error("Batch roasting sumber tidak ditemukan untuk tenant ini.");
+        }
+        if (parentRoast.status !== "COMPLETED") {
+          throw new Error("Batch roasting sumber belum selesai (COMPLETED).");
+        }
+        const usesOutput = componentDetails.some(
+          (d) => (d.componentType === "GREEN_BEAN" || d.componentType === "ROASTED_BEAN") &&
+                 d.productId === parentRoast.outputProductId,
+        );
+        if (!usesOutput) {
+          throw new Error("Eksperimen harus menggunakan hasil Roasted Bean dari batch roasting tersebut sebagai komponen.");
+        }
+        resolvedParentRoastBatchId = parentRoast.id;
+      }
+
       const batch = await tx.experimentalProduction.create({
         data: {
           tenantId,
@@ -379,6 +406,7 @@ export async function createExperimentalProduction(
           notes: parsed.notes?.trim() || null,
           createdById: userId,
           status: "COMPLETED",
+          parentRoastBatchId: resolvedParentRoastBatchId,
         },
       });
 

@@ -29,7 +29,7 @@ const schema = z.object({
   code: z.string().min(1, "SKU wajib diisi"),
   name: z.string().min(2, "Nama minimal 2 karakter"),
   category: z.string().optional(),
-  price: z.coerce.number().nonnegative().optional(),
+  price: z.coerce.number().positive("Harga retail wajib lebih dari 0 (publikasi katalog)."),
   priceSilver: z.coerce.number().nonnegative().optional(),
   priceGold: z.coerce.number().nonnegative().optional(),
   netWeightGrams: z.coerce.number().nonnegative().optional(),
@@ -196,15 +196,17 @@ export function PromoteForm({ batch, supplyOptions, onSuccess, onCancel }: Promo
 
       <div className="grid grid-cols-2 gap-4">
         <FieldGroup>
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Harga Retail</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Harga Retail <span className="text-red-500">*</span></Label>
           <Input
             type="number"
             step="1000"
-            min="0"
+            min="1"
             placeholder="0"
             className={cn("h-9 tabular-nums font-semibold", glassInput)}
             {...register("price", { valueAsNumber: true })}
           />
+          <FieldError message={errors.price?.message} />
+          <p className="text-[10px] text-slate-400">Wajib diisi — produk baru tampil di storefront setelah harga ditetapkan.</p>
         </FieldGroup>
 
         <FieldGroup>

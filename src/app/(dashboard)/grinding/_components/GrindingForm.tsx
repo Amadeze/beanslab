@@ -108,6 +108,10 @@ interface GrindingFormProps {
   rbOptions: RBStockOption[];
   groundCoffeeOptions: GroundCoffeeOption[];
   grinderOptions: GrinderOption[];
+  /** RB yang sudah dipilih saat dibuka dari rekap roasting. */
+  initialSourceProductId?: string;
+  /** Batch roasting sumber (dari aksi di rekap roasting). Opsional. */
+  parentRoastBatchId?: string;
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
 }
@@ -121,6 +125,8 @@ export function GrindingForm({
   rbOptions,
   groundCoffeeOptions,
   grinderOptions,
+  initialSourceProductId = "",
+  parentRoastBatchId,
   onSuccess,
   onPendingChange,
 }: GrindingFormProps) {
@@ -139,7 +145,7 @@ export function GrindingForm({
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      sourceProductId: "",
+      sourceProductId: initialSourceProductId,
       outputProductId: "",
       grindSize: "MEDIUM",
       customGrindLabel: "",
@@ -185,6 +191,7 @@ export function GrindingForm({
         grindingCost: values.grindingCost,
         batchReference: values.batchReference,
         notes: values.notes,
+        parentRoastBatchId: parentRoastBatchId || undefined,
       });
 
       if (!result.success) {
