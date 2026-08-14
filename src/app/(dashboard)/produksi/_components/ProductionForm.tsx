@@ -6,7 +6,7 @@ import { z } from "zod";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
-import { ChevronDown, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Calculator, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,12 @@ import {
   type PackagingOption,
   type SupplyConsumptionOption,
 } from "../actions";
+import { InventoryDestinationField } from "@/components/inventory/InventoryDestinationField";
+import type { InventoryLocationOption } from "@/lib/storage-location";
+import {
+  calculatePackagingSuggestion,
+  isPackagingOverCapacity,
+} from "@/lib/production-packaging";
 
 // =============================================================================
 // Zod schema
@@ -51,6 +57,7 @@ const schema = z.object({
   supplyComponents: z.array(supplyComponentSchema).optional(),
   laborCost:       z.coerce.number().min(0).optional(),
   overheadAllocated: z.coerce.number().min(0).optional(),
+  destinationLocationId: z.string().optional(),
   notes:           z.string().optional(),
 });
 
@@ -122,8 +129,9 @@ function HppSummary({
     };
   }, { rbCostPerUnit: 0, hasMissingCost: false });
 
-  const estimatedHpp = rbCostPerUnit + (pkg?.costPerUnit || 0) + supplyCostPerUnit + (laborCost || 0) + (overheadAllocated || 0);
-  const isUnrealistic = rbPerUnit > 0 && rbPerUnit < 500; // < 500g RB per 1kg FG is suspicious
+  const directCostPerUnit = ((laborCost || 0) + (overheadAllocated || 0)) / unitsProduced;
+  const estimatedHpp = rbCostPerUnit + (pkg?.costPerUnit || 0) + supplyCostPerUnit + directCostPerUnit;
+  const isOverCapacity = isPackagingOverCapacity(rbPerUnit, pkg?.capacityGrams ?? null);
 
   return (
     <div className={cn(glassCard, "p-4 space-y-3 mt-4")}>
@@ -136,7 +144,7 @@ function HppSummary({
         <span className="text-slate-600">Total RB digunakan</span>
         <span className="font-semibold text-slate-900 text-right">{formatKg(totalRbGrams / 1000)}</span>
         <span className="text-slate-600">Rata-rata RB/unit</span>
-        <span className={cn("font-semibold text-right", isUnrealistic ? "text-red-600" : "text-slate-900")}>
+        <span className={cn("font-semibold text-right", isOverCapacity ? "text-amber-700" : "text-slate-900")}>
           {unitsProduced > 0
             ? `${(totalRbGrams / unitsProduced).toFixed(1)} g`
             : "—"}
@@ -183,10 +191,13 @@ function HppSummary({
           )}
         </span>
       </div>
-      {isUnrealistic && (
-        <div className="mt-2 rounded-lg bg-red-50 border border-red-200 p-2 text-xs text-red-700">
-          <strong>Peringatan:</strong> Rasio RB/unit terlalu rendah ({(rbPerUnit / 1000).toFixed(2)} kg RB per unit). 
-          Untuk kopi 1kg, biasanya butuh 1.1-1.3 kg RB (susut 10-20%). Periksa kembali jumlah RB yang dimasukkan.
+      {isOverCapacity && pkg?.capacityGrams && (
+        <div className="mt-2 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+          <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+          <span>
+            Isi kopi {rbPerUnit.toFixed(1)} g melebihi kapasitas nominal kemasan {pkg.capacityGrams.toFixed(0)} g.
+            Pilih kemasan lebih besar atau kurangi gramasi.
+          </span>
         </div>
       )}
     </div>
@@ -203,6 +214,7 @@ interface ProductionFormProps {
   rbOptions: RBStockOption[];
   packagingOptions: PackagingOption[];
   supplyOptions: SupplyConsumptionOption[];
+  locationOptions: InventoryLocationOption[];
   initialOutputProductId?: string;
   initialUnitsProduced?: number;
   /** Batch roasting sumber (dari aksi di rekap roasting). Opsional. */
@@ -221,6 +233,7 @@ export function ProductionForm({
   rbOptions,
   packagingOptions,
   supplyOptions,
+  locationOptions,
   initialOutputProductId = "",
   initialUnitsProduced = 1,
   parentRoastBatchId,
@@ -230,6 +243,7 @@ export function ProductionForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
   const [showRecipeDetails, setShowRecipeDetails] = useState(false);
+  const [targetRbKg, setTargetRbKg] = useState("");
 
   const {
     register,
@@ -248,6 +262,7 @@ export function ProductionForm({
       unitsProduced:   initialUnitsProduced,
       rbComponents:    [{ productId: "", productName: "", gramsPerUnit: 0 }],
       supplyComponents: [],
+      destinationLocationId: locationOptions[0]?.id ?? "",
       notes:           "",
     },
   });
@@ -267,7 +282,7 @@ export function ProductionForm({
     name: "supplyComponents",
   });
 
-  const [outputProductId, unitsProduced, packagingId, rbComponents, supplyComponents, laborCost, overheadAllocated] = watch([
+  const [outputProductId, unitsProduced, packagingId, rbComponents, supplyComponents, laborCost, overheadAllocated, destinationLocationId] = watch([
     "outputProductId",
     "unitsProduced",
     "packagingId",
@@ -275,19 +290,8 @@ export function ProductionForm({
     "supplyComponents",
     "laborCost",
     "overheadAllocated",
+    "destinationLocationId",
   ]);
-
-  // A packaging item with a configured fill capacity provides the safest
-  // default for a new single-origin production run. Recipes remain the source
-  // of truth and are never overwritten by this convenience default.
-  useEffect(() => {
-    if (!packagingId || watch("recipeId") || rbComponents.length !== 1) return;
-    const capacity = packagingOptions.find((item) => item.id === packagingId)?.capacityGrams;
-    if (capacity && capacity > 0) {
-      setValue("rbComponents.0.gramsPerUnit", capacity, { shouldDirty: true });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [packagingId]);
 
   // ── Auto-fill dari resep saat user pilih FG ──
   useEffect(() => {
@@ -362,6 +366,7 @@ export function ProductionForm({
         laborCost:         values.laborCost,
         overheadAllocated: values.overheadAllocated,
         notes: values.notes,
+        destinationLocationId: values.destinationLocationId || undefined,
         parentRoastBatchId: parentRoastBatchId || undefined,
       });
 
@@ -372,6 +377,7 @@ export function ProductionForm({
 
       toast.success(`Batch produksi dicatat — ${result.batchCode}`);
       reset();
+      setTargetRbKg("");
       setOperationKey(crypto.randomUUID());
       onSuccess();
     } catch (err) {
@@ -384,6 +390,37 @@ export function ProductionForm({
   };
 
   const selectedFG = fgOptions.find((f) => f.id === outputProductId);
+  const selectedPackaging = packagingOptions.find((item) => item.id === packagingId);
+  const coffeeGramsPerUnit = (rbComponents ?? []).reduce(
+    (sum, component) => sum + (Number(component.gramsPerUnit) || 0),
+    0,
+  );
+  const packagingSuggestion = calculatePackagingSuggestion({
+    targetRbKg: Number(targetRbKg),
+    coffeeGramsPerUnit,
+    capacityGrams:
+      coffeeGramsPerUnit > 0 || rbComponents.length === 1
+        ? selectedPackaging?.capacityGrams ?? null
+        : null,
+  });
+
+  const applyPackagingSuggestion = () => {
+    if (!packagingSuggestion) return;
+    if (
+      coffeeGramsPerUnit <= 0 &&
+      rbComponents.length === 1 &&
+      selectedPackaging?.capacityGrams
+    ) {
+      setValue("rbComponents.0.gramsPerUnit", selectedPackaging.capacityGrams, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+    setValue("unitsProduced", packagingSuggestion.units, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
 
   return (
     <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-5 relative">
@@ -504,8 +541,9 @@ export function ProductionForm({
                   <button
                     type="button"
                     onClick={() => remove(index)}
-                    className="absolute -top-3 -right-2 bg-white text-red-500 border border-white/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 shadow-sm z-10"
+                    className="absolute -right-2 -top-3 z-10 flex min-h-9 min-w-9 items-center justify-center rounded-full border border-white/60 bg-white p-2 text-red-500 opacity-100 shadow-sm transition-opacity hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                     title="Hapus Komponen"
+                    aria-label={`Hapus komponen kopi ${index + 1}`}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -620,6 +658,54 @@ export function ProductionForm({
           )}
         />
         <FieldError message={errors.packagingId?.message} />
+        {selectedPackaging?.capacityGrams && (
+          <div className="mt-2 rounded-xl border border-sky-200/70 bg-sky-50/70 p-3">
+            <div className="flex items-start gap-2">
+              <Calculator size={16} className="mt-0.5 shrink-0 text-sky-700" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-sky-900">Kalkulator jumlah kemasan</p>
+                <p className="mt-0.5 text-[11px] text-sky-700">
+                  Kapasitas nominal {selectedPackaging.capacityGrams.toFixed(0)} g. Masukkan target bahan kopi yang ingin dipakai.
+                </p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      value={targetRbKg}
+                      onChange={(event) => setTargetRbKg(event.target.value)}
+                      placeholder="Contoh: 10"
+                      className="h-9 bg-white/80 pr-10 tabular-nums"
+                      aria-label="Target bahan kopi dalam kilogram"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-sky-600">kg</span>
+                  </div>
+                  {packagingSuggestion && (
+                    <button
+                      type="button"
+                      onClick={applyPackagingSuggestion}
+                      className="h-9 shrink-0 rounded-lg bg-sky-800 px-3 text-xs font-bold text-white transition hover:bg-sky-700"
+                    >
+                      Terapkan {packagingSuggestion.units} unit
+                    </button>
+                  )}
+                </div>
+                {packagingSuggestion && (
+                  <p className="mt-2 text-[11px] text-sky-800">
+                    Saran: {packagingSuggestion.units} unit × {packagingSuggestion.gramsPerUnit.toFixed(1)} g
+                    {packagingSuggestion.remainderGrams > 0
+                      ? ` · sisa ${packagingSuggestion.remainderGrams.toFixed(1)} g`
+                      : " · tanpa sisa"}.
+                    {packagingSuggestion.units > selectedPackaging.stockUnit
+                      ? ` Stok kemasan hanya ${selectedPackaging.stockUnit} unit.`
+                      : ""}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </FieldGroup>
 
       {/* ── Komponen Non-Kopi (opsional) ── */}
@@ -649,12 +735,13 @@ export function ProductionForm({
                 key={field.id}
                 className="relative flex flex-wrap sm:flex-nowrap items-start gap-4 rounded-xl border border-white/60 bg-white/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group"
               >
-                {supplyFields.length > 1 && (
+                {supplyFields.length > 0 && (
                   <button
                     type="button"
                     onClick={() => removeSupply(index)}
-                    className="absolute -top-3 -right-2 bg-white text-red-500 border border-white/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 shadow-sm z-10"
+                    className="absolute -right-2 -top-3 z-10 flex min-h-9 min-w-9 items-center justify-center rounded-full border border-white/60 bg-white p-2 text-red-500 opacity-100 shadow-sm transition-opacity hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                     title="Hapus Komponen"
+                    aria-label={`Hapus komponen non-kopi ${index + 1}`}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -776,6 +863,20 @@ export function ProductionForm({
         unitsProduced={Number(unitsProduced) || 0}
         laborCost={Number(laborCost) || 0}
         overheadAllocated={Number(overheadAllocated) || 0}
+      />
+
+      <Controller
+        control={control}
+        name="destinationLocationId"
+        render={({ field }) => (
+          <InventoryDestinationField
+            value={destinationLocationId ?? ""}
+            onChange={field.onChange}
+            options={locationOptions}
+            disabled={isSubmitting}
+            outputLabel="produk jadi"
+          />
+        )}
       />
 
       {/* ── Catatan ── */}

@@ -11,6 +11,7 @@ export default async function EksperimenPage() {
       rbOptions={data.rbOptions}
       supplyOptions={data.supplyOptions}
       fgOptions={data.fgOptions}
+      locationOptions={data.locationOptions}
     />
   );
 }

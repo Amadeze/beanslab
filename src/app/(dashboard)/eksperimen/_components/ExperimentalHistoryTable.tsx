@@ -1,10 +1,16 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { PackageSearch } from "lucide-react";
-import { ExperimentalProductionRow } from "../actions";
+import { Button } from "@/components/ui/button";
+import { VoidConfirmDialog } from "@/components/VoidConfirmDialog";
+import { voidExperimentalProduction, type ExperimentalProductionRow } from "../actions";
 import { formatKg, formatRupiah, formatDate } from "@/lib/format";
 
 export function ExperimentalHistoryTable({ batches, onPromote }: { batches: ExperimentalProductionRow[]; onPromote?: (batch: ExperimentalProductionRow) => void }) {
+  const [voidTarget, setVoidTarget] = useState<ExperimentalProductionRow | null>(null);
+
   if (batches.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -15,6 +21,7 @@ export function ExperimentalHistoryTable({ batches, onPromote }: { batches: Expe
   }
 
   return (
+    <>
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
         <thead>
@@ -27,13 +34,24 @@ export function ExperimentalHistoryTable({ batches, onPromote }: { batches: Expe
             <th className="pb-2 pr-4 font-semibold text-right">HPP/kg</th>
             <th className="pb-2 pr-4 font-semibold">Status</th>
             <th className="pb-2 font-semibold">Tanggal</th>
+            <th className="pb-2 pl-4 text-center font-semibold">Aksi</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-white/40">
           {batches.map((batch) => (
             <tr key={batch.id} className="hover:bg-white/30 transition-colors">
               <td className="py-2.5 pr-4 font-mono font-semibold">{batch.code}</td>
-              <td className="py-2.5 pr-4">{batch.name}</td>
+              <td className="py-2.5 pr-4">
+                <span className="block">{batch.name}</span>
+                {batch.parentRoastBatchId && batch.parentRoastBatchCode && (
+                  <Link
+                    href={`/roasting/batch/${batch.parentRoastBatchId}`}
+                    className="mt-0.5 inline-flex text-xs font-semibold text-amber-800 hover:underline"
+                  >
+                    Roast {batch.parentRoastBatchCode}
+                  </Link>
+                )}
+              </td>
               <td className="py-2.5 pr-4">{batch.outputProductName}</td>
               <td className="py-2.5 pr-4 text-right tabular-nums font-medium">{formatKg(batch.inputKg)}</td>
               <td className="py-2.5 pr-4 text-right tabular-nums font-medium">{formatKg(batch.outputKg)}</td>
@@ -61,10 +79,31 @@ export function ExperimentalHistoryTable({ batches, onPromote }: { batches: Expe
                 )}
               </td>
               <td className="py-2.5 text-xs text-slate-500">{formatDate(batch.createdAt)}</td>
+              <td className="py-2.5 pl-4 text-center">
+                {batch.status === "COMPLETED" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="min-h-9 min-w-11 px-2.5 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
+                    onClick={() => setVoidTarget(batch)}
+                  >
+                    Void
+                  </Button>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+    <VoidConfirmDialog
+      open={!!voidTarget}
+      onOpenChange={(open) => { if (!open) setVoidTarget(null); }}
+      title={`Void Batch ${voidTarget?.code ?? ""}`}
+      description="Tindakan ini membalik konsumsi komponen dan hasil eksperimen. Batch tidak dapat di-void jika hasilnya sudah dipakai proses berikutnya."
+      onConfirm={(reason) => voidExperimentalProduction(voidTarget!.id, reason)}
+    />
+    </>
   );
 }

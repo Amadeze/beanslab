@@ -11,6 +11,14 @@ export interface DefaultWarehouse {
   locationId: string;
 }
 
+export type InventoryLocationOption = {
+  id: string;
+  code: string;
+  name: string;
+  warehouseName: string;
+  isDefault: boolean;
+};
+
 type StorageClient = Pick<typeof prisma, "warehouse" | "location" | "lotPlacement">;
 
 async function ensureDefaultWarehouseWithClient(
@@ -98,6 +106,36 @@ async function resolveOrCreateDefaultLocationWithClient(
 
 export async function resolveOrCreateDefaultLocation(tenantId: string): Promise<string> {
   return resolveOrCreateDefaultLocationWithClient(prisma, tenantId);
+}
+
+/**
+ * Read-only projection for operator-selectable inventory destinations.
+ * Pass a tenant-scoped Prisma client so tenant isolation remains centralized
+ * in the caller's authenticated server boundary.
+ */
+export async function fetchInventoryLocationOptions(
+  client: unknown,
+): Promise<InventoryLocationOption[]> {
+  const locationClient = client as Pick<typeof prisma, "location">;
+  const locations = await locationClient.location.findMany({
+    where: { isActive: true, isSystem: false },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      isDefault: true,
+      warehouse: { select: { name: true } },
+    },
+    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+  });
+
+  return locations.map((location) => ({
+    id: location.id,
+    code: location.code,
+    name: location.name,
+    warehouseName: location.warehouse.name,
+    isDefault: location.isDefault,
+  }));
 }
 
 /**

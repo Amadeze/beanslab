@@ -246,6 +246,63 @@ suite("createGrindingBatch", () => {
     expect(Number(fgIn!.quantityKg)).toBe(4.5);
   });
 
+  it("Phase 2D.2B: places grinding output in the operator-selected location", async () => {
+    const stamp = Date.now();
+    const rbId = `rb-grind-place-${stamp}`;
+    const outputId = `ground-grind-place-${stamp}`;
+    const warehouseId = `wh-grind-place-${stamp}`;
+    const locationId = `loc-grind-place-${stamp}`;
+
+    await client.$transaction(async (tx) => {
+      await createRB(tx, rbId);
+      await createGroundCoffeeSku(tx, outputId);
+      await tx.warehouse.create({
+        data: {
+          id: warehouseId,
+          tenantId: TEST_TENANT_ID,
+          code: `WH-PLACE-${stamp}`,
+          name: "Gudang Hasil Grinding",
+          isActive: true,
+        },
+      });
+      await tx.location.create({
+        data: {
+          id: locationId,
+          tenantId: TEST_TENANT_ID,
+          warehouseId,
+          code: `LOC-PLACE-${stamp}`,
+          name: "Rak Hasil Grinding",
+          isActive: true,
+        },
+      });
+    });
+
+    const result = await createGrindingBatch({
+      operationKey: randomUUID(),
+      sourceProductId: rbId,
+      outputProductId: outputId,
+      grindSize: "MEDIUM",
+      inputKg: 5,
+      outputKg: 4.5,
+      destinationLocationId: locationId,
+    });
+    if (!result.success) throw new Error(`grinding placement fixture failed: ${result.error}`);
+
+    const output = await client.inventoryLedger.findFirstOrThrow({
+      where: {
+        tenantId: TEST_TENANT_ID,
+        refType: "GRINDING_FG_IN",
+        lot: { batchCode: `${result.batchCode}-GR` },
+      },
+      select: { lotId: true },
+    });
+    const placement = await client.lotPlacement.findFirstOrThrow({
+      where: { tenantId: TEST_TENANT_ID, lotId: output.lotId!, locationId },
+    });
+
+    expect(Number(placement.quantityKg)).toBeCloseTo(4.5, 6);
+  });
+
   it("is idempotent via operationKey", async () => {
     const rbId = `rb-grind-idem-${Date.now()}`;
     const fgId = `fg-grind-idem-${Date.now()}`;
@@ -353,6 +410,58 @@ suite("createGrindingBatch", () => {
     expect(Array.isArray(data.groundCoffeeOptions)).toBe(true);
     expect(data.grinderOptions).toBeDefined();
     expect(Array.isArray(data.grinderOptions)).toBe(true);
+  });
+
+  it("Phase 2D.2B: exposes only active non-system output locations", async () => {
+    const stamp = Date.now();
+    const warehouseId = `wh-grinding-${stamp}`;
+    await client.warehouse.create({
+      data: {
+        id: warehouseId,
+        tenantId: TEST_TENANT_ID,
+        code: `WH-GR-${stamp}`,
+        name: "Gudang Grinding",
+        isActive: true,
+        locations: {
+          create: [
+            {
+              id: `loc-grinding-${stamp}`,
+              tenantId: TEST_TENANT_ID,
+              code: `LOC-GR-${stamp}`,
+              name: "Rak Kopi Giling",
+              isActive: true,
+            },
+            {
+              id: `loc-system-grinding-${stamp}`,
+              tenantId: TEST_TENANT_ID,
+              code: `SYS-GR-${stamp}`,
+              name: "System Grinding",
+              isActive: true,
+              isSystem: true,
+            },
+            {
+              id: `loc-inactive-grinding-${stamp}`,
+              tenantId: TEST_TENANT_ID,
+              code: `LOC-OFF-GR-${stamp}`,
+              name: "Rak Nonaktif",
+              isActive: false,
+            },
+          ],
+        },
+      },
+    });
+
+    const data = await getGrindingPageData();
+
+    expect(data.locationOptions).toContainEqual({
+      id: `loc-grinding-${stamp}`,
+      code: `LOC-GR-${stamp}`,
+      name: "Rak Kopi Giling",
+      warehouseName: "Gudang Grinding",
+      isDefault: false,
+    });
+    expect(data.locationOptions.some((option) => option.id === `loc-system-grinding-${stamp}`)).toBe(false);
+    expect(data.locationOptions.some((option) => option.id === `loc-inactive-grinding-${stamp}`)).toBe(false);
   });
 
   it("Phase 2D.1: parentRoastBatchId terekam saat grinding diluncurkan dari rekap roasting", async () => {

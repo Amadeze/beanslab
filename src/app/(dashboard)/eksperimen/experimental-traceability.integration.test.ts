@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { createExperimentalProduction } from "@/app/(dashboard)/eksperimen/actions";
+import {
+  createExperimentalProduction,
+  getExperimentalPageData,
+} from "@/app/(dashboard)/eksperimen/actions";
 import { assertSafeTestDatabase } from "../../../../test/setup/assert-safe-test-db";
 
 const integrationEnabled = process.env.RUN_INTEGRATION === "true";
@@ -210,5 +213,121 @@ suite("createExperimentalProduction â€” parentRoastBatchId traceability (Ph
     if (!result.success) {
       expect(result.error).toMatch(/belum selesai/);
     }
+  });
+
+  it("Phase 2D.2B: exposes only active non-system output locations", async () => {
+    const stamp = Date.now();
+    const warehouseId = `wh-experiment-${stamp}`;
+    await client.warehouse.create({
+      data: {
+        id: warehouseId,
+        tenantId: TENANT_ID,
+        code: `WH-EXP-${stamp}`,
+        name: "Gudang Eksperimen",
+        isActive: true,
+        locations: {
+          create: [
+            {
+              id: `loc-experiment-${stamp}`,
+              tenantId: TENANT_ID,
+              code: `LOC-EXP-${stamp}`,
+              name: "Rak Eksperimen",
+              isActive: true,
+            },
+            {
+              id: `loc-system-experiment-${stamp}`,
+              tenantId: TENANT_ID,
+              code: `SYS-EXP-${stamp}`,
+              name: "System Eksperimen",
+              isActive: true,
+              isSystem: true,
+            },
+            {
+              id: `loc-inactive-experiment-${stamp}`,
+              tenantId: TENANT_ID,
+              code: `LOC-OFF-EXP-${stamp}`,
+              name: "Rak Nonaktif",
+              isActive: false,
+            },
+          ],
+        },
+      },
+    });
+
+    const data = await getExperimentalPageData();
+
+    expect(data.locationOptions).toContainEqual({
+      id: `loc-experiment-${stamp}`,
+      code: `LOC-EXP-${stamp}`,
+      name: "Rak Eksperimen",
+      warehouseName: "Gudang Eksperimen",
+      isDefault: false,
+    });
+    expect(data.locationOptions.some((option) => option.id === `loc-system-experiment-${stamp}`)).toBe(false);
+    expect(data.locationOptions.some((option) => option.id === `loc-inactive-experiment-${stamp}`)).toBe(false);
+  });
+
+  it("Phase 2D.2B: places experiment output in the operator-selected location", async () => {
+    const stamp = Date.now();
+    const rbId = `rb-exp-place-${stamp}`;
+    const warehouseId = `wh-exp-place-${stamp}`;
+    const locationId = `loc-exp-place-${stamp}`;
+
+    await client.$transaction(async (tx) => {
+      await tx.product.create({
+        data: {
+          id: rbId,
+          tenantId: TENANT_ID,
+          code: rbId,
+          name: "RB Eksperimen Placement",
+          type: "ROASTED_BEAN",
+          stockKg: 10,
+          avgCostPerKg: 50_000,
+          isActive: true,
+        },
+      });
+      await tx.warehouse.create({
+        data: {
+          id: warehouseId,
+          tenantId: TENANT_ID,
+          code: `WH-EXP-PLACE-${stamp}`,
+          name: "Gudang Hasil Eksperimen",
+          isActive: true,
+        },
+      });
+      await tx.location.create({
+        data: {
+          id: locationId,
+          tenantId: TENANT_ID,
+          warehouseId,
+          code: `LOC-EXP-PLACE-${stamp}`,
+          name: "Rak Hasil Eksperimen",
+          isActive: true,
+        },
+      });
+    });
+
+    const result = await createExperimentalProduction({
+      operationKey: randomUUID(),
+      name: "Eksperimen Placement",
+      components: [{ componentType: "ROASTED_BEAN", productId: rbId, quantity: 1 }],
+      outputKg: 0.9,
+      destinationLocationId: locationId,
+    });
+    if (!result.success) throw new Error(`experiment placement fixture failed: ${result.error}`);
+
+    const output = await client.inventoryLedger.findFirstOrThrow({
+      where: {
+        tenantId: TENANT_ID,
+        refType: "EXPERIMENTAL_FG_IN",
+        lot: { batchCode: `${result.batchCode}-OUT` },
+      },
+      select: { lotId: true },
+    });
+    const placement = await client.lotPlacement.findFirstOrThrow({
+      where: { tenantId: TENANT_ID, lotId: output.lotId!, locationId },
+    });
+
+    expect(Number(placement.quantityKg)).toBeCloseTo(0.9, 6);
   });
 });

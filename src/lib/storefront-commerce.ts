@@ -61,6 +61,49 @@ export function calculateStorefrontTotals(
   return { subtotal, tax, shippingCost, grandTotal: subtotal + tax + shippingCost };
 }
 
+export async function fulfillWalkInSaleStock(
+  tx: StorefrontTx,
+  input: {
+    tenantId: string;
+    invoiceId: string;
+    invoiceCode: string;
+    createdById: string;
+    items: Array<{ productId: string; quantity: number }>;
+  },
+) {
+  const items = [...input.items].sort((left, right) => left.productId.localeCompare(right.productId));
+
+  // Reservations are promises to other customers. Lock the same product rows
+  // used by reserveInvoiceStock before checking available-to-promise so a
+  // walk-in handover cannot consume those promised units.
+  for (const item of items) {
+    const product = await lockProductForUpdate(tx, input.tenantId, item.productId);
+    if (!product) throw new Error("Produk tidak ditemukan.");
+    const reserved = await aggregateActiveReservations(tx, input.tenantId, item.productId);
+    const availableUnits = Math.max(0, Number(product.stockUnit ?? 0) - reserved.units);
+    if (item.quantity > availableUnits) {
+      if (reserved.units > 0) {
+        throw new Error(
+          `Stok tersedia untuk kasir tidak cukup. ${reserved.units} unit sedang dicadangkan untuk pesanan lain.`,
+        );
+      }
+      throw new Error("Stok produk tidak cukup untuk menyelesaikan transaksi.");
+    }
+  }
+
+  for (const item of items) {
+    await appendFefoLedgerOut(tx, {
+      tenantId: input.tenantId,
+      productId: item.productId,
+      refType: "SALE_FG_OUT",
+      refId: input.invoiceId,
+      quantityUnit: item.quantity,
+      notes: `Penjualan walk-in ${input.invoiceCode}`,
+      createdById: input.createdById,
+    });
+  }
+}
+
 export async function reserveInvoiceStock(
   tx: StorefrontTx,
   input: {
@@ -71,7 +114,8 @@ export async function reserveInvoiceStock(
   },
 ) {
   let hasShortage = false;
-  for (const item of input.items) {
+  const items = [...input.items].sort((left, right) => left.productId.localeCompare(right.productId));
+  for (const item of items) {
     const product = await lockProductForUpdate(tx, input.tenantId, item.productId);
     if (!product) throw new Error("Produk tidak ditemukan.");
     const reserved = await aggregateActiveReservations(tx, input.tenantId, item.productId);

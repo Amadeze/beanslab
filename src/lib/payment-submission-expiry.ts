@@ -101,6 +101,7 @@ export async function expirePaymentSubmissions(client: PrismaClient, now = getCu
 export async function expireUnpaidStorefrontOrders(client: PrismaClient, now = getCurrentDate()) {
   const candidates = await client.invoice.findMany({
     where: {
+      publicOrderToken: { not: null },
       reservationExpiresAt: { lte: now },
       status: { in: ["DRAFT", "ISSUED"] },
       paidAmount: 0,

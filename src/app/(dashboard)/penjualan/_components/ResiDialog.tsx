@@ -15,6 +15,16 @@ import type { InvoiceRow } from "../actions";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import { Truck } from "lucide-react";
+import {
+  nextOperatorFulfillmentStatuses,
+  type OperatorFulfillmentStatus,
+} from "@/lib/fulfillment-status";
+
+const fulfillmentLabels: Partial<Record<OperatorFulfillmentStatus, string>> = {
+  PACKED: "Sudah dikemas",
+  SHIPPED: "Dalam pengiriman",
+  DELIVERED: "Pesanan selesai",
+};
 
 interface ResiDialogProps {
   invoice: InvoiceRow | null;
@@ -34,6 +44,10 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
       setCourierName(invoice.courierName || "");
       setTrackingNumber(invoice.trackingNumber || "");
       setShippingCost(invoice.shippingCost ? invoice.shippingCost.toString() : "");
+      const nextStatuses = nextOperatorFulfillmentStatuses(
+        invoice.fulfillmentStatus as OperatorFulfillmentStatus,
+      );
+      setFulfillmentStatus(nextStatuses[0] ?? invoice.fulfillmentStatus);
     }
   }, [invoice, open]);
 
@@ -69,7 +83,7 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
             Update Pengiriman
           </DialogTitle>
           <DialogDescription className="text-slate-500">
-            Masukkan nomor resi dan ongkos kirim untuk pesanan <strong className="text-slate-800">{invoice?.code}</strong>
+            Perbarui tahap penyerahan, kurir, atau nomor resi untuk pesanan <strong className="text-slate-800">{invoice?.code}</strong>
           </DialogDescription>
         </DialogHeader>
 
@@ -88,10 +102,11 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Status Operasional</label>
             <select value={fulfillmentStatus} onChange={(event) => setFulfillmentStatus(event.target.value)} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
-              <option value="READY_TO_PACK">Siap dikemas</option>
-              <option value="PACKED">Sudah dikemas</option>
-              <option value="SHIPPED">Dalam pengiriman</option>
-              <option value="DELIVERED">Pesanan selesai</option>
+              {invoice ? nextOperatorFulfillmentStatuses(
+                invoice.fulfillmentStatus as OperatorFulfillmentStatus,
+              ).map((status) => (
+                <option key={status} value={status}>{fulfillmentLabels[status] ?? status}</option>
+              )) : null}
             </select>
           </div>
           <div className="flex flex-col gap-1.5">

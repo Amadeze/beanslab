@@ -7,7 +7,11 @@ import { recordAudit } from "@/lib/audit";
 import { randomBytes } from "crypto";
 import { getCurrentDate } from "@/lib/date-utils";
 import { postGrindingBatch, postVoidReversal } from "@/lib/posting";
-import { createLotPlacementInTx } from "@/lib/storage-location";
+import {
+  createLotPlacementInTx,
+  fetchInventoryLocationOptions,
+  type InventoryLocationOption,
+} from "@/lib/storage-location";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -63,6 +67,7 @@ export type GrindingPageData = {
   rbOptions: RBStockOption[];
   groundCoffeeOptions: GroundCoffeeOption[];
   grinderOptions: GrinderOption[];
+  locationOptions: InventoryLocationOption[];
 };
 
 export type CreateGrindingBatchInput = {
@@ -215,13 +220,14 @@ async function fetchBatchHistory(): Promise<GrindingBatchRow[]> {
 
 export async function getGrindingPageData(): Promise<GrindingPageData> {
   await requireRole("OWNER", "MANAGER", "OPERATOR");
-  const [batches, rbOptions, groundCoffeeOptions, grinderOptions] = await Promise.all([
+  const [batches, rbOptions, groundCoffeeOptions, grinderOptions, locationOptions] = await Promise.all([
     fetchBatchHistory(),
     fetchRBOptions(),
     fetchGroundCoffeeOptions(),
     fetchGrinderOptions(),
+    fetchInventoryLocationOptions(await requireTenantPrisma()),
   ]);
-  return { batches, rbOptions, groundCoffeeOptions, grinderOptions };
+  return { batches, rbOptions, groundCoffeeOptions, grinderOptions, locationOptions };
 }
 
 export async function createGrindingBatch(

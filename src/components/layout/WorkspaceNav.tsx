@@ -20,6 +20,7 @@ import {
   PackageCheck,
   BadgeCheck,
   PackageOpen,
+  FileSignature,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -77,6 +78,7 @@ const WORKSPACES = {
     { label: "Review bukti bayar", href: "/penjualan/pembayaran", icon: BadgeCheck },
     { label: "Kasir", href: "/kasir", icon: ShoppingCart },
     { label: "Pelanggan", href: "/penjualan/pelanggan", icon: Users },
+    { label: "Kontrak OEM", href: "/penjualan/kontrak", icon: FileSignature },
   ],
 } as const;
 

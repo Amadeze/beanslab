@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatKg, formatRupiah } from "@/lib/format";
+import { InventoryDestinationField } from "@/components/inventory/InventoryDestinationField";
+import type { InventoryLocationOption } from "@/lib/storage-location";
 import {
   createGrindingBatch,
   type RBStockOption,
@@ -62,6 +64,7 @@ const schema = z.object({
   inputKg: z.number().positive("Harus lebih dari 0"),
   outputKg: z.number().positive("Harus lebih dari 0"),
   grindingCost: z.number().nonnegative().optional(),
+  destinationLocationId: z.string().optional(),
   batchReference: z.string().optional(),
   notes: z.string().optional(),
 }).superRefine((data, ctx) => {
@@ -108,6 +111,7 @@ interface GrindingFormProps {
   rbOptions: RBStockOption[];
   groundCoffeeOptions: GroundCoffeeOption[];
   grinderOptions: GrinderOption[];
+  locationOptions: InventoryLocationOption[];
   /** RB yang sudah dipilih saat dibuka dari rekap roasting. */
   initialSourceProductId?: string;
   /** Batch roasting sumber (dari aksi di rekap roasting). Opsional. */
@@ -125,6 +129,7 @@ export function GrindingForm({
   rbOptions,
   groundCoffeeOptions,
   grinderOptions,
+  locationOptions,
   initialSourceProductId = "",
   parentRoastBatchId,
   onSuccess,
@@ -153,6 +158,7 @@ export function GrindingForm({
       inputKg: 0,
       outputKg: 0,
       grindingCost: 0,
+      destinationLocationId: locationOptions[0]?.id ?? "",
       batchReference: "",
       notes: "",
     },
@@ -170,6 +176,7 @@ export function GrindingForm({
   const lossPercent = inputKg > 0 ? (lossKg / inputKg) * 100 : 0;
   const totalRbCost = selectedRB && inputKg > 0 ? selectedRB.avgCostPerKg * inputKg : 0;
   const grindingCost = Number(watch("grindingCost") ?? 0);
+  const destinationLocationId = watch("destinationLocationId") ?? "";
   const totalCost = totalRbCost + grindingCost;
   const hppPerKg = outputKg > 0 ? totalCost / outputKg : 0;
 
@@ -189,6 +196,7 @@ export function GrindingForm({
         inputKg: values.inputKg,
         outputKg: values.outputKg,
         grindingCost: values.grindingCost,
+        destinationLocationId: values.destinationLocationId || undefined,
         batchReference: values.batchReference,
         notes: values.notes,
         parentRoastBatchId: parentRoastBatchId || undefined,
@@ -467,6 +475,22 @@ export function GrindingForm({
           <span className="font-semibold text-slate-900 text-right">{formatRupiah(hppPerKg)}</span>
         </div>
       </div>
+
+      <FieldGroup>
+        <Controller
+          control={control}
+          name="destinationLocationId"
+          render={({ field }) => (
+            <InventoryDestinationField
+              value={destinationLocationId}
+              onChange={field.onChange}
+              options={locationOptions}
+              disabled={isSubmitting}
+              outputLabel="hasil grinding"
+            />
+          )}
+        />
+      </FieldGroup>
 
       <FieldGroup>
         <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Catatan (opsional)</Label>

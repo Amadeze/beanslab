@@ -1,7 +1,7 @@
 "use server";
 import { getCurrentTenantId, requireFeature, requireRole, requireTenantPrisma, getSystemUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { appendFefoLedgerOut, appendLedger } from "@/lib/stock";
+import { appendLedger } from "@/lib/stock";
 import { recordAudit } from "@/lib/audit";
 import { decryptCredential } from "@/lib/credentials";
 import { z } from "zod";
@@ -13,9 +13,14 @@ import { getTenantTaxConfig } from "@/lib/tax-server";
 import { postSalesInvoice, postCreditNote, postVoidReversal, postJournalEntry } from "@/lib/posting";
 import { getCurrentDate } from "@/lib/date-utils";
 import { createMidtransSnapTransaction } from "@/lib/midtrans";
-import { fulfillInvoiceAtHandover, reserveInvoiceStock } from "@/lib/storefront-commerce";
+import { fulfillInvoiceAtHandover, fulfillWalkInSaleStock, reserveInvoiceStock } from "@/lib/storefront-commerce";
 import { releaseInvoiceReservations } from "@/lib/storefront-commerce";
 import { postCustomerPrepayment } from "@/lib/posting";
+import {
+  canOperatorTransitionFulfillment,
+  type OperatorFulfillmentStatus,
+} from "@/lib/fulfillment-status";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 
 // =============================================================================
 // TYPES
@@ -84,6 +89,8 @@ export type InvoiceRow = {
   paidAmount: number;
   balance: number;
   status: string;
+  salesChannel: string;
+  fulfillmentStatus: string;
   issuedAt: string;
   dueDate: string | null;
   shippingMethod: string | null;
@@ -150,7 +157,7 @@ const CreateInvoiceSchema = z.object({
   customTaxRate: z.number().optional(),
   pphType: z.string().optional(),
   status: z.enum(["PAID", "ISSUED"]),
-  salesChannel: z.enum(["WALK_IN", "WHATSAPP", "MARKETPLACE", "B2B_DIRECT", "OTHER"]).optional(),
+  salesChannel: z.enum(["WALK_IN", "WHATSAPP", "MARKETPLACE", "B2B_DIRECT", "OTHER"]).default("WALK_IN"),
   paymentMethod: z.enum(["CASH", "TRANSFER", "QRIS", "CREDIT"]).optional(),
   dueDate: z.string().optional(),
   notes: z.string().max(2_000).optional(),
@@ -237,6 +244,8 @@ export async function getSalesPageData(): Promise<SalesPageData> {
       paidAmount: paid,
       balance: grand - paid,
       status: inv.status,
+      salesChannel: inv.salesChannel,
+      fulfillmentStatus: inv.fulfillmentStatus,
       issuedAt: inv.issuedAt.toISOString(),
       dueDate: inv.dueDate ? inv.dueDate.toISOString() : null,
       shippingMethod: inv.shippingMethod,
@@ -268,7 +277,7 @@ export async function getCashierPageData(): Promise<CashierPageData> {
   const tenantId = await getCurrentTenantId();
   const tp = await requireTenantPrisma();
   const pricingAt = getCurrentDate();
-  const [customers, fgProducts, contractPricesRaw] = await Promise.all([
+  const [customers, fgProducts, contractPricesRaw, activeReservations] = await Promise.all([
     tp.customer.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -307,7 +316,19 @@ export async function getCashierPageData(): Promise<CashierPageData> {
         contract: { select: { customerId: true } },
       },
     }),
+    tp.stockReservation.groupBy({
+      by: ["productId"],
+      where: { tenantId, status: "ACTIVE" },
+      _sum: { quantity: true },
+    }),
   ]);
+
+  const reservedUnitsByProduct = new Map(
+    activeReservations.map((reservation) => [
+      reservation.productId,
+      Number(reservation._sum.quantity ?? 0),
+    ]),
+  );
 
   return {
     customers: customers as CustomerOption[],
@@ -318,7 +339,13 @@ export async function getCashierPageData(): Promise<CashierPageData> {
       price: Number(product.price) || 0,
       priceSilver: Number(product.priceSilver) || 0,
       priceGold: Number(product.priceGold) || 0,
-      stockUnit: product.stockUnit || 0,
+      // Cashier may only sell inventory that has not already been promised
+      // to another active order. The server action enforces the same rule
+      // under a product-row lock at checkout.
+      stockUnit: Math.max(
+        0,
+        Number(product.stockUnit ?? 0) - (reservedUnitsByProduct.get(product.id) ?? 0),
+      ),
       lastHppPerUnit: product.lastHpp ? Number(product.lastHpp) : null,
     })),
     contractPrices: contractPricesRaw.flatMap((price) =>
@@ -513,6 +540,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
           paidAmount: parsed.status === "PAID" ? grandTotal : 0,
           status: parsed.status === "PAID" ? "PAID" : "ISSUED",
           salesChannel: parsed.salesChannel,
+          paymentMethod: parsed.paymentMethod,
           issuedAt: now,
           dueDate: parsed.dueDate ? new Date(`${parsed.dueDate}T00:00:00`) : null,
           notes: parsed.notes,
@@ -540,13 +568,15 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
 
       const isWalkInHandover = parsed.salesChannel === "WALK_IN" && parsed.status === "PAID";
       if (isWalkInHandover) {
-        for (const item of enrichedItems) {
-          await appendFefoLedgerOut(tx, {
-            tenantId, productId: item.productId, refType: "SALE_FG_OUT", refId: inv.id,
-            quantityUnit: item.quantity, notes: `Penjualan walk-in ${invoiceCode}`, createdById: userId,
-          });
-        }
+        await fulfillWalkInSaleStock(tx, {
+          tenantId,
+          invoiceId: inv.id,
+          invoiceCode,
+          createdById: userId,
+          items: enrichedItems.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+        });
       } else {
+        const isApprovedB2bCredit = parsed.salesChannel === "B2B_DIRECT" && parsed.paymentMethod === "CREDIT";
         const reservation = await reserveInvoiceStock(tx, {
           tenantId,
           invoiceId: inv.id,
@@ -557,7 +587,11 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
           where: { id: inv.id },
           data: {
             reservationExpiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1_000),
-            fulfillmentStatus: reservation.hasShortage ? "NEEDS_PRODUCTION" : parsed.status === "PAID" ? "READY_TO_PACK" : "AWAITING_PAYMENT",
+            fulfillmentStatus: reservation.hasShortage
+              ? "NEEDS_PRODUCTION"
+              : parsed.status === "PAID" || isApprovedB2bCredit
+                ? "READY_TO_PACK"
+                : "AWAITING_PAYMENT",
           },
         });
       }
@@ -736,7 +770,7 @@ export async function getInvoiceForReturn(id: string): Promise<InvoiceReturnData
     },
   });
 
-  if (!inv) return null;
+  if (!inv || inv.fulfillmentStatus !== "DELIVERED") return null;
 
   const items = inv.items.map((item) => {
     const returnedQuantity = inv.creditNotes.reduce((sum, cn) => {
@@ -953,6 +987,17 @@ export async function updateInvoiceShipping(
     });
     if (!invoice) return { success: false, error: "Nota tidak ditemukan." };
     if (invoice.status === "VOID") return { success: false, error: "Nota yang sudah di-void tidak dapat diubah." };
+    if (
+      parsed.fulfillmentStatus
+      && !canOperatorTransitionFulfillment(
+        invoice.fulfillmentStatus as OperatorFulfillmentStatus,
+        parsed.fulfillmentStatus,
+      )
+    ) {
+      throw new Error(
+        `Status fulfillment tidak dapat diubah dari ${invoice.fulfillmentStatus} ke ${parsed.fulfillmentStatus}.`,
+      );
+    }
     if (invoice.status === "PAID" && parsed.shippingCost !== undefined && parsed.shippingCost !== Number(invoice.shippingCost)) {
       return { success: false, error: "Ongkir nota lunas tidak dapat diubah." };
     }
@@ -1065,7 +1110,7 @@ export type CreditNoteInput = {
   items: {
     productId: string;
     quantity: number;
-    unitDiscount: number;
+    unitDiscount?: number;
   }[];
 };
 
@@ -1078,46 +1123,59 @@ export async function createCreditNote(input: CreditNoteInput) {
     if (!tenantId || !userId) {
       return { success: false, error: "Unauthorized" };
     }
-
-    const { invoiceId, reason, items } = input;
-
-    // Validate invoice
-    const inv = await (await requireTenantPrisma()).invoice.findUnique({
-      where: { id: invoiceId, tenantId },
-      include: {
-        items: true,
-        creditNotes: {
-          include: { items: true },
-        },
-      },
-    });
-
-    if (!inv) return { success: false, error: "Invoice not found" };
-
-    // Validate quantities
-    for (const item of items) {
-      const invItem = inv.items.find((i) => i.productId === item.productId);
-      if (!invItem) return { success: false, error: "Product not found in invoice" };
-
-      const returnedQty = inv.creditNotes.reduce((sum, cn) => {
-        const cnItem = cn.items.find((i) => i.productId === item.productId);
-        return sum + (cnItem?.quantity || 0);
-      }, 0);
-
-      if (item.quantity > (invItem.quantity - returnedQty)) {
-        return { success: false, error: "Quantity for product exceeds maximum returnable limit" };
-      }
-      if (item.unitDiscount < 0 || item.unitDiscount > Number(invItem.unitPrice)) {
-        return { success: false, error: "Unit discount exceeds unit price" };
-      }
+    if (input.items.length === 0) {
+      return { success: false, error: "Pilih minimal satu item untuk diretur." };
+    }
+    if (input.items.some((item) => !Number.isInteger(item.quantity) || item.quantity <= 0)) {
+      return { success: false, error: "Jumlah retur harus bilangan bulat lebih dari nol." };
+    }
+    if (new Set(input.items.map((item) => item.productId)).size !== input.items.length) {
+      return { success: false, error: "Produk retur tidak boleh duplikat." };
     }
 
+    const normalizedReason = input.reason.trim();
+    if (normalizedReason.length < 3 || normalizedReason.length > 500) {
+      return { success: false, error: "Alasan retur harus terdiri dari 3-500 karakter." };
+    }
+
+    const { invoiceId, items } = input;
+    const tp = await requireTenantPrisma();
     let creditNoteCode = "";
-    let returnedLineSubtotal = 0;
 
-    await (await requireTenantPrisma()).$transaction(async (tx) => {
+    await withSerializableRetry(tp, async (tx) => {
+      const lockedRows = await tx.$queryRaw`
+        SELECT "id" FROM "invoices"
+        WHERE "id" = ${invoiceId} AND "tenantId" = ${tenantId}
+        FOR UPDATE
+      ` as Array<{ id: string }>;
+      if (lockedRows.length === 0) throw new Error("Invoice tidak ditemukan.");
+
+      const inv = await tx.invoice.findFirst({
+        where: { id: invoiceId, tenantId },
+        include: {
+          items: { include: { product: { select: { type: true } } } },
+          creditNotes: { include: { items: true } },
+        },
+      });
+      if (!inv) throw new Error("Invoice tidak ditemukan.");
+      if (inv.fulfillmentStatus !== "DELIVERED") {
+        throw new Error("Retur hanya dapat dibuat setelah pesanan diserahkan.");
+      }
+
+      for (const item of items) {
+        const invItem = inv.items.find((candidate) => candidate.productId === item.productId);
+        if (!invItem) throw new Error("Produk tidak ditemukan pada invoice.");
+        const returnedQty = inv.creditNotes.reduce((sum, creditNote) => {
+          const creditItem = creditNote.items.find((candidate) => candidate.productId === item.productId);
+          return sum + (creditItem?.quantity || 0);
+        }, 0);
+        if (item.quantity > invItem.quantity - returnedQty) {
+          throw new Error("Jumlah retur melebihi sisa yang dapat diretur.");
+        }
+      }
+
       creditNoteCode = `CN-${randomBytes(4).toString("hex").toUpperCase()}`;
-
+      let returnedLineSubtotal = 0;
       const cnItemsData = items.map((item) => {
         const invItem = inv.items.find((i) => i.productId === item.productId)!;
         const unitPrice = invItem.unitPrice;
@@ -1149,7 +1207,7 @@ export async function createCreditNote(input: CreditNoteInput) {
           code: creditNoteCode,
           invoiceId,
           total: totalReturnedAmount,
-          reason,
+          reason: normalizedReason,
           tenantId,
           items: {
             create: cnItemsData,
@@ -1180,12 +1238,21 @@ export async function createCreditNote(input: CreditNoteInput) {
 
       // Restore stock via appendLedger
       for (const item of items) {
+        const invoiceItem = inv.items.find((candidate) => candidate.productId === item.productId)!;
+        const netWeightKg = Number(invoiceItem.netWeightGrams ?? 0) / 1000;
+        const isKgBacked = netWeightKg > 0;
         await appendLedger(tx, {
           data: {
             tenantId,
             productId: item.productId,
             entryType: "IN",
-            quantityUnit: item.quantity,
+            quantityUnit: isKgBacked ? 0 : item.quantity,
+            quantityKg: isKgBacked
+              ? Math.round(item.quantity * netWeightKg * 1000) / 1000
+              : 0,
+            incomingPrice: isKgBacked
+              ? Number(invoiceItem.hpp) / netWeightKg
+              : Number(invoiceItem.hpp),
             refType: "RETURN_FG_IN",
             refId: creditNote.id,
             notes: `Retur dari nota ${inv.code}`,
@@ -1206,7 +1273,7 @@ export async function createCreditNote(input: CreditNoteInput) {
         items.map((item) => {
           const invoiceItem = inv.items.find((candidate) => candidate.productId === item.productId)!;
           return {
-            productType: "FINISHED_GOODS" as const,
+            productType: invoiceItem.product.type,
             hpp: Number(invoiceItem.hpp),
             quantity: item.quantity,
           };

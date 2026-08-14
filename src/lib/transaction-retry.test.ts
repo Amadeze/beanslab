@@ -55,6 +55,27 @@ describe("withSerializableRetry", () => {
     expect(client.invocations).toBe(3);
   });
 
+  it("retries a Prisma 7 adapter P2010 wrapping PostgreSQL 40001", async () => {
+    const conflict = Object.assign(
+      new Error("Raw query failed. Code: `40001`. Message: `could not serialize access due to concurrent update`"),
+      { code: "P2010" },
+    );
+    const { client } = makeClient([conflict, "committed"]);
+
+    await expect(withSerializableRetry(client, async () => "committed")).resolves.toBe("committed");
+    expect(client.invocations).toBe(2);
+  });
+
+  it("does not retry an unrelated P2010 raw-query failure", async () => {
+    const syntaxError = Object.assign(new Error("Raw query failed. Code: `42601`"), {
+      code: "P2010",
+    });
+    const { client } = makeClient([syntaxError, "committed"]);
+
+    await expect(withSerializableRetry(client, async () => "committed")).rejects.toBe(syntaxError);
+    expect(client.invocations).toBe(1);
+  });
+
   it("does not retry non-P2034 errors", async () => {
     const { client } = makeClient([new Error("boom")]);
 

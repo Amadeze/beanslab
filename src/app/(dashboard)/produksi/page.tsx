@@ -12,6 +12,7 @@ export default async function ProduksiPage() {
       rbOptions={data.rbOptions}
       packagingOptions={data.packagingOptions}
       supplyOptions={data.supplyOptions}
+      locationOptions={data.locationOptions}
     />
   );
 }

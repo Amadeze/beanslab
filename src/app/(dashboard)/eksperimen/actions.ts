@@ -7,7 +7,11 @@ import { recordAudit } from "@/lib/audit";
 import { randomBytes } from "crypto";
 import { getCurrentDate } from "@/lib/date-utils";
 import { postExperimentalProduction, postVoidReversal } from "@/lib/posting";
-import { createLotPlacementInTx } from "@/lib/storage-location";
+import {
+  createLotPlacementInTx,
+  fetchInventoryLocationOptions,
+  type InventoryLocationOption,
+} from "@/lib/storage-location";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -70,6 +74,7 @@ export type ExperimentalPageData = {
   rbOptions: RBStockOption[];
   supplyOptions: SupplyOption[];
   fgOptions: FGProductOption[];
+  locationOptions: InventoryLocationOption[];
 };
 
 export type CreateExperimentalProductionInput = {
@@ -223,13 +228,14 @@ async function fetchBatchHistory(): Promise<ExperimentalProductionRow[]> {
 
 export async function getExperimentalPageData(): Promise<ExperimentalPageData> {
   await requireRole("OWNER", "MANAGER", "OPERATOR");
-  const [batches, rbOptions, supplyOptions, fgOptions] = await Promise.all([
+  const [batches, rbOptions, supplyOptions, fgOptions, locationOptions] = await Promise.all([
     fetchBatchHistory(),
     fetchRBOptions(),
     fetchSupplyOptions(),
     fetchFGOptions(),
+    fetchInventoryLocationOptions(await requireTenantPrisma()),
   ]);
-  return { batches, rbOptions, supplyOptions, fgOptions };
+  return { batches, rbOptions, supplyOptions, fgOptions, locationOptions };
 }
 
 export async function createExperimentalProduction(

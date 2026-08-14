@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { resolveTestDatabaseUrl } from "../../test/setup/test-database-guard";
+import { parseEnvFile, resolveTestDatabaseUrl } from "../../test/setup/test-database-guard";
 import { createDraftPO, receivePO, sendPO } from "@/lib/po-lite";
 import {
   createGreenBeanPurchase,
@@ -117,17 +118,15 @@ suite("roasted bean procurement — real PostgreSQL (TEST_DATABASE_URL)", () => 
   // ── Fix4: bukti isolasi — seluruh suite menulis hanya ke TEST_DATABASE_URL ──
   it("proves the suite writes only to TEST_DATABASE_URL", async () => {
     const testUrl = resolveTestDatabaseUrl();
-    const fromEnvFile = new Map<string, string>();
-    for (const key of ["DATABASE_URL", "DIRECT_URL"] as const) {
-      const value = (process.env[key] ?? "").trim();
-      if (value) fromEnvFile.set(key, value);
-    }
+    const fromEnvFile = parseEnvFile(join(process.cwd(), ".env.local"));
     // TEST_DATABASE_URL tdk pernah sama dengan dev/prod DB (guard sudah fail-fast),
     // dan koneksi pool benar-benar terhubung ke nama database di dalam URL tsb.
     expect(databaseNameFromUrl(testUrl)).not.toBe("");
     const current = await pool.query<{ database: string }>("SELECT current_database() AS database");
     expect(current.rows[0].database).toBe(databaseNameFromUrl(testUrl));
-    for (const value of fromEnvFile.values()) {
+    for (const key of ["DATABASE_URL", "DIRECT_URL"] as const) {
+      const value = fromEnvFile[key];
+      if (!value) continue;
       expect(testUrl).not.toBe(value);
       expect(current.rows[0].database).not.toBe(databaseNameFromUrl(value));
     }

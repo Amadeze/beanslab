@@ -11,6 +11,7 @@ export default async function GrindingPage() {
       rbOptions={data.rbOptions}
       groundCoffeeOptions={data.groundCoffeeOptions}
       grinderOptions={data.grinderOptions}
+      locationOptions={data.locationOptions}
     />
   );
 }

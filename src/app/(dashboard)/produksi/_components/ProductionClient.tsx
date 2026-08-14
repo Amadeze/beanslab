@@ -19,6 +19,7 @@ import type {
   RBStockOption,
   SupplyConsumptionOption,
 } from "../actions";
+import type { InventoryLocationOption } from "@/lib/storage-location";
 
 interface ProductionClientProps {
   batches: ProductionBatchRow[];
@@ -26,6 +27,7 @@ interface ProductionClientProps {
   rbOptions: RBStockOption[];
   packagingOptions: PackagingOption[];
   supplyOptions: SupplyConsumptionOption[];
+  locationOptions: InventoryLocationOption[];
 }
 
 export function ProductionClient({
@@ -34,6 +36,7 @@ export function ProductionClient({
   rbOptions,
   packagingOptions,
   supplyOptions,
+  locationOptions,
 }: ProductionClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -176,6 +179,7 @@ export function ProductionClient({
             rbOptions={rbOptions}
             packagingOptions={packagingOptions}
             supplyOptions={supplyOptions}
+            locationOptions={locationOptions}
             initialOutputProductId={requestedProductId}
             initialUnitsProduced={initialUnits}
             parentRoastBatchId={parentRoastBatchId}

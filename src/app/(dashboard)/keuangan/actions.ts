@@ -15,6 +15,7 @@ import { voidPurchaseCore } from "@/lib/purchase-void";
 import { calculateSalesPerformance } from "@/lib/financial-reporting";
 import { computeSampleCostByType, computeCogsComponentBreakdown } from "@/lib/financial-helpers";
 import { prisma } from "@/lib/prisma";
+import { withSerializableRetry } from "@/lib/transaction-retry";
 
 // =============================================================================
 // TYPES
@@ -316,16 +317,34 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
     const tenantPrisma = await requireTenantPrisma();
     const previousAttempt = await tenantPrisma.payment.findFirst({
       where: { operationKey: opKey },
-      select: { code: true },
+      select: { code: true, invoice: { select: { status: true } } },
     });
     if (previousAttempt) {
-      const inv = await tenantPrisma.invoice.findFirst({
-        where: { payments: { some: { operationKey: opKey } } },
-        select: { status: true },
-      });
-      return { success: true, paymentCode: previousAttempt.code, newStatus: inv?.status ?? "PARTIAL" };
+      return {
+        success: true,
+        paymentCode: previousAttempt.code,
+        newStatus: previousAttempt.invoice.status,
+      };
     }
-    const result = await tenantPrisma.$transaction(async (tx) => {
+    const result = await withSerializableRetry(tenantPrisma, async (tx) => {
+      const lockedRows = await tx.$queryRaw`
+        SELECT "id" FROM "invoices"
+        WHERE "id" = ${parsed.invoiceId} AND "tenantId" = ${tenantId}
+        FOR UPDATE
+      ` as Array<{ id: string }>;
+      if (lockedRows.length === 0) throw new Error("Nota tidak ditemukan.");
+
+      const committedAttempt = await tx.payment.findFirst({
+        where: { operationKey: opKey },
+        select: { code: true, invoice: { select: { status: true } } },
+      });
+      if (committedAttempt) {
+        return {
+          paymentCode: committedAttempt.code,
+          newStatus: committedAttempt.invoice.status,
+        };
+      }
+
       const inv = await tx.invoice.findUnique({
         where: { id: parsed.invoiceId },
         select: { id: true, code: true, grandTotal: true, paidAmount: true, status: true, fulfillmentStatus: true, createdById: true, customer: { select: { name: true } } },
@@ -334,6 +353,9 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
       if (inv.status === "DRAFT") throw new Error("Nota belum diterbitkan.");
       if (inv.status === "PAID") throw new Error("Nota ini sudah lunas.");
       if (inv.status === "VOID") throw new Error("Nota ini sudah di-void.");
+      if (inv.status === "RETURNED") {
+        throw new Error("Nota yang sudah diretur penuh tidak dapat menerima pembayaran.");
+      }
 
       const grandTotal = Number(inv.grandTotal);
       const prevPaid = Number(inv.paidAmount);
@@ -374,12 +396,12 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
         inv.customer?.name ?? "Customer",
         { tx, tenantId, userId },
       );
-      return { newStatus, invoiceCode: inv.code, customerName: inv.customer?.name ?? "Customer" };
-    }, { isolationLevel: "Serializable" });
+      return { paymentCode: payment.code, newStatus };
+    });
     revalidatePath("/keuangan");
     revalidatePath("/penjualan");
 
-    return { success: true, paymentCode: payCode, newStatus: result.newStatus };
+    return { success: true, paymentCode: result.paymentCode, newStatus: result.newStatus };
   } catch (err) {
     if (
       typeof err === "object" && err !== null && "code" in err && err.code === "P2002"
@@ -387,9 +409,15 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
     ) {
       const existing = await (await requireTenantPrisma()).payment.findFirst({
         where: { operationKey: input.operationKey },
-        select: { code: true },
+        select: { code: true, invoice: { select: { status: true } } },
       });
-      if (existing) return { success: true, paymentCode: existing.code, newStatus: "PARTIAL" };
+      if (existing) {
+        return {
+          success: true,
+          paymentCode: existing.code,
+          newStatus: existing.invoice.status,
+        };
+      }
     }
     console.error("[recordPayment]", err);
     return {
@@ -1186,7 +1214,14 @@ export async function voidPayment(paymentId: string, reason: string) {
     const userId = await getSystemUserId();
     const tenantPrisma = await requireTenantPrisma();
 
-    await tenantPrisma.$transaction(async (tx) => {
+    await withSerializableRetry(tenantPrisma, async (tx) => {
+      const lockedRows = await tx.$queryRaw`
+        SELECT "id" FROM "payments"
+        WHERE "id" = ${paymentId} AND "tenantId" = ${tenantId}
+        FOR UPDATE
+      ` as Array<{ id: string }>;
+      if (lockedRows.length === 0) throw new Error("Pembayaran tidak ditemukan.");
+
       const payment = await tx.payment.findUnique({
         where: { id: paymentId },
         include: { invoice: true },
@@ -1210,7 +1245,14 @@ export async function voidPayment(paymentId: string, reason: string) {
       await postVoidReversal("PAYMENT", payment.id, reason, { tx, tenantId, userId });
       await tx.invoice.update({
         where: { id: payment.invoiceId },
-        data: { paidAmount: newPaidAmount, status: newStatus },
+        data: {
+          paidAmount: newPaidAmount,
+          status: newStatus,
+          ...(payment.invoice.fulfillmentStatus === "READY_TO_PACK"
+            && !(payment.invoice.salesChannel === "B2B_DIRECT" && payment.invoice.paymentMethod === "CREDIT")
+            ? { fulfillmentStatus: "AWAITING_PAYMENT" as const }
+            : {}),
+        },
       });
       await recordAudit(tx, {
         tenantId,
@@ -1230,7 +1272,7 @@ export async function voidPayment(paymentId: string, reason: string) {
           invoicePaidAmount: newPaidAmount,
         },
       });
-    }, { isolationLevel: "Serializable" });
+    });
 
     revalidatePath("/keuangan");
     revalidatePath("/penjualan");

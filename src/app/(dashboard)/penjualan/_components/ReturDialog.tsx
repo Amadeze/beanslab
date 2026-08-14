@@ -69,14 +69,15 @@ export function ReturDialog({
   const hasAnyReturn = Object.values(quantities).some((q) => q > 0);
 
   async function handleSubmit() {
-    if (!invoiceId || !reason.trim()) return;
+    const normalizedReason = reason.trim();
+    if (!invoiceId || normalizedReason.length < 3 || normalizedReason.length > 500) return;
     setSaving(true);
     try {
       const items = Object.entries(quantities)
         .filter(([, qty]) => qty > 0)
-        .map(([productId, quantity]) => ({ productId, quantity, unitDiscount: 0 }));
+        .map(([productId, quantity]) => ({ productId, quantity }));
 
-      const res = await createCreditNote({ invoiceId, reason: reason.trim(), items });
+      const res = await createCreditNote({ invoiceId, reason: normalizedReason, items });
       if (res.success) {
         toast.success(`Retur ${res.creditNoteCode} berhasil`);
         onSuccess?.();
@@ -147,6 +148,7 @@ export function ReturDialog({
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Cacat, salah produk, expired, dll."
                 rows={2}
+                maxLength={500}
               />
             </div>
 
@@ -163,7 +165,7 @@ export function ReturDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
           <Button
             onClick={handleSubmit}
-            disabled={!hasAnyReturn || !reason.trim() || saving || !data}
+            disabled={!hasAnyReturn || reason.trim().length < 3 || reason.trim().length > 500 || saving || !data}
           >
             {saving ? "Memproses..." : "Buat Retur"}
           </Button>

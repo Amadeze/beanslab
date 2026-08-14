@@ -10,6 +10,7 @@ import { GrindingHistoryTable } from "./GrindingHistoryTable";
 import { GrindingForm } from "./GrindingForm";
 import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
+import type { InventoryLocationOption } from "@/lib/storage-location";
 import type {
   RBStockOption,
   GroundCoffeeOption,
@@ -22,6 +23,7 @@ interface GrindingClientProps {
   rbOptions: RBStockOption[];
   groundCoffeeOptions: GroundCoffeeOption[];
   grinderOptions: GrinderOption[];
+  locationOptions: InventoryLocationOption[];
 }
 
 export function GrindingClient({
@@ -29,6 +31,7 @@ export function GrindingClient({
   rbOptions,
   groundCoffeeOptions,
   grinderOptions,
+  locationOptions,
 }: GrindingClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -147,6 +150,7 @@ export function GrindingClient({
             rbOptions={rbOptions}
             groundCoffeeOptions={groundCoffeeOptions}
             grinderOptions={grinderOptions}
+            locationOptions={locationOptions}
             initialSourceProductId={requestedSourceProductId}
             parentRoastBatchId={parentRoastBatchId}
             onSuccess={() => {

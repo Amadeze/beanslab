@@ -9,7 +9,11 @@ import { randomBytes } from "crypto";
 import { normalizeProductionComponents } from "@/lib/operations";
 import { getCurrentDate } from "@/lib/date-utils";
 import { postProductionBatch, postVoidReversal } from "@/lib/posting";
-import { createLotPlacementInTx } from "@/lib/storage-location";
+import {
+  createLotPlacementInTx,
+  fetchInventoryLocationOptions,
+  type InventoryLocationOption,
+} from "@/lib/storage-location";
 import { Prisma } from "@prisma/client";
 
 // =============================================================================
@@ -138,6 +142,69 @@ export type ProductionPageData = {
   rbOptions: RBStockOption[];
   packagingOptions: PackagingOption[];
   supplyOptions: SupplyConsumptionOption[];
+  locationOptions: InventoryLocationOption[];
+};
+
+export type ProductionBatchRecapData = {
+  id: string;
+  code: string;
+  status: string;
+  producedAt: string;
+  notes: string | null;
+  voidReason: string | null;
+  voidAt: string | null;
+  outputProduct: { id: string; code: string; name: string };
+  recipe: { id: string; name: string } | null;
+  packaging: { id: string; code: string; name: string; quantity: number };
+  parentRoastBatch: { id: string; code: string } | null;
+  createdBy: { id: string; name: string };
+  unitsProduced: number;
+  totalRbUsedKg: number;
+  hppPerUnit: number;
+  components: Array<{
+    productId: string;
+    productCode: string;
+    productName: string;
+    quantityKg: number;
+  }>;
+  supplies: Array<{
+    supplyItemId: string;
+    code: string;
+    name: string;
+    baseUnit: string;
+    quantity: number;
+    unitCostSnapshot: number;
+    totalCostSnapshot: number;
+    includedInHpp: boolean;
+  }>;
+  costs: {
+    total: number;
+    materialsAndPackaging: number;
+    includedSupplies: number;
+    labor: number;
+    overhead: number;
+  };
+  outputLot: {
+    id: string;
+    batchCode: string;
+    quantityUnit: number;
+    consumedAt: string | null;
+    placements: Array<{
+      quantityUnit: number;
+      locationCode: string;
+      locationName: string;
+      warehouseName: string;
+    }>;
+  } | null;
+  downstream: Array<{
+    refType: string;
+    refId: string;
+    code: string;
+    label: string;
+    status: string | null;
+    quantityUnit: number;
+    href: string | null;
+  }>;
 };
 
 // =============================================================================
@@ -322,14 +389,225 @@ async function fetchBatchHistory(): Promise<ProductionBatchRow[]> {
 
 export async function getProductionPageData(): Promise<ProductionPageData> {
   await requireRole("OWNER", "MANAGER", "OPERATOR");
-  const [batches, fgOptions, rbOptions, packagingOptions, supplyOptions] = await Promise.all([
+  const tenantPrisma = await requireTenantPrisma();
+  const [batches, fgOptions, rbOptions, packagingOptions, supplyOptions, locationOptions] = await Promise.all([
     fetchBatchHistory(),
     fetchFGOptions(),
     fetchRBOptions(),
     fetchPackagingOptions(),
     fetchSupplyOptions(),
+    fetchInventoryLocationOptions(tenantPrisma),
   ]);
-  return { batches, fgOptions, rbOptions, packagingOptions, supplyOptions };
+  return { batches, fgOptions, rbOptions, packagingOptions, supplyOptions, locationOptions };
+}
+
+export async function getProductionBatchRecap(
+  batchId: string,
+): Promise<ProductionBatchRecapData | null> {
+  await requireRole("OWNER", "MANAGER", "OPERATOR");
+  const tenantPrisma = await requireTenantPrisma();
+  const batch = await tenantPrisma.productionBatch.findFirst({
+    where: { id: batchId },
+    include: {
+      outputProduct: { select: { id: true, code: true, name: true } },
+      packaging: { select: { id: true, code: true, name: true } },
+      recipe: { select: { id: true, name: true } },
+      parentRoastBatch: { select: { id: true, code: true } },
+      createdBy: { select: { id: true, name: true } },
+      supplyUsages: {
+        include: {
+          supplyItem: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              baseUnit: true,
+              includeInProductHpp: true,
+            },
+          },
+        },
+        orderBy: { id: "asc" },
+      },
+    },
+  });
+  if (!batch) return null;
+
+  const productionLedgers = await tenantPrisma.inventoryLedger.findMany({
+    where: {
+      refId: batch.id,
+      refType: {
+        in: [
+          "PRODUCTION_RB_OUT",
+          "PRODUCTION_PKG_OUT",
+          "SUPPLY_PRODUCTION_OUT",
+          "PRODUCTION_FG_IN",
+        ],
+      },
+    },
+    include: {
+      product: { select: { id: true, code: true, name: true } },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+
+  const componentMap = new Map<string, ProductionBatchRecapData["components"][number]>();
+  for (const entry of productionLedgers) {
+    if (entry.refType !== "PRODUCTION_RB_OUT" || !entry.product) continue;
+    const current = componentMap.get(entry.product.id);
+    const quantityKg = Number(entry.quantityKg ?? 0);
+    componentMap.set(entry.product.id, {
+      productId: entry.product.id,
+      productCode: entry.product.code,
+      productName: entry.product.name,
+      quantityKg: (current?.quantityKg ?? 0) + quantityKg,
+    });
+  }
+
+  const outputLedger = productionLedgers.find(
+    (entry) => entry.refType === "PRODUCTION_FG_IN" && entry.lotId,
+  );
+  const outputLot = outputLedger?.lotId
+    ? await tenantPrisma.lot.findFirst({
+        where: { id: outputLedger.lotId },
+        include: {
+          placements: {
+            include: {
+              location: {
+                select: {
+                  code: true,
+                  name: true,
+                  warehouse: { select: { name: true } },
+                },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      })
+    : null;
+
+  const downstreamEntries = outputLot
+    ? await tenantPrisma.inventoryLedger.findMany({
+        where: {
+          lotId: outputLot.id,
+          entryType: "OUT",
+          refType: { not: "VOID_REVERSAL" },
+        },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      })
+    : [];
+  const reversedDownstreamIds = downstreamEntries.length > 0
+    ? new Set(
+        (await tenantPrisma.inventoryLedger.findMany({
+          where: { reversalOfLedgerId: { in: downstreamEntries.map((entry) => entry.id) } },
+          select: { reversalOfLedgerId: true },
+        })).flatMap((entry) => entry.reversalOfLedgerId ? [entry.reversalOfLedgerId] : []),
+      )
+    : new Set<string>();
+  const effectiveDownstream = downstreamEntries.filter(
+    (entry) => !reversedDownstreamIds.has(entry.id),
+  );
+  const invoiceIds = effectiveDownstream
+    .filter((entry) => entry.refType === "SALE_FG_OUT")
+    .map((entry) => entry.refId);
+  const sampleIds = effectiveDownstream
+    .filter((entry) => entry.refType === "SAMPLE_FG_OUT")
+    .map((entry) => entry.refId);
+  const [invoices, samples] = await Promise.all([
+    invoiceIds.length > 0
+      ? tenantPrisma.invoice.findMany({
+          where: { id: { in: invoiceIds } },
+          select: { id: true, code: true, status: true },
+        })
+      : [],
+    sampleIds.length > 0
+      ? tenantPrisma.sampleUsage.findMany({
+          where: { id: { in: sampleIds } },
+          select: { id: true, code: true, status: true },
+        })
+      : [],
+  ]);
+  const invoiceMap = new Map(invoices.map((invoice) => [invoice.id, invoice]));
+  const sampleMap = new Map(samples.map((sample) => [sample.id, sample]));
+
+  const downstreamMap = new Map<string, ProductionBatchRecapData["downstream"][number]>();
+  for (const entry of effectiveDownstream) {
+    const key = `${entry.refType}:${entry.refId}`;
+    const current = downstreamMap.get(key);
+    const invoice = entry.refType === "SALE_FG_OUT" ? invoiceMap.get(entry.refId) : null;
+    const sample = entry.refType === "SAMPLE_FG_OUT" ? sampleMap.get(entry.refId) : null;
+    downstreamMap.set(key, {
+      refType: entry.refType,
+      refId: entry.refId,
+      code: invoice?.code ?? sample?.code ?? entry.refId,
+      label: invoice ? "Penjualan" : sample ? "Sample" : "Pemakaian stok",
+      status: invoice?.status ?? sample?.status ?? null,
+      quantityUnit: (current?.quantityUnit ?? 0) + Number(entry.quantityUnit ?? 0),
+      href: invoice ? "/penjualan" : sample ? "/penjualan?action=sample" : null,
+    });
+  }
+
+  const supplies = batch.supplyUsages.map((usage) => ({
+    supplyItemId: usage.supplyItem.id,
+    code: usage.supplyItem.code,
+    name: usage.supplyItem.name,
+    baseUnit: usage.supplyItem.baseUnit,
+    quantity: Number(usage.quantity),
+    unitCostSnapshot: Number(usage.unitCostSnapshot),
+    totalCostSnapshot: Number(usage.totalCostSnapshot),
+    includedInHpp: usage.supplyItem.includeInProductHpp,
+  }));
+  const labor = Number(batch.laborCost ?? 0);
+  const overhead = Number(batch.overheadAllocated ?? 0);
+  const includedSupplies = supplies.reduce(
+    (sum, supply) => sum + (supply.includedInHpp ? supply.totalCostSnapshot : 0),
+    0,
+  );
+  const total = Number(batch.hppPerUnit) * batch.unitsProduced;
+
+  return {
+    id: batch.id,
+    code: batch.code,
+    status: batch.status,
+    producedAt: batch.producedAt.toISOString(),
+    notes: batch.notes,
+    voidReason: batch.voidReason,
+    voidAt: batch.voidAt?.toISOString() ?? null,
+    outputProduct: batch.outputProduct,
+    recipe: batch.recipe,
+    packaging: { ...batch.packaging, quantity: batch.unitsProduced },
+    parentRoastBatch: batch.parentRoastBatch,
+    createdBy: batch.createdBy,
+    unitsProduced: batch.unitsProduced,
+    totalRbUsedKg: Number(batch.totalRbUsedKg),
+    hppPerUnit: Number(batch.hppPerUnit),
+    components: [...componentMap.values()],
+    supplies,
+    costs: {
+      total,
+      materialsAndPackaging: Math.max(0, total - includedSupplies - labor - overhead),
+      includedSupplies,
+      labor,
+      overhead,
+    },
+    outputLot: outputLot
+      ? {
+          id: outputLot.id,
+          batchCode: outputLot.batchCode,
+          quantityUnit: Number(outputLot.quantityUnit),
+          consumedAt: outputLot.consumedAt?.toISOString() ?? null,
+          placements: outputLot.placements
+            .filter((placement) => placement.quantityUnit > 0)
+            .map((placement) => ({
+              quantityUnit: placement.quantityUnit,
+              locationCode: placement.location.code,
+              locationName: placement.location.name,
+              warehouseName: placement.location.warehouse.name,
+            })),
+        }
+      : null,
+    downstream: [...downstreamMap.values()],
+  };
 }
 
 /**

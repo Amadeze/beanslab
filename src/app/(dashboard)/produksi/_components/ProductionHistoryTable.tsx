@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { Search, Factory } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -108,7 +109,9 @@ export function ProductionHistoryTable({ batches, onStartProduction }: Productio
             filteredBatches.map((b) => (
               <TableRow key={b.id} className="hover:bg-white/40 transition-colors">
                 <TableCell className="font-mono text-xs font-medium text-zinc-700">
-                  {b.code}
+                  <Link href={`/produksi/batch/${b.id}`} className="font-bold text-slate-800 hover:text-amber-800 hover:underline">
+                    {b.code}
+                  </Link>
                 </TableCell>
                 <TableCell>
                   <p className="text-sm font-medium text-zinc-900">{b.recipeUsed ?? "Tanpa Resep"}</p>
@@ -162,7 +165,9 @@ export function ProductionHistoryTable({ batches, onStartProduction }: Productio
               <div>
                 <p className="font-bold text-slate-900">{b.outputProductName}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="font-mono text-xs font-semibold text-slate-600">{b.code}</span>
+                  <Link href={`/produksi/batch/${b.id}`} className="font-mono text-xs font-bold text-slate-700 hover:text-amber-800 hover:underline">
+                    {b.code}
+                  </Link>
                   <span className="text-xs text-slate-400">•</span>
                   <span className="text-xs uppercase font-bold text-slate-500">{b.recipeUsed ?? "Bebas"}</span>
                 </div>
@@ -180,6 +185,12 @@ export function ProductionHistoryTable({ batches, onStartProduction }: Productio
                 <span className="text-xs font-semibold text-slate-500">{formatDate(b.producedAt)}</span>
               </div>
               <div className="flex items-center gap-1.5">
+                <Link
+                  href={`/produksi/batch/${b.id}`}
+                  className="inline-flex h-7 items-center rounded-lg px-2.5 text-[11px] font-bold uppercase text-slate-600 hover:bg-white/70"
+                >
+                  Detail
+                </Link>
                 {b.status === "COMPLETED" && (
                   <Button size="sm" variant="ghost" onClick={() => setVoidTarget(b)} className="h-7 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg">
                     Void
@@ -205,6 +216,4 @@ export function ProductionHistoryTable({ batches, onStartProduction }: Productio
     </>
   );
 }
-
-
 

@@ -11,6 +11,7 @@ import { ExperimentalForm } from "./ExperimentalForm";
 import { PromoteForm } from "./PromoteForm";
 import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
+import type { InventoryLocationOption } from "@/lib/storage-location";
 import type {
   RBStockOption,
   SupplyOption,
@@ -23,6 +24,7 @@ interface ExperimentalClientProps {
   rbOptions: RBStockOption[];
   supplyOptions: SupplyOption[];
   fgOptions: FGProductOption[];
+  locationOptions: InventoryLocationOption[];
 }
 
 export function ExperimentalClient({
@@ -30,6 +32,7 @@ export function ExperimentalClient({
   rbOptions,
   supplyOptions,
   fgOptions,
+  locationOptions,
 }: ExperimentalClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -146,6 +149,7 @@ export function ExperimentalClient({
             rbOptions={rbOptions}
             supplyOptions={supplyOptions}
             fgOptions={fgOptions}
+            locationOptions={locationOptions}
             parentRoastBatchId={parentRoastBatchId}
             onSuccess={() => {
               setDrawerOpen(false);

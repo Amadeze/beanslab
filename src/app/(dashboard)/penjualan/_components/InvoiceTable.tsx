@@ -16,6 +16,24 @@ import { ReturDialog } from "./ReturDialog";
 import { Truck, ArrowLeftRight } from "lucide-react";
 import { voidInvoice, approveInvoiceForMidtrans } from "../actions";
 import type { InvoiceRow } from "../actions";
+import {
+  nextOperatorFulfillmentStatuses,
+  type OperatorFulfillmentStatus,
+} from "@/lib/fulfillment-status";
+
+function canManageFulfillment(invoice: InvoiceRow) {
+  return nextOperatorFulfillmentStatuses(
+    invoice.fulfillmentStatus as OperatorFulfillmentStatus,
+  ).length > 0;
+}
+
+const SALES_CHANNEL_LABELS: Record<string, string> = {
+  WALK_IN: "Walk-in",
+  WHATSAPP: "WhatsApp",
+  MARKETPLACE: "Marketplace",
+  B2B_DIRECT: "B2B langsung",
+  OTHER: "Lainnya",
+};
 
 const triggerSilentPrint = (url: string) => {
   let iframe = document.getElementById("silent-print-iframe") as HTMLIFrameElement;
@@ -35,7 +53,7 @@ const triggerSilentPrint = (url: string) => {
 function EmptyState({ isFiltered }: { isFiltered: boolean }) {
   return (
     <TableRow>
-      <TableCell colSpan={9} className="py-12 text-center">
+      <TableCell colSpan={10} className="py-12 text-center">
         <p className="text-sm font-medium text-zinc-400">
           {isFiltered ? "Tidak ada nota yang cocok dengan filter." : "Belum ada nota penjualan."}
         </p>
@@ -116,6 +134,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
         <option value="ISSUED">Tempo</option>
         <option value="PARTIAL">Sebagian</option>
         <option value="PAID">Lunas</option>
+        <option value="RETURNED">Diretur</option>
         <option value="VOID">Void</option>
       </select>
     </div>
@@ -131,7 +150,8 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
             <TableHead className=" text-right text-xs font-bold uppercase tracking-widest text-slate-500">Terbayar</TableHead>
             <TableHead className=" text-right text-xs font-bold uppercase tracking-widest text-slate-500">Sisa</TableHead>
             <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-500">Tanggal</TableHead>
-            <TableHead className="w-20 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Status</TableHead>
+            <TableHead className="w-20 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Pembayaran</TableHead>
+            <TableHead className="w-28 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Fulfillment</TableHead>
             <TableHead className=" text-center text-xs font-bold uppercase tracking-widest text-slate-500">Aksi</TableHead>
           </TableRow>
         </TableHeader>
@@ -146,6 +166,9 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                 </TableCell>
                 <TableCell className="text-sm font-bold text-slate-900">
                   {inv.customerName}
+                  <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                    {SALES_CHANNEL_LABELS[inv.salesChannel] ?? inv.salesChannel}
+                  </p>
                 </TableCell>
                 <TableCell  className="text-center font-mono text-sm text-slate-500">
                   {inv.itemCount}
@@ -175,6 +198,9 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                   <StatusBadge status={inv.status} />
                 </TableCell>
                 <TableCell className="text-center">
+                  <StatusBadge status={inv.fulfillmentStatus} />
+                </TableCell>
+                <TableCell className="text-center">
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     {inv.status === "DRAFT" && (
                       <Button
@@ -196,20 +222,22 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                         Bayar
                       </Button>
                     )}
-                    {(inv.shippingMethod && inv.shippingMethod !== "PICKUP") && (
+                    {canManageFulfillment(inv) && (
                       <Button
                         size="sm"
                         onClick={() => setResiTarget(inv)}
+                        aria-label={`Fulfillment ${inv.code}`}
                         className="h-7 gap-1 border border-domain-production/25 bg-domain-production/8 px-2.5 text-[11px] font-bold uppercase tracking-wide text-domain-production shadow-sm hover:bg-domain-production/15"
                       >
                         <Truck size={12} />
-                        Resi
+                        Fulfillment
                       </Button>
                     )}
-                    {inv.status !== "DRAFT" && inv.status !== "VOID" && (
+                    {inv.fulfillmentStatus === "DELIVERED" && inv.status !== "VOID" && inv.status !== "RETURNED" && (
                       <Button
                         size="sm"
                         variant="ghost"
+                        aria-label={`Retur ${inv.code}`}
                         className="h-7 gap-1 px-2.5 text-[11px] font-bold uppercase tracking-wide text-amber-600 hover:bg-amber-50 hover:text-amber-700 rounded-lg"
                         onClick={() => setReturTarget(inv.id)}
                       >
@@ -224,7 +252,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                       <ExternalLink size={12} />
                       Print
                     </button>
-                    {inv.status !== "VOID" && inv.status !== "PAID" && (
+                    {inv.status !== "VOID" && inv.status !== "PAID" && inv.status !== "RETURNED" && (
                       <Button
                         size="sm"
                         variant="ghost"
@@ -258,8 +286,10 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                 <p className="font-bold text-slate-900">{inv.customerName}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="font-mono text-xs font-semibold text-slate-600">{inv.code}</span>
-                  <span className="text-xs text-slate-400">•</span>
+                  <span className="text-xs text-slate-400">&middot;</span>
                   <span className="text-xs text-slate-500">{inv.itemCount} Item</span>
+                  <span className="text-xs text-slate-400">&middot;</span>
+                  <span className="text-xs text-slate-500">{SALES_CHANNEL_LABELS[inv.salesChannel] ?? inv.salesChannel}</span>
                 </div>
               </div>
               <div className="text-right">
@@ -271,8 +301,11 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
             </div>
             
             <div className="mt-2 flex items-end justify-between border-t border-stone-200 pt-2">
-              <div className="flex flex-col gap-1">
-                <StatusBadge status={inv.status} />
+              <div className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap gap-1">
+                  <StatusBadge status={inv.status} />
+                  <StatusBadge status={inv.fulfillmentStatus} />
+                </div>
                 <span className="text-xs font-semibold text-slate-500">{formatDate(inv.issuedAt)}</span>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -281,27 +314,34 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                     size="sm"
                     onClick={() => handleApprove(inv)}
                     disabled={isApproving === inv.id}
-                    className="h-7 border border-domain-sales/25 bg-domain-sales/8 px-2.5 text-[11px] font-bold uppercase tracking-wide text-domain-sales shadow-sm hover:bg-domain-sales/15"
+                    className="h-9 border border-domain-sales/25 bg-domain-sales/8 px-2.5 text-[11px] font-bold uppercase tracking-wide text-domain-sales shadow-sm hover:bg-domain-sales/15"
                   >
                     {isApproving === inv.id ? "Memproses..." : "Approve"}
                   </Button>
                 )}
                 {(inv.status === "ISSUED" || inv.status === "PARTIAL") && (
-                  <Button size="sm" onClick={() => setPayTarget(inv)} className="h-7 bg-domain-finance px-2 text-white hover:bg-domain-finance/90">Bayar</Button>
+                  <Button size="sm" onClick={() => setPayTarget(inv)} className="h-9 bg-domain-finance px-2 text-white hover:bg-domain-finance/90">Bayar</Button>
                 )}
-                {(inv.shippingMethod && inv.shippingMethod !== "PICKUP") && (
-                  <Button size="sm" onClick={() => setResiTarget(inv)} className="h-7 bg-domain-production/10 px-2 text-domain-production hover:bg-domain-production/15">Resi</Button>
+                {canManageFulfillment(inv) && (
+                  <Button
+                    size="sm"
+                    onClick={() => setResiTarget(inv)}
+                    aria-label={`Fulfillment ${inv.code}`}
+                    className="h-9 bg-domain-production/10 px-2 text-domain-production hover:bg-domain-production/15"
+                  >
+                    Fulfillment
+                  </Button>
                 )}
-                {inv.status !== "DRAFT" && inv.status !== "VOID" && (
-                  <Button size="sm" variant="ghost" onClick={() => setReturTarget(inv.id)} className="h-7 px-2 text-[11px] font-bold uppercase text-amber-600 hover:bg-amber-50">
+                {inv.fulfillmentStatus === "DELIVERED" && inv.status !== "VOID" && inv.status !== "RETURNED" && (
+                  <Button size="sm" variant="ghost" aria-label={`Retur ${inv.code}`} onClick={() => setReturTarget(inv.id)} className="h-9 px-2 text-[11px] font-bold uppercase text-amber-600 hover:bg-amber-50">
                     Retur
                   </Button>
                 )}
-                <button onClick={() => triggerSilentPrint(`/nota/${inv.id}?print=true`)} className="inline-flex items-center justify-center h-7 px-2.5 rounded-lg border border-slate-300 text-[11px] font-bold uppercase text-slate-600 hover:bg-slate-900 hover:text-white bg-white/40 shadow-sm">
+                <button onClick={() => triggerSilentPrint(`/nota/${inv.id}?print=true`)} className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white/40 px-2.5 text-[11px] font-bold uppercase text-slate-600 shadow-sm hover:bg-slate-900 hover:text-white">
                   Print
                 </button>
-                {inv.status !== "VOID" && inv.status !== "PAID" && (
-                  <Button size="sm" variant="ghost" onClick={() => setVoidTarget(inv)} className="h-7 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600">
+                {inv.status !== "VOID" && inv.status !== "PAID" && inv.status !== "RETURNED" && (
+                  <Button size="sm" variant="ghost" onClick={() => setVoidTarget(inv)} className="h-9 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600">
                     Void
                   </Button>
                 )}

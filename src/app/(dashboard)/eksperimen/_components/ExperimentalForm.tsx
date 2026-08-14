@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatKg, formatRupiah } from "@/lib/format";
+import { InventoryDestinationField } from "@/components/inventory/InventoryDestinationField";
+import type { InventoryLocationOption } from "@/lib/storage-location";
 import {
   createExperimentalProduction,
   type RBStockOption,
@@ -48,6 +50,7 @@ const schema = z.object({
   components: z.array(componentSchema).min(1, "Minimal satu komponen"),
   outputKg: z.number().positive("Berat hasil harus lebih dari 0"),
   grindingCost: z.number().nonnegative().optional(),
+  destinationLocationId: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -78,6 +81,7 @@ interface ExperimentalFormProps {
   rbOptions: RBStockOption[];
   supplyOptions: SupplyOption[];
   fgOptions: FGProductOption[];
+  locationOptions: InventoryLocationOption[];
   /** Batch roasting sumber (dari aksi di rekap roasting). Opsional. */
   parentRoastBatchId?: string;
   onSuccess: () => void;
@@ -93,6 +97,7 @@ export function ExperimentalForm({
   rbOptions,
   supplyOptions,
   fgOptions,
+  locationOptions,
   parentRoastBatchId,
   onSuccess,
   onPendingChange,
@@ -117,6 +122,7 @@ export function ExperimentalForm({
       ],
       outputKg: 0,
       grindingCost: 0,
+      destinationLocationId: locationOptions[0]?.id ?? "",
       notes: "",
     },
   });
@@ -126,10 +132,11 @@ export function ExperimentalForm({
     name: "components",
   });
 
-  const [components, outputKg, grindingCost] = watch([
+  const [components, outputKg, grindingCost, destinationLocationId] = watch([
     "components",
     "outputKg",
     "grindingCost",
+    "destinationLocationId",
   ]);
 
   const onSubmit = async (values: FormValues) => {
@@ -151,6 +158,7 @@ export function ExperimentalForm({
         })),
         outputKg: values.outputKg,
         grindingCost: values.grindingCost,
+        destinationLocationId: values.destinationLocationId || undefined,
         notes: values.notes,
         parentRoastBatchId: parentRoastBatchId || undefined,
       });
@@ -228,8 +236,9 @@ export function ExperimentalForm({
                   <button
                     type="button"
                     onClick={() => remove(index)}
-                    className="absolute -top-3 -right-2 bg-white text-red-500 border border-white/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 shadow-sm z-10"
+                    className="absolute -right-2 -top-3 z-10 flex min-h-9 min-w-9 items-center justify-center rounded-full border border-white/60 bg-white p-2 text-red-500 opacity-100 shadow-sm transition-opacity hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                     title="Hapus Komponen"
+                    aria-label={`Hapus komponen eksperimen ${index + 1}`}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -360,6 +369,22 @@ export function ExperimentalForm({
           <p className="text-[10px] text-slate-400">Listrik, gas, tenaga kerja</p>
         </FieldGroup>
       </div>
+
+      <FieldGroup>
+        <Controller
+          control={control}
+          name="destinationLocationId"
+          render={({ field }) => (
+            <InventoryDestinationField
+              value={destinationLocationId ?? ""}
+              onChange={field.onChange}
+              options={locationOptions}
+              disabled={isSubmitting}
+              outputLabel="hasil eksperimen"
+            />
+          )}
+        />
+      </FieldGroup>
 
       <FieldGroup>
         <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Catatan (opsional)</Label>

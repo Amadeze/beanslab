@@ -19,6 +19,10 @@ import {
   reserveRoastMaterialsInTx,
 } from "@/lib/roast-lifecycle";
 import { z } from "zod";
+import {
+  fetchInventoryLocationOptions,
+  type InventoryLocationOption,
+} from "@/lib/storage-location";
 
 // =============================================================================
 // TYPES
@@ -81,13 +85,7 @@ export type MachineOption = {
 // Mirrors resolveOutputLocationInTx's canonical resolution order so the UI
 // default matches the server default: isDefault desc → createdAt asc, only
 // active non-system locations of the current tenant.
-export type RoastingLocationOption = {
-  id: string;
-  code: string;
-  name: string;
-  warehouseName: string;
-  isDefault: boolean;
-};
+export type RoastingLocationOption = InventoryLocationOption;
 
 export type RoastingPageData = {
   batches: ParentRoastingBatchRow[];
@@ -513,24 +511,7 @@ export async function getMachineOptions(): Promise<MachineOption[]> {
 // =============================================================================
 
 export async function fetchRoastingLocationOptions(): Promise<RoastingLocationOption[]> {
-  const locations = await (await requireTenantPrisma()).location.findMany({
-    where: { isActive: true, isSystem: false },
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      isDefault: true,
-      warehouse: { select: { name: true } },
-    },
-    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-  });
-  return locations.map((location) => ({
-    id: location.id,
-    code: location.code,
-    name: location.name,
-    warehouseName: location.warehouse.name,
-    isDefault: location.isDefault,
-  }));
+  return fetchInventoryLocationOptions(await requireTenantPrisma());
 }
 
 export async function getRoastingPageData(): Promise<RoastingPageData> {

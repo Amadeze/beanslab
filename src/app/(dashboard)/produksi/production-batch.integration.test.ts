@@ -2,7 +2,11 @@ import { describe, expect, it, beforeAll, afterAll, vi, beforeEach } from "vites
 import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { createProductionBatch, voidProductionBatch } from "@/app/(dashboard)/produksi/actions";
+import {
+  createProductionBatch,
+  getProductionBatchRecap,
+  voidProductionBatch,
+} from "@/app/(dashboard)/produksi/actions";
 import { appendLedger } from "@/lib/stock";
 import { assertSafeTestDatabase } from "../../../../test/setup/assert-safe-test-db";
 import { readFileSync } from "node:fs";
@@ -848,5 +852,75 @@ suite("createProductionBatch — supply items (Commit 4)", () => {
     }
     const batch = await client.productionBatch.findFirst({ where: { code: result.batchCode } });
     expect(batch!.parentRoastBatchId).toBeNull();
+  });
+
+  it("Phase 2D.2B: lokasi override tersimpan dan recap merekonstruksi paspor batch", async () => {
+    const stamp = Date.now();
+    const productId = `prod-recap-${stamp}`;
+    const packagingId = `pkg-recap-${stamp}`;
+    const rbProductId = `rb-recap-${stamp}`;
+    const warehouseId = `wh-recap-${stamp}`;
+    const locationId = `loc-recap-${stamp}`;
+
+    await client.$transaction(async (tx) => {
+      await createProduct(tx, productId, TEST_TENANT_ID);
+      await createPackaging(tx, packagingId, TEST_TENANT_ID);
+      await createProduct(tx, rbProductId, TEST_TENANT_ID, "ROASTED_BEAN", 10);
+      await tx.warehouse.create({
+        data: {
+          id: warehouseId,
+          tenantId: TEST_TENANT_ID,
+          code: `WH-${stamp}`,
+          name: "Gudang Recap",
+          isActive: true,
+        },
+      });
+      await tx.location.create({
+        data: {
+          id: locationId,
+          tenantId: TEST_TENANT_ID,
+          warehouseId,
+          code: `LOC-${stamp}`,
+          name: "Rak Produk Jadi",
+          isActive: true,
+        },
+      });
+    });
+
+    const result = await createProductionBatch({
+      operationKey: randomUUID(),
+      outputProductId: productId,
+      packagingId,
+      unitsProduced: 4,
+      rbComponents: [{ productId: rbProductId, productName: "Test RB", actualGrams: 400 }],
+      destinationLocationId: locationId,
+    });
+    if (!result.success) throw new Error(`recap fixture failed: ${result.error}`);
+
+    const batch = await client.productionBatch.findFirst({ where: { code: result.batchCode } });
+    const recap = await getProductionBatchRecap(batch!.id);
+
+    expect(recap).not.toBeNull();
+    expect(recap!.components).toEqual([
+      expect.objectContaining({ productId: rbProductId, quantityKg: 0.4 }),
+    ]);
+    expect(recap!.costs).toEqual({
+      total: 6000,
+      materialsAndPackaging: 6000,
+      includedSupplies: 0,
+      labor: 0,
+      overhead: 0,
+    });
+    expect(recap!.outputLot).toEqual(expect.objectContaining({
+      batchCode: `${result.batchCode}-FG`,
+      quantityUnit: 4,
+      placements: [expect.objectContaining({
+        quantityUnit: 4,
+        locationCode: `LOC-${stamp}`,
+        locationName: "Rak Produk Jadi",
+        warehouseName: "Gudang Recap",
+      })],
+    }));
+    expect(recap!.downstream).toEqual([]);
   });
 });
