@@ -529,6 +529,7 @@ export async function voidSampleUsage(sampleId: string, reason: string) {
             entryType: "IN",
             refType: "VOID_REVERSAL",
             refId: sample.id,
+            reversalOfLedgerId: entry.id,
             quantityKg: entry.quantityKg,
             quantityUnit: entry.quantityUnit,
             lotId: entry.lotId,

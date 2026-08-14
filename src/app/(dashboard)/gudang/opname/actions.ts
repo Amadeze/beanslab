@@ -35,6 +35,7 @@ export async function getOpnameItems(): Promise<OpnameItem[]> {
     where: {
       tenantId,
       location: { isActive: true },
+      lot: { consumedAt: null },
     },
     include: {
       lot: {

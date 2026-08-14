@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { appendFefoLedgerOut, appendLedger } from "@/lib/stock";
+import { appendFefoLedgerOut, appendLedger, recomputeProductCostInTx } from "@/lib/stock";
 import { getCurrentTenantId, getSystemUserId, requireRole, requireTenantPrisma } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { randomBytes } from "crypto";
@@ -467,6 +467,7 @@ export async function voidGrindingBatch(
             entryType: entry.entryType === "IN" ? "OUT" : "IN",
             refType: "VOID_REVERSAL",
             refId: batchId,
+            reversalOfLedgerId: entry.id,
             quantityKg: entry.quantityKg,
             lotId: entry.lotId,
             lotNumber: entry.lotNumber,
@@ -481,6 +482,30 @@ export async function voidGrindingBatch(
             data: { consumedAt: entry.entryType === "OUT" ? null : getCurrentDate() },
           });
         }
+      }
+
+      if (outputLotIds.length > 0) {
+        await tx.lotPlacement.updateMany({
+          where: { tenantId, lotId: { in: outputLotIds } },
+          data: { quantityKg: 0, quantityUnit: 0, supplyQty: 0 },
+        });
+      }
+
+      // Phase 2D.2A — pulihkan WAC produk dari ledger efektif pasca-void
+      const productRows = new Map<string, Array<(typeof sourceEntries)[number]>>();
+      for (const entry of sourceEntries) {
+        if (!entry.productId) continue;
+        const list = productRows.get(entry.productId) ?? [];
+        list.push(entry);
+        productRows.set(entry.productId, list);
+      }
+      for (const [productId, rows] of productRows) {
+        await recomputeProductCostInTx(tx, {
+          tenantId,
+          productId,
+          voidedRefId: batchId,
+          originalRows: rows,
+        });
       }
 
       await tx.grindingBatch.update({

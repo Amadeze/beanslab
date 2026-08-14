@@ -69,7 +69,14 @@ export async function getVisualWarehouseMap(): Promise<VisualWarehouseMap> {
         where: { isActive: true },
         include: {
           placements: {
-            where: { quantityKg: { gt: 0 }, quantityUnit: { gt: 0 }, supplyQty: { gt: 0 } },
+            where: {
+              OR: [
+                { quantityKg: { gt: 0 } },
+                { quantityUnit: { gt: 0 } },
+                { supplyQty: { gt: 0 } },
+              ],
+              lot: { consumedAt: null },
+            },
             include: {
               lot: {
                 select: {

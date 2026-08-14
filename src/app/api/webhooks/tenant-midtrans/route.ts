@@ -250,6 +250,7 @@ export async function POST(req: Request) {
               entryType: "IN",
               refType: "VOID_REVERSAL",
               refId: invoice.id,
+              reversalOfLedgerId: entry.id,
               quantityKg: entry.quantityKg,
               quantityUnit: entry.quantityUnit,
               lotId: entry.lotId,

@@ -60,6 +60,9 @@ export async function createLocationOpname(input: CreateOpnameInput): Promise<{ 
       },
     });
     if (!lot) return { success: false, error: "Lot tidak ditemukan." };
+    if (lot.consumedAt) {
+      return { success: false, error: "Lot sudah terkonsumsi; tidak dapat dibuatkan opname." };
+    }
 
     const location = await tp.location.findUnique({
       where: { id: input.locationId },
@@ -150,6 +153,9 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
       if (!opname) throw new Error("Opname tidak ditemukan.");
       if (opname.status === "CONFIRMED") throw new Error("Opname sudah disahkan.");
       if (opname.status === "CANCELLED") throw new Error("Opname sudah dibatalkan.");
+      if (opname.lot.consumedAt) {
+        throw new Error("Lot sudah terkonsumsi sejak draft dibuat; opname tidak dapat disahkan.");
+      }
 
       const location = await tx.location.findFirst({
         where: { id: opname.locationId, tenantId },

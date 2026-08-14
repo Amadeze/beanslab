@@ -83,10 +83,13 @@ export async function transferLot(data: {
     const transferId = await tp.$transaction(async (tx) => {
       const lot = await tx.lot.findUnique({
         where: { id: data.lotId, tenantId },
-        select: { quantityKg: true, quantityUnit: true, supplyItemId: true, productId: true, packagingId: true },
+        select: { quantityKg: true, quantityUnit: true, supplyItemId: true, productId: true, packagingId: true, consumedAt: true },
       });
       if (!lot) {
         throw new Error("LOT_NOT_FOUND");
+      }
+      if (lot.consumedAt) {
+        throw new Error("CONSUMED_LOT");
       }
 
       const [sourceLocation, destinationLocation] = await Promise.all([
@@ -208,6 +211,7 @@ export async function transferLot(data: {
     console.error("[transferLot]", err);
     const msg = err?.message ?? "Gagal memindah lot.";
     if (msg === "LOT_NOT_FOUND") return { success: false, error: "Lot tidak ditemukan." };
+    if (msg === "CONSUMED_LOT") return { success: false, error: "Lot sudah terkonsumsi; tidak dapat dipindah." };
     if (msg === "LOCATION_NOT_FOUND") return { success: false, error: "Lokasi tidak ditemukan." };
     if (msg === "SYS_LOCATION_SOURCE" || msg === "SYS_LOCATION_DESTINATION") {
       return { success: false, error: SYSTEM_LOCATION_ERROR };

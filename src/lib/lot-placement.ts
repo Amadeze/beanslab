@@ -78,6 +78,9 @@ export async function placeLot(data: {
       if (!lot) {
         throw new Error("LOT_NOT_FOUND");
       }
+      if (lot.consumedAt) {
+        throw new Error("LOT_CONSUMED");
+      }
 
       const destinationLocation = await tx.location.findFirst({
         where: { id: data.locationId, tenantId },
@@ -177,6 +180,7 @@ export async function placeLot(data: {
     console.error("[placeLot]", err);
     const msg = err instanceof Error ? err.message : "Gagal menempatkan lot.";
     if (msg === "LOT_NOT_FOUND") return { success: false, error: "Lot tidak ditemukan." };
+    if (msg === "LOT_CONSUMED") return { success: false, error: "Lot sudah terkonsumsi; tidak dapat ditempatkan." };
     if (msg === "LOCATION_NOT_FOUND") return { success: false, error: "Lokasi tidak ditemukan." };
     if (msg === "SYS_LOCATION_DESTINATION") {
       return { success: false, error: SYSTEM_LOCATION_ERROR };

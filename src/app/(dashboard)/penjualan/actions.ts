@@ -806,6 +806,7 @@ export async function voidInvoice(
               entryType:    "IN",
               refType:      "VOID_REVERSAL",
               refId:        invoiceId,
+              reversalOfLedgerId: entry.id,
               quantityUnit: entry.quantityUnit,
               lotId:        entry.lotId,
               lotNumber:    entry.lotNumber,

@@ -50,6 +50,7 @@ export async function expirePaymentSubmissions(client: PrismaClient, now = getCu
                 entryType: "IN",
                 refType: "VOID_REVERSAL",
                 refId: submission.invoiceId,
+                reversalOfLedgerId: entry.id,
                 quantityKg: entry.quantityKg,
                 quantityUnit: entry.quantityUnit,
                 lotId: entry.lotId,

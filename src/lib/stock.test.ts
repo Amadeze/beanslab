@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { appendFefoLedgerOut, appendLedger } from "./stock";
+import { appendFefoLedgerOut, appendLedger, recomputeProductCostInTx } from "./stock";
 
 function transaction(updateCount = 1) {
   return {
     product: {
       updateMany: vi.fn().mockResolvedValue({ count: updateCount }),
+      update: vi.fn().mockResolvedValue({}),
       findUnique: vi.fn(),
     },
     packaging: {
@@ -14,6 +15,7 @@ function transaction(updateCount = 1) {
     },
     inventoryLedger: {
       create: vi.fn(async ({ data }) => ({ id: "ledger-1", ...data })),
+      findMany: vi.fn().mockResolvedValue([]),
     },
     lot: {
       findMany: vi.fn().mockResolvedValue([]),
@@ -693,5 +695,276 @@ expect(tx.lotPlacement.updateMany).toHaveBeenNthCalledWith(2, {
     );
     expect(createCalls.some((entry) => entry.lotId === null)).toBe(false);
     expect(tx.lot.update).toHaveBeenCalledTimes(25);
+  });
+});
+
+describe("appendLedger — Phase 2D.2A cost basis", () => {
+  it("unit IN merges WAC into lastHpp and persists incomingPrice on the ledger", async () => {
+    const tx = transaction();
+    tx.product.findUnique = vi.fn().mockResolvedValue({
+      stockKg: "0",
+      stockUnit: 5,
+      avgCostPerKg: "0",
+      lastHpp: "100000",
+    });
+
+    await appendLedger(tx, {
+      data: {
+        productId: "product-fg-1",
+        entryType: "IN",
+        refType: "PRODUCTION_FG_IN",
+        refId: "batch-1",
+        quantityUnit: 10,
+        incomingPrice: 120000,
+        createdById: "user-1",
+      },
+    });
+
+    // Acceptance: A 10@100k, SALE 5, B 10@120k → lastHpp = (5·100k + 10·120k)/15
+    const updateCall = (tx.product.updateMany as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(updateCall[0].data.stockUnit).toEqual({ increment: 10 });
+    expect(updateCall[0].data.avgCostPerKg).toBeUndefined();
+    expect(updateCall[0].data.lastHpp).toBeCloseTo((5 * 100000 + 10 * 120000) / 15, 6);
+    expect(tx.inventoryLedger.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ incomingPrice: 120000, quantityUnit: 10 }),
+    });
+  });
+
+  it("kg IN keeps lastHpp untouched and persists incomingPrice on the ledger", async () => {
+    const tx = transaction();
+    tx.product.findUnique = vi.fn().mockResolvedValue({
+      stockKg: "100",
+      stockUnit: 0,
+      avgCostPerKg: "50000",
+      lastHpp: null,
+    });
+
+    await appendLedger(tx, {
+      data: {
+        productId: "product-1",
+        entryType: "IN",
+        refType: "PURCHASE_GB",
+        refId: "purchase-2",
+        quantityKg: 50,
+        incomingPrice: 60000,
+        createdById: "user-1",
+      },
+    });
+
+    const updateCall = (tx.product.updateMany as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(updateCall[0].data.avgCostPerKg).toBeCloseTo((100 * 50000 + 50 * 60000) / 150, 6);
+    expect(updateCall[0].data.lastHpp).toBeUndefined();
+    expect(tx.inventoryLedger.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ incomingPrice: 60000, quantityKg: 50 }),
+    });
+  });
+});
+
+describe("recomputeProductCostInTx — Phase 2D.2A", () => {
+  const reversal = (refId: string, reversalOfLedgerId: string | null = null) => ({
+    refId,
+    refType: "VOID_REVERSAL",
+    entryType: "IN",
+    quantityKg: 0,
+    quantityUnit: 0,
+    incomingPrice: null,
+    reversalOfLedgerId,
+  });
+
+  it("full replay restores exact kg WAC across interleaved OUTs (counterexample fixed)", async () => {
+    const tx = transaction();
+    tx.product.findUnique = vi.fn().mockResolvedValue({
+      stockKg: "20",
+      stockUnit: 0,
+      avgCostPerKg: "73333.33",
+      lastHpp: null,
+    });
+    tx.inventoryLedger.findMany = vi.fn().mockResolvedValue([
+      { refId: "pA", refType: "PURCHASE_GB", entryType: "IN", quantityKg: 100, quantityUnit: 0, incomingPrice: 60000, reversalOfLedgerId: null },
+      { refId: "pB", refType: "PURCHASE_GB", entryType: "IN", quantityKg: 50, quantityUnit: 0, incomingPrice: 100000, reversalOfLedgerId: null },
+      { refId: "g1", refType: "GRINDING_RB_OUT", entryType: "OUT", quantityKg: 80, quantityUnit: 0, incomingPrice: null, reversalOfLedgerId: null },
+      reversal("pB", "orig-B"),
+    ]);
+
+    await recomputeProductCostInTx(tx, {
+      tenantId: "tenant-1",
+      productId: "product-1",
+      voidedRefId: "pB",
+      originalRows: [{ quantityKg: 50, quantityUnit: 0, incomingPrice: 100000 }],
+    });
+
+    expect(tx.product.update).toHaveBeenCalledWith({
+      where: { id: "product-1" },
+      data: { avgCostPerKg: 60000 },
+    });
+  });
+
+  it("unit stream replay: voiding batch B leaves lastHpp = WAC of remaining units", async () => {
+    const tx = transaction();
+    tx.product.findUnique = vi.fn().mockResolvedValue({
+      stockKg: "0",
+      stockUnit: 5,
+      avgCostPerKg: "0",
+      lastHpp: "113333.33",
+    });
+    tx.inventoryLedger.findMany = vi.fn().mockResolvedValue([
+      { refId: "pa", refType: "PRODUCTION_FG_IN", entryType: "IN", quantityKg: 0, quantityUnit: 10, incomingPrice: 100000, reversalOfLedgerId: null },
+      { refId: "inv1", refType: "SALE_FG_OUT", entryType: "OUT", quantityKg: 0, quantityUnit: 5, incomingPrice: null, reversalOfLedgerId: null },
+      { refId: "pb", refType: "PRODUCTION_FG_IN", entryType: "IN", quantityKg: 0, quantityUnit: 10, incomingPrice: 120000, reversalOfLedgerId: null },
+      reversal("pb", "orig-B"),
+    ]);
+
+    await recomputeProductCostInTx(tx, {
+      tenantId: "tenant-1",
+      productId: "fg-1",
+      voidedRefId: "pb",
+      originalRows: [{ quantityKg: 0, quantityUnit: 10, incomingPrice: 120000 }],
+    });
+
+    expect(tx.product.update).toHaveBeenCalledWith({
+      where: { id: "fg-1" },
+      data: { lastHpp: 100000 },
+    });
+  });
+
+  it("zeros cost when the only IN basis is the voided transaction", async () => {
+    const tx = transaction();
+    tx.product.findUnique = vi.fn().mockResolvedValue({
+      stockKg: "0",
+      stockUnit: 0,
+      avgCostPerKg: "80000",
+      lastHpp: null,
+    });
+    tx.inventoryLedger.findMany = vi.fn().mockResolvedValue([
+      { refId: "e1", refType: "EXPERIMENTAL_FG_IN", entryType: "IN", quantityKg: 5, quantityUnit: 0, incomingPrice: 80000, reversalOfLedgerId: null },
+      reversal("e1", "orig-E"),
+    ]);
+
+    await recomputeProductCostInTx(tx, {
+      tenantId: "tenant-1",
+      productId: "product-x",
+      voidedRefId: "e1",
+      originalRows: [{ quantityKg: 5, quantityUnit: 0, incomingPrice: 80000 }],
+    });
+
+    expect(tx.product.update).toHaveBeenCalledWith({
+      where: { id: "product-x" },
+      data: { avgCostPerKg: 0 },
+    });
+  });
+
+  it("falls back to candidate snapshot when basis is incomplete (legacy rows)", async () => {
+    const tx = transaction();
+    tx.product.findUnique = vi.fn().mockResolvedValue({
+      stockKg: "150",
+      stockUnit: 0,
+      avgCostPerKg: "67500",
+      lastHpp: null,
+    });
+    tx.inventoryLedger.findMany = vi.fn().mockResolvedValue([
+      { refId: "pA", refType: "PURCHASE_GB", entryType: "IN", quantityKg: 100, quantityUnit: 0, incomingPrice: 60000, reversalOfLedgerId: null },
+      { refId: "pL", refType: "PURCHASE_GB", entryType: "IN", quantityKg: 50, quantityUnit: 0, incomingPrice: null, reversalOfLedgerId: null },
+      { refId: "pB", refType: "PURCHASE_GB", entryType: "IN", quantityKg: 50, quantityUnit: 0, incomingPrice: 100000, reversalOfLedgerId: null },
+      reversal("pB", "orig-B"),
+    ]);
+
+    await recomputeProductCostInTx(tx, {
+      tenantId: "tenant-1",
+      productId: "product-1",
+      voidedRefId: "pB",
+      originalRows: [{ quantityKg: 50, quantityUnit: 0, incomingPrice: 100000 }],
+    });
+
+    // stockKg sudah pasca-reversal: sebelum void = 150 + 50.
+    const expected = ((150 + 50) * 67500 - 50 * 100000) / 150;
+    expect(tx.product.update).toHaveBeenCalledWith({
+      where: { id: "product-1" },
+      data: { avgCostPerKg: expected },
+    });
+  });
+
+  it("skips replay when the voided rows have no price (legacy void)", async () => {
+    const tx = transaction();
+    tx.product.findUnique = vi.fn().mockResolvedValue({
+      stockKg: "150",
+      stockUnit: 0,
+      avgCostPerKg: "67500",
+      lastHpp: null,
+    });
+    tx.inventoryLedger.findMany = vi.fn().mockResolvedValue([
+      { refId: "pA", refType: "PURCHASE_GB", entryType: "IN", quantityKg: 100, quantityUnit: 0, incomingPrice: null, reversalOfLedgerId: null },
+      { refId: "pB", refType: "PURCHASE_GB", entryType: "IN", quantityKg: 50, quantityUnit: 0, incomingPrice: null, reversalOfLedgerId: null },
+      reversal("pB"),
+    ]);
+
+    await recomputeProductCostInTx(tx, {
+      tenantId: "tenant-1",
+      productId: "product-1",
+      voidedRefId: "pB",
+      originalRows: [{ quantityKg: 50, quantityUnit: 0, incomingPrice: null }],
+    });
+
+    expect(tx.product.update).not.toHaveBeenCalled();
+  });
+
+  it("excludes legacy voids via refId grouping (no cost leak from voided purchases)", async () => {
+    const tx = transaction();
+    tx.product.findUnique = vi.fn().mockResolvedValue({
+      stockKg: "0",
+      stockUnit: 0,
+      avgCostPerKg: "90000",
+      lastHpp: null,
+    });
+    tx.inventoryLedger.findMany = vi.fn().mockResolvedValue([
+      { refId: "pA", refType: "PURCHASE_GB", entryType: "IN", quantityKg: 100, quantityUnit: 0, incomingPrice: 60000, reversalOfLedgerId: null },
+      reversal("pA"),
+      { refId: "pB", refType: "PURCHASE_GB", entryType: "IN", quantityKg: 100, quantityUnit: 0, incomingPrice: 120000, reversalOfLedgerId: null },
+      { refId: "g1", refType: "GRINDING_RB_OUT", entryType: "OUT", quantityKg: 100, quantityUnit: 0, incomingPrice: null, reversalOfLedgerId: null },
+      reversal("pB", "orig-B"),
+    ]);
+
+    await recomputeProductCostInTx(tx, {
+      tenantId: "tenant-1",
+      productId: "product-1",
+      voidedRefId: "pB",
+      originalRows: [{ quantityKg: 100, quantityUnit: 0, incomingPrice: 120000 }],
+    });
+
+    // Baik A (legacy void) maupun B (void berjalan) dikeluarkan dari basis;
+    // yang tersisa hanya OUT → tidak ada basis IN → cost dinolkan.
+    // Tanpa exklusi refId, basis A 60k akan bocor ke hasil replay.
+    expect(tx.product.update).toHaveBeenCalledWith({
+      where: { id: "product-1" },
+      data: { avgCostPerKg: 0 },
+    });
+  });
+
+  it("uses candidate snapshot when replayed quantity mismatches the cache", async () => {
+    const tx = transaction();
+    tx.product.findUnique = vi.fn().mockResolvedValue({
+      stockKg: "120",
+      stockUnit: 0,
+      avgCostPerKg: "73333.33",
+      lastHpp: null,
+    });
+    tx.inventoryLedger.findMany = vi.fn().mockResolvedValue([
+      { refId: "pA", refType: "PURCHASE_GB", entryType: "IN", quantityKg: 100, quantityUnit: 0, incomingPrice: 60000, reversalOfLedgerId: null },
+      { refId: "pB", refType: "PURCHASE_GB", entryType: "IN", quantityKg: 50, quantityUnit: 0, incomingPrice: 100000, reversalOfLedgerId: null },
+      reversal("pB", "orig-B"),
+    ]);
+
+    await recomputeProductCostInTx(tx, {
+      tenantId: "tenant-1",
+      productId: "product-1",
+      voidedRefId: "pB",
+      originalRows: [{ quantityKg: 50, quantityUnit: 0, incomingPrice: 100000 }],
+    });
+
+    // stockKg sudah pasca-reversal: sebelum void = 120 + 50.
+    const expected = ((120 + 50) * 73333.33 - 50 * 100000) / 120;
+    expect(tx.product.update).toHaveBeenCalledWith({
+      where: { id: "product-1" },
+      data: { avgCostPerKg: expected },
+    });
   });
 });

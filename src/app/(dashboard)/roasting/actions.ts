@@ -1135,6 +1135,7 @@ export async function voidParentRoastingBatch(
             entryType: entry.entryType === "IN" ? "OUT" : "IN",
             refType: "VOID_REVERSAL",
             refId: batch.id,
+            reversalOfLedgerId: entry.id,
             quantityKg: entry.quantityKg,
             quantityUnit: entry.quantityUnit,
             lotId: entry.lotId,
@@ -1150,6 +1151,15 @@ export async function voidParentRoastingBatch(
             data: { consumedAt: entry.entryType === "OUT" ? null : getCurrentDate() },
           });
         }
+      }
+
+      // Phase 2D.2A — lot hasil roasting di-void tidak boleh menampakkan
+      // penempatan hantu; stok fisik kembali ke lot (unplaced) bukan lokasi.
+      if (outputLotIds.length > 0) {
+        await tx.lotPlacement.updateMany({
+          where: { tenantId, lotId: { in: outputLotIds } },
+          data: { quantityKg: 0, quantityUnit: 0, supplyQty: 0 },
+        });
       }
 
       await recordAudit(tx, {

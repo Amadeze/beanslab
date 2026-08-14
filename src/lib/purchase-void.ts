@@ -1,5 +1,5 @@
 import { getCurrentDate } from "@/lib/date-utils";
-import { appendLedger, type LedgerEntryData } from "@/lib/stock";
+import { appendLedger, recomputeProductCostInTx, type LedgerEntryData } from "@/lib/stock";
 import { postVoidReversal } from "@/lib/posting";
 import { recordAudit } from "@/lib/audit";
 
@@ -70,6 +70,7 @@ export async function voidPurchaseCore(
         entryType: "OUT",
         refType: "VOID_REVERSAL",
         refId: purchase.id,
+        reversalOfLedgerId: source.id,
         lotId: source.lotId,
         lotNumber: source.lotNumber,
         expiryDate: source.expiryDate,
@@ -88,6 +89,17 @@ export async function voidPurchaseCore(
         data.quantityUnit = source.quantityUnit;
       }
       await appendLedger(tx, { data });
+
+      // Phase 2D.2A — pulihkan WAC produk dari ledger efektif pasca-void.
+      // Hanya stream produk (GB/RB); packaging & supply tetap seperti existing.
+      if (source.productId) {
+        await recomputeProductCostInTx(tx, {
+          tenantId,
+          productId: source.productId,
+          voidedRefId: purchase.id,
+          originalRows: [source],
+        });
+      }
 
       await tx.purchase.update({
         where: { id: purchase.id },

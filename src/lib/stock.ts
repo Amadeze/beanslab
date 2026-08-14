@@ -18,6 +18,7 @@ export interface LedgerEntryData {
   quantityKg?: FlexibleNumber;
   supplyQuantity?: FlexibleNumber;
   incomingPrice?: FlexibleNumber;
+  reversalOfLedgerId?: string | null;
   lotNumber?: string | null;
   expiryDate?: Date | string | null;
   reference?: string;
@@ -163,21 +164,27 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
   let newAvgCostKg: number | undefined;
   let newAvgCostUnit: number | undefined;
   let newAvgCostSupply: number | undefined;
+  let newLastHppUnit: number | undefined;
   if (isInbound && payload.incomingPrice !== undefined) {
     const incPrice = Number(payload.incomingPrice);
     if (payload.productId) {
       const product = await tx.product.findUnique({
         where: { id: payload.productId },
-        select: { stockKg: true, stockUnit: true, avgCostPerKg: true },
+        select: { stockKg: true, stockUnit: true, avgCostPerKg: true, lastHpp: true },
       });
       if (product && quantityKg > 0) {
         const oldStock = Number(product.stockKg);
         const oldAvg = Number(product.avgCostPerKg ?? 0);
         newAvgCostKg = (oldStock * oldAvg + quantityKg * incPrice) / (oldStock + quantityKg);
       }
-      // FG unit cost is NOT tracked via moving average on avgCostPerKg.
-      // FG cost comes from lastHpp (set by production batches).
-      // AVOID: writing newAvgCostUnit to avgCostPerKg — that corrupts the kg cost.
+      if (product && quantityUnit > 0) {
+        // FG unit cost is NOT tracked via moving average on avgCostPerKg.
+        // FG cost comes from lastHpp (set by production batches).
+        // AVOID: writing newAvgCostUnit to avgCostPerKg — that corrupts the kg cost.
+        const oldUnit = Number(product.stockUnit ?? 0);
+        const oldHpp = Number(product.lastHpp ?? 0);
+        newLastHppUnit = (oldUnit * oldHpp + quantityUnit * incPrice) / (oldUnit + quantityUnit);
+      }
     } else if (payload.packagingId) {
       const pkg = await tx.packaging.findUnique({
         where: { id: payload.packagingId },
@@ -213,6 +220,7 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
             ? { increment: quantityUnit }
             : { decrement: quantityUnit },
           ...(newAvgCostUnit !== undefined ? { avgCostPerKg: newAvgCostUnit } : {}),
+          ...(newLastHppUnit !== undefined ? { lastHpp: newLastHppUnit } : {}),
         },
       });
       if (result.count !== 1) {
@@ -298,9 +306,156 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
   }
 
   const dataToSave = { ...payload };
-  delete dataToSave.incomingPrice; // Ensure incomingPrice is not saved to InventoryLedger
-  
+
   return tx.inventoryLedger.create({ data: dataToSave });
+}
+
+/**
+ * Phase 2D.2A — Recompute WAC sebuah produk terhadap ledger EFEKTIF setelah
+ * transaksi di-void. Stream kg → avgCostPerKg; stream unit → lastHpp.
+ *
+ * Ledger efektif = row asli (bukan reversal) yang:
+ *   • refType-nya bukan VOID_REVERSAL,
+ *   • reversalOfLedgerId NULL, dan
+ *   • refId-nya tidak memiliki row VOID_REVERSAL (transaksi voided all-or-nothing).
+ *
+ * Basis harga lengkap (semua row IN efektif punya incomingPrice) → full replay
+ * eksak dari nol. Basis tidak lengkap (row legacy pra-migrasi) → candidate
+ * snapshot (Q·a − q·p)/(Q − q) hanya bila seluruh originalRows berharga; jika
+ * tidak → cache dibiarkan (hutang akurasi legacy, tercatat di report 2D.2A).
+ */
+export async function recomputeProductCostInTx(
+  tx: TransactionClient,
+  opts: {
+    tenantId: string;
+    productId: string;
+    voidedRefId: string;
+    originalRows: Array<{
+      quantityKg: FlexibleNumber;
+      quantityUnit: FlexibleNumber;
+      incomingPrice: FlexibleNumber;
+    }>;
+  },
+): Promise<void> {
+  const { tenantId, productId, originalRows } = opts;
+
+  const originalTotalKg = originalRows.reduce((sum, row) => sum + Number(row.quantityKg ?? 0), 0);
+  const originalTotalUnit = originalRows.reduce((sum, row) => sum + Number(row.quantityUnit ?? 0), 0);
+  const isKgStream = originalTotalKg > 0 && originalTotalUnit === 0;
+  const voidedQty = isKgStream ? originalTotalKg : originalTotalUnit;
+  if (voidedQty <= 0) return;
+
+  const product = await tx.product.findUnique({
+    where: { id: productId },
+    select: { stockKg: true, stockUnit: true, avgCostPerKg: true, lastHpp: true },
+  });
+  if (!product) return;
+
+  const rows: Array<{
+    refId: string;
+    refType: string;
+    entryType: string;
+    quantityKg: FlexibleNumber;
+    quantityUnit: FlexibleNumber;
+    incomingPrice: FlexibleNumber;
+    reversalOfLedgerId: string | null;
+  }> = await tx.inventoryLedger.findMany({
+    where: { tenantId, productId },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: {
+      refId: true,
+      refType: true,
+      entryType: true,
+      quantityKg: true,
+      quantityUnit: true,
+      incomingPrice: true,
+      reversalOfLedgerId: true,
+    },
+  });
+
+  const voidedRefIds = new Set<string>();
+  for (const row of rows) {
+    if (row.refType === "VOID_REVERSAL") voidedRefIds.add(row.refId);
+  }
+
+  const effective = rows.filter(
+    (row) =>
+      row.refType !== "VOID_REVERSAL" &&
+      row.reversalOfLedgerId == null &&
+      !voidedRefIds.has(row.refId),
+  );
+
+  const streamRows = effective.filter((row) =>
+    isKgStream ? Number(row.quantityKg ?? 0) > 0 : Number(row.quantityUnit ?? 0) > 0,
+  );
+
+  const inRows = streamRows.filter((row) => row.entryType === "IN");
+  const pricedInCount = inRows.filter((row) => row.incomingPrice != null).length;
+  const currentStock = isKgStream
+    ? Number(product.stockKg ?? 0)
+    : Number(product.stockUnit ?? 0);
+
+  const writeCost = async (avg: number) => {
+    await tx.product.update({
+      where: { id: productId },
+      data: isKgStream ? { avgCostPerKg: avg } : { lastHpp: avg },
+    });
+  };
+
+  const candidateSnapshot = async (): Promise<boolean> => {
+    const allPriced = originalRows.every(
+      (row) => row.incomingPrice != null && Number(row.incomingPrice) >= 0,
+    );
+    if (!allPriced) return false;
+    if (currentStock <= (isKgStream ? 1e-6 : 0)) {
+      await writeCost(0);
+      return true;
+    }
+    const currentAvg = isKgStream
+      ? Number(product.avgCostPerKg ?? 0)
+      : Number(product.lastHpp ?? 0);
+    const voidedValue = originalRows.reduce((sum, row) => {
+      const quantity = isKgStream ? Number(row.quantityKg ?? 0) : Number(row.quantityUnit ?? 0);
+      return sum + quantity * Number(row.incomingPrice);
+    }, 0);
+    // currentStock sudah merupakan stok SETELAH reversal OUT terhadap IN yang
+    // di-void. Rekonstruksi basis sebelum void dengan menambahkan kembali q,
+    // lalu keluarkan nilai transaksi yang di-void tepat satu kali.
+    const preVoidStock = currentStock + voidedQty;
+    const restored = (preVoidStock * currentAvg - voidedValue) / currentStock;
+    await writeCost(restored);
+    return true;
+  };
+
+  if (inRows.length === 0) {
+    // Seluruh basis IN produk ini ikut ter-void (mis. batch eksperimen tunggal).
+    if (currentStock <= (isKgStream ? 1e-6 : 0)) await writeCost(0);
+    return;
+  }
+
+  if (pricedInCount === inRows.length) {
+    let qty = 0;
+    let avg = 0;
+    for (const row of streamRows) {
+      const q = isKgStream ? Number(row.quantityKg) : Number(row.quantityUnit);
+      if (row.entryType === "IN") {
+        const price = Number(row.incomingPrice);
+        avg = qty + q > 0 ? (avg * qty + q * price) / (qty + q) : price;
+        qty += q;
+      } else {
+        qty -= q;
+      }
+    }
+    const tolerance = isKgStream ? 1e-6 : 0;
+    if (Math.abs(qty - currentStock) > tolerance) {
+      await candidateSnapshot();
+      return;
+    }
+    await writeCost(avg);
+    return;
+  }
+
+  await candidateSnapshot();
 }
 
 /**

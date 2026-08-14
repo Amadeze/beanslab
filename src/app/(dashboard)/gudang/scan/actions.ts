@@ -48,6 +48,12 @@ export async function scanLocation(code: string): Promise<{ success: boolean; da
     where: {
       tenantId,
       locationId: location.id,
+      OR: [
+        { quantityKg: { gt: 0 } },
+        { quantityUnit: { gt: 0 } },
+        { supplyQty: { gt: 0 } },
+      ],
+      lot: { consumedAt: null },
     },
     include: {
       lot: {

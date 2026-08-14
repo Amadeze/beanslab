@@ -2011,6 +2011,14 @@ model InventoryLedger {
   quantityUnit   Int? // diisi untuk FG & Packaging
   supplyQuantity Decimal? @db.Decimal(12, 3) // diisi untuk Supply (baseUnit item, pecahan)
 
+  // ── Cost basis (Phase 2D.2A) ──
+  // Harga satuan pada saat entry IN; basis kalkulasi ulang WAC saat void.
+  // Rows lama (pra-migrasi) bernilai null — basis harga dianggap tidak lengkap.
+  incomingPrice      Decimal? @db.Decimal(12, 2)
+  // ID InventoryLedger asal yang dibalik (jika entry ini adalah VOID_REVERSAL).
+  // Memberi pasangan reversal yang deterministik di level baris.
+  reversalOfLedgerId String?
+
   // ── Lot / Traceability ──
   lotNumber  String? // nomor lot / batch dari supplier
   expiryDate DateTime? // tanggal kedaluwarsa (best before)

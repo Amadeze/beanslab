@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { appendFefoLedgerOut, appendLedger } from "@/lib/stock";
+import { appendFefoLedgerOut, appendLedger, recomputeProductCostInTx } from "@/lib/stock";
 import { allocateProducedStockToDemand } from "@/lib/storefront-commerce";
 import { getCurrentTenantId, getSystemUserId, requireRole, requireTenantPrisma } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
@@ -754,12 +754,6 @@ export async function createProductionBatch(
         });
       }
 
-      // Read current stock BEFORE incrementing (for weighted HPP calculation)
-      const currentProduct = await tx.product.findUnique({
-        where: { id: input.outputProductId },
-        select: { stockUnit: true, lastHpp: true },
-      });
-
       // Finished Goods masuk
       const outputLot = await tx.lot.create({
         data: {
@@ -783,6 +777,7 @@ export async function createProductionBatch(
           refType:      "PRODUCTION_FG_IN",
           refId:        batch.id,
           quantityUnit: input.unitsProduced,
+          incomingPrice: hppPerUnit,
           lotId:        outputLot.id,
           lotNumber:    outputLot.batchCode,
           notes:        `Produksi: ${batch.code}`,
@@ -797,18 +792,6 @@ export async function createProductionBatch(
         productId: input.outputProductId,
         createdById: userId,
         now: getCurrentDate(),
-      });
-
-      // Weighted average: blend current stock cost with new batch cost
-      const currentStock = Number(currentProduct?.stockUnit ?? 0);
-      const currentAvg = Number(currentProduct?.lastHpp ?? 0);
-      const weightedHpp = currentStock > 0
-        ? (currentStock * currentAvg + input.unitsProduced * hppPerUnit) / (currentStock + input.unitsProduced)
-        : hppPerUnit;
-
-      await tx.product.update({
-        where: { id: input.outputProductId },
-        data: { lastHpp: weightedHpp },
       });
 
       await postProductionBatch(
@@ -922,6 +905,7 @@ export async function voidProductionBatch(
             entryType:     entry.entryType === "IN" ? "OUT" : "IN",
             refType:       "VOID_REVERSAL",
             refId:         batchId,
+            reversalOfLedgerId: entry.id,
             quantityKg:    isSupply ? undefined : entry.quantityKg,
             quantityUnit:  isSupply ? undefined : entry.quantityUnit,
             supplyQuantity: isSupply ? entry.supplyQuantity : undefined,
@@ -940,24 +924,35 @@ export async function voidProductionBatch(
         }
       }
 
+      if (outputLotIds.length > 0) {
+        await tx.lotPlacement.updateMany({
+          where: { tenantId, lotId: { in: outputLotIds } },
+          data: { quantityKg: 0, quantityUnit: 0, supplyQty: 0 },
+        });
+      }
+
+      // Phase 2D.2A — pulihkan WAC (avgCostPerKg / lastHpp) dari ledger efektif
+      const productRows = new Map<string, Array<(typeof ledgerEntries)[number]>>();
+      for (const entry of ledgerEntries) {
+        if (!entry.productId) continue;
+        const list = productRows.get(entry.productId) ?? [];
+        list.push(entry);
+        productRows.set(entry.productId, list);
+      }
+      for (const [productId, rows] of productRows) {
+        await recomputeProductCostInTx(tx, {
+          tenantId,
+          productId,
+          voidedRefId: batchId,
+          originalRows: rows,
+        });
+      }
+
       await tx.productionBatch.update({
         where: { id: batchId },
         data: { status: "VOID", voidReason: reason.trim(), voidAt: getCurrentDate() },
       });
       await postVoidReversal("PRODUCTION", batch.id, reason, { tx, tenantId, userId });
-      const previousBatch = await tx.productionBatch.findFirst({
-        where: {
-          outputProductId: batch.outputProductId,
-          status: "COMPLETED",
-          id: { not: batch.id },
-        },
-        orderBy: { producedAt: "desc" },
-        select: { hppPerUnit: true },
-      });
-      await tx.product.update({
-        where: { id: batch.outputProductId },
-        data: { lastHpp: previousBatch?.hppPerUnit ?? null },
-      });
 
       await recordAudit(tx, {
         tenantId,
