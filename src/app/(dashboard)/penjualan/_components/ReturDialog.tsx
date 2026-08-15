@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -34,9 +34,11 @@ export function ReturDialog({
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const opKeyRef = useRef<string>("");
 
   useEffect(() => {
     if (open && invoiceId) {
+      opKeyRef.current = crypto.randomUUID();
       setLoading(true);
       getInvoiceForReturn(invoiceId)
         .then((result) => {
@@ -77,7 +79,7 @@ export function ReturDialog({
         .filter(([, qty]) => qty > 0)
         .map(([productId, quantity]) => ({ productId, quantity }));
 
-      const res = await createCreditNote({ invoiceId, reason: normalizedReason, items });
+      const res = await createCreditNote({ invoiceId, reason: normalizedReason, items, operationKey: opKeyRef.current });
       if (res.success) {
         toast.success(`Retur ${res.creditNoteCode} berhasil`);
         onSuccess?.();

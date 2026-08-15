@@ -39,6 +39,7 @@ interface CatatModalDialogProps {
 
 export function CatatModalDialog({ type, open, onOpenChange, onSuccess }: CatatModalDialogProps) {
   const [submitting, setSubmitting] = useState(false);
+  const [operationKey, setOperationKey] = useState("");
 
   const {
     register,
@@ -61,6 +62,7 @@ export function CatatModalDialog({ type, open, onOpenChange, onSuccess }: CatatM
         description: "",
         transactionDate: getTodayString(),
       });
+      setOperationKey(crypto.randomUUID());
     }
   }, [open, reset]);
 
@@ -75,6 +77,7 @@ export function CatatModalDialog({ type, open, onOpenChange, onSuccess }: CatatM
         amount: data.amount,
         description: data.description || undefined,
         transactionDate: data.transactionDate,
+        operationKey,
       });
 
       if (result.success) {

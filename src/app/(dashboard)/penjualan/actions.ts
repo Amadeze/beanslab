@@ -814,48 +814,61 @@ export async function voidInvoice(
     await requireRole("OWNER", "MANAGER");
     const userId = await getSystemUserId();
     const tenantId = await getCurrentTenantId();
+    const tenantPrisma = await requireTenantPrisma();
 
-    const inv = await (await requireTenantPrisma()).invoice.findUnique({
-      where: { id: invoiceId },
-      include: { items: true },
-    });
+    await withSerializableRetry(tenantPrisma, async (tx) => {
+      const lockedRows = await tx.$queryRaw`
+        SELECT "id" FROM "invoices"
+        WHERE "id" = ${invoiceId} AND "tenantId" = ${tenantId}
+        FOR UPDATE
+      ` as Array<{ id: string }>;
+      if (lockedRows.length === 0) throw new Error("Nota tidak ditemukan.");
 
-    if (!inv)                  return { success: false, error: "Nota tidak ditemukan." };
-    if (inv.status === "VOID") return { success: false, error: "Nota sudah di-void." };
-    if (Number(inv.paidAmount) > 0 || inv.status === "PAID" || inv.status === "PARTIAL") {
-      return { success: false, error: "Void semua pembayaran nota terlebih dahulu sebelum membatalkan nota." };
-    }
-
-    await (await requireTenantPrisma()).$transaction(async (tx) => {
-      const saleEntries = await tx.inventoryLedger.findMany({
-        where: { refId: invoiceId, refType: "SALE_FG_OUT", entryType: "OUT" },
+      const inv = await tx.invoice.findUnique({
+        where: { id: invoiceId },
+        include: { items: true },
       });
-      if (saleEntries.length > 0) {
-        // Kembalikan stok ke lot asal agar traceability tidak terputus.
-        for (const entry of saleEntries) {
-          await appendLedger(tx, {
-            data: {
-              tenantId,
-              productId:    entry.productId,
-              entryType:    "IN",
-              refType:      "VOID_REVERSAL",
-              refId:        invoiceId,
-              reversalOfLedgerId: entry.id,
-              quantityUnit: entry.quantityUnit,
-              lotId:        entry.lotId,
-              lotNumber:    entry.lotNumber,
-              expiryDate:   entry.expiryDate,
-              notes:        `VOID reversal: ${inv.code}`,
-              createdById: userId,
-            },
-          });
-          if (entry.lotId) {
-            await tx.lot.update({ where: { id: entry.lotId }, data: { consumedAt: null } });
+      if (!inv) throw new Error("Nota tidak ditemukan.");
+      if (inv.status === "VOID") throw new Error("Nota sudah di-void.");
+      if (Number(inv.paidAmount) > 0 || inv.status === "PAID" || inv.status === "PARTIAL") {
+        throw new Error("Void semua pembayaran nota terlebih dahulu sebelum membatalkan nota.");
+      }
+
+      const alreadyReversed = await tx.inventoryLedger.count({
+        where: { tenantId, refId: invoiceId, refType: "VOID_REVERSAL" },
+      });
+
+      if (alreadyReversed === 0) {
+        const saleEntries = await tx.inventoryLedger.findMany({
+          where: { refId: invoiceId, refType: "SALE_FG_OUT", entryType: "OUT" },
+        });
+        if (saleEntries.length > 0) {
+          // Kembalikan stok ke lot asal agar traceability tidak terputus.
+          for (const entry of saleEntries) {
+            await appendLedger(tx, {
+              data: {
+                tenantId,
+                productId:    entry.productId,
+                entryType:    "IN",
+                refType:      "VOID_REVERSAL",
+                refId:        invoiceId,
+                reversalOfLedgerId: entry.id,
+                quantityUnit: entry.quantityUnit,
+                lotId:        entry.lotId,
+                lotNumber:    entry.lotNumber,
+                expiryDate:   entry.expiryDate,
+                notes:        `VOID reversal: ${inv.code}`,
+                createdById: userId,
+              },
+            });
+            if (entry.lotId) {
+              await tx.lot.update({ where: { id: entry.lotId }, data: { consumedAt: null } });
+            }
           }
+          await postVoidReversal("INVOICE", invoiceId, reason, { tx, tenantId, userId });
+        } else {
+          await releaseInvoiceReservations(tx, invoiceId, "RELEASED", getCurrentDate());
         }
-        await postVoidReversal("INVOICE", invoiceId, reason, { tx, tenantId, userId });
-      } else {
-        await releaseInvoiceReservations(tx, invoiceId, "RELEASED", getCurrentDate());
       }
 
       await tx.invoice.update({
@@ -1107,6 +1120,7 @@ export async function updateInvoiceShipping(
 export type CreditNoteInput = {
   invoiceId: string;
   reason: string;
+  operationKey?: string;
   items: {
     productId: string;
     quantity: number;
@@ -1139,10 +1153,27 @@ export async function createCreditNote(input: CreditNoteInput) {
     }
 
     const { invoiceId, items } = input;
+    const opKey = input.operationKey || randomBytes(16).toString("hex");
     const tp = await requireTenantPrisma();
+    const previousAttempt = await tp.creditNote.findFirst({
+      where: { operationKey: opKey },
+      select: { code: true },
+    });
+    if (previousAttempt) {
+      return { success: true, creditNoteCode: previousAttempt.code };
+    }
     let creditNoteCode = "";
 
     await withSerializableRetry(tp, async (tx) => {
+      const committedAttempt = await tx.creditNote.findFirst({
+        where: { operationKey: opKey },
+        select: { code: true },
+      });
+      if (committedAttempt) {
+        creditNoteCode = committedAttempt.code;
+        return;
+      }
+
       const lockedRows = await tx.$queryRaw`
         SELECT "id" FROM "invoices"
         WHERE "id" = ${invoiceId} AND "tenantId" = ${tenantId}
@@ -1208,6 +1239,7 @@ export async function createCreditNote(input: CreditNoteInput) {
           invoiceId,
           total: totalReturnedAmount,
           reason: normalizedReason,
+          operationKey: opKey,
           tenantId,
           items: {
             create: cnItemsData,
@@ -1292,6 +1324,16 @@ export async function createCreditNote(input: CreditNoteInput) {
 
     return { success: true, creditNoteCode };
   } catch (error: any) {
+    if (
+      error && typeof error === "object" && "code" in error && error.code === "P2002"
+      && input.operationKey
+    ) {
+      const existing = await (await requireTenantPrisma()).creditNote.findFirst({
+        where: { operationKey: input.operationKey },
+        select: { code: true },
+      });
+      if (existing) return { success: true, creditNoteCode: existing.code };
+    }
     console.error("Create Credit Note Error:", error);
     return { success: false, error: error.message || "Terjadi kesalahan internal." };
   }

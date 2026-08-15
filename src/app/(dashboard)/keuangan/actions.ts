@@ -438,9 +438,23 @@ export async function createExpense(input: CreateExpenseInput): Promise<CreateEx
     const userId = await getSystemUserId();
     const tenantId = await getCurrentTenantId();
     
-    const expense = await (await requireTenantPrisma()).$transaction(async (tx) => {
+    const opKey = parsed.operationKey || randomBytes(16).toString("hex");
+    const tenantPrisma = await requireTenantPrisma();
+    const previousAttempt = await tenantPrisma.expense.findFirst({
+      where: { operationKey: opKey },
+      select: { id: true },
+    });
+    if (previousAttempt) return { success: true, id: previousAttempt.id };
+
+    const expense = await tenantPrisma.$transaction(async (tx) => {
+      const committedAttempt = await tx.expense.findFirst({
+        where: { operationKey: opKey },
+        select: { id: true },
+      });
+      if (committedAttempt) return committedAttempt;
+
       const created = await tx.expense.create({
-        data: { tenantId, date: new Date(parsed.date + "T00:00:00"), category: parsed.category, amount: parsed.amount, description: parsed.description || null, createdById: userId },
+        data: { tenantId, date: new Date(parsed.date + "T00:00:00"), category: parsed.category, amount: parsed.amount, description: parsed.description || null, operationKey: opKey, createdById: userId },
       });
       await recordAudit(tx, {
         tenantId,
@@ -464,18 +478,21 @@ export async function createExpense(input: CreateExpenseInput): Promise<CreateEx
       );
       return created;
     });
-    
-    if ('isDuplicate' in expense && expense.isDuplicate) {
-      return { success: true, id: expense.id };
-    }
 
     revalidatePath("/keuangan");
     revalidatePath("/laporan");
 
     return { success: true, id: expense.id };
   } catch (err: unknown) {
-    if (typeof err === "object" && err !== null && "code" in err && err.code === "P2002") {
-      return { success: false, error: "Transaksi sedang diproses. Mohon tunggu sebentar." };
+    if (
+      typeof err === "object" && err !== null && "code" in err && err.code === "P2002"
+      && input.operationKey
+    ) {
+      const existing = await (await requireTenantPrisma()).expense.findFirst({
+        where: { operationKey: input.operationKey },
+        select: { id: true },
+      });
+      if (existing) return { success: true, id: existing.id };
     }
     console.error("[createExpense]", err);
     return { success: false, error: "Gagal mencatat pengeluaran. Coba lagi." };
@@ -510,6 +527,7 @@ export type RecordCapitalInput = {
   amount: number;
   description?: string;
   transactionDate: string;
+  operationKey?: string;
 };
 
 export async function getCapitalHistory(): Promise<CapitalTransactionRow[]> {
@@ -595,7 +613,20 @@ export async function recordCapitalInjection(
     const userId = await getSystemUserId();
     const tenantId = await getCurrentTenantId();
     const tp = await requireTenantPrisma();
-    await tp.$transaction(async (tx) => {
+    const opKey = input.operationKey || randomBytes(16).toString("hex");
+    const previousAttempt = await tp.capitalTransaction.findFirst({
+      where: { operationKey: opKey },
+      select: { id: true },
+    });
+    if (previousAttempt) return { success: true };
+
+    await withSerializableRetry(tp, async (tx) => {
+      const committedAttempt = await tx.capitalTransaction.findFirst({
+        where: { operationKey: opKey },
+        select: { id: true },
+      });
+      if (committedAttempt) return;
+
       const capitalTxn = await tx.capitalTransaction.create({
         data: {
           tenantId,
@@ -603,6 +634,7 @@ export async function recordCapitalInjection(
           amount: input.amount,
           description: input.description?.trim() || null,
           transactionDate: transDate,
+          operationKey: opKey,
           createdById: userId,
         },
       });
@@ -620,11 +652,21 @@ export async function recordCapitalInjection(
         input.description ?? "Setoran modal",
         { tx, tenantId, userId },
       );
-    }, { isolationLevel: "Serializable" });
+    });
     revalidatePath("/keuangan");
     revalidatePath("/laporan");
     return { success: true };
   } catch (error) {
+    if (
+      typeof error === "object" && error !== null && "code" in error
+      && (error as { code?: string }).code === "P2002" && input.operationKey
+    ) {
+      const existing = await (await requireTenantPrisma()).capitalTransaction.findFirst({
+        where: { operationKey: input.operationKey },
+        select: { id: true },
+      });
+      if (existing) return { success: true };
+    }
     console.error("[recordCapitalInjection]", error);
     return {
       success: false,
@@ -655,7 +697,53 @@ export async function recordOwnerWithdrawal(
     const userId = await getSystemUserId();
     const tenantId = await getCurrentTenantId();
     const tp = await requireTenantPrisma();
-    await tp.$transaction(async (tx) => {
+    const opKey = input.operationKey || randomBytes(16).toString("hex");
+    const previousAttempt = await tp.capitalTransaction.findFirst({
+      where: { operationKey: opKey },
+      select: { id: true },
+    });
+    if (previousAttempt) return { success: true };
+
+    // Validasi saldo modal OTORITATIF di dalam transaksi, di bawah lock
+    // tenant-scoped. Tanpa lock, dua prive bersamaan bisa lolos dari snapshot
+    // yang sama (TOCTOU) dan menarik melebihi modal yang tersedia.
+    await withSerializableRetry(tp, async (tx) => {
+      const committedAttempt = await tx.capitalTransaction.findFirst({
+        where: { operationKey: opKey },
+        select: { id: true },
+      });
+      if (committedAttempt) return;
+
+      const lockedRows = await tx.$queryRaw`
+        SELECT "id" FROM "capital_transactions"
+        WHERE "tenantId" = ${tenantId}
+        FOR UPDATE
+      ` as Array<{ id: string }>;
+      if (lockedRows.length === 0) {
+        await tx.$queryRaw`
+          SELECT "id" FROM "tenants"
+          WHERE "id" = ${tenantId}
+          FOR UPDATE
+        `;
+      }
+
+      const [initial, injections, withdrawals, dividends] = await Promise.all([
+        tx.capitalTransaction.aggregate({ where: { type: "INITIAL" }, _sum: { amount: true } }),
+        tx.capitalTransaction.aggregate({ where: { type: "INJECTION" }, _sum: { amount: true } }),
+        tx.capitalTransaction.aggregate({ where: { type: "WITHDRAWAL" }, _sum: { amount: true } }),
+        tx.capitalTransaction.aggregate({ where: { type: "DIVIDEND" }, _sum: { amount: true } }),
+      ]);
+      const netCapital =
+        Number(initial._sum.amount ?? 0)
+        + Number(injections._sum.amount ?? 0)
+        - Number(withdrawals._sum.amount ?? 0)
+        - Number(dividends._sum.amount ?? 0);
+      if (input.amount > netCapital) {
+        throw new Error(
+          `Saldo modal hanya Rp ${netCapital.toLocaleString("id-ID")}, tidak cukup untuk prive sebesar Rp ${input.amount.toLocaleString("id-ID")}.`,
+        );
+      }
+
       const capitalTxn = await tx.capitalTransaction.create({
         data: {
           tenantId,
@@ -663,6 +751,7 @@ export async function recordOwnerWithdrawal(
           amount: input.amount,
           description: input.description?.trim() || null,
           transactionDate: transDate,
+          operationKey: opKey,
           createdById: userId,
         },
       });
@@ -680,11 +769,21 @@ export async function recordOwnerWithdrawal(
         input.description ?? "Penarikan prive",
         { tx, tenantId, userId },
       );
-    }, { isolationLevel: "Serializable" });
+    });
     revalidatePath("/keuangan");
     revalidatePath("/laporan");
     return { success: true };
   } catch (error) {
+    if (
+      typeof error === "object" && error !== null && "code" in error
+      && (error as { code?: string }).code === "P2002" && input.operationKey
+    ) {
+      const existing = await (await requireTenantPrisma()).capitalTransaction.findFirst({
+        where: { operationKey: input.operationKey },
+        select: { id: true },
+      });
+      if (existing) return { success: true };
+    }
     console.error("[recordOwnerWithdrawal]", error);
     return {
       success: false,
@@ -1026,7 +1125,31 @@ export async function recordSupplierPayment(input: RecordSupplierPaymentInput) {
     const paymentCode = `${prefix}-${randomBytes(4).toString("hex").toUpperCase()}`;
     const tenantPrisma = await requireTenantPrisma();
 
-    const result = await tenantPrisma.$transaction(async (tx) => {
+    const opKey = input.operationKey || randomBytes(16).toString("hex");
+    const previousAttempt = await tenantPrisma.supplierPayment.findFirst({
+      where: { operationKey: opKey },
+      select: { id: true, purchase: { select: { paymentStatus: true } } },
+    });
+    if (previousAttempt) {
+      return { success: true, newStatus: previousAttempt.purchase.paymentStatus };
+    }
+
+    const result = await withSerializableRetry(tenantPrisma, async (tx) => {
+      const lockedRows = await tx.$queryRaw`
+        SELECT "id" FROM "purchases"
+        WHERE "id" = ${input.purchaseId} AND "tenantId" = ${tenantId}
+        FOR UPDATE
+      ` as Array<{ id: string }>;
+      if (lockedRows.length === 0) throw new Error("Pembelian tidak ditemukan.");
+
+      const committedAttempt = await tx.supplierPayment.findFirst({
+        where: { operationKey: opKey },
+        select: { id: true },
+      });
+      if (committedAttempt) {
+        return { paymentStatus: "PARTIAL", purchaseCode: "", supplierName: "", isDuplicate: true };
+      }
+
       const purchase = await tx.purchase.findUnique({
         where: { id: input.purchaseId },
         select: {
@@ -1057,6 +1180,7 @@ export async function recordSupplierPayment(input: RecordSupplierPaymentInput) {
         data: {
           tenantId,
           code: paymentCode,
+          operationKey: opKey,
           purchaseId: purchase.id,
           amount: input.amount,
           method: input.method,
@@ -1090,10 +1214,10 @@ export async function recordSupplierPayment(input: RecordSupplierPaymentInput) {
         purchase.supplier?.name ?? "Supplier",
         { tx, tenantId, userId },
       );
-      return { paymentStatus, purchaseCode: purchase.code, supplierName: purchase.supplier?.name ?? "Supplier" };
-    }, { isolationLevel: "Serializable" });
+      return { paymentStatus, purchaseCode: purchase.code, supplierName: purchase.supplier?.name ?? "Supplier", isDuplicate: false };
+    });
 
-    if ('isDuplicate' in result && result.isDuplicate) {
+    if (result.isDuplicate) {
       return { success: true, newStatus: result.paymentStatus };
     }
 
@@ -1102,7 +1226,12 @@ export async function recordSupplierPayment(input: RecordSupplierPaymentInput) {
 
     return { success: true, newStatus: result.paymentStatus };
   } catch (error: any) {
-    if (error.code === "P2002") {
+    if (error.code === "P2002" && input.operationKey) {
+      const existing = await (await requireTenantPrisma()).supplierPayment.findFirst({
+        where: { operationKey: input.operationKey },
+        select: { id: true, purchase: { select: { paymentStatus: true } } },
+      });
+      if (existing) return { success: true, newStatus: existing.purchase.paymentStatus };
       return { success: false, error: "Pembayaran sedang diproses. Mohon tunggu sebentar." };
     }
     console.error("[recordSupplierPayment]", error);
