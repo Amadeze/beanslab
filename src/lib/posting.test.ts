@@ -29,6 +29,7 @@ const mockTx = {
         "1-1230": "acct-kemasan",
         "2-1000": "acct-hutang",
         "2-1300": "acct-uang-muka-pelanggan",
+        "2-1400": "acct-refund-pelanggan",
         "3-1000": "acct-modal",
         "3-1010": "acct-prive",
         "4-1000": "acct-penjualan",
@@ -100,6 +101,7 @@ function acctCode(acctId: string): string {
     "acct-kemasan": "1-1230",
     "acct-hutang": "2-1000",
     "acct-uang-muka-pelanggan": "2-1300",
+    "acct-refund-pelanggan": "2-1400",
     "acct-modal": "3-1000",
     "acct-prive": "3-1010",
     "acct-penjualan": "4-1000",
@@ -144,7 +146,7 @@ describe("journal idempotency", () => {
 });
 
 describe("postVoidReversal", () => {
-  it("swaps debit and credit and marks the source journal void", async () => {
+  it("swaps debit and credit and keeps the source journal active", async () => {
     mockTx.journalEntry.findMany
       .mockResolvedValueOnce([
         {
@@ -167,10 +169,7 @@ describe("postVoidReversal", () => {
     expect(result.refType).toBe("VOID_REVERSAL");
     expectLine(result, "4-1000", 200_000, 0);
     expectLine(result, "1-1100", 0, 200_000);
-    expect(mockTx.journalEntry.update).toHaveBeenCalledWith({
-      where: { id: "source-je" },
-      data: { voidAt: new Date("2026-07-27"), voidReason: "Salah input" },
-    });
+    expect(mockTx.journalEntry.update).not.toHaveBeenCalled();
   });
 
   it("creates one uniquely keyed reversal for every source journal", async () => {
@@ -204,13 +203,13 @@ describe("postVoidReversal", () => {
       "invoice-1:source-je-1",
       "invoice-1:source-je-2",
     ]);
-    expect(mockTx.journalEntry.update).toHaveBeenCalledTimes(2);
+    expect(mockTx.journalEntry.update).not.toHaveBeenCalled();
   });
 });
 
 describe("postCreditNote", () => {
   it("debits revenue and credits receivable", async () => {
-    await postCreditNote("cn-1", 500_000, "INV-001");
+    await postCreditNote("cn-1", 500_000, "INV-001", "inv-1", [], {}, { taxAmount: 0, arPortion: 500_000, refundPortion: 0 });
     const result = getCreatedLines();
     expect(result.description).toBe("Retur penjualan — INV-001");
     expect(result.refType).toBe("CREDIT_NOTE");
@@ -219,28 +218,38 @@ describe("postCreditNote", () => {
   });
 
   it("reverses COGS and restores inventory for returned goods", async () => {
-    await postCreditNote("cn-2", 500_000, "INV-002", [
-      { productType: "FINISHED_GOODS", hpp: 120_000, quantity: 2 },
-    ]);
+    await postCreditNote(
+      "cn-2",
+      500_000,
+      "INV-002",
+      "inv-2",
+      [
+        { productType: "FINISHED_GOODS", hpp: 120_000, quantity: 2 },
+      ],
+      {},
+      { taxAmount: 0, arPortion: 500_000, refundPortion: 0 },
+    );
     const result = getCreatedLines();
-    expectLine(result, "1-1220", 240_000, 0);
+    expectLine(result, "4-1000", 500_000, 0);
+    expectLine(result, "1-1100", 0, 500_000);
     expectLine(result, "5-1000", 0, 240_000);
   });
 
-  it("reverses tax on top of the net returned amount", async () => {
+  it("reverses tax and credits refund payable when fully prepaid", async () => {
     await postCreditNote(
       "cn-tax",
       111_000,
       "INV-TAX",
+      "inv-tax",
       [],
       {},
-      { refundToCash: false, taxAmount: 11_000 },
+      { taxAmount: 11_000, arPortion: 0, refundPortion: 111_000 },
     );
 
     const result = getCreatedLines();
     expectLine(result, "4-1000", 100_000, 0);
     expectLine(result, "2-1100", 11_000, 0);
-    expectLine(result, "1-1100", 0, 111_000);
+    expectLine(result, "2-1400", 0, 111_000);
   });
 });
 

@@ -25,6 +25,7 @@ const MEDIUM_TEMPLATE: CoaAccountDef[] = [
   { code: "2-1100", name: "Utang Pajak", type: "LIABILITY" },
   { code: "2-1200", name: "Utang Bank", type: "LIABILITY" },
   { code: "2-1300", name: "Uang Muka Pelanggan", type: "LIABILITY", isSystem: true },
+  { code: "2-1400", name: "Refund Pelanggan", type: "LIABILITY" },
 
   // ── EQUITY (3) ──
   { code: "3-1000", name: "Modal Pemilik", type: "EQUITY", isSystem: true },
@@ -65,6 +66,7 @@ const MICRO_TEMPLATE: CoaAccountDef[] = [
   { code: "1-1300", name: "Peralatan", type: "ASSET" },
   { code: "2-1000", name: "Utang Usaha", type: "LIABILITY", isSystem: true },
   { code: "2-1300", name: "Uang Muka Pelanggan", type: "LIABILITY", isSystem: true },
+  { code: "2-1400", name: "Refund Pelanggan", type: "LIABILITY" },
   { code: "3-1000", name: "Modal", type: "EQUITY", isSystem: true },
   { code: "3-1010", name: "Prive", type: "EQUITY", isSystem: true },
   { code: "3-1020", name: "Laba Ditahan", type: "EQUITY", isSystem: true },

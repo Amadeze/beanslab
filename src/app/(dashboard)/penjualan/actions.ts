@@ -1261,15 +1261,20 @@ export async function createCreditNote(input: CreditNoteInput) {
         });
       }
 
-      // Pajak dialokasikan proporsional terhadap item invoice yang diretur.
-      const refundToCash =
-        inv.status === "PAID" &&
-        Number(inv.paidAmount) >= Number(inv.grandTotal) - Number(inv.returnedAmount);
+      // Alokasikan retur antara Piutang (porsi tagihan yang masih outstanding)
+      // dan liabilitas Refund Pelanggan (porsi uang muka pelanggan). Kas TIDAK
+      // berubah di sini — pengembalian kas dilakukan di fase terpisah.
+      const round2 = (n: number) => Math.round(n * 100) / 100;
+      const originalOutstanding = Number(inv.grandTotal) - Number(inv.paidAmount);
+      const cumulativeReturnBefore = Number(inv.returnedAmount);
+      const arPortion = round2(Math.max(0, Math.min(totalReturnedAmount, originalOutstanding - cumulativeReturnBefore)));
+      const refundPortion = round2(Math.max(0, totalReturnedAmount - arPortion));
 
       await postCreditNote(
         creditNote.id,
         totalReturnedAmount,
         inv.code,
+        invoiceId,
         items.map((item) => {
           const invoiceItem = inv.items.find((candidate) => candidate.productId === item.productId)!;
           return {
@@ -1279,7 +1284,7 @@ export async function createCreditNote(input: CreditNoteInput) {
           };
         }),
         { tx, tenantId, userId },
-        { refundToCash, taxAmount: returnedTaxAmount },
+        { taxAmount: returnedTaxAmount, arPortion, refundPortion },
       );
     });
 

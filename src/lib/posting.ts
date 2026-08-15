@@ -154,8 +154,6 @@ export async function postVoidReversal(
     const reversalCode = await postJournalEntry({
       date: getCurrentDate(),
       description: `Pembatalan: ${source.description}`,
-      // Satu transaksi bisnis dapat menghasilkan beberapa jurnal sumber.
-      // Gunakan id jurnal sumber agar setiap reversal punya idempotency key unik.
       reference: `${sourceReference}:${source.id}`,
       refType: "VOID_REVERSAL",
       lines: source.lines.map((line) => ({
@@ -165,11 +163,6 @@ export async function postVoidReversal(
       })),
     }, { tx, tenantId, userId });
     if (!firstCode) firstCode = reversalCode;
-
-    await tx.journalEntry.update({
-      where: { id: source.id },
-      data: { voidAt: getCurrentDate(), voidReason: reason.trim() },
-    });
   }
 
   return firstCode;
@@ -351,15 +344,20 @@ export async function postCustomerPrepayment(
   }, options);
 }
 
+export const REFUND_PAYABLE_ACCOUNT = "2-1400"; // Refund Pelanggan (liabilitas)
+
 export async function postCreditNote(
   creditNoteId: string,
   totalReturned: number,
   invoiceCode: string,
+  invoiceId: string,
   items: Array<{ productType?: ProductType; hpp: number; quantity: number }> = [],
   options: PostingOptions = {},
-  taxInfo?: { refundToCash: boolean; taxAmount: number },
+  taxInfo?: { taxAmount: number; arPortion: number; refundPortion: number },
 ): Promise<string> {
   const taxAmount = Math.min(taxInfo?.taxAmount ?? 0, totalReturned);
+  const arPortion = taxInfo?.arPortion ?? 0;
+  const refundPortion = taxInfo?.refundPortion ?? 0;
   const netReturn = totalReturned - taxAmount;
   const lines: PostingLine[] = [
     { accountCode: "4-1000", debit: netReturn, credit: 0 },
@@ -367,16 +365,23 @@ export async function postCreditNote(
   if (taxAmount > 0) {
     lines.push({ accountCode: "2-1100", debit: taxAmount, credit: 0 });
   }
-  // Invoice lunas tunai → refund ke kas; invoice kredit → kurangi piutang.
-  lines.push({
-    accountCode: taxInfo?.refundToCash ? "1-1000" : "1-1100",
-    debit: 0,
-    credit: totalReturned,
-  });
+  // Porsi tagihan yang masih outstanding mengurangi Piutang (1-1100);
+  // kelebihannya (uang muka pelanggan) menjadi liabilitas Refund Pelanggan (2-1400).
+  // Kas (1-1000) TIDAK berubah di sini — pengembalian kas dilakukan di fase terpisah.
+  if (arPortion > 0.01) {
+    lines.push({ accountCode: "1-1100", debit: 0, credit: arPortion });
+  }
+  if (refundPortion > 0.01) {
+    lines.push({ accountCode: REFUND_PAYABLE_ACCOUNT, debit: 0, credit: refundPortion });
+  }
+
+  // COGS/inventory reversal: gunakan akun PERSIS milik jurnal penjualan asli
+  // (historis — tidak bergantung pada state Product saat ini).
+  const { cogsAccount, inventoryAccount } = await resolveCreditNoteAccounts(options, invoiceId, items);
   const totalCogs = items.reduce((sum, item) => sum + item.hpp * item.quantity, 0);
   if (totalCogs > 0) {
-    lines.push({ accountCode: getInventoryAccountCode(items), debit: totalCogs, credit: 0 });
-    lines.push({ accountCode: getCogsAccountCode(items), debit: 0, credit: totalCogs });
+    lines.push({ accountCode: inventoryAccount, debit: totalCogs, credit: 0 });
+    lines.push({ accountCode: cogsAccount, debit: 0, credit: totalCogs });
   }
 
   return postJournalEntry({
@@ -386,6 +391,43 @@ export async function postCreditNote(
     refType: "CREDIT_NOTE",
     lines,
   }, options);
+}
+
+/**
+ * Tentukan akun COGS & inventory untuk retur dari jurnal penjualan ASLI
+ * (refType INVOICE), sehingga reversal selalu memantul ke klasifikasi yang
+ * benar-benar dibukukan saat penjualan — bukan hasil turunan ulang yang bisa
+ * berubah bila ProductType dimutasi. Fallback ke turunan per-line bila jurnal
+ * asli tidak ditemukan.
+ */
+async function resolveCreditNoteAccounts(
+  options: PostingOptions,
+  invoiceId: string,
+  items: Array<{ productType?: ProductType; hpp: number; quantity: number }>,
+): Promise<{ cogsAccount: string; inventoryAccount: string }> {
+  const fallback = {
+    cogsAccount: getCogsAccountCode(items),
+    inventoryAccount: getInventoryAccountCode(items),
+  };
+  if (!options.tx) return fallback;
+  const tenantId = options.tenantId ?? await getCurrentTenantId();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tx = options.tx as any;
+  const sale = await tx.journalEntry.findFirst({
+    where: { tenantId, refType: "INVOICE", reference: invoiceId, voidAt: null },
+    include: { lines: { include: { account: true } } },
+  });
+  if (!sale) return fallback;
+  // Di jurnal penjualan: COGS diposting sebagai KREDIT (5-1xxx) dan inventory
+  // sebagai DEBIT (1-12xx). Cari berdasarkan arah saldo tersebut.
+  const cogs = sale.lines.find(
+    (l: any) => l.account.type === "EXPENSE" && l.account.code.startsWith("5-1") && Number(l.credit) > 0,
+  );
+  const inventory = sale.lines.find(
+    (l: any) => l.account.type === "ASSET" && l.account.code.startsWith("1-12") && Number(l.debit) > 0,
+  );
+  if (!cogs || !inventory) return fallback;
+  return { cogsAccount: cogs.account.code, inventoryAccount: inventory.account.code };
 }
 
 export async function postSupplierPayment(

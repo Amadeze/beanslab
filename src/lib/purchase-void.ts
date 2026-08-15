@@ -33,10 +33,30 @@ export async function voidPurchaseCore(
       if (purchase.status !== "COMPLETED") {
         throw new Error("Hanya pembelian selesai yang dapat di-void.");
       }
-      const activePayments = await tx.supplierPayment.count({
+      // Pembayaran awal (saat penerimaan barang) adalah referensi GL yang sudah
+      // dibukukan oleh jurnal PURCHASE — ia tidak punya jurnal SUPPLIER_PAYMENT
+      // sendiri. Soft-void otomatis TANPA reversal (reversal ditangani oleh
+      // postVoidReversal PURCHASE di bawah). Pembayaran supplier normal (punya
+      // jurnal) harus di-void mandiri terlebih dahulu.
+      const activePayments = await tx.supplierPayment.findMany({
+        where: { purchaseId: purchase.id, voidAt: null },
+        select: { id: true },
+      });
+      for (const sp of activePayments) {
+        const hasJournal = await tx.journalEntry.count({
+          where: { tenantId, refType: "SUPPLIER_PAYMENT", reference: sp.id, voidAt: null },
+        });
+        if (hasJournal === 0) {
+          await tx.supplierPayment.update({
+            where: { id: sp.id },
+            data: { voidReason: trimmedReason, voidAt: getCurrentDate() },
+          });
+        }
+      }
+      const remainingActive = await tx.supplierPayment.count({
         where: { purchaseId: purchase.id, voidAt: null },
       });
-      if (activePayments > 0) {
+      if (remainingActive > 0) {
         throw new Error("Void semua pembayaran supplier pada pembelian ini terlebih dahulu.");
       }
 

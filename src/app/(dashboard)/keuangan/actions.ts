@@ -1128,6 +1128,18 @@ export async function voidSupplierPayment(paymentId: string, reason: string) {
       });
       if (!payment) throw new Error("Pembayaran supplier tidak ditemukan.");
       if (payment.voidAt) throw new Error("Pembayaran supplier sudah di-void.");
+
+      // Pembayaran awal (saat penerimaan barang) tidak punya jurnal SUPPLIER_PAYMENT
+      // sendiri — ia sudah dibukukan oleh jurnal PURCHASE. Tidak boleh di-void
+      // mandiri; koreksinya melalui void Pembelian terkait.
+      const hasJournal = await tx.journalEntry.count({
+        where: { tenantId, refType: "SUPPLIER_PAYMENT", reference: payment.id, voidAt: null },
+      });
+      if (hasJournal === 0) {
+        throw new Error(
+          "Pembayaran awal (saat penerimaan barang) tidak dapat dibatalkan secara mandiri. Batalkan melalui void Pembelian terkait.",
+        );
+      }
       if (payment.purchase.status !== "COMPLETED") {
         throw new Error("Pembayaran pada pembelian nonaktif tidak dapat diubah.");
       }
