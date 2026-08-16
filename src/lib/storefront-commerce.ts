@@ -309,7 +309,7 @@ export async function fulfillInvoiceAtHandover(
       hpp: Number(item.hpp),
       quantity: Number(item.quantity),
     })),
-    { tx, tenantId: input.tenantId, userId: input.createdById },
+    { tx, tenantId: input.tenantId, userId: input.createdById, date: now },
     Number(invoice.tax),
   );
   await tx.invoice.update({

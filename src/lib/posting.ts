@@ -26,6 +26,9 @@ export type PostingOptions = {
   tx?: unknown;
   tenantId?: string;
   userId?: string;
+  /** Tanggal efektif transaksi (mis. deliveredAt, paidAt, receivedAt).
+   *  Default: tanggal server saat ini. */
+  date?: Date;
 };
 
 type PostingTransaction = Pick<Prisma.TransactionClient, "account" | "journalEntry">;
@@ -125,6 +128,7 @@ export async function postVoidReversal(
         tx,
         tenantId,
         userId,
+        date: options.date,
       }),
       { isolationLevel: "Serializable" },
     );
@@ -152,7 +156,7 @@ export async function postVoidReversal(
   let firstCode = "";
   for (const source of sources) {
     const reversalCode = await postJournalEntry({
-      date: getCurrentDate(),
+      date: options.date ?? getCurrentDate(),
       description: `Pembatalan: ${source.description}`,
       reference: `${sourceReference}:${source.id}`,
       refType: "VOID_REVERSAL",
@@ -204,7 +208,7 @@ export async function postSalesInvoice(
   }
 
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Penjualan ke ${customerName} (Invoice ${invoiceId})`,
     reference: invoiceId,
     refType: "INVOICE",
@@ -259,7 +263,7 @@ export async function postExpense(
   const expenseAccount = accountMap[categoryCode] ?? "5-2060";
 
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Beban: ${description}`,
     reference: expenseId,
     refType: "EXPENSE",
@@ -277,7 +281,7 @@ export async function postCapitalInjection(
   options: PostingOptions = {},
 ): Promise<string> {
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Setoran modal: ${description}`,
     reference: capitalTxnId,
     refType: "CAPITAL",
@@ -295,7 +299,7 @@ export async function postOwnerWithdrawal(
   options: PostingOptions = {},
 ): Promise<string> {
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Prive: ${description}`,
     reference: capitalTxnId,
     refType: "CAPITAL",
@@ -314,7 +318,7 @@ export async function postCustomerPayment(
   options: PostingOptions = {},
 ): Promise<string> {
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Pembayaran dari ${customerName} — ${invoiceCode}`,
     reference: paymentId,
     refType: "PAYMENT",
@@ -333,7 +337,7 @@ export async function postCustomerPrepayment(
   options: PostingOptions = {},
 ): Promise<string> {
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Uang muka dari ${customerName} — ${invoiceCode}`,
     reference: paymentId,
     refType: "PAYMENT",
@@ -385,7 +389,7 @@ export async function postCreditNote(
   }
 
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Retur penjualan — ${invoiceCode}`,
     reference: creditNoteId,
     refType: "CREDIT_NOTE",
@@ -438,7 +442,7 @@ export async function postSupplierPayment(
   options: PostingOptions = {},
 ): Promise<string> {
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Pembayaran ke ${supplierName} — ${purchaseCode}`,
     reference: paymentId,
     refType: "SUPPLIER_PAYMENT",
@@ -475,7 +479,7 @@ export async function postProductionBatch(
     lines.push({ accountCode: "5-1020", debit: 0, credit: overheadCost });
   }
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Produksi: ${fgProductName}`,
     reference: batchId,
     refType: "PRODUCTION",
@@ -496,7 +500,7 @@ export async function postRoastingBatch(
     throw new Error("Data biaya roasting tidak valid.");
   }
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Roasting: ${gbProductName} → ${rbProductName}`,
     reference: batchId,
     refType: "ROASTING",
@@ -549,7 +553,7 @@ export async function postPurchase(
           ? "Supply"
           : "Kemasan";
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Pembelian ${typeLabel} dari ${supplierName} — ${purchaseId}`,
     reference: purchaseId,
     refType: "PURCHASE",
@@ -601,7 +605,7 @@ export async function postStockAdjustment(
   }
 
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Penyesuaian stok ${productType} — ${adjustmentId}`,
     reference: adjustmentId,
     refType: "ADJUSTMENT",
@@ -639,7 +643,7 @@ export async function postSampleUsage(
   }
 
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Sample / Promosi — ${sampleId}`,
     reference: sampleId,
     refType: "SAMPLE_USAGE",
@@ -663,7 +667,7 @@ export async function postGrindingBatch(
     lines.push({ accountCode: "5-1010", debit: 0, credit: grindingCost });
   }
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Grinding: ${outputProductName}`,
     reference: batchId,
     refType: "GRINDING",
@@ -689,7 +693,7 @@ export async function postExperimentalProduction(
     lines.push({ accountCode: "5-1010", debit: 0, credit: grindingCost });
   }
   return postJournalEntry({
-    date: getCurrentDate(),
+    date: options.date ?? getCurrentDate(),
     description: `Experimental: ${outputProductName}`,
     reference: batchId,
     refType: "EXPERIMENTAL",

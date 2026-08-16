@@ -12,7 +12,6 @@ import { getCurrentDate, getZonedMonthRange } from "@/lib/date-utils";
 import { postCapitalInjection, postOwnerWithdrawal, postCustomerPayment, postCustomerPrepayment, postExpense, postSupplierPayment, postVoidReversal } from "@/lib/posting";
 import { markInvoicePaidForFulfillment } from "@/lib/storefront-commerce";
 import { voidPurchaseCore } from "@/lib/purchase-void";
-import { calculateSalesPerformance } from "@/lib/financial-reporting";
 import { computeSampleCostByType, computeCogsComponentBreakdown } from "@/lib/financial-helpers";
 import { prisma } from "@/lib/prisma";
 import { withSerializableRetry } from "@/lib/transaction-retry";
@@ -204,7 +203,7 @@ export async function getKeuanganPageData(): Promise<KeuanganPageData> {
 
   const [piutangInvoices, revenueMTDRaw, revenueLastMonthRaw] = await Promise.all([
     tp.invoice.findMany({
-      where: { status: { in: ["ISSUED", "PARTIAL"] } },
+      where: { status: { in: ["ISSUED", "PARTIAL"] }, voidAt: null },
       include: {
         customer: { select: { name: true, phone: true } },
         items: {
@@ -215,26 +214,35 @@ export async function getKeuanganPageData(): Promise<KeuanganPageData> {
       },
     }),
     tp.invoice.aggregate({
-      where: { status: { in: ["ISSUED", "PARTIAL", "PAID"] }, issuedAt: { gte: currentPeriod.start, lt: currentPeriod.end } },
+      where: {
+        deliveredAt: { gte: currentPeriod.start, lt: currentPeriod.end },
+        OR: [{ voidAt: null }, { voidAt: { gte: currentPeriod.end } }],
+      },
       _sum: { subtotal: true, discount: true },
     }),
     tp.invoice.aggregate({
-      where: { status: { in: ["ISSUED", "PARTIAL", "PAID"] }, issuedAt: { gte: previousPeriod.start, lt: previousPeriod.end } },
+      where: {
+        deliveredAt: { gte: previousPeriod.start, lt: previousPeriod.end },
+        OR: [{ voidAt: null }, { voidAt: { gte: previousPeriod.end } }],
+      },
       _sum: { subtotal: true, discount: true },
     }),
   ]);
 
-  const piutangRows: PiutangRow[] = piutangInvoices.map((inv) => {
+  const piutangRows: PiutangRow[] = piutangInvoices.flatMap((inv) => {
     const grandTotal = Number(inv.grandTotal);
     const paidAmount = Number(inv.paidAmount);
-    const balance = grandTotal - paidAmount;
+    const returnedAmount = Number(inv.returnedAmount);
+    // Piutang = tagihan − pembayaran − nilai retur (bukan hanya pembayaran).
+    const balance = Math.max(0, Math.round((grandTotal - paidAmount - returnedAmount) * 100) / 100);
+    if (balance <= 0.01) return [];
     const agingBucket = getReceivableAgingBucket(inv.dueDate, now);
     const shown = inv.items.slice(0, 2);
     const rest  = inv.items.length - shown.length;
     const itemSummary =
       shown.map((i) => `${i.product.name} x${i.quantity}`).join(", ") +
       (rest > 0 ? ` +${rest} lainnya` : "");
-    return {
+    return [{
       id: inv.id,
       code: inv.code,
       customerName: inv.customer.name,
@@ -247,7 +255,7 @@ export async function getKeuanganPageData(): Promise<KeuanganPageData> {
       dueDate: inv.dueDate ? inv.dueDate.toISOString() : null,
       agingBucket,
       itemSummary,
-    };
+    }];
   });
 
   // Sort: most overdue first, then by due date ascending
@@ -347,7 +355,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
 
       const inv = await tx.invoice.findUnique({
         where: { id: parsed.invoiceId },
-        select: { id: true, code: true, grandTotal: true, paidAmount: true, status: true, fulfillmentStatus: true, createdById: true, customer: { select: { name: true } } },
+        select: { id: true, code: true, grandTotal: true, paidAmount: true, returnedAmount: true, status: true, fulfillmentStatus: true, createdById: true, customer: { select: { name: true } } },
       });
       if (!inv) throw new Error("Nota tidak ditemukan.");
       if (inv.status === "DRAFT") throw new Error("Nota belum diterbitkan.");
@@ -358,10 +366,14 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
       }
 
       const grandTotal = Number(inv.grandTotal);
+      // Nilai yang dapat dibayar = tagihan − nilai retur (2F.2): retur
+      // mengurangi porsi yang masih dapat ditagih.
+      const round2 = (n: number) => Math.round(n * 100) / 100;
+      const maxPayable = Math.max(0, round2(grandTotal - Number(inv.returnedAmount)));
       const prevPaid = Number(inv.paidAmount);
       const newPaidTotal = prevPaid + parsed.amount;
-      if (newPaidTotal > grandTotal + 0.01) {
-        throw new Error(`Nominal melebihi sisa tagihan. Sisa: Rp ${(grandTotal - prevPaid).toLocaleString("id-ID")}`);
+      if (newPaidTotal > maxPayable + 0.01) {
+        throw new Error(`Nominal melebihi sisa tagihan. Sisa: Rp ${Math.max(0, round2(maxPayable - prevPaid)).toLocaleString("id-ID")}`);
       }
       const newStatus: "PAID" | "PARTIAL" =
         newPaidTotal >= grandTotal - 0.01 ? "PAID" : "PARTIAL";
@@ -394,7 +406,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<PaymentA
         parsed.amount,
         inv.code,
         inv.customer?.name ?? "Customer",
-        { tx, tenantId, userId },
+        { tx, tenantId, userId, date: paidAt },
       );
       return { paymentCode: payment.code, newStatus };
     });
@@ -474,7 +486,7 @@ export async function createExpense(input: CreateExpenseInput): Promise<CreateEx
         parsed.amount,
         parsed.category,
         parsed.description ?? "Pengeluaran",
-        { tx, tenantId, userId },
+        { tx, tenantId, userId, date: created.date },
       );
       return created;
     });
@@ -650,7 +662,7 @@ export async function recordCapitalInjection(
         capitalTxn.id,
         input.amount,
         input.description ?? "Setoran modal",
-        { tx, tenantId, userId },
+        { tx, tenantId, userId, date: transDate },
       );
     });
     revalidatePath("/keuangan");
@@ -767,7 +779,7 @@ export async function recordOwnerWithdrawal(
         capitalTxn.id,
         input.amount,
         input.description ?? "Penarikan prive",
-        { tx, tenantId, userId },
+        { tx, tenantId, userId, date: transDate },
       );
     });
     revalidatePath("/keuangan");
@@ -822,23 +834,81 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
   const previousPeriod = getZonedMonthRange(prevYear, prevMonth, tenant?.timezone);
   const tp = await requireTenantPrisma();
 
-  const [invoices, expenses, sampleComponents, prevInvoices, prevExpenses, prevSampleComponents, productionBatches] = await Promise.all([
+  // ── GL-derived top lines ───────────────────────────────────────────────────
+  // Pendapatan/COGS/OPEX diambil dari jurnal (tanggal ekonomi transaksi),
+  // bukan dari query operasional. Jadi angka utama P&L SELALU sama dengan
+  // buku besar; rincian operasional di bawah hanya penjelas.
+  const journalSelect = {
+    lines: {
+      select: { debit: true, credit: true, account: { select: { code: true, type: true } } },
+    },
+  } as const;
+  type GlLine = {
+    debit: unknown;
+    credit: unknown;
+    account: { code: string; type: string };
+  };
+  const glCreditNet = (entries: { lines: GlLine[] }[], match: (account: { code: string; type: string }) => boolean) =>
+    entries.reduce(
+      (total, entry) => total + entry.lines.reduce(
+        (sum, line) => sum + (match(line.account) ? Number(line.credit) - Number(line.debit) : 0),
+        0,
+      ),
+      0,
+    );
+  const glDebitNet = (entries: { lines: GlLine[] }[], match: (account: { code: string; type: string }) => boolean) =>
+    entries.reduce(
+      (total, entry) => total + entry.lines.reduce(
+        (sum, line) => sum + (match(line.account) ? Number(line.debit) - Number(line.credit) : 0),
+        0,
+      ),
+      0,
+    );
+  const isRevenueAccount = (account: { code: string; type: string }) => account.type === "REVENUE";
+  const isCogsAccount = (account: { code: string; type: string }) => account.type === "EXPENSE" && account.code.startsWith("5-1");
+  const isOpexAccount = (account: { code: string; type: string }) => account.type === "EXPENSE" && !account.code.startsWith("5-1");
+
+  const [journals, prevJournals, deliveredInvoices, creditNotes, voidedInvoices, expenses, sampleComponents, productionBatches] = await Promise.all([
+    tp.journalEntry.findMany({ where: { date: { gte: period.start, lt: period.end } }, select: journalSelect }),
+    tp.journalEntry.findMany({ where: { date: { gte: previousPeriod.start, lt: previousPeriod.end } }, select: journalSelect }),
+    // Diserahkan dalam periode: pendapatan diakui saat penyerahan (deliveredAt),
+    // termasuk nota yang baru di-void SETELAH periode berakhir.
     tp.invoice.findMany({
-      where: { voidAt: null, status: { in: ["PAID", "PARTIAL", "ISSUED"] }, issuedAt: { gte: period.start, lt: period.end } },
-      select: { subtotal: true, discount: true, tax: true, customer: { select: { name: true } }, items: { select: { quantity: true, subtotal: true, hpp: true, product: { select: { type: true, name: true } } } } },
+      where: {
+        deliveredAt: { gte: period.start, lt: period.end },
+        OR: [{ voidAt: null }, { voidAt: { gte: period.end } }],
+      },
+      select: {
+        subtotal: true, discount: true, tax: true,
+        customer: { select: { name: true } },
+        items: { select: { quantity: true, subtotal: true, hpp: true, product: { select: { type: true, name: true } } } },
+      },
+    }),
+    // Retur dalam periode (tanggal ekonomi = tanggal pencatatan retur).
+    tp.creditNote.findMany({
+      where: { createdAt: { gte: period.start, lt: period.end } },
+      select: {
+        invoice: { select: { subtotal: true, tax: true, items: { select: { productId: true, hpp: true } } } },
+        items: { select: { quantity: true, subtotal: true, productId: true, product: { select: { type: true, name: true } } } },
+      },
+    }),
+    // Nota yang diserahkan periode SEBELUMNYA lalu di-void dalam periode ini:
+    // reversal penuh. Nota yang diserahkan DAN di-void di periode yang sama
+    // tidak tampil di sini maupun di deliveredInvoices (net nol — jurnal dan
+    // pembaliknya sama-sama berada dalam periode ini).
+    tp.invoice.findMany({
+      where: {
+        voidAt: { gte: period.start, lt: period.end },
+        NOT: [{ deliveredAt: null }, { deliveredAt: { gte: period.start, lt: period.end } }],
+      },
+      select: {
+        subtotal: true, discount: true, tax: true,
+        items: { select: { quantity: true, subtotal: true, hpp: true, product: { select: { type: true, name: true } } } },
+      },
     }),
     tp.expense.findMany({ where: { voidAt: null, date: { gte: period.start, lt: period.end } }, select: { category: true, amount: true } }),
     tp.sampleUsageComponent.findMany({
       where: { sampleUsage: { status: "COMPLETED", givenAt: { gte: period.start, lt: period.end } } },
-      select: { unitCost: true, quantityKg: true, quantityUnit: true, product: { select: { type: true } }, packagingId: true },
-    }),
-    tp.invoice.findMany({
-      where: { voidAt: null, status: { in: ["PAID", "PARTIAL", "ISSUED"] }, issuedAt: { gte: previousPeriod.start, lt: previousPeriod.end } },
-      select: { subtotal: true, discount: true, tax: true, customer: { select: { name: true } }, items: { select: { quantity: true, subtotal: true, hpp: true, product: { select: { type: true, name: true } } } } },
-    }),
-    tp.expense.findMany({ where: { voidAt: null, date: { gte: previousPeriod.start, lt: previousPeriod.end } }, select: { category: true, amount: true } }),
-    tp.sampleUsageComponent.findMany({
-      where: { sampleUsage: { status: "COMPLETED", givenAt: { gte: previousPeriod.start, lt: previousPeriod.end } } },
       select: { unitCost: true, quantityKg: true, quantityUnit: true, product: { select: { type: true } }, packagingId: true },
     }),
     tp.productionBatch.findMany({
@@ -854,23 +924,96 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
     }),
   ]);
 
-  const toFinancialInvoices = (rows: typeof invoices) => rows.map((invoice) => ({
-    subtotal: Number(invoice.subtotal),
-    discount: Number(invoice.discount),
-    tax: Number(invoice.tax),
-    customerName: invoice.customer?.name ?? null,
-    items: invoice.items.map((item) => ({
-      productType: item.product?.type ?? null,
-      productName: item.product?.name ?? null,
-      quantity: item.quantity,
-      subtotal: Number(item.subtotal),
-      hpp: Number(item.hpp),
-    })),
-  }));
+  const revenue = glCreditNet(journals, isRevenueAccount);
+  const cogs = glDebitNet(journals, isCogsAccount);
+  const opex = glDebitNet(journals, isOpexAccount);
+  const grossProfit = revenue - cogs;
+  const netProfit = grossProfit - opex;
 
-  const currentSales = calculateSalesPerformance(toFinancialInvoices(invoices));
-  const previousSales = calculateSalesPerformance(toFinancialInvoices(prevInvoices));
+  const prevRevenue = glCreditNet(prevJournals, isRevenueAccount);
+  const prevCogs = glDebitNet(prevJournals, isCogsAccount);
+  const prevOpex = glDebitNet(prevJournals, isOpexAccount);
 
+  // ── Rincian operasional (dasar penyerahan, net of retur & void) ───────────
+  const revenueByCategory = new Map<string, number>();
+  const cogsByCategory = new Map<string, number>();
+  const products = new Map<string, { quantity: number; revenue: number }>();
+  const customers = new Map<string, { count: number; revenue: number }>();
+  let grossSales = 0;
+  let invoiceDiscount = 0;
+  let tax = 0;
+  let salesVolumeUnits = 0;
+
+  const addTo = (map: Map<string, number>, key: string, amount: number) => {
+    if (Math.abs(amount) <= 0.005) return;
+    map.set(key, (map.get(key) ?? 0) + amount);
+  };
+  const categoryOf = (productType: string | null) => productType || "LAINNYA";
+
+  for (const invoice of deliveredInvoices) {
+    const headerSubtotal = Math.max(0, Number(invoice.subtotal));
+    const headerDiscount = Math.min(Math.max(0, Number(invoice.discount)), headerSubtotal);
+    const lineSubtotal = invoice.items.reduce((sum, item) => sum + Math.max(0, Number(item.subtotal)), 0);
+    const netFactor = lineSubtotal > 0 ? (headerSubtotal - headerDiscount) / lineSubtotal : 0;
+    const invoiceNet = headerSubtotal - headerDiscount;
+
+    grossSales += headerSubtotal;
+    invoiceDiscount += headerDiscount;
+    tax += Math.max(0, Number(invoice.tax));
+
+    const customerName = invoice.customer?.name?.trim();
+    if (customerName && customerName.toLocaleLowerCase("id-ID") !== "umum") {
+      const current = customers.get(customerName) ?? { count: 0, revenue: 0 };
+      current.count += 1;
+      current.revenue += invoiceNet;
+      customers.set(customerName, current);
+    }
+
+    for (const item of invoice.items) {
+      const category = categoryOf(item.product?.type ?? null);
+      const productName = item.product?.name ?? "Produk Tidak Dikenal";
+      const itemRevenue = Math.max(0, Number(item.subtotal)) * netFactor;
+      addTo(revenueByCategory, category, itemRevenue);
+      addTo(cogsByCategory, category, Math.max(0, Number(item.hpp)) * Math.max(0, item.quantity));
+      salesVolumeUnits += Math.max(0, item.quantity);
+
+      const product = products.get(productName) ?? { quantity: 0, revenue: 0 };
+      product.quantity += Math.max(0, item.quantity);
+      product.revenue += itemRevenue;
+      products.set(productName, product);
+    }
+  }
+
+  for (const creditNote of creditNotes) {
+    const invoiceSubtotal = Math.max(0, Number(creditNote.invoice?.subtotal ?? 0));
+    const taxShare = invoiceSubtotal > 0 ? Math.max(0, Number(creditNote.invoice?.tax ?? 0)) / invoiceSubtotal : 0;
+    const sourceByProduct = new Map((creditNote.invoice?.items ?? []).map((item) => [item.productId, item]));
+    for (const item of creditNote.items) {
+      const category = categoryOf(item.product?.type ?? null);
+      // Neto retur = subtotal baris − porsi pajak — persis seperti jurnal
+      // CREDIT_NOTE (Dr 4-1000 sebesar neto setelah pajak).
+      addTo(revenueByCategory, category, -(Math.max(0, Number(item.subtotal)) * (1 - taxShare)));
+      // COGS retur memakai HPP baris invoice ASLI (historis, bukan cache saat ini).
+      const source = sourceByProduct.get(item.productId);
+      const hpp = source ? Number(source.hpp) : 0;
+      addTo(cogsByCategory, category, -(hpp * Math.max(0, item.quantity)));
+    }
+  }
+
+  for (const invoice of voidedInvoices) {
+    const headerSubtotal = Math.max(0, Number(invoice.subtotal));
+    const headerDiscount = Math.min(Math.max(0, Number(invoice.discount)), headerSubtotal);
+    const lineSubtotal = invoice.items.reduce((sum, item) => sum + Math.max(0, Number(item.subtotal)), 0);
+    const netFactor = lineSubtotal > 0 ? (headerSubtotal - headerDiscount) / lineSubtotal : 0;
+    for (const item of invoice.items) {
+      const category = categoryOf(item.product?.type ?? null);
+      addTo(revenueByCategory, category, -(Math.max(0, Number(item.subtotal)) * netFactor));
+      addTo(cogsByCategory, category, -(Math.max(0, Number(item.hpp)) * Math.max(0, item.quantity)));
+    }
+  }
+
+  // Penyesuaian stok: nilai memakai basis biaya DURABEL dari ledger (incomingPrice),
+  // bukan harga rata-rata produk saat ini (yang bisa berubah setelah periode).
   const getAdjustmentValues = async (start: Date, end: Date) => {
     const rows = await tp.inventoryLedger.findMany({
       where: {
@@ -882,16 +1025,20 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
         refType: true,
         quantityKg: true,
         quantityUnit: true,
+        supplyQuantity: true,
+        incomingPrice: true,
         product: { select: { avgCostPerKg: true } },
         packaging: { select: { avgCostPerUnit: true, costPerUnit: true } },
       },
     });
     return rows.reduce(
       (result, row) => {
-        const quantity = Number(row.quantityKg ?? row.quantityUnit ?? 0);
-        const unitCost = row.product
-          ? Number(row.product.avgCostPerKg ?? 0)
-          : Number(row.packaging?.avgCostPerUnit ?? row.packaging?.costPerUnit ?? 0);
+        const quantity = Number(row.quantityKg ?? row.quantityUnit ?? row.supplyQuantity ?? 0);
+        const unitCost = row.incomingPrice != null
+          ? Number(row.incomingPrice)
+          : row.product
+            ? Number(row.product.avgCostPerKg ?? 0)
+            : Number(row.packaging?.avgCostPerUnit ?? row.packaging?.costPerUnit ?? 0);
         const value = quantity * unitCost;
         if (row.refType === "ADJUSTMENT_IN") result.income += value;
         if (row.refType === "ADJUSTMENT_OUT") result.loss += value;
@@ -900,72 +1047,68 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
       { income: 0, loss: 0 },
     );
   };
-  const [currentAdjustments, previousAdjustments] = await Promise.all([
+  const [currentAdjustments] = await Promise.all([
     getAdjustmentValues(period.start, period.end),
-    getAdjustmentValues(previousPeriod.start, previousPeriod.end),
   ]);
+
+  // Penyesuaian masuk GL sebagai kredit 5-1040 (mengurangi HPP) dan keluar
+  // sebagai debit 5-1040 — tampilkan satu baris bertanda di HPP.
+  const adjustmentNet = currentAdjustments.loss - currentAdjustments.income;
+  addTo(cogsByCategory, "KERUGIAN_MATERIAL", adjustmentNet);
 
   const opexMap: Record<string, number> = {};
   for (const expense of expenses) {
     opexMap[expense.category] = (opexMap[expense.category] ?? 0) + Number(expense.amount);
   }
-  if (currentAdjustments.loss > 0) {
-    opexMap.KERUGIAN_MATERIAL = currentAdjustments.loss;
-  }
   const currentSampleBreakdown = computeSampleCostByType(sampleComponents);
-  const previousSampleBreakdown = computeSampleCostByType(prevSampleComponents);
   for (const [key, value] of Object.entries(currentSampleBreakdown)) {
     if (value > 0) opexMap[key] = value;
   }
-  const sampleCost = Object.values(currentSampleBreakdown).reduce((sum, v) => sum + v, 0);
+
   const opexBreakdown = Object.entries(opexMap).map(([category, amount]) => ({ category, amount }));
-  const opex = opexBreakdown.reduce((sum, row) => sum + row.amount, 0);
-
-  const cogs = currentSales.cogs;
+  const revenueBreakdown = [...revenueByCategory].map(([category, amount]) => ({ category, amount }));
+  const cogsBreakdown = [...cogsByCategory].map(([category, amount]) => ({ category, amount }));
+  const revenueBreakdownTotal = revenueBreakdown.reduce((sum, row) => sum + row.amount, 0);
   const cogsComponentBreakdown = computeCogsComponentBreakdown(productionBatches, cogs);
+  const netSales = grossSales - invoiceDiscount;
 
-  const prevSampleCost = Object.values(previousSampleBreakdown).reduce((sum, v) => sum + v, 0);
-  const previousOpex = prevExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0) + previousAdjustments.loss + prevSampleCost;
-  const revenue = currentSales.netSales + currentAdjustments.income;
-  const revenueBreakdown = [...currentSales.revenueBreakdown];
-  if (currentAdjustments.income > 0) {
-    revenueBreakdown.push({ category: "PENDAPATAN_LAINNYA", amount: currentAdjustments.income });
-  }
-  const grossProfit = revenue - currentSales.cogs;
-  const netProfit = grossProfit - opex;
-  const revenueBreakdownTotal = revenueBreakdown.reduce(
-    (sum, row) => sum + row.amount,
-    0,
-  );
-
-  return { 
+  return {
     month,
     year,
-    grossSales: currentSales.grossSales,
-    invoiceDiscount: currentSales.invoiceDiscount,
-    tax: currentSales.tax,
-    netSales: currentSales.netSales,
+    grossSales,
+    invoiceDiscount,
+    tax,
+    netSales,
     revenue,
-    cogs: currentSales.cogs,
+    cogs,
     grossProfit,
     opex,
     netProfit,
     opexBreakdown,
     revenueBreakdown,
-    cogsBreakdown: currentSales.cogsBreakdown,
+    cogsBreakdown,
     cogsComponentBreakdown,
-    salesVolumeUnits: currentSales.salesVolumeUnits,
-    topProducts: currentSales.topProducts,
-    topCustomers: currentSales.topCustomers,
-    previousMonthRevenue: previousSales.netSales + previousAdjustments.income,
-    previousMonthCogs: previousSales.cogs,
-    previousMonthGrossProfit: previousSales.grossProfit + previousAdjustments.income,
-    previousMonthOpex: previousOpex,
-    previousMonthNetProfit: previousSales.grossProfit + previousAdjustments.income - previousOpex,
+    salesVolumeUnits,
+    topProducts: [...products]
+      .map(([name, values]) => ({ name, ...values }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5),
+    topCustomers: [...customers]
+      .map(([name, values]) => ({ name, ...values }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5),
+    previousMonthRevenue: prevRevenue,
+    previousMonthCogs: prevCogs,
+    previousMonthGrossProfit: prevRevenue - prevCogs,
+    previousMonthOpex: prevOpex,
+    previousMonthNetProfit: prevRevenue - prevCogs - prevOpex,
     periodStart: period.start.toISOString(),
     periodEnd: period.end.toISOString(),
     timezone: period.timezone,
-    reconciliationDifference: revenue - revenueBreakdownTotal,
+    // Selisih pendapatan GL vs rincian operasional (mis. penyesuaian ongkir,
+    // jurnal lain yang menyentuh 4-1000) — 0 bila seluruh pendapatan berasal
+    // dari penjualan yang diserahkan di periode ini.
+    reconciliationDifference: Math.round((revenue - revenueBreakdownTotal) * 100) / 100,
   };
 }
 
@@ -1212,7 +1355,7 @@ export async function recordSupplierPayment(input: RecordSupplierPaymentInput) {
         input.amount,
         purchase.code,
         purchase.supplier?.name ?? "Supplier",
-        { tx, tenantId, userId },
+        { tx, tenantId, userId, date: paidAt },
       );
       return { paymentStatus, purchaseCode: purchase.code, supplierName: purchase.supplier?.name ?? "Supplier", isDuplicate: false };
     });

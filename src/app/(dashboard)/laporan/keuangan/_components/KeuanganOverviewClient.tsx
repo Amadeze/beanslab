@@ -75,7 +75,7 @@ export default function KeuanganOverviewClient() {
             { metric: "Total Revenue", value: data.totalRevenue },
             { metric: "Total Expenses", value: data.totalExpenses },
             { metric: "Net Profit", value: data.netProfit },
-            { metric: "Cash Flow", value: data.cashFlow },
+            { metric: "Cash Flow (GL)", value: data.cashFlow },
           ]}
         />
       }
@@ -94,7 +94,7 @@ export default function KeuanganOverviewClient() {
             trend={data.revenueTrend}
             icon={TrendingUp}
             color="emerald"
-            help="Basis pendapatan: invoice lunas (PAID), sudah dikurangi nilai retur."
+            help="Basis pendapatan: invoice diserahkan (deliveredAt), sudah dikurangi nilai retur."
           />
           <ReportKpiCard
             label="Total Expenses"
@@ -119,7 +119,7 @@ export default function KeuanganOverviewClient() {
             trend={data.cashFlowTrend}
             icon={Banknote}
             color="blue"
-            help="Arus kas operasional = Revenue − Expenses. Beda dengan Net Profit (belum dikurangi pembelian)."
+            help="Arus kas = pergerakan kas aktual di buku besar (akun 1-1000), bukan Revenue − Expenses."
           />
         </div>
 

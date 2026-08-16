@@ -10,9 +10,9 @@ import { tenantQuery } from "@/lib/tenant-guard";
 // =============================================================================
 
 export type DashboardKpi = {
-  revenueToday:    number; // sum grandTotal nota PAID hari ini
+  revenueToday:    number; // sum (subtotal - discount) nota DIKIRIM hari ini (basis pengiriman 2F.2)
   kasToday:        number; // sum Payment.amount diterima hari ini (semua metode)
-  totalPiutang:    number; // sum sisa tagihan ISSUED+PARTIAL
+  totalPiutang:    number; // sum sisa tagihan ISSUED+PARTIAL bersih retur (2F.2)
   piutangCount:    number;
   lowStockCount:   number;
   totalKopiTerjual: number;
@@ -131,9 +131,12 @@ export async function getDashboardData(): Promise<DashboardData> {
     overdueReceivables,
   ] = await Promise.all([
 
-    // 1. Revenue hari ini (nota PAID yang diterbitkan hari ini)
+    // 1. Revenue hari ini (nota yang DIKIRIM hari ini; pengakuan berbasis pengiriman 2F.2)
     tp.invoice.aggregate({
-      where: { status: { in: ["ISSUED", "PARTIAL", "PAID"] }, issuedAt: { gte: today.start, lt: today.end } },
+      where: {
+        deliveredAt: { gte: today.start, lt: today.end },
+        OR: [{ voidAt: null }, { voidAt: { gte: today.end } }],
+      },
       _sum: { subtotal: true, discount: true },
     }),
 
@@ -143,14 +146,16 @@ export async function getDashboardData(): Promise<DashboardData> {
       _sum: { amount: true },
     }),
 
-    // 3. Total piutang outstanding
+    // 3. Total piutang outstanding (piutang = tagihan − bayar − retur; 2F.2)
     tenantQuery<Array<{ totalOutstanding: number; invoiceCount: number }>>(tenantId, async (t) => tp.$queryRaw`
       SELECT
-        COALESCE(SUM("grandTotal" - "paidAmount"), 0)::float AS "totalOutstanding",
+        COALESCE(SUM("grandTotal" - "paidAmount" - "returnedAmount"), 0)::float AS "totalOutstanding",
         COUNT(*)::int AS "invoiceCount"
       FROM "invoices"
       WHERE "tenantId" = ${t}
         AND "status" IN ('ISSUED', 'PARTIAL')
+        AND "voidAt" IS NULL
+        AND ("grandTotal" - "paidAmount" - "returnedAmount") > 0.01
     `),
 
     // 4a. Stok kg: GB + RB — fetch dari Product cache
@@ -233,26 +238,26 @@ export async function getDashboardData(): Promise<DashboardData> {
       },
     }),
 
-    // 10. Revenue Trend (Last 7 Days)
+    // 10. Revenue Trend (Last 7 Days) — basis pengiriman (2F.2)
     tenantQuery<{ date: string; revenue: number }[]>(tenantId, async (t) => tp.$queryRaw`
-      SELECT TO_CHAR(("issuedAt" AT TIME ZONE ${today.timezone})::date, 'YYYY-MM-DD') as "date",
+      SELECT TO_CHAR(("deliveredAt" AT TIME ZONE ${today.timezone})::date, 'YYYY-MM-DD') as "date",
              SUM("subtotal" - "discount")::float as "revenue"
       FROM "invoices"
       WHERE "tenantId" = ${t}
-        AND "status" IN ('PAID', 'PARTIAL', 'ISSUED')
-        AND "issuedAt" >= ${sevenDayPeriod.start}
-        AND "issuedAt" < ${today.end}
+        AND "deliveredAt" >= ${sevenDayPeriod.start}
+        AND "deliveredAt" < ${today.end}
+        AND "voidAt" IS NULL
       GROUP BY 1
       ORDER BY "date" ASC
     `),
 
-    // 11. Top 5 Products
+    // 11. Top 5 Products (mengecualikan nota void)
     tenantQuery<{ id: string; name: string; sold: number }[]>(tenantId, async (t) => tp.$queryRaw`
       SELECT p.id, p."name", SUM(ii."quantity")::int as "sold"
       FROM "invoice_items" ii
       JOIN "products" p ON ii."productId" = p.id
       JOIN "invoices" i ON ii."invoiceId" = i.id
-      WHERE i."tenantId" = ${t} AND i."status" IN ('PAID', 'PARTIAL', 'ISSUED')
+      WHERE i."tenantId" = ${t} AND i."status" IN ('PAID', 'PARTIAL', 'ISSUED') AND i."voidAt" IS NULL
       GROUP BY p.id, p."name"
       ORDER BY "sold" DESC
       LIMIT 5
@@ -263,19 +268,20 @@ export async function getDashboardData(): Promise<DashboardData> {
       SELECT c.id, c."name", SUM(i."grandTotal")::float as "totalSpent"
       FROM "invoices" i
       JOIN "customers" c ON i."customerId" = c.id
-      WHERE i."tenantId" = ${t} AND i."status" IN ('PAID', 'PARTIAL')
+      WHERE i."tenantId" = ${t} AND i."status" IN ('PAID', 'PARTIAL') AND i."voidAt" IS NULL
       GROUP BY c.id, c."name"
       ORDER BY "totalSpent" DESC
       LIMIT 5
     `),
 
-    // 13. Total Kopi Terjual
+    // 13. Total Kopi Terjual (jual bersih: SALE_FG_OUT − RETURN_FG_IN)
     tenantQuery<{ totalSoldKg: number }[]>(tenantId, async (t) => tp.$queryRaw`
-      SELECT COALESCE(SUM(il."quantityUnit" * r."outputGrams" / 1000.0), 0)::float as "totalSoldKg"
+      SELECT COALESCE(SUM(il."quantityUnit" * r."outputGrams" / 1000.0 *
+                          CASE WHEN il."entryType" = 'OUT' THEN 1 ELSE -1 END), 0)::float as "totalSoldKg"
       FROM "inventory_ledger" il
       JOIN "products" p ON il."productId" = p.id
       LEFT JOIN "recipes" r ON r."productId" = p.id
-      WHERE il."tenantId" = ${t} AND il."entryType" = 'OUT' AND il."refType" = 'SALE_FG_OUT' AND p."type" = 'FINISHED_GOODS'
+      WHERE il."tenantId" = ${t} AND il."refType" IN ('SALE_FG_OUT', 'RETURN_FG_IN') AND p."type" = 'FINISHED_GOODS'
     `),
 
     // 14. Average Roast Yield
@@ -284,14 +290,14 @@ export async function getDashboardData(): Promise<DashboardData> {
       where: { status: "COMPLETED" }
     }),
 
-    // 15. Gross Margin (All time)
+    // 15. Gross Margin (All time) — hanya nota terkirim & tidak void (2F.2)
     tenantQuery<{ totalRevenue: number, totalCogs: number }[]>(tenantId, async (t) => tp.$queryRaw`
       SELECT 
         COALESCE(SUM(ii."subtotal"), 0)::float as "totalRevenue",
         COALESCE(SUM(ii."hpp" * ii."quantity"), 0)::float as "totalCogs"
       FROM "invoice_items" ii
       JOIN "invoices" i ON ii."invoiceId" = i.id
-      WHERE i."tenantId" = ${t} AND i."status" IN ('PAID', 'PARTIAL', 'ISSUED')
+      WHERE i."tenantId" = ${t} AND i."deliveredAt" IS NOT NULL AND i."voidAt" IS NULL
     `),
 
     tp.dailyBriefSnapshot.findFirst({
@@ -330,9 +336,9 @@ export async function getDashboardData(): Promise<DashboardData> {
 
     // 21. Live work queue: hanya piutang yang benar-benar lewat jatuh tempo.
     tp.invoice.aggregate({
-      where: { status: { in: ["ISSUED", "PARTIAL"] }, dueDate: { lt: now } },
+      where: { status: { in: ["ISSUED", "PARTIAL"] }, voidAt: null, dueDate: { lt: now } },
       _count: true,
-      _sum: { grandTotal: true, paidAmount: true },
+      _sum: { grandTotal: true, paidAmount: true, returnedAmount: true },
     }),
   ]);
 
@@ -356,7 +362,9 @@ export async function getDashboardData(): Promise<DashboardData> {
   );
   const overdueReceivablesTotal = Math.max(
     0,
-    Number(overdueReceivables._sum.grandTotal ?? 0) - Number(overdueReceivables._sum.paidAmount ?? 0),
+    Number(overdueReceivables._sum.grandTotal ?? 0)
+      - Number(overdueReceivables._sum.paidAmount ?? 0)
+      - Number(overdueReceivables._sum.returnedAmount ?? 0),
   );
 
   // ── Build stock maps ──
@@ -558,9 +566,9 @@ export async function getTodayData(): Promise<TodayData> {
       _count: true,
     }),
     tp.invoice.aggregate({
-      where: { status: { in: ["ISSUED", "PARTIAL"] }, dueDate: { lt: now } },
+      where: { status: { in: ["ISSUED", "PARTIAL"] }, voidAt: null, dueDate: { lt: now } },
       _count: true,
-      _sum: { grandTotal: true, paidAmount: true },
+      _sum: { grandTotal: true, paidAmount: true, returnedAmount: true },
     }),
   ]);
 
@@ -602,7 +610,9 @@ export async function getTodayData(): Promise<TodayData> {
   );
   const overdueTotal = Math.max(
     0,
-    Number(overdueReceivables._sum.grandTotal ?? 0) - Number(overdueReceivables._sum.paidAmount ?? 0),
+    Number(overdueReceivables._sum.grandTotal ?? 0)
+      - Number(overdueReceivables._sum.paidAmount ?? 0)
+      - Number(overdueReceivables._sum.returnedAmount ?? 0),
   );
 
   return {

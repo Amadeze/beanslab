@@ -2,14 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   computeRevenue,
   computeNetProfit,
-  computeCashFlow,
-  computePeriodMetrics,
   computeTrend,
   computeAverageInvoice,
 } from "./report-finance";
 
 describe("computeRevenue", () => {
-  it("sums PAID invoice grandTotal minus returnedAmount", () => {
+  it("sums delivered invoice grandTotal minus returnedAmount", () => {
     expect(
       computeRevenue([
         { grandTotal: 1_000_000, returnedAmount: 0 },
@@ -33,19 +31,15 @@ describe("computeRevenue", () => {
   });
 });
 
-describe("computeNetProfit & computeCashFlow", () => {
+describe("computeNetProfit", () => {
   const totals = { revenue: 10_000_000, expenses: 3_000_000, purchases: 2_000_000 };
 
   it("net profit subtracts purchase plus expenses", () => {
     expect(computeNetProfit(totals)).toBe(5_000_000);
   });
 
-  it("cash flow is revenue minus expenses only (differs from net profit)", () => {
-    expect(computeCashFlow(totals)).toBe(7_000_000);
-  });
-
-  it("computePeriodMetrics returns both consistently", () => {
-    expect(computePeriodMetrics(totals)).toEqual({ netProfit: 5_000_000, cashFlow: 7_000_000 });
+  it("returns 0 when there is no revenue", () => {
+    expect(computeNetProfit({ revenue: 0, expenses: 0, purchases: 0 })).toBe(0);
   });
 });
 

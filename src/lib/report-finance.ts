@@ -6,14 +6,15 @@
  * antar halaman. Tolong JANGAN menghitung "profit", "cash flow", atau "revenue"
  * secara manual di action/halaman report.
  *
- * Ringkasan definisi (basis KAS / operasional harian roastery):
- *  - REVENUE   : total invoice berstatus PAID, sudah dikurangi nilai retur.
- *                (invoice ISSUED/PARTIAL BELUM dihitung sebagai pendapatan).
+ * Ringkasan definisi (fase 2F.2 — pendapatan berbasis PENYERAHAN):
+ *  - REVENUE   : total invoice yang SUDAH DISERAHKAN (deliveredAt dalam periode,
+ *                belum di-void), dikurangi nilai retur. Invoice ISSUED yang
+ *                belum diserahkan BELUM dihitung sebagai pendapatan.
  *  - EXPENSES  : total beban operasional kas (tabel `expenses`), tanpa pembelian.
  *  - PURCHASES : biaya pembelian bahan baku (biji, kemasan) pada periode tsb.
  *  - NET PROFIT = Revenue - Expenses - Purchases.
- *  - CASH FLOW  = Revenue - Expenses (kas masuk dari penjualan vs kas keluar
- *    operasional; belum termasuk pos pembelanjaan yang bukan kas keluar saat ini).
+ *  - ARUS KAS  : BUKAN revenue - expenses. Arus kas dihitung dari pergerakan
+ *    nyata kas pada akun 1-1000 di buku besar (lihat src/lib/gl-cash-flow.ts).
  * =============================================================================
  */
 
@@ -21,7 +22,7 @@ export type RevenueBasis = "PAID" | "ALL";
 
 /** Ringkasan takaran keuangan satu periode. */
 export interface PeriodTotals {
-  revenue: number; // pendapatan (basis PAID, setelah retur)
+  revenue: number; // pendapatan (basis penyerahan, setelah retur)
   expenses: number; // beban operasional kas
   purchases: number; // biaya pembelian bahan
   paidCount: number; // jumlah invoice lunas (untuk rata-rata nota)
@@ -50,9 +51,9 @@ const toNumber = (value?: unknown): number => {
 };
 
 /**
- * Menghitung pendapatan dari daftar invoice PAID.
+ * Menghitung pendapatan dari daftar invoice yang SUDAH DISERAHKAN.
  * Basis: `grandTotal` dikurangi `returnedAmount` (retur/refund).
- * Inilah SATU-SATUNYA definisi "pendapatan" yang dipakai semua laporan.
+ * Inilah definisi "pendapatan" yang dipakai semua laporan.
  */
 export function computeRevenue(invoices: InvoiceRevenueInput[]): number {
   return invoices.reduce(
@@ -64,22 +65,6 @@ export function computeRevenue(invoices: InvoiceRevenueInput[]): number {
 /** Net Profit = Revenue - Expenses - Purchases. */
 export function computeNetProfit(totals: InputTotals): number {
   return totals.revenue - totals.expenses - totals.purchases;
-}
-
-/** Cash Flow = Revenue - Expenses. Beda dengan Net Profit (belum dikurangi pembelian). */
-export function computeCashFlow(totals: InputTotals): number {
-  return totals.revenue - totals.expenses;
-}
-
-/** Merge range metrics sekaligus (profit + cash flow) dari satu input. */
-export function computePeriodMetrics(totals: InputTotals): {
-  netProfit: number;
-  cashFlow: number;
-} {
-  return {
-    netProfit: computeNetProfit(totals),
-    cashFlow: computeCashFlow(totals),
-  };
 }
 
 /**

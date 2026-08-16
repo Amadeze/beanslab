@@ -775,7 +775,7 @@ export async function receivePO(
         totalCost,
         isPaid ? totalCost : 0,
         po.supplier.name,
-        { tx, tenantId, userId },
+        { tx, tenantId, userId, date: receivedAt },
         isSupply ? supplyItemMeta.get(poItem.supplyItemId!)?.category : undefined,
       );
     }

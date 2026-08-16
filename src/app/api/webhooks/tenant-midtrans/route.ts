@@ -197,7 +197,7 @@ export async function POST(req: Request) {
           paidAmount,
           invoice.code,
           invoice.customer.name,
-          { tx, tenantId: invoice.tenantId, userId: invoice.createdById },
+          { tx, tenantId: invoice.tenantId, userId: invoice.createdById, date: paidAt },
         );
         await recordAudit(tx, {
           tenantId: invoice.tenantId,

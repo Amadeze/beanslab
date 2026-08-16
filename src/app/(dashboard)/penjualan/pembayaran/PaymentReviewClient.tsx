@@ -17,7 +17,7 @@ type Row = {
   rejectionReason: string | null;
   proofObjectPath: string | null;
   suspectedDuplicateOf: { id: string; reference: string | null; invoice: { code: string } } | null;
-  invoice: { code: string; grandTotal: number; paidAmount: number; customer: { name: string } };
+  invoice: { code: string; grandTotal: number; paidAmount: number; returnedAmount: number; customer: { name: string } };
 };
 
 type Filter = "PENDING" | "HISTORY" | "ALL";
@@ -35,7 +35,7 @@ export function PaymentReviewClient({ rows }: { rows: Row[] }) {
   const [filter, setFilter] = useState<Filter>("PENDING");
   const [message, setMessage] = useState<string | null>(null);
   const [amounts, setAmounts] = useState<Record<string, string>>(() => Object.fromEntries(rows.map((row) => {
-    const outstanding = Math.max(0, row.invoice.grandTotal - row.invoice.paidAmount);
+    const outstanding = Math.max(0, row.invoice.grandTotal - row.invoice.paidAmount - row.invoice.returnedAmount);
     return [row.id, String(Math.min(row.declaredAmount ?? row.amount, outstanding))];
   })));
   const [reasons, setReasons] = useState<Record<string, string>>({});
@@ -83,7 +83,7 @@ export function PaymentReviewClient({ rows }: { rows: Row[] }) {
       {message ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{message}</p> : null}
       {filteredRows.length === 0 ? <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center text-sm text-stone-500">Tidak ada pembayaran pada filter ini.</div> : null}
       {filteredRows.map((row) => {
-        const outstanding = Math.max(0, row.invoice.grandTotal - row.invoice.paidAmount);
+        const outstanding = Math.max(0, row.invoice.grandTotal - row.invoice.paidAmount - row.invoice.returnedAmount);
         const declared = row.declaredAmount ?? row.amount;
         const mismatch = Math.abs(declared - outstanding) > 0.01;
         const pending = row.status === "AWAITING_VERIFICATION";

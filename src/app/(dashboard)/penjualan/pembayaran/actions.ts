@@ -41,7 +41,8 @@ export async function verifyPaymentSubmission(
       if (submission.invoice.status === "VOID" || submission.invoice.status === "RETURNED") {
         throw new Error("Invoice tidak dapat menerima pembayaran.");
       }
-      const outstanding = Number(submission.invoice.grandTotal) - Number(submission.invoice.paidAmount);
+      // Sisa tagihan = tagihan − bayar − retur (2F.2).
+      const outstanding = Math.max(0, Number(submission.invoice.grandTotal) - Number(submission.invoice.paidAmount) - Number(submission.invoice.returnedAmount));
       const declaredAmount = Number(submission.declaredAmount || submission.amount);
       const validationError = validatePaymentReview({
         outstanding,
@@ -67,8 +68,8 @@ export async function verifyPaymentSubmission(
         },
       });
       const paidAmount = Number(submission.invoice.paidAmount) + appliedAmount;
-      const isPaid = paidAmount >= Number(submission.invoice.grandTotal) - 0.01;
-      const remainingAmount = Math.max(0, Number(submission.invoice.grandTotal) - paidAmount);
+      const isPaid = paidAmount >= Number(submission.invoice.grandTotal) - Number(submission.invoice.returnedAmount) - 0.01;
+      const remainingAmount = Math.max(0, Number(submission.invoice.grandTotal) - Number(submission.invoice.returnedAmount) - paidAmount);
       await tx.invoice.update({
         where: { id: submission.invoiceId },
         data: { paidAmount, status: isPaid ? "PAID" : "PARTIAL" },
@@ -108,7 +109,7 @@ export async function verifyPaymentSubmission(
         select: { id: true },
       }) : null;
 
-      await postCustomerPrepayment(payment.id, appliedAmount, submission.invoice.code, submission.invoice.customer.name, { tx, tenantId, userId });
+      await postCustomerPrepayment(payment.id, appliedAmount, submission.invoice.code, submission.invoice.customer.name, { tx, tenantId, userId, date: now });
       await recordAudit(tx, {
         tenantId,
         userId,

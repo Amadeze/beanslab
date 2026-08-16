@@ -310,6 +310,7 @@ export async function getArusKas(
       date: true,
       description: true,
       refType: true,
+      reference: true,
     },
   });
 
@@ -327,55 +328,100 @@ export async function getArusKas(
     entryLinesMap.get(line.journalEntryId)!.push(line);
   }
 
+  // VOID_REVERSAL: reference berformat "<reference-sumber>:<id-jurnal-sumber>".
+  // Klasifikasi pembatalan mengikuti refType jurnal SUMBER (Model A) —
+  // bukan heuristik kode akun yang salah arah (mis. void pembayaran jatuh ke
+  // investasi, void pembayaran pemasok jatuh ke pendanaan).
+  const sourceIdByReversalId = new Map<string, string>();
+  for (const entry of entries) {
+    if (entry.refType === "VOID_REVERSAL" && entry.reference) {
+      const lastColon = entry.reference.lastIndexOf(":");
+      if (lastColon >= 0) {
+        sourceIdByReversalId.set(entry.id, entry.reference.slice(lastColon + 1));
+      }
+    }
+  }
+  const sourceRefTypeById = new Map<string, string>();
+  const sourceIds = [...new Set(sourceIdByReversalId.values())];
+  if (sourceIds.length > 0) {
+    const sources = await tp.journalEntry.findMany({
+      where: { id: { in: sourceIds } },
+      select: { id: true, refType: true },
+    });
+    for (const source of sources) {
+      if (source.refType) sourceRefTypeById.set(source.id, source.refType);
+    }
+  }
+  const resolvedRefType = (entry: { id: string; refType: string | null }): string | null => {
+    const sourceId = sourceIdByReversalId.get(entry.id);
+    return sourceId ? (sourceRefTypeById.get(sourceId) ?? null) : entry.refType;
+  };
+
   const categories: ArusKasRow[] = [];
-  let operatingIn = 0, operatingOut = 0;
+  let salesIn = 0, salesOut = 0;
+  let supplierIn = 0, supplierOut = 0;
+  let opexIn = 0, opexOut = 0;
+  let otherOpIn = 0, otherOpOut = 0;
   let investingIn = 0, investingOut = 0;
   let financingIn = 0, financingOut = 0;
-
-  const isRevenue = (code: string) => code.startsWith("4-");
-  const isExpense = (code: string) => code.startsWith("5-");
-  const isAssetNonKas = (code: string) =>
-    code.startsWith("1-") && code !== "1-1000";
-  const isLiability = (code: string) => code.startsWith("2-");
-  const isEquity = (code: string) => code.startsWith("3-");
 
   for (const entry of entries) {
     const lines = entryLinesMap.get(entry.id) ?? [];
     const kasLines = lines.filter((l) => l.accountId === kasAccount.id);
     const kasIn = kasLines.reduce((s, l) => s + Number(l.debit), 0);
     const kasOut = kasLines.reduce((s, l) => s + Number(l.credit), 0);
-    const otherCodes = lines
-      .filter((l) => l.accountId !== kasAccount.id)
-      .map((l) => l.account.code);
 
-    const refType = entry.refType;
-    if (refType === "SALE" || refType === "INVOICE" || refType === "PAYMENT") {
-      operatingIn += kasIn;
-      operatingOut += kasOut;
-    } else if (refType === "SUPPLIER_PAYMENT" || refType === "PURCHASE") {
-      operatingOut += kasOut;
+    const refType = resolvedRefType(entry);
+
+    if (refType === "PAYMENT" || refType === "SALE" || refType === "INVOICE") {
+      // Penerimaan kas dari penjualan (termasuk pembatalannya = pengembalian).
+      salesIn += kasIn;
+      salesOut += kasOut;
+    } else if (refType === "PURCHASE" || refType === "SUPPLIER_PAYMENT") {
+      // Pembayaran ke pemasok: pembayaran awal embedded saat pembelian
+      // (PURCHASE) + SupplierPayment (termasuk pembatalannya = pengembalian).
+      supplierIn += kasIn;
+      supplierOut += kasOut;
     } else if (refType === "EXPENSE") {
-      operatingOut += kasOut;
-    } else {
-      const hasRevenue = otherCodes.some(isRevenue);
-      const hasExpense = otherCodes.some(isExpense);
-      const hasAsset = otherCodes.some(isAssetNonKas);
-      const hasLiability = otherCodes.some(isLiability);
-      const hasEquity = otherCodes.some(isEquity);
+      opexIn += kasIn;
+      opexOut += kasOut;
+    } else if (refType === "CAPITAL") {
+      financingIn += kasIn;
+      financingOut += kasOut;
+    } else if (refType === "VOID_REVERSAL" || refType === null) {
+      // Jurnal sumber tidak ditemukan — fallback heuristik kode akun lawan.
+      const otherCodes = lines
+        .filter((l) => l.accountId !== kasAccount.id)
+        .map((l) => l.account.code);
+      const hasEquity = otherCodes.some((c) => c.startsWith("3-"));
+      const hasAsset = otherCodes.some((c) => c.startsWith("1-") && c !== "1-1000");
+      const hasLiability = otherCodes.some((c) => c.startsWith("2-"));
+      const hasRevenue = otherCodes.some((c) => c.startsWith("4-"));
+      const hasExpense = otherCodes.some((c) => c.startsWith("5-"));
 
-      if (hasEquity || (hasLiability && !hasRevenue && !hasExpense)) {
+      if (hasEquity) {
         financingIn += kasIn;
         financingOut += kasOut;
-      } else if (hasAsset && !hasRevenue && !hasExpense) {
+      } else if (hasAsset && !hasRevenue && !hasExpense && !hasLiability) {
         investingOut += kasOut;
         investingIn += kasIn;
       } else if (hasRevenue) {
-        operatingIn += kasIn;
+        salesIn += kasIn;
+        salesOut += kasOut;
       } else if (hasExpense) {
-        operatingOut += kasOut;
+        opexIn += kasIn;
+        opexOut += kasOut;
+      } else if (hasLiability) {
+        financingIn += kasIn;
+        financingOut += kasOut;
       } else {
-        kasIn > kasOut ? (operatingIn += kasIn) : (operatingOut += kasOut);
+        otherOpIn += kasIn;
+        otherOpOut += kasOut;
       }
+    } else {
+      // ADJUSTMENT (mis. penyesuaian ongkir) dan jurnal kas lainnya.
+      otherOpIn += kasIn;
+      otherOpOut += kasOut;
     }
   }
 
@@ -383,10 +429,12 @@ export async function getArusKas(
     categories.push({ category: cat, label, amount });
   };
 
-  addRow("OPERATING", "Penerimaan dari Penjualan", operatingIn);
-  addRow("OPERATING", "Pembayaran ke Pemasok", -operatingOut);
-  addRow("OPERATING", "Pembayaran Beban Operasional", 0);
-  addRow("OPERATING", "Kas Bersih dari Operasi", operatingIn - operatingOut);
+  const operatingNet = (salesIn - salesOut) - (supplierOut - supplierIn) - (opexOut - opexIn) + (otherOpIn - otherOpOut);
+  addRow("OPERATING", "Penerimaan dari Penjualan", salesIn - salesOut);
+  addRow("OPERATING", "Pembayaran ke Pemasok", -(supplierOut - supplierIn));
+  addRow("OPERATING", "Pembayaran Beban Operasional", -(opexOut - opexIn));
+  addRow("OPERATING", "Arus Kas Operasional Lainnya", otherOpIn - otherOpOut);
+  addRow("OPERATING", "Kas Bersih dari Operasi", operatingNet);
   addRow("INVESTING", "Penerimaan dari Investasi", investingIn);
   addRow("INVESTING", "Pembayaran Investasi", -investingOut);
   addRow("INVESTING", "Kas Bersih dari Investasi", investingIn - investingOut);

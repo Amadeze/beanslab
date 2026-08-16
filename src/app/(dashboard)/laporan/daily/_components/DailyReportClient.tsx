@@ -108,7 +108,7 @@ export default function DailyReportClient() {
     year: "numeric",
   });
 
-  const netCashFlow = data.revenue - data.expenses;
+  const operatingBalance = data.revenue - data.expenses;
 
   return (
     <ReportLayout
@@ -148,7 +148,7 @@ export default function DailyReportClient() {
             value={formatRupiah(data.revenue)}
             icon={TrendingUp}
             color="emerald"
-            help="Basis pendapatan: invoice lunas (PAID) hari ini, dikurangi nilai retur."
+            help="Basis pendapatan: invoice diserahkan (deliveredAt) hari ini, dikurangi nilai retur."
           />
           <ReportKpiCard
             label="Pengeluaran"
@@ -163,14 +163,14 @@ export default function DailyReportClient() {
             subtitle="invoice lunas"
             icon={ReceiptText}
             color="blue"
-            help="Jumlah nota dengan status lunas hari ini."
+            help="Jumlah nota yang diserahkan hari ini."
           />
           <ReportKpiCard
-            label="Net Cash Flow"
-            value={formatRupiah(netCashFlow)}
-            icon={netCashFlow >= 0 ? TrendingUp : TrendingDown}
-            color={netCashFlow >= 0 ? "emerald" : "rose"}
-            help="Arus kas bersih hari ini = Revenue − Pengeluaran."
+            label="Selisih Revenue − Beban"
+            value={formatRupiah(operatingBalance)}
+            icon={operatingBalance >= 0 ? TrendingUp : TrendingDown}
+            color={operatingBalance >= 0 ? "emerald" : "rose"}
+            help="Selisih revenue − pengeluaran hari ini. Bukan arus kas — lihat Laporan Arus Kas untuk pergerakan kas aktual (akun 1-1000)."
           />
         </div>
 
@@ -180,7 +180,7 @@ export default function DailyReportClient() {
           <div className="space-y-1 text-xs text-stone-600">
             <p>• Revenue hari ini: <span className="font-semibold">{formatRupiah(data.revenue)}</span> dari {data.transactions} transaksi</p>
             <p>• Pengeluaran: <span className="font-semibold">{formatRupiah(data.expenses)}</span></p>
-            <p>• Net cash flow: <span className={`font-semibold ${netCashFlow >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{formatRupiah(netCashFlow)}</span></p>
+            <p>• Selisih revenue − beban: <span className={`font-semibold ${operatingBalance >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{formatRupiah(operatingBalance)}</span></p>
             {data.batches > 0 && <p>• Batch roasting selesai: <span className="font-semibold">{data.batches} batch</span></p>}
           </div>
         </div>

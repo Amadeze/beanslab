@@ -11,11 +11,11 @@ import { formatRupiah } from "@/lib/format";
 import {
   computeRevenue,
   computeNetProfit,
-  computePeriodMetrics,
   computeTrend,
   computeAverageInvoice,
   type InputTotals,
 } from "@/lib/report-finance";
+import { computeCashMovement } from "@/lib/gl-cash-flow";
 import { getRbCostPrioritizingCache, getFgHppPrioritizingCache } from "@/lib/costing";
 import { computeValuationMetrics } from "@/lib/inventory-helpers";
 import { prisma } from "@/lib/prisma";
@@ -49,14 +49,15 @@ async function getDailyFinancialTotals(input: {
           COALESCE(SUM(daily.expenses), 0)::text AS expenses
         FROM (
           SELECT
-            to_char(i."issuedAt" AT TIME ZONE ${tz}, 'YYYY-MM-DD') AS "dateKey",
+            to_char(i."deliveredAt" AT TIME ZONE ${tz}, 'YYYY-MM-DD') AS "dateKey",
             i."grandTotal" - i."returnedAmount" AS revenue,
             0::numeric AS expenses
           FROM invoices i
           WHERE i."tenantId" = ${t}
-            AND i.status = 'PAID'
-            AND i."issuedAt" >= ${new Date(s)}
-            AND i."issuedAt" < ${new Date(e)}
+            AND i."deliveredAt" IS NOT NULL
+            AND (i."voidAt" IS NULL OR i."voidAt" >= ${new Date(e)})
+            AND i."deliveredAt" >= ${new Date(s)}
+            AND i."deliveredAt" < ${new Date(e)}
 
           UNION ALL
 
@@ -73,7 +74,7 @@ async function getDailyFinancialTotals(input: {
         GROUP BY daily."dateKey"
       `);
     },
-    ["daily-financial-totals"],
+    ["daily-financial-totals-v2"],
     { revalidate: 3600 }
   );
 
@@ -513,6 +514,8 @@ export type BalanceSheetReport = {
     withdrawals: number;
     retainedEarnings: number;
     distributedProfit: number;
+    /** Akun bertipe EQUITY di luar kode standar 3-1000/3-1010/3-1020/3-1030. */
+    otherEquity: number;
     totalEquity: number;
   };
 };
@@ -534,7 +537,7 @@ export async function getBalanceSheetReport(
   const lineGroups = accountIds.length > 0
     ? await prisma.journalLine.groupBy({
         by: ["accountId"],
-        where: { accountId: { in: accountIds }, journalEntry: { tenantId, voidAt: null } },
+        where: { accountId: { in: accountIds }, journalEntry: { tenantId } },
         _sum: { debit: true, credit: true },
       })
     : [];
@@ -595,14 +598,17 @@ export async function getBalanceSheetReport(
       OR: [{ voidAt: null }, { voidAt: { gt: asOf } }],
     },
     select: {
-      totalCost: true, dueDate: true,
-      payments: { where: { paidAt: { lte: asOf }, OR: [{ voidAt: null }, { voidAt: { gt: asOf } }] }, select: { amount: true } },
+      totalCost: true,
+      dueDate: true,
+      paidAmount: true,
     },
   });
   const aging: BalanceSheetReport["liabilities"]["aging"] = { current: 0, overdue1To30: 0, overdue31To60: 0, overdue61Plus: 0 };
   for (const p of payablePurchases) {
-    const paid = p.payments.reduce((s, pm) => s + Number(pm.amount), 0);
-    const bal = Math.max(0, Number(p.totalCost) - paid);
+    // paidAmount sudah kumulatif (pembayaran awal + SupplierPayment + void);
+    // jangan menjumlah ulang SupplierPayment — pembayaran awal embedded
+    // (tanpa jurnal SUPPLIER_PAYMENT) hanya terlihat di paidAmount.
+    const bal = Math.max(0, Number(p.totalCost) - Number(p.paidAmount));
     if (bal <= 0.01) continue;
     const bucket = getPayableAgingBucket(p.dueDate, asOf);
     if (bucket === "CURRENT") aging.current += bal;
@@ -620,7 +626,16 @@ export async function getBalanceSheetReport(
   const totalExpense = expenseAccounts.reduce((s, a) => s + saldo(a.id, a.type), 0);
   const netIncome = totalRevenue - totalExpense;
 
-  const totalEquity = contributedCapital - withdrawals + retainedEarnings + currentYearProfit + netIncome;
+  // Ekuitas lain: SEMUA akun bertipe EQUITY di luar kode standar 3-1000/3-1010/
+  // 3-1020/3-1030 tetap masuk neraca (mis. modal setoran tambahan dengan akun
+  // kustom). Saldo normal ekuitas = kredit, sama seperti perhitungan di atas.
+  const equityCodes = ["3-1000", "3-1010", "3-1020", "3-1030"];
+  const equityAccounts = accounts.filter((a) => a.type === "EQUITY");
+  const otherEquity = equityAccounts
+    .filter((a) => !equityCodes.includes(a.code))
+    .reduce((s, a) => s + saldo(a.id, a.type), 0);
+
+  const totalEquity = contributedCapital - withdrawals + retainedEarnings + currentYearProfit + otherEquity + netIncome;
 
   const warnings: string[] = [];
   if (accountsReceivable > 0) warnings.push(`Piutang: ${formatRupiah(accountsReceivable)} (dari GL)`);
@@ -639,13 +654,14 @@ export async function getBalanceSheetReport(
       aging,
       trackingNote: otherLiabilities > 0 ? `Termasuk ${formatRupiah(otherLiabilities)} kewajiban lain` : "",
     },
-    equity: {
-      contributedCapital,
-      withdrawals,
-      retainedEarnings,
-      distributedProfit: 0,
-      totalEquity,
-    },
+equity: {
+    contributedCapital,
+    withdrawals,
+    retainedEarnings,
+    distributedProfit: 0,
+    otherEquity,
+    totalEquity,
+  },
   };
 }
 
@@ -1107,10 +1123,11 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
   // Use start of startDate for the lower bound
   const { start: rangeStartUTC } = dateToLocalRange(startDate, timezone);
 
-// Basis pendapatan konsisten: hanya invoice LUNAS (PAID).
+// Basis pendapatan konsisten: invoice yang SUDAH DISERAHKAN (deliveredAt)
+// dan belum di-void dalam periode — pendapatan diakui saat penyerahan.
   const reportWhere = {
-    issuedAt: { gte: rangeStartUTC, lte: endUTC },
-    status: "PAID",
+    deliveredAt: { gte: rangeStartUTC, lte: endUTC },
+    OR: [{ voidAt: null }, { voidAt: { gt: endUTC } }],
   } satisfies Prisma.InvoiceWhereInput;
   const detailLimit = 500;
   const start = new Date(startDate);
@@ -1122,8 +1139,8 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
   type ProductSalesRow = { name: string; value: string };
   type TopCustomerRow = { name: string };
   const [paidTotal, invoiceCount, topCustomers, invoices, dailyTotals, productSales] = await Promise.all([
-tp.invoice.aggregate({
-      where: { issuedAt: reportWhere.issuedAt, status: "PAID" },
+    tp.invoice.aggregate({
+      where: reportWhere,
       _sum: { grandTotal: true, returnedAmount: true },
     }),
     tp.invoice.count({ where: reportWhere }),
@@ -1133,9 +1150,9 @@ tp.invoice.aggregate({
       JOIN customers c ON c.id = i."customerId"
       WHERE i."tenantId" = ${t}
         AND c."tenantId" = ${t}
-AND i."issuedAt" >= ${rangeStartUTC}
-        AND i."issuedAt" <= ${endUTC}
-        AND i.status = 'PAID'
+        AND i."deliveredAt" >= ${rangeStartUTC}
+        AND i."deliveredAt" <= ${endUTC}
+        AND (i."voidAt" IS NULL OR i."voidAt" > ${endUTC})
       GROUP BY c.id, c.name
       ORDER BY SUM(i."grandTotal") DESC
       LIMIT 10
@@ -1168,9 +1185,9 @@ AND i."issuedAt" >= ${rangeStartUTC}
       JOIN products p ON p.id = ii."productId"
       WHERE i."tenantId" = ${t}
         AND ii."tenantId" = ${t}
-AND i."issuedAt" >= ${rangeStartUTC}
-        AND i."issuedAt" <= ${endUTC}
-        AND i.status = 'PAID'
+        AND i."deliveredAt" >= ${rangeStartUTC}
+        AND i."deliveredAt" <= ${endUTC}
+        AND (i."voidAt" IS NULL OR i."voidAt" > ${endUTC})
       GROUP BY p.category
       ORDER BY SUM(ii.subtotal) DESC
     `),
@@ -1243,7 +1260,7 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
   const { start: rangeStartUTC, end: rangeEndUTC } = dateToLocalRange(endDate, timezone);
   const { start: rangeStartOnly } = dateToLocalRange(startDate, timezone);
 
-  const [expenses, purchases, payments] = await Promise.all([
+  const [expenses, purchases] = await Promise.all([
     tp.expense.findMany({
       where: {
         date: { gte: rangeStartOnly, lte: rangeEndUTC },
@@ -1257,22 +1274,31 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
         status: { in: ["COMPLETED", "VOID"] },
         OR: [{ voidAt: null }, { voidAt: { gt: rangeEndUTC } }],
       },
-    }),
-    tp.supplierPayment.findMany({
-      where: { paidAt: { gte: rangeStartOnly, lte: rangeEndUTC } },
+      select: {
+        totalCost: true,
+        paidAmount: true,
+        voidAt: true,
+        receivedAt: true,
+        code: true,
+        supplier: { select: { name: true } },
+      },
     }),
   ]);
 
   const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const totalPurchases = purchases.reduce((sum, p) => sum + Number(p.totalCost), 0);
-  const totalPayments = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const outstandingPayable = Math.max(0, totalPurchases - totalPayments);
+  // Hutang per pembelian = total biaya − total yang sudah dibayar (paidAmount
+  // sudah kumulatif: pembayaran awal saat penerimaan + SupplierPayment + void).
+  const outstandingPayable = purchases.reduce(
+    (sum, p) => sum + Math.max(0, Number(p.totalCost) - Number(p.paidAmount)),
+    0,
+  );
 
-  // Get revenue for profit calculation
+  // Get revenue for profit calculation (basis penyerahan)
   const invoices = await tp.invoice.findMany({
     where: {
-      issuedAt: { gte: rangeStartOnly, lte: rangeEndUTC },
-      status: "PAID",
+      deliveredAt: { gte: rangeStartOnly, lte: rangeEndUTC },
+      OR: [{ voidAt: null }, { voidAt: { gt: rangeEndUTC } }],
     },
   });
   const totalRevenue = invoices.reduce((sum, i) => sum + Number(i.grandTotal) - Number(i.returnedAmount), 0);
@@ -1650,12 +1676,13 @@ export async function getKeuanganOverview(startDate?: string, endDate?: string):
   const chartDays = buildChartDaysFrom(startStr, chartDayCount, timezone);
 
   // Aggregate in PostgreSQL instead of loading every invoice/expense into Node.
-const [invoiceTotal, expenseGroups, prevInvoiceTotal, prevExpenseTotal, purchaseTotal, prevPurchaseTotal, dailyTotals] = await Promise.all([
+  const deliveredWhere = (from: Date, to: Date) => ({
+    deliveredAt: { gte: from, lte: to },
+    OR: [{ voidAt: null }, { voidAt: { gt: to } }],
+  });
+const [invoiceTotal, expenseGroups, prevInvoiceTotal, prevExpenseTotal, purchaseTotal, prevPurchaseTotal, dailyTotals, cashMovement, prevCashMovement] = await Promise.all([
     tp.invoice.aggregate({
-      where: {
-        issuedAt: { gte: rangeStart, lte: rangeEnd },
-        status: "PAID",
-      },
+      where: deliveredWhere(rangeStart, rangeEnd),
       _sum: { grandTotal: true, returnedAmount: true },
     }),
     tp.expense.groupBy({
@@ -1667,10 +1694,7 @@ const [invoiceTotal, expenseGroups, prevInvoiceTotal, prevExpenseTotal, purchase
       _sum: { amount: true },
     }),
     tp.invoice.aggregate({
-      where: {
-        issuedAt: { gte: prevStart, lte: prevEnd },
-        status: "PAID",
-      },
+      where: deliveredWhere(prevStart, prevEnd),
       _sum: { grandTotal: true, returnedAmount: true },
     }),
     tp.expense.aggregate({
@@ -1699,6 +1723,8 @@ const [invoiceTotal, expenseGroups, prevInvoiceTotal, prevExpenseTotal, purchase
       start: chartDays[0].start,
       end: chartDays.at(-1)!.end,
     }),
+    computeCashMovement({ tp, tenantId, start: rangeStart, end: rangeEnd }),
+    computeCashMovement({ tp, tenantId, start: prevStart, end: prevEnd }),
   ]);
 
 const totalRevenue = Number(invoiceTotal._sum.grandTotal ?? 0) - Number(invoiceTotal._sum.returnedAmount ?? 0);
@@ -1712,18 +1738,21 @@ const totalRevenue = Number(invoiceTotal._sum.grandTotal ?? 0) - Number(invoiceT
   const lastExpenses = Number(prevExpenseTotal._sum.amount ?? 0);
   const prevPurchases = Number(prevPurchaseTotal._sum.totalCost ?? 0);
 
-  // Definisi konsisten: NET PROFIT = Revenue - Expenses - Purchases;
-  // CASH FLOW = Revenue - Expenses (lihat src/lib/report-finance.ts).
-  const { netProfit, cashFlow } = computePeriodMetrics({
+  // NET PROFIT = Revenue - Expenses - Purchases (basis penyerahan).
+  // ARUS KAS = pergerakan NYATA kas pada akun 1-1000 di buku besar
+  // (src/lib/gl-cash-flow.ts) — bukan revenue - expenses.
+  const netProfit = computeNetProfit({
     revenue: totalRevenue,
     expenses: totalExpenses,
     purchases: totalPurchases,
   });
-  const { netProfit: lastNetProfit, cashFlow: lastCashFlow } = computePeriodMetrics({
+  const lastNetProfit = computeNetProfit({
     revenue: lastRevenue,
     expenses: lastExpenses,
     purchases: prevPurchases,
   });
+  const cashFlow = cashMovement.net;
+  const lastCashFlow = prevCashMovement.net;
 
   const revenueTrend = computeTrend(totalRevenue, lastRevenue);
   const expensesTrend = computeTrend(totalExpenses, lastExpenses);

@@ -25,7 +25,7 @@ export default async function PaymentReviewPage() {
       rejectionReason: true,
       proofObjectPath: true,
       suspectedDuplicateOf: { select: { id: true, reference: true, invoice: { select: { code: true } } } },
-      invoice: { select: { code: true, grandTotal: true, paidAmount: true, customer: { select: { name: true } } } },
+      invoice: { select: { code: true, grandTotal: true, paidAmount: true, returnedAmount: true, customer: { select: { name: true } } } },
     },
   });
   const serialized = rows.map((row) => ({
@@ -34,7 +34,7 @@ export default async function PaymentReviewPage() {
     declaredAmount: row.declaredAmount ? Number(row.declaredAmount) : null,
     reviewedAmount: row.reviewedAmount ? Number(row.reviewedAmount) : null,
     submittedAt: row.submittedAt?.toISOString() || null,
-    invoice: { ...row.invoice, grandTotal: Number(row.invoice.grandTotal), paidAmount: Number(row.invoice.paidAmount) },
+    invoice: { ...row.invoice, grandTotal: Number(row.invoice.grandTotal), paidAmount: Number(row.invoice.paidAmount), returnedAmount: Number(row.invoice.returnedAmount) },
   }));
   const pending = serialized.filter((row) => row.status === "AWAITING_VERIFICATION").length;
 

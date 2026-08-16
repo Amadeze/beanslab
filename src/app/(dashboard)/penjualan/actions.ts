@@ -613,7 +613,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
             createdById: userId,
           },
         });
-        await postCustomerPrepayment(payment.id, grandTotal, inv.code, customer.name, { tx, tenantId, userId });
+        await postCustomerPrepayment(payment.id, grandTotal, inv.code, customer.name, { tx, tenantId, userId, date: now });
       }
 
       await recordAudit(tx, {
@@ -634,7 +634,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
         await postSalesInvoice(
           inv.id, Number(inv.grandTotal), Number(inv.paidAmount), customer.name,
           enrichedItems.map((item) => ({ productType: item.productType, hpp: Number(item.hpp), quantity: item.quantity })),
-          { tx, tenantId, userId }, taxResult.taxAmount,
+          { tx, tenantId, userId, date: now }, taxResult.taxAmount,
         );
         await tx.invoice.update({ where: { id: inv.id }, data: { fulfillmentStatus: "DELIVERED", deliveredAt: now } });
       }
@@ -1315,7 +1315,7 @@ export async function createCreditNote(input: CreditNoteInput) {
             quantity: item.quantity,
           };
         }),
-        { tx, tenantId, userId },
+        { tx, tenantId, userId, date: getCurrentDate() },
         { taxAmount: returnedTaxAmount, arPortion, refundPortion },
       );
     });

@@ -751,7 +751,7 @@ export async function createGreenBeanPurchase(
         Number(input.totalCost),
         Number(payment.paidAmount),
         supplier.name,
-        { tx, tenantId, userId },
+        { tx, tenantId, userId, date: receivedAt },
       );
     }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
 
@@ -991,7 +991,7 @@ export async function createRoastedBeanPurchase(
         Number(input.totalCost),
         Number(payment.paidAmount),
         supplier.name,
-        { tx, tenantId, userId },
+        { tx, tenantId, userId, date: receivedAt },
       );
     }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
 
@@ -1241,7 +1241,7 @@ export async function createPackagingPurchase(
         Number(input.totalCost),
         Number(payment.paidAmount),
         supplier.name,
-        { tx, tenantId, userId },
+        { tx, tenantId, userId, date: receivedAt },
       );
     }, { isolationLevel: "Serializable", maxWait: 15000, timeout: 60000 });
 
