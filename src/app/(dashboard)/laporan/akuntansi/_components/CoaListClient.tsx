@@ -24,8 +24,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import Link from "next/link";
 import { createAccount, updateAccount, toggleAccountStatus } from "../actions";
 import { ReportExport } from "../../_shared/ReportExport";
+import { cn } from "@/lib/utils";
+import { journalRefTypeLabel, journalSourceHref } from "@/lib/journal-labels";
 
 const TYPE_LABELS: Record<string, string> = {
   ASSET: "Aset", LIABILITY: "Kewajiban", EQUITY: "Ekuitas",
@@ -286,24 +289,52 @@ export function CoaListClient({ accounts, entries, trialBalance, embedded = fals
                 <div className="rounded-xl border border-stone-200 bg-white p-8 text-center text-sm text-stone-400">
                   Belum ada jurnal. Jurnal akan tercatat otomatis saat ada transaksi.
                 </div>
-              ) : entries.map((e) => (
+              ) : entries.map((e) => {
+                const refLabel = journalRefTypeLabel(e.refType);
+                const isReversal = e.refType === "VOID_REVERSAL";
+                const sourceHref = isReversal ? null : journalSourceHref(e.refType);
+                return (
                 <div key={e.id} className="rounded-xl border border-stone-200 bg-white overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3 bg-stone-50 border-b border-stone-200">
-                    <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 bg-stone-50 border-b border-stone-200">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-xs font-bold text-stone-700">{e.code}</span>
                       <span className="text-xs text-stone-400">{formatDate(e.date)}</span>
-                      {e.refType && (
-                        <Badge variant="outline" className="text-xs">{e.refType}</Badge>
+                      {refLabel && (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs",
+                            isReversal
+                              ? "border-red-200 bg-red-50 text-red-600"
+                              : "border-stone-200 text-stone-600",
+                          )}
+                        >
+                          {isReversal && "↩ "}
+                          {refLabel}
+                        </Badge>
+                      )}
+                      {e.createdByName && (
+                        <span className="text-[11px] text-stone-400">
+                          oleh {e.createdByName}
+                        </span>
+                      )}
+                      {sourceHref && (
+                        <Link
+                          href={sourceHref}
+                          className="text-[11px] font-semibold text-[#B65331] hover:underline"
+                        >
+                          Lihat transaksi →
+                        </Link>
                       )}
                     </div>
                     <span className="text-xs text-stone-500">{e.description}</span>
                   </div>
                   <div className="divide-y divide-stone-100">
                     {e.lines.map((l, i) => (
-                      <div key={i} className="flex items-center justify-between px-5 py-2.5 text-sm">
-                        <div className="flex items-center gap-3">
-                          <span className="font-mono text-xs text-stone-400 w-16">{l.accountCode}</span>
-                          <span className="text-stone-700">{l.accountName}</span>
+                      <div key={i} className="flex items-center justify-between gap-3 px-5 py-2.5 text-sm">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="font-mono text-xs text-stone-400 w-16 shrink-0">{l.accountCode}</span>
+                          <span className="min-w-0 truncate text-stone-700">{l.accountName}</span>
                         </div>
                         <div className="flex gap-8 font-mono text-xs tabular-nums">
                           <span className="w-24 text-right text-emerald-700">
@@ -324,7 +355,8 @@ export function CoaListClient({ accounts, entries, trialBalance, embedded = fals
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

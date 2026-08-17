@@ -492,6 +492,7 @@ export type BalanceSheetReport = {
   asOf: string;
   status: "DRAFT";
   warnings: string[];
+  businessName: string;
   assets: {
     cashAndBank: number;
     accountsReceivable: number;
@@ -647,6 +648,10 @@ export async function getBalanceSheetReport(
     asOf: asOf.toISOString(),
     status: "DRAFT",
     warnings,
+    businessName: (await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true },
+    }))?.name?.trim() || "",
     assets: { cashAndBank, accountsReceivable, inventory, totalAssets },
     liabilities: {
       accountsPayable,

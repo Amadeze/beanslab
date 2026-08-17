@@ -116,20 +116,27 @@ export function SupplierPaymentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-3 gap-3 border-y border-white/50 bg-white/20 px-5 py-3 text-center">
+        <div className="grid grid-cols-2 gap-3 border-y border-white/50 bg-white/20 px-5 py-3 text-center sm:grid-cols-4">
           <div>
-            <p className="text-xs uppercase text-slate-400">Total</p>
+            <p className="text-xs uppercase text-slate-400">Total Pembelian</p>
             <p className="font-mono text-sm font-bold">{formatRupiah(purchase.totalCost)}</p>
           </div>
           <div>
-            <p className="text-xs uppercase text-slate-400">Terbayar</p>
-            <p className="font-mono text-sm font-bold text-emerald-700">{formatRupiah(purchase.paidAmount)}</p>
+            <p className="text-xs uppercase text-slate-400">Pembayaran Awal</p>
+            <p className="font-mono text-sm font-bold text-slate-600">{formatRupiah(purchase.initialPaidAmount)}</p>
           </div>
           <div>
-            <p className="text-xs uppercase text-slate-400">Sisa</p>
+            <p className="text-xs uppercase text-slate-400">Pembayaran Berikutnya</p>
+            <p className="font-mono text-sm font-bold text-emerald-700">{formatRupiah(purchase.paidAmount - purchase.initialPaidAmount)}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase text-slate-400">Sisa Hutang</p>
             <p className="font-mono text-sm font-bold text-amber-700">{formatRupiah(purchase.balance)}</p>
           </div>
         </div>
+        <p className="px-5 pb-1 text-[11px] text-slate-400">
+          Pembayaran Awal = uang dibayar saat penerimaan barang (dibukukan oleh jurnal pembelian).
+        </p>
 
         <form id="supplier-payment-form" onSubmit={handleSubmit(submit)} className="space-y-4 px-5 py-4">
           <div className="space-y-1.5">

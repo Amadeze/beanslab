@@ -24,12 +24,13 @@ import { getCurrentDate, getTodayString } from "@/lib/date-utils";
 const CATEGORIES = [
   { value: "UTILITAS",    label: "Utilitas (Listrik, Air, Internet)" },
   { value: "OPERASIONAL", label: "Operasional (Sewa, Bahan Habis Pakai)" },
+  { value: "GAJI",        label: "Gaji & Tunjangan" },
   { value: "LAINNYA",     label: "Lainnya" },
 ] as const;
 
 const schema = z.object({
   date:        z.string().min(1, "Tanggal wajib diisi"),
-  category:    z.enum(["UTILITAS", "OPERASIONAL", "LAINNYA"] as const),
+  category:    z.enum(["UTILITAS", "OPERASIONAL", "GAJI", "LAINNYA"] as const),
   amount:      z.number({ error: "Nominal harus angka" }).positive("Nominal harus lebih dari 0"),
   description: z.string().optional(),
 });

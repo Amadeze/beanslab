@@ -58,6 +58,51 @@ interface TerimaPaymentDialogProps {
 }
 
 // =============================================================================
+// Rincian sisa tagihan — sisa = total − dibayar − retur (2F.2).
+// Komponen presentasional agar dapat diuji tanpa dialog/portal.
+// =============================================================================
+
+export function TerimaPaymentSummary({ invoice }: { invoice: PiutangRow }) {
+  const balance = invoice.balance ?? 0;
+  return (
+    <div className="grid grid-cols-2 divide-x divide-white/20 border-b border-white/20 bg-white/20 backdrop-blur-sm sm:grid-cols-4">
+      <div className="px-4 py-3 text-center">
+        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+          Total Nota
+        </p>
+        <p className="mt-0.5 font-mono text-sm font-bold text-slate-800">
+          {formatRupiah(invoice.grandTotal)}
+        </p>
+      </div>
+      <div className="px-4 py-3 text-center">
+        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+          Retur
+        </p>
+        <p className="mt-0.5 font-mono text-sm font-bold text-rose-600">
+          {formatRupiah(invoice.returnedAmount)}
+        </p>
+      </div>
+      <div className="px-4 py-3 text-center">
+        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+          Terbayar
+        </p>
+        <p className="mt-0.5 font-mono text-sm font-bold text-emerald-700">
+          {formatRupiah(invoice.paidAmount)}
+        </p>
+      </div>
+      <div className="px-4 py-3 text-center">
+        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+          Sisa Tagihan
+        </p>
+        <p className="mt-0.5 font-mono text-sm font-bold text-amber-700">
+          {formatRupiah(balance)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
 // Component
 // =============================================================================
 
@@ -158,33 +203,8 @@ export function TerimaPaymentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Invoice balance summary */}
-        <div className="grid grid-cols-3 divide-x divide-white/20 border-b border-white/20 bg-white/20 backdrop-blur-sm">
-          <div className="px-4 py-3 text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-              Total Nota
-            </p>
-            <p className="mt-0.5 font-mono text-sm font-bold text-slate-800">
-              {formatRupiah(invoice.grandTotal)}
-            </p>
-          </div>
-          <div className="px-4 py-3 text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-              Terbayar
-            </p>
-            <p className="mt-0.5 font-mono text-sm font-bold text-emerald-700">
-              {formatRupiah(invoice.paidAmount)}
-            </p>
-          </div>
-          <div className="px-4 py-3 text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-              Sisa Tagihan
-            </p>
-            <p className="mt-0.5 font-mono text-sm font-bold text-amber-700">
-              {formatRupiah(balance)}
-            </p>
-          </div>
-        </div>
+        {/* Invoice balance summary — sisa = total − dibayar − retur (2F.2) */}
+        <TerimaPaymentSummary invoice={invoice} />
 
         <form id="payment-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4 px-5 py-4">
 
@@ -194,13 +214,15 @@ export function TerimaPaymentDialog({
               <Label className="text-xs font-medium text-zinc-700">
                 Nominal Diterima <span className="text-red-500">*</span>
               </Label>
-              <button
-                type="button"
-                onClick={() => setValue("amount", balance, { shouldValidate: true })}
-                className="text-[11px] font-medium text-zinc-400 underline-offset-2 hover:text-zinc-600 hover:underline"
-              >
-                Lunaskan semua ({formatRupiah(balance)})
-              </button>
+              {balance > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setValue("amount", balance, { shouldValidate: true })}
+                  className="text-[11px] font-medium text-zinc-400 underline-offset-2 hover:text-zinc-600 hover:underline"
+                >
+                  Lunaskan semua ({formatRupiah(balance)})
+                </button>
+              )}
             </div>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-zinc-400">

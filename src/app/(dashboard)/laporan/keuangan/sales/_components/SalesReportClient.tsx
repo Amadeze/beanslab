@@ -116,7 +116,7 @@ export default function SalesReportClient() {
           period={dateRangeLabel}
           status="DRAFT"
           summary={[
-            { label: "Total Revenue", value: formatRupiah(data.totalRevenue) },
+            { label: "Total Pendapatan", value: formatRupiah(data.totalRevenue) },
             { label: "Jumlah Invoice", value: `${data.invoiceCount} nota` },
             { label: "Rata-rata Invoice", value: formatRupiah(data.avgInvoice) },
             { label: "Top Customer", value: data.topCustomer },

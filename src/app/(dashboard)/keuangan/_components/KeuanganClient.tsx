@@ -28,6 +28,7 @@ import type {
   PiutangRow,
   PurchaseRow,
   SupplierPaymentRow,
+  VoidHistoryFilter,
 } from "../actions";
 import {
   voidExpense,
@@ -48,7 +49,14 @@ interface KeuanganClientProps {
   supplierPayments: SupplierPaymentRow[];
   capitalTransactions: CapitalTransactionRow[];
   capitalSummary: CapitalSummary;
+  historyFilter: VoidHistoryFilter;
 }
+
+const VOID_FILTER_OPTIONS: { value: VoidHistoryFilter; label: string }[] = [
+  { value: "ACTIVE", label: "Aktif" },
+  { value: "VOIDED", label: "Dibatalkan" },
+  { value: "ALL", label: "Semua" },
+];
 
 export function KeuanganClient({
   data,
@@ -58,6 +66,7 @@ export function KeuanganClient({
   supplierPayments,
   capitalTransactions,
   capitalSummary,
+  historyFilter,
 }: KeuanganClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -106,6 +115,28 @@ export function KeuanganClient({
     setDialogOpen(true);
   };
 
+  const setTab = (tab: Tab, status?: VoidHistoryFilter) => {
+    setActiveTab(tab);
+    router.replace(
+      `/keuangan?tab=${tab}${status && status !== "ACTIVE" ? `&status=${status}` : ""}`,
+      { scroll: false },
+    );
+  };
+
+  const showVoidFilter =
+    activeTab === "pembayaran" ||
+    activeTab === "pengeluaran" ||
+    activeTab === "pembayaranSupplier";
+
+  const jumpLinks: { label: string; tab?: Tab; href?: string }[] = [
+    { label: "Piutang", tab: "piutang" },
+    { label: "Bayar Supplier", tab: "pembayaranSupplier" },
+    { label: "Pengeluaran", tab: "pengeluaran" },
+    { label: "Laba Rugi", href: "/laporan/analisa/laba-rugi" },
+    { label: "Neraca", href: "/laporan/analisa/neraca" },
+    { label: "Arus Kas", href: "/laporan/akuntansi/arus-kas" },
+  ];
+
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col">
@@ -120,7 +151,6 @@ export function KeuanganClient({
             onClick: overdueCount > 0 ? () => setActiveTab("piutang") : undefined,
           }}
           metrics={[
-            { label: "Piutang", value: formatRupiah(kpi.totalPiutang) },
             { label: "1-30hr", value: kpi.agingBuckets.overdue1_30.count },
             { label: "31-60hr", value: kpi.agingBuckets.overdue31_60.count },
             { label: "60+hr", value: kpi.agingBuckets.overdue61Plus.count },
@@ -159,6 +189,52 @@ export function KeuanganClient({
 
         <div className="custom-scrollbar flex-1 overflow-auto">
           <div className="relative z-10 mx-auto max-w-[1600px] px-4 pb-8 sm:px-5 md:px-6 lg:px-8">
+            {/* Command center: ringkasan kas, piutang, hutang, arus kas */}
+            <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {[
+                { label: "Kas & Bank", value: formatRupiah(kpi.kasAndBank), tone: "text-slate-800" },
+                { label: "Piutang", value: formatRupiah(kpi.totalPiutang), tone: kpi.totalPiutang > 0 ? "text-amber-700" : "text-slate-800" },
+                { label: "Hutang Supplier", value: formatRupiah(kpi.hutangSupplier), tone: kpi.hutangSupplier > 0 ? "text-rose-700" : "text-slate-800" },
+                { label: "Arus Kas Bulan Ini", value: formatRupiah(kpi.arusKasBulanIni), tone: kpi.arusKasBulanIni < 0 ? "text-rose-700" : "text-emerald-700" },
+              ].map((card) => (
+                <div
+                  key={card.label}
+                  className="rounded-xl border border-slate-200 bg-white/70 p-4 shadow-sm"
+                >
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    {card.label}
+                  </p>
+                  <p className="mt-1 text-base font-bold sm:text-lg ${card.tone}">
+                    {card.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Pintasan laporan */}
+            <div className="mb-5 flex flex-wrap items-center gap-2">
+              {jumpLinks.map((link) =>
+                link.href ? (
+                  <Link
+                    key={link.label}
+                    href={link.href}
+                    className="inline-flex h-8 items-center rounded-[8px] border border-slate-300 bg-white/60 px-3 text-xs font-semibold text-slate-700 transition hover:bg-white"
+                  >
+                    {link.label} →
+                  </Link>
+                ) : (
+                  <button
+                    key={link.label}
+                    type="button"
+                    onClick={() => link.tab && setTab(link.tab)}
+                    className="inline-flex h-8 items-center rounded-[8px] border border-slate-300 bg-white/60 px-3 text-xs font-semibold text-slate-700 transition hover:bg-white"
+                  >
+                    {link.label} →
+                  </button>
+                ),
+              )}
+            </div>
+
             <Tabs
               value={activeTab}
               onValueChange={(v) => {
@@ -215,6 +291,28 @@ export function KeuanganClient({
               </div>
 
               <div className="relative">
+                {showVoidFilter && (
+                  <div className="mb-3 flex items-center gap-1.5">
+                    {VOID_FILTER_OPTIONS.map((option) => {
+                      const isActive = historyFilter === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setTab(activeTab, option.value)}
+                          className={cn(
+                            "inline-flex h-7 items-center rounded-full border px-3 text-xs font-semibold transition",
+                            isActive
+                              ? "border-[var(--amber-deep)] bg-[var(--amber-deep)]/10 text-[var(--amber-deep)]"
+                              : "border-slate-300 bg-white/60 text-slate-600 hover:bg-white",
+                          )}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 <TabsContent
                   value="piutang"
                   className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300"
@@ -228,13 +326,21 @@ export function KeuanganClient({
                   value="pembayaran"
                   className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300"
                 >
-                  <PaymentTable rows={payments} onVoid={setSelectedPayment} />
+                  <PaymentTable
+                    rows={payments}
+                    onVoid={setSelectedPayment}
+                    view={historyFilter}
+                  />
                 </TabsContent>
                 <TabsContent
                   value="pengeluaran"
                   className="mt-0 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300"
                 >
-                  <ExpenseTable rows={expenses} onVoid={setSelectedExpense} />
+                  <ExpenseTable
+                    rows={expenses}
+                    onVoid={setSelectedExpense}
+                    view={historyFilter}
+                  />
                 </TabsContent>
                 <TabsContent
                   value="pembelian"
@@ -253,6 +359,7 @@ export function KeuanganClient({
                   <SupplierPaymentTable
                     rows={supplierPayments}
                     onVoid={setSelectedSupplierPayment}
+                    view={historyFilter}
                   />
                 </TabsContent>
                 <TabsContent

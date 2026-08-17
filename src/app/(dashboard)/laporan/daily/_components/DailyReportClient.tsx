@@ -178,9 +178,9 @@ export default function DailyReportClient() {
         <div className="rounded-xl border border-stone-200 bg-white p-4">
           <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-500">Ringkasan Eksekutif</p>
           <div className="space-y-1 text-xs text-stone-600">
-            <p>• Revenue hari ini: <span className="font-semibold">{formatRupiah(data.revenue)}</span> dari {data.transactions} transaksi</p>
+            <p>• Pendapatan hari ini: <span className="font-semibold">{formatRupiah(data.revenue)}</span> dari {data.transactions} transaksi</p>
             <p>• Pengeluaran: <span className="font-semibold">{formatRupiah(data.expenses)}</span></p>
-            <p>• Selisih revenue − beban: <span className={`font-semibold ${operatingBalance >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{formatRupiah(operatingBalance)}</span></p>
+            <p>• Selisih pendapatan − beban: <span className={`font-semibold ${operatingBalance >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{formatRupiah(operatingBalance)}</span></p>
             {data.batches > 0 && <p>• Batch roasting selesai: <span className="font-semibold">{data.batches} batch</span></p>}
           </div>
         </div>
@@ -188,11 +188,11 @@ export default function DailyReportClient() {
         {/* Chart */}
         <div className="grid gap-4 lg:grid-cols-2">
           <ReportChart
-            title="Revenue vs Expenses"
+            title="Pendapatan vs Beban"
             type="bar"
             data={[
-              { name: "Revenue", value: data.revenue },
-              { name: "Expenses", value: data.expenses },
+              { name: "Pendapatan", value: data.revenue },
+              { name: "Beban", value: data.expenses },
             ]}
             xKey="name"
             yKey="value"

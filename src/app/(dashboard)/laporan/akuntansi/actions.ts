@@ -20,6 +20,7 @@ export type JournalEntryRow = {
   description: string;
   reference: string | null;
   refType: string | null;
+  createdByName: string | null;
   lines: { accountCode: string; accountName: string; debit: number; credit: number }[];
   totalDebit: number;
   totalCredit: number;
@@ -46,6 +47,7 @@ export async function getJournalEntries(limit = 50): Promise<JournalEntryRow[]> 
         orderBy: { sideId: "asc" },
         include: { account: { select: { code: true, name: true } } },
       },
+      createdBy: { select: { name: true } },
     },
   });
   return entries.map((e) => {
@@ -64,6 +66,7 @@ export async function getJournalEntries(limit = 50): Promise<JournalEntryRow[]> 
       description: e.description,
       reference: e.reference,
       refType: e.refType,
+      createdByName: e.createdBy?.name ?? null,
       lines,
       totalDebit,
       totalCredit,

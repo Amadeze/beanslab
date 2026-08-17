@@ -24,7 +24,7 @@ export default async function LabaRugiPage({
   const report = await getPnLReport(month, year);
 
   return (
-    <ReportLayout activeTab="analisa/laba-rugi" title="Laba Rugi">
+    <ReportLayout activeTab="keuangan/laba-rugi" title="Laba Rugi">
       <Suspense fallback={<ReportSkeleton />}>
         <PnlNavigator month={month} year={year} />
         <PnLReportClient report={report} hideLayout />

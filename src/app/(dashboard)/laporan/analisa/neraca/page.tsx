@@ -14,7 +14,7 @@ export default async function NeracaPage() {
   const report = await getBalanceSheetReport(inventory.grandTotalValue, asOf);
 
   return (
-    <ReportLayout activeTab="analisa/neraca" title="Neraca">
+    <ReportLayout activeTab="keuangan/neraca" title="Neraca">
       <Suspense fallback={<ReportSkeleton />}>
         <BalanceSheetClient report={report} />
       </Suspense>

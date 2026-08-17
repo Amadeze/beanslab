@@ -32,13 +32,13 @@ export type ReportTab =
   | "keuangan"
   | "keuangan/sales"
   | "keuangan/expenses"
+  | "keuangan/laba-rugi"
+  | "keuangan/neraca"
   | "inventory"
   | "inventory/stock"
   | "inventory/roasting"
   | "inventory/production"
-  | "analisa/laba-rugi"
   | "analisa/nilai-stok"
-  | "analisa/neraca"
   | "analisa/alur-kopi"
   | "analisa/sample"
   | "daily"
@@ -60,7 +60,7 @@ interface TabConfig {
 const SUPER_TABS: TabConfig[] = [
   { id: "keuangan", label: "Keuangan", icon: BadgeDollarSign, href: "/laporan/keuangan" },
   { id: "inventory", label: "Inventory", icon: Package, href: "/laporan/inventory" },
-  { id: "analisa/laba-rugi", label: "Analisa", icon: ChartPie, href: "/laporan/analisa/laba-rugi" },
+  { id: "analisa/alur-kopi", label: "Analisa", icon: ChartPie, href: "/laporan/analisa/alur-kopi" },
   { id: "akuntansi", label: "Akuntansi", icon: BookOpen, href: "/laporan/akuntansi" },
   { id: "daily", label: "Harian", icon: Calendar, href: "/laporan/daily" },
 ];
@@ -79,6 +79,8 @@ const KEUANGAN_TABS: TabConfig[] = [
   { id: "keuangan", label: "Overview", icon: TrendingUp, href: "/laporan/keuangan" },
   { id: "keuangan/sales", label: "Penjualan", icon: ReceiptText, href: "/laporan/keuangan/sales" },
   { id: "keuangan/expenses", label: "Pengeluaran", icon: WalletCards, href: "/laporan/keuangan/expenses" },
+  { id: "keuangan/laba-rugi", label: "Laba Rugi", icon: FileText, href: "/laporan/analisa/laba-rugi" },
+  { id: "keuangan/neraca", label: "Neraca", icon: Scale, href: "/laporan/analisa/neraca" },
 ];
 
 const INVENTORY_TABS: TabConfig[] = [
@@ -89,8 +91,6 @@ const INVENTORY_TABS: TabConfig[] = [
 ];
 
 const ANALISA_TABS: TabConfig[] = [
-  { id: "analisa/laba-rugi", label: "Laba Rugi", icon: FileText, href: "/laporan/analisa/laba-rugi" },
-  { id: "analisa/neraca", label: "Neraca", icon: Scale, href: "/laporan/analisa/neraca" },
   { id: "analisa/alur-kopi", label: "Alur Kopi", icon: Activity, href: "/laporan/analisa/alur-kopi" },
   { id: "analisa/nilai-stok", label: "Valuasi Stok", icon: Database, href: "/laporan/analisa/nilai-stok" },
   { id: "analisa/sample", label: "Sample", icon: Beaker, href: "/laporan/analisa/sample" },
@@ -121,7 +121,7 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
   const currentMain = SUPER_TABS.find((t) => {
     if (isKeuangan) return t.id === "keuangan";
     if (isInventory) return t.id === "inventory";
-    if (isAnalisa) return t.id === "analisa/laba-rugi";
+    if (isAnalisa) return t.id === "analisa/alur-kopi";
     if (isAkuntansi) return t.id === "akuntansi";
     return t.id === activeTab;
   });
@@ -147,7 +147,7 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
               const isActive = tab.id === activeTab ||
                 (tab.id === "keuangan" && isKeuangan) ||
                 (tab.id === "inventory" && isInventory) ||
-                (tab.id === "analisa/laba-rugi" && isAnalisa) ||
+                (tab.id === "analisa/alur-kopi" && isAnalisa) ||
                 (tab.id === "akuntansi" && isAkuntansi);
               return (
                 <Link

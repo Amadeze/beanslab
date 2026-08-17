@@ -91,6 +91,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
     customerPhone: null,
     grandTotal: payTarget.grandTotal,
     paidAmount: payTarget.paidAmount,
+    returnedAmount: payTarget.returnedAmount,
     balance: payTarget.balance,
     status: payTarget.status as "ISSUED" | "PARTIAL",
     issuedAt: payTarget.issuedAt,
@@ -212,7 +213,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                         {isApproving === inv.id ? "Memproses..." : "Approve"}
                       </Button>
                     )}
-                    {(inv.status === "ISSUED" || inv.status === "PARTIAL") && (
+                    {(inv.status === "ISSUED" || inv.status === "PARTIAL") && inv.balance > 0 && (
                       <Button
                         size="sm"
                         onClick={() => setPayTarget(inv)}
@@ -319,7 +320,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                     {isApproving === inv.id ? "Memproses..." : "Approve"}
                   </Button>
                 )}
-                {(inv.status === "ISSUED" || inv.status === "PARTIAL") && (
+                {(inv.status === "ISSUED" || inv.status === "PARTIAL") && inv.balance > 0 && (
                   <Button size="sm" onClick={() => setPayTarget(inv)} className="h-9 bg-domain-finance px-2 text-white hover:bg-domain-finance/90">Bayar</Button>
                 )}
                 {canManageFulfillment(inv) && (

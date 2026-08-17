@@ -11,6 +11,7 @@ import { getCurrentDate } from "@/lib/date-utils";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ReportComparisonBar } from "../_shared";
 import { exportToProfessionalPdf, exportToProfessionalExcel } from "@/lib/export-utils";
+import { reconciliationWarning } from "@/lib/pnl-reconciliation";
 import { useState } from "react";
 
 const MONTHS = [
@@ -97,9 +98,10 @@ function buildPnLExportConfig(report: PnLReport) {
 
 async function doExportPdf(report: PnLReport) {
   const cfg = buildPnLExportConfig(report);
+  const brand = report.businessName || "Laporan Keuangan";
   await exportToProfessionalPdf({
     title: "Laporan Laba Rugi",
-    subtitle: "Roastd Studio · Income Statement",
+    subtitle: `${brand} · Laporan Laba Rugi`,
     filename: cfg.filename,
     sheetName: "P&L",
     columns: cfg.flatCols as Parameters<typeof exportToProfessionalPdf>[0]["columns"],
@@ -108,15 +110,16 @@ async function doExportPdf(report: PnLReport) {
     period: cfg.period,
     status: "DRAFT",
     sections: cfg.sections as Parameters<typeof exportToProfessionalPdf>[0]["sections"],
-    generatedBy: "Roastd Studio",
+    generatedBy: brand,
   });
 }
 
 async function doExportExcel(report: PnLReport) {
   const cfg = buildPnLExportConfig(report);
+  const brand = report.businessName || "Laporan Keuangan";
   await exportToProfessionalExcel({
     title: "Laporan Laba Rugi",
-    subtitle: "Roastd Studio · Income Statement",
+    subtitle: `${brand} · Laporan Laba Rugi`,
     filename: cfg.filename,
     sheetName: "P&L",
     columns: cfg.flatCols as Parameters<typeof exportToProfessionalExcel>[0]["columns"],
@@ -124,7 +127,7 @@ async function doExportExcel(report: PnLReport) {
     summary: cfg.summary,
     period: cfg.period,
     status: "DRAFT",
-    generatedBy: "Roastd Studio",
+    generatedBy: brand,
   });
 }
 
@@ -178,7 +181,7 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
   const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
   const handlePdf = async () => { setExporting("pdf"); try { await doExportPdf(report); } finally { setExporting(null); } };
   const handleExcel = async () => { setExporting("excel"); try { await doExportExcel(report); } finally { setExporting(null); } };
-  const { month, year, revenue, cogs, grossProfit, opex, netProfit, opexBreakdown, revenueBreakdown, cogsBreakdown, cogsComponentBreakdown, salesVolumeUnits, topProducts, topCustomers } = report;
+  const { month, year, revenue, cogs, grossProfit, opex, netProfit, opexBreakdown, revenueBreakdown, cogsBreakdown, cogsComponentBreakdown, salesVolumeUnits } = report;
   const grossMargin = pct(grossProfit, revenue);
   const netMargin = pct(netProfit, revenue);
   const cogsRatio = pct(cogs, revenue);
@@ -188,16 +191,16 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
 
   const content = (
     <>
-      {/* Reconciliation Alert */}
-      <div className={cn(
-        "mb-6 rounded-lg border px-4 py-3 text-xs font-medium",
-        Math.abs(report.reconciliationDifference) <= 0.01
-          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-          : "border-red-200 bg-red-50 text-red-700",
-      )}>
-        <strong>{Math.abs(report.reconciliationDifference) <= 0.01 ? "Terekonsiliasi" : "Perlu Pemeriksaan"}:</strong>{" "}
-        rincian pendapatan berbeda {formatRupiah(report.reconciliationDifference)} · periode {report.timezone}
-      </div>
+      {/* Reconciliation Alert — hanya muncul bila ada selisih nyata (> 1 sen). */}
+      {(() => {
+        const warning = reconciliationWarning(report.reconciliationDifference);
+        return warning ? (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-700">
+            <strong>{warning.split(":")[0]}:</strong>{" "}
+            {warning.split(": ")[1]}
+          </div>
+        ) : null;
+      })()}
 
       {/* KPI Row */}
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -302,7 +305,7 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">roastd.id</p>
+              <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">{report.businessName || "Laporan Keuangan"}</p>
               <p className="text-xs text-stone-400">Dalam Rupiah (IDR)</p>
             </div>
           </div>
@@ -402,7 +405,7 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-xs text-stone-400">Net Profit Margin</p>
+          <p className="text-xs text-stone-400">Margin Laba Bersih</p>
           <p className={cn("text-2xl font-black tabular-nums", netProfit >= 0 ? "text-emerald-600" : "text-red-500")}>{netMargin}</p>
         </div>
       </div>

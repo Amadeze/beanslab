@@ -21,6 +21,7 @@ import {
   type OperatorFulfillmentStatus,
 } from "@/lib/fulfillment-status";
 import { withSerializableRetry } from "@/lib/transaction-retry";
+import { computeReceivable } from "@/lib/finance-formulas";
 
 // =============================================================================
 // TYPES
@@ -87,10 +88,12 @@ export type InvoiceRow = {
   itemCount: number;
   grandTotal: number;
   paidAmount: number;
+  returnedAmount: number;
   balance: number;
   status: string;
   salesChannel: string;
   fulfillmentStatus: string;
+  deliveredAt: string | null;
   issuedAt: string;
   dueDate: string | null;
   shippingMethod: string | null;
@@ -235,6 +238,7 @@ export async function getSalesPageData(): Promise<SalesPageData> {
   const invoices: InvoiceRow[] = invoicesRaw.map((inv: any) => {
     const grand = Number(inv.grandTotal);
     const paid = Number(inv.paidAmount);
+    const returned = Number(inv.returnedAmount ?? 0);
     return {
       id: inv.id,
       code: inv.code,
@@ -242,10 +246,13 @@ export async function getSalesPageData(): Promise<SalesPageData> {
       itemCount: inv._count.items,
       grandTotal: grand,
       paidAmount: paid,
-      balance: grand - paid,
+      returnedAmount: returned,
+      // Sisa tagihan = tagihan − pembayaran − nilai retur (definisi 2F.2).
+      balance: computeReceivable(grand, paid, returned),
       status: inv.status,
       salesChannel: inv.salesChannel,
       fulfillmentStatus: inv.fulfillmentStatus,
+      deliveredAt: inv.deliveredAt ? inv.deliveredAt.toISOString() : null,
       issuedAt: inv.issuedAt.toISOString(),
       dueDate: inv.dueDate ? inv.dueDate.toISOString() : null,
       shippingMethod: inv.shippingMethod,

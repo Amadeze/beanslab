@@ -1,19 +1,28 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Trash2, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatRupiah } from "@/lib/format";
-import type { PaymentRow } from "../actions";
+import { cn } from "@/lib/utils";
+import type { PaymentRow, VoidHistoryFilter } from "../actions";
 
 export function PaymentTable({
   rows,
   onVoid,
+  view = "ACTIVE",
 }: {
   rows: PaymentRow[];
   onVoid: (row: PaymentRow) => void;
+  view?: VoidHistoryFilter;
 }) {
   if (rows.length === 0) {
-    return <div data-testid="payment-history" className="py-16 text-center text-sm text-slate-400">Belum ada pembayaran tercatat.</div>;
+    return (
+      <div data-testid="payment-history" className="py-16 text-center text-sm text-slate-400">
+        {view === "VOIDED"
+          ? "Tidak ada pembayaran yang dibatalkan."
+          : "Belum ada pembayaran tercatat."}
+      </div>
+    );
   }
 
   return (
@@ -27,40 +36,33 @@ export function PaymentTable({
           <span className="w-8" />
         </div>
         {rows.map((row) => (
-          <div key={row.id} className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-3 border-b border-white/40 px-4 py-3 text-sm last:border-0">
+          <div key={row.id} className={cn("grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-3 border-b border-white/40 px-4 py-3 text-sm last:border-0", row.voidedAt && "bg-red-50/40")}>
             <div>
-              <div className="font-semibold text-slate-800">{row.code}</div>
+              <div className="flex flex-wrap items-center gap-1.5 font-semibold text-slate-800">
+                <span className={cn(row.voidedAt && "line-through opacity-60")}>{row.code}</span>
+                {row.voidedAt && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600">
+                    <Ban size={10} />
+                    Dibatalkan
+                  </span>
+                )}
+              </div>
               <div className="text-xs text-slate-500">{formatDate(row.paidAt)} · {row.method}</div>
+              {row.voidedAt && (
+                <div className="mt-0.5 text-xs text-red-500">
+                  {row.voidReason ?? "Tanpa alasan"} · {formatDate(row.voidedAt)}
+                  {row.voidedByName ? ` oleh ${row.voidedByName}` : ""}
+                </div>
+              )}
             </div>
             <div>
               <div className="font-medium text-slate-700">{row.invoiceCode}</div>
               <div className="text-xs text-slate-500">{row.customerName}</div>
             </div>
-            <div className="text-right font-mono font-bold text-emerald-700">{formatRupiah(row.amount)}</div>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label={`Void ${row.code}`}
-              title="Void pembayaran"
-              className="text-slate-400 hover:bg-red-50 hover:text-red-600"
-              onClick={() => onVoid(row)}
-            >
-              <Trash2 size={14} />
-            </Button>
-          </div>
-        ))}
-      </div>
-
-      {/* Mobile card view */}
-      <div className="md:hidden flex flex-col gap-2">
-        {rows.map((row) => (
-          <div key={row.id} className="rounded-xl border border-white/60 bg-white/40 p-4 backdrop-blur-md">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="font-semibold text-slate-800">{row.code}</div>
-                <div className="text-xs text-slate-500">{formatDate(row.paidAt)} · {row.method}</div>
-              </div>
+            <div className={cn("text-right font-mono font-bold", row.voidedAt ? "text-red-400 line-through" : "text-emerald-700")}>
+              {formatRupiah(row.amount)}
+            </div>
+            {row.voidedAt ? <span /> : (
               <Button
                 type="button"
                 size="icon-sm"
@@ -72,13 +74,56 @@ export function PaymentTable({
               >
                 <Trash2 size={14} />
               </Button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile card view */}
+      <div className="md:hidden flex flex-col gap-2">
+        {rows.map((row) => (
+          <div key={row.id} className={cn("rounded-xl border bg-white/40 p-4 backdrop-blur-md", row.voidedAt ? "border-red-200" : "border-white/60")}>
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-1.5 font-semibold text-slate-800">
+                  <span className={cn(row.voidedAt && "line-through opacity-60")}>{row.code}</span>
+                  {row.voidedAt && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600">
+                      <Ban size={10} />
+                      Dibatalkan
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-slate-500">{formatDate(row.paidAt)} · {row.method}</div>
+              </div>
+              {!row.voidedAt && (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={`Void ${row.code}`}
+                  title="Void pembayaran"
+                  className="text-slate-400 hover:bg-red-50 hover:text-red-600"
+                  onClick={() => onVoid(row)}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              )}
             </div>
+            {row.voidedAt && (
+              <div className="mt-1 text-xs text-red-500">
+                {row.voidReason ?? "Tanpa alasan"} · {formatDate(row.voidedAt)}
+                {row.voidedByName ? ` oleh ${row.voidedByName}` : ""}
+              </div>
+            )}
             <div className="mt-2 flex items-center justify-between">
               <div>
                 <div className="text-xs font-medium text-slate-700">{row.invoiceCode}</div>
                 <div className="text-xs text-slate-500">{row.customerName}</div>
               </div>
-              <div className="font-mono text-sm font-bold text-emerald-700">{formatRupiah(row.amount)}</div>
+              <div className={cn("font-mono text-sm font-bold", row.voidedAt ? "text-red-400 line-through" : "text-emerald-700")}>
+                {formatRupiah(row.amount)}
+              </div>
             </div>
           </div>
         ))}

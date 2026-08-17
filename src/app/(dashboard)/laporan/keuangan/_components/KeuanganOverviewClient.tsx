@@ -10,6 +10,8 @@ import {
   ArrowRight,
   ReceiptText,
   FileText,
+  Scale,
+  Wallet,
 } from "lucide-react";
 import {
   ReportLayout,
@@ -72,10 +74,10 @@ export default function KeuanganOverviewClient() {
             { header: "Nilai", key: "value" },
           ]}
           data={[
-            { metric: "Total Revenue", value: data.totalRevenue },
-            { metric: "Total Expenses", value: data.totalExpenses },
-            { metric: "Net Profit", value: data.netProfit },
-            { metric: "Cash Flow (GL)", value: data.cashFlow },
+            { metric: "Total Pendapatan", value: data.totalRevenue },
+            { metric: "Total Beban", value: data.totalExpenses },
+            { metric: "Laba Bersih", value: data.netProfit },
+            { metric: "Arus Kas", value: data.cashFlow },
           ]}
         />
       }
@@ -89,7 +91,7 @@ export default function KeuanganOverviewClient() {
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <ReportKpiCard
-            label="Total Revenue"
+            label="Total Pendapatan"
             value={formatRupiah(data.totalRevenue)}
             trend={data.revenueTrend}
             icon={TrendingUp}
@@ -97,7 +99,7 @@ export default function KeuanganOverviewClient() {
             help="Basis pendapatan: invoice diserahkan (deliveredAt), sudah dikurangi nilai retur."
           />
           <ReportKpiCard
-            label="Total Expenses"
+            label="Total Beban"
             value={formatRupiah(data.totalExpenses)}
             trend={data.expensesTrend}
             icon={WalletCards}
@@ -106,27 +108,27 @@ export default function KeuanganOverviewClient() {
             help="Total beban operasional kas periode ini (tanpa pembelian bahan)."
           />
           <ReportKpiCard
-            label="Net Profit"
+            label="Laba Bersih"
             value={formatRupiah(data.netProfit)}
             trend={data.profitTrend}
             icon={data.netProfit > 0 ? TrendingUp : TrendingDown}
             color={data.netProfit > 0 ? "emerald" : "rose"}
-            help="Net profit = Revenue − Expenses − Biaya Pembelian (definisi tunggal di semua laporan)."
+            help="Laba bersih = Pendapatan − Beban − Biaya Pembelian (definisi tunggal di semua laporan)."
           />
           <ReportKpiCard
-            label="Cash Flow"
+            label="Arus Kas"
             value={formatRupiah(data.cashFlow)}
             trend={data.cashFlowTrend}
             icon={Banknote}
             color="blue"
-            help="Arus kas = pergerakan kas aktual di buku besar (akun 1-1000), bukan Revenue − Expenses."
+            help="Arus kas = pergerakan kas aktual di buku besar (akun 1-1000), bukan Pendapatan − Beban."
           />
         </div>
 
         {/* Charts */}
         <div className="grid gap-4 lg:grid-cols-3">
           <ReportChart
-            title={`Revenue vs Expenses (${dateRangeLabel})`}
+            title={`Pendapatan vs Beban (${dateRangeLabel})`}
             type="area"
             data={data.revenueVsExpensesChart}
             xKey="date"
@@ -136,7 +138,7 @@ export default function KeuanganOverviewClient() {
             className="lg:col-span-2"
           />
           <ReportChart
-            title="Expense by Category"
+            title="Beban per Kategori"
             type="pie"
             data={data.expenseByCategory}
             xKey="name"
@@ -160,7 +162,7 @@ export default function KeuanganOverviewClient() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-stone-900">
-                    Sales Detail
+                    Detail Penjualan
                   </p>
                   <p className="text-[11px] text-stone-500">
                     Laporan penjualan lengkap
@@ -179,7 +181,7 @@ export default function KeuanganOverviewClient() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-stone-900">
-                    Expenses Detail
+                    Detail Pengeluaran
                   </p>
                   <p className="text-[11px] text-stone-500">
                     Laporan pengeluaran lengkap
@@ -202,6 +204,44 @@ export default function KeuanganOverviewClient() {
                   </p>
                   <p className="text-[11px] text-stone-500">
                     Pendapatan, HPP, dan beban per bulan
+                  </p>
+                </div>
+              </div>
+              <ArrowRight size={16} className="text-stone-400" />
+            </Link>
+            <Link
+              href="/laporan/analisa/neraca"
+              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[#00C8DF] hover:bg-[#00C8DF]/5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-blue-50 p-2">
+                  <Scale size={16} className="text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-stone-900">
+                    Neraca
+                  </p>
+                  <p className="text-[11px] text-stone-500">
+                    Posisi aset, kewajiban, dan ekuitas
+                  </p>
+                </div>
+              </div>
+              <ArrowRight size={16} className="text-stone-400" />
+            </Link>
+            <Link
+              href="/laporan/akuntansi/arus-kas"
+              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[#00C8DF] hover:bg-[#00C8DF]/5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-teal-50 p-2">
+                  <Wallet size={16} className="text-teal-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-stone-900">
+                    Arus Kas
+                  </p>
+                  <p className="text-[11px] text-stone-500">
+                    Pergerakan kas dari buku besar
                   </p>
                 </div>
               </div>

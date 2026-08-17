@@ -15,6 +15,9 @@ import { voidPurchaseCore } from "@/lib/purchase-void";
 import { computeSampleCostByType, computeCogsComponentBreakdown } from "@/lib/financial-helpers";
 import { prisma } from "@/lib/prisma";
 import { withSerializableRetry } from "@/lib/transaction-retry";
+import { computeCashMovement } from "@/lib/gl-cash-flow";
+import { computePayable } from "@/lib/finance-formulas";
+import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/lib/expense-categories";
 
 // =============================================================================
 // TYPES
@@ -27,6 +30,7 @@ export type PiutangRow = {
   customerPhone: string | null;
   grandTotal: number;
   paidAmount: number;
+  returnedAmount: number;
   balance: number;
   status: "ISSUED" | "PARTIAL";
   issuedAt: string;
@@ -50,6 +54,9 @@ export type KpiSummary = {
   agingBuckets: AgingBucketSummary;
   revenueMTD: number;
   revenueLastMonth: number;
+  kasAndBank: number;
+  hutangSupplier: number;
+  arusKasBulanIni: number;
 };
 
 export type KeuanganPageData = {
@@ -86,15 +93,17 @@ export type PaymentActionResult =
 export type CreateExpenseInput = {
   operationKey?: string;
   date: string;
-  category: "UTILITAS" | "OPERASIONAL" | "LAINNYA";
+  category: ExpenseCategory;
   amount: number;
   description?: string;
 };
 
+// Sumber kebenaran kategori beban ada di @/lib/expense-categories.
+
 const CreateExpenseSchema = z.object({
   operationKey: z.string().uuid().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal tidak valid"),
-  category: z.enum(["UTILITAS", "OPERASIONAL", "LAINNYA"]),
+  category: z.enum(EXPENSE_CATEGORIES),
   amount: z.number().positive("Nominal harus lebih dari 0"),
   description: z.string().optional(),
 });
@@ -110,6 +119,9 @@ export type ExpenseRow = {
   amount: number;
   description: string | null;
   createdAt: string;
+  voidedAt: string | null;
+  voidReason: string | null;
+  voidedByName: string | null;
 };
 
 export type PurchaseRow = {
@@ -122,6 +134,8 @@ export type PurchaseRow = {
   quantity: string;
   totalCost: number;
   paidAmount: number;
+  /** Total pembayaran awal (saat penerimaan barang) = pembayaran tanpa jurnal sendiri. */
+  initialPaidAmount: number;
   balance: number;
   paymentStatus: "UNPAID" | "PARTIAL" | "PAID";
   dueDate: string | null;
@@ -138,6 +152,12 @@ export type SupplierPaymentRow = {
   method: string;
   paidAt: string;
   reference: string | null;
+  /** true = pembayaran awal saat penerimaan barang (dibukukan oleh jurnal PURCHASE). */
+  isEmbedded: boolean;
+  notes: string | null;
+  voidedAt: string | null;
+  voidReason: string | null;
+  voidedByName: string | null;
 };
 
 export type PaymentRow = {
@@ -149,6 +169,9 @@ export type PaymentRow = {
   method: string;
   paidAt: string;
   reference: string | null;
+  voidedAt: string | null;
+  voidReason: string | null;
+  voidedByName: string | null;
 };
 
 export type PnLReport = {
@@ -178,6 +201,7 @@ export type PnLReport = {
   periodStart: string;
   periodEnd: string;
   timezone: string;
+  businessName: string;
   reconciliationDifference: number;
 };
 
@@ -200,6 +224,26 @@ export async function getKeuanganPageData(): Promise<KeuanganPageData> {
   const month = Number(localNow.find((part) => part.type === "month")?.value);
   const currentPeriod = getZonedMonthRange(year, month, tenant?.timezone);
   const previousPeriod = getZonedMonthRange(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1, tenant?.timezone);
+  const [kasAndBankRows, hutangRows, arusKas] = await Promise.all([
+    tp.journalLine.findMany({
+      where: { account: { tenantId, code: "1-1000" } },
+      select: { debit: true, credit: true },
+    }),
+    tp.purchase.findMany({
+      where: { status: "COMPLETED" },
+      select: { totalCost: true, paidAmount: true },
+    }),
+    computeCashMovement({ tp, tenantId, start: currentPeriod.start, end: currentPeriod.end }),
+  ]);
+  const kasAndBank = kasAndBankRows.reduce(
+    (s, r) => s + Number(r.debit) - Number(r.credit),
+    0,
+  );
+  const hutangSupplier = hutangRows.reduce(
+    (s, p) => s + computePayable(Number(p.totalCost), Number(p.paidAmount)),
+    0,
+  );
+  const arusKasBulanIni = arusKas.net;
 
   const [piutangInvoices, revenueMTDRaw, revenueLastMonthRaw] = await Promise.all([
     tp.invoice.findMany({
@@ -249,6 +293,7 @@ export async function getKeuanganPageData(): Promise<KeuanganPageData> {
       customerPhone: inv.customer.phone,
       grandTotal,
       paidAmount,
+      returnedAmount,
       balance,
       status: inv.status as "ISSUED" | "PARTIAL",
       issuedAt: inv.issuedAt.toISOString(),
@@ -301,6 +346,9 @@ export async function getKeuanganPageData(): Promise<KeuanganPageData> {
       },
       revenueMTD: Number(revenueMTDRaw._sum.subtotal ?? 0) - Number(revenueMTDRaw._sum.discount ?? 0),
       revenueLastMonth: Number(revenueLastMonthRaw._sum.subtotal ?? 0) - Number(revenueLastMonthRaw._sum.discount ?? 0),
+      kasAndBank,
+      hutangSupplier,
+      arusKasBulanIni,
     },
   };
 }
@@ -828,7 +876,7 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
   const tenantId = await getCurrentTenantId();
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: { timezone: true },
+    select: { timezone: true, name: true },
   });
   const period = getZonedMonthRange(year, month, tenant?.timezone);
   const previousPeriod = getZonedMonthRange(prevYear, prevMonth, tenant?.timezone);
@@ -1105,6 +1153,7 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
     periodStart: period.start.toISOString(),
     periodEnd: period.end.toISOString(),
     timezone: period.timezone,
+    businessName: tenant?.name?.trim() || "",
     // Selisih pendapatan GL vs rincian operasional (mis. penyesuaian ongkir,
     // jurnal lain yang menyentuh 4-1000) — 0 bila seluruh pendapatan berasal
     // dari penjualan yang diserahkan di periode ini.
@@ -1116,14 +1165,74 @@ export async function getPnLReport(month: number, year: number): Promise<PnLRepo
 // GET EXPENSE HISTORY
 // =============================================================================
 
-export async function getExpenseHistory(): Promise<ExpenseRow[]> {
-  const expenses = await (await requireTenantPrisma()).expense.findMany({
-    where: { voidAt: null },
+export type VoidHistoryFilter = "ACTIVE" | "VOIDED" | "ALL";
+
+type TenantPrisma = Awaited<ReturnType<typeof requireTenantPrisma>>;
+
+/** Isi nama pembuat void dari jurnal VOID_REVERSAL (reference `<entityId>:<journalId>`). */
+async function attachVoidedBy(
+  tp: TenantPrisma,
+  rows: { id: string; voidedAt: string | null; voidedByName: string | null }[],
+): Promise<void> {
+  const voided = rows.filter((r) => r.voidedAt);
+  if (voided.length === 0) return;
+  const journals = await tp.journalEntry.findMany({
+    where: {
+      refType: "VOID_REVERSAL",
+      OR: voided.map((r) => ({ reference: { startsWith: `${r.id}:` } })),
+    },
+    select: { reference: true, createdBy: { select: { name: true } } },
+  });
+  const byRef = new Map<string, string>();
+  for (const journal of journals) {
+    const entityRef = journal.reference?.split(":")[0];
+    if (entityRef && journal.createdBy?.name && !byRef.has(entityRef)) {
+      byRef.set(entityRef, journal.createdBy.name);
+    }
+  }
+  for (const row of rows) {
+    if (row.voidedAt) row.voidedByName = byRef.get(row.id) ?? null;
+  }
+}
+
+function voidWhere(
+  filter: VoidHistoryFilter,
+):
+  | { voidAt: null }
+  | { voidAt: { not: null } }
+  | Record<string, never> {
+  switch (filter) {
+    case "ACTIVE":
+      return { voidAt: null };
+    case "VOIDED":
+      return { voidAt: { not: null } };
+    default:
+      return {};
+  }
+}
+
+export async function getExpenseHistory(
+  filter: VoidHistoryFilter = "ACTIVE",
+): Promise<ExpenseRow[]> {
+  const tp = await requireTenantPrisma();
+  const rows: ExpenseRow[] = (await tp.expense.findMany({
+    where: voidWhere(filter),
     orderBy: { date: "desc" },
     take: 200,
-    select: { id: true, date: true, category: true, amount: true, description: true, createdAt: true },
-  });
-  return expenses.map((e) => ({ id: e.id, date: e.date.toISOString(), category: e.category, amount: Number(e.amount), description: e.description, createdAt: e.createdAt.toISOString() }));
+    select: { id: true, date: true, category: true, amount: true, description: true, createdAt: true, voidAt: true, voidReason: true },
+  })).map((e) => ({
+    id: e.id,
+    date: e.date.toISOString(),
+    category: e.category,
+    amount: Number(e.amount),
+    description: e.description,
+    createdAt: e.createdAt.toISOString(),
+    voidedAt: e.voidAt ? e.voidAt.toISOString() : null,
+    voidReason: e.voidReason,
+    voidedByName: null,
+  }));
+  await attachVoidedBy(tp, rows);
+  return rows;
 }
 
 export async function voidExpense(expenseId: string, reason: string) {
@@ -1180,7 +1289,8 @@ export async function getPurchaseHistory(): Promise<PurchaseRow[]> {
     include: {
       product: { select: { name: true } },
       packaging: { select: { name: true } },
-      supplier: { select: { name: true } }
+      supplier: { select: { name: true } },
+      payments: { select: { amount: true, operationKey: true } },
     }
   });
 
@@ -1195,6 +1305,12 @@ export async function getPurchaseHistory(): Promise<PurchaseRow[]> {
       quantity = `${Number(p.quantityUnits)} unit`;
     }
 
+    // Pembayaran awal = pembayaran yang tercatat saat penerimaan barang
+    // (tanpa operationKey / tanpa jurnal SUPPLIER_PAYMENT sendiri).
+    const initialPaidAmount = p.payments
+      .filter((sp) => sp.operationKey === null)
+      .reduce((sum, sp) => sum + Number(sp.amount), 0);
+
     return {
       id: p.id,
       code: p.code,
@@ -1205,6 +1321,7 @@ export async function getPurchaseHistory(): Promise<PurchaseRow[]> {
       quantity,
       totalCost: Number(p.totalCost),
       paidAmount: Number(p.paidAmount),
+      initialPaidAmount: Math.round(initialPaidAmount * 100) / 100,
       balance: Math.max(0, Number(p.totalCost) - Number(p.paidAmount)),
       paymentStatus: p.paymentStatus,
       dueDate: p.dueDate?.toISOString() ?? null,
@@ -1214,9 +1331,12 @@ export async function getPurchaseHistory(): Promise<PurchaseRow[]> {
   });
 }
 
-export async function getSupplierPaymentHistory(): Promise<SupplierPaymentRow[]> {
-  const payments = await (await requireTenantPrisma()).supplierPayment.findMany({
-    where: { voidAt: null },
+export async function getSupplierPaymentHistory(
+  filter: VoidHistoryFilter = "ACTIVE",
+): Promise<SupplierPaymentRow[]> {
+  const tp = await requireTenantPrisma();
+  const payments = await tp.supplierPayment.findMany({
+    where: voidWhere(filter),
     orderBy: { paidAt: "desc" },
     take: 200,
     include: {
@@ -1229,7 +1349,7 @@ export async function getSupplierPaymentHistory(): Promise<SupplierPaymentRow[]>
     },
   });
 
-  return payments.map((payment) => ({
+  const rows: SupplierPaymentRow[] = payments.map((payment) => ({
     id: payment.id,
     code: payment.code,
     purchaseCode: payment.purchase.code,
@@ -1238,7 +1358,14 @@ export async function getSupplierPaymentHistory(): Promise<SupplierPaymentRow[]>
     method: payment.method,
     paidAt: payment.paidAt.toISOString(),
     reference: payment.reference,
+    isEmbedded: payment.operationKey === null,
+    notes: payment.notes,
+    voidedAt: payment.voidAt ? payment.voidAt.toISOString() : null,
+    voidReason: payment.voidReason,
+    voidedByName: null,
   }));
+  await attachVoidedBy(tp, rows);
+  return rows;
 }
 
 export type RecordSupplierPaymentInput = {
@@ -1464,9 +1591,12 @@ export async function voidSupplierPayment(paymentId: string, reason: string) {
   }
 }
 
-export async function getPaymentHistory(): Promise<PaymentRow[]> {
-  const payments = await (await requireTenantPrisma()).payment.findMany({
-    where: { voidAt: null },
+export async function getPaymentHistory(
+  filter: VoidHistoryFilter = "ACTIVE",
+): Promise<PaymentRow[]> {
+  const tp = await requireTenantPrisma();
+  const payments = await tp.payment.findMany({
+    where: voidWhere(filter),
     orderBy: { paidAt: "desc" },
     take: 200,
     include: {
@@ -1478,7 +1608,7 @@ export async function getPaymentHistory(): Promise<PaymentRow[]> {
       },
     },
   });
-  return payments.map((payment) => ({
+  const rows: PaymentRow[] = payments.map((payment) => ({
     id: payment.id,
     code: payment.code,
     invoiceCode: payment.invoice.code,
@@ -1487,7 +1617,12 @@ export async function getPaymentHistory(): Promise<PaymentRow[]> {
     method: payment.method,
     paidAt: payment.paidAt.toISOString(),
     reference: payment.reference,
+    voidedAt: payment.voidAt ? payment.voidAt.toISOString() : null,
+    voidReason: payment.voidReason,
+    voidedByName: null,
   }));
+  await attachVoidedBy(tp, rows);
+  return rows;
 }
 
 export async function voidPayment(paymentId: string, reason: string) {

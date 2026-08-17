@@ -36,6 +36,7 @@ import type { SamplePageData } from "../sample-actions";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { SectionHeader } from "@/components/ui/section-header";
 import { cn } from "@/lib/utils";
+import { computeSalesKpis } from "@/lib/sales-kpis";
 
 const triggerSilentPrint = (url: string) => {
   let iframe = document.getElementById(
@@ -198,21 +199,11 @@ export function SalesClient({
   }, [searchParams]);
 
   // ── KPI computation with sparkline trends ──
+  // Basis pendapatan 2F.2: hanya nota DISERAHKAN (delivered), exclude VOID,
+  // dikurangi nilai retur. Angka operasional — P&L tetap basis GL.
   const { kpiCards, avgInvoice } = useMemo(() => {
-    const valid = invoices.filter((i) => i.status !== "VOID");
-    const totalRevenue = valid.reduce((sum, i) => sum + i.grandTotal, 0);
-    const paidCount = valid.filter((i) => i.status === "PAID").length;
-    const unpaidCount = valid.filter(
-      (i) => i.status === "ISSUED" || i.status === "PARTIAL",
-    ).length;
-    const totalInvoices = valid.length;
-    const avg =
-      totalInvoices > 0 ? Math.round(totalRevenue / totalInvoices) : 0;
-
-    return {
-      kpiCards: { totalRevenue, paidCount, unpaidCount, totalInvoices },
-      avgInvoice: avg,
-    };
+    const kpis = computeSalesKpis(invoices);
+    return { kpiCards: kpis, avgInvoice: kpis.avgInvoice };
   }, [invoices]);
 
   return (

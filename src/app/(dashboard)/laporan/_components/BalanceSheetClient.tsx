@@ -20,6 +20,7 @@ async function doExportPdf(report: BalanceSheetReport) {
     day: "numeric", month: "long", year: "numeric",
   });
   const fmt = (v: number) => formatRupiah(v);
+  const brand = report.businessName || "Laporan Keuangan";
 
   const asetRows: BSRow[] = [
     { kat: "Kas & Bank",             jml: fmt(assets.cashAndBank),          ket: "Aset Lancar" },
@@ -59,7 +60,7 @@ async function doExportPdf(report: BalanceSheetReport) {
 
   await exportToProfessionalPdf({
     title: "Neraca (Balance Sheet)",
-    subtitle: "Roastd Studio · Posisi Keuangan",
+    subtitle: `${brand} · Posisi Keuangan`,
     filename: `Neraca_${new Date(report.asOf).toISOString().slice(0, 10)}`,
     sheetName: "Neraca",
     columns: cols,
@@ -71,7 +72,7 @@ async function doExportPdf(report: BalanceSheetReport) {
       { title: "AKTIVA (Aset)", columns: cols as Parameters<typeof exportToProfessionalPdf>[0]["columns"], data: asetRows },
       { title: "PASIVA (Kewajiban & Ekuitas)", columns: cols as Parameters<typeof exportToProfessionalPdf>[0]["columns"], data: pasivaRows },
     ],
-    generatedBy: "Roastd Studio",
+    generatedBy: brand,
   });
 }
 
@@ -81,6 +82,7 @@ async function doExportExcel(report: BalanceSheetReport) {
     day: "numeric", month: "long", year: "numeric",
   });
   const fmt = (v: number) => formatRupiah(v);
+  const brand = report.businessName || "Laporan Keuangan";
 
   const allRows: BSRow[] = [
     { kat: "=== AKTIVA ===",              jml: "",                                        ket: "" },
@@ -100,7 +102,7 @@ async function doExportExcel(report: BalanceSheetReport) {
 
   await exportToProfessionalExcel({
     title: "Neraca (Balance Sheet)",
-    subtitle: "Roastd Studio · Posisi Keuangan",
+    subtitle: `${brand} · Posisi Keuangan`,
     filename: `Neraca_${new Date(report.asOf).toISOString().slice(0, 10)}`,
     sheetName: "Neraca",
     columns: [
@@ -118,7 +120,7 @@ async function doExportExcel(report: BalanceSheetReport) {
     ],
     period: `Per ${asOf}`,
     status: "DRAFT",
-    generatedBy: "Roastd Studio",
+    generatedBy: brand,
   });
 }
 
