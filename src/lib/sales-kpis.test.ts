@@ -37,7 +37,8 @@ describe("computeSalesKpis (basis delivered 2F.2)", () => {
       invoice({ fulfillmentStatus: "READY_TO_PACK", deliveredAt: null, grandTotal: 700_000 }),
     ]);
     expect(kpis.totalRevenue).toBe(500_000);
-    expect(kpis.avgInvoice).toBe(250_000);
+    // Avg dihitung dari himpunan yang sama dengan pendapatan (hanya diserahkan).
+    expect(kpis.avgInvoice).toBe(500_000);
   });
 
   it("nota diretur penuh tidak dihitung sebagai pendapatan kotor", () => {

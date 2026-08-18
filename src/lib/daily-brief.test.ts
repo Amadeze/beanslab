@@ -5,9 +5,16 @@ import { generateDailyBriefForTenant } from "./daily-brief";
 describe("generateDailyBriefForTenant", () => {
   it("separates accrual sales from cash and stores a tenant-local snapshot", async () => {
     const invoiceFindMany = vi.fn()
-      .mockResolvedValueOnce([{ subtotal: 1_000_000, discount: 100_000 }])
       .mockResolvedValueOnce([
-        { grandTotal: 500_000, paidAmount: 100_000, dueDate: new Date("2026-07-01T00:00:00.000Z") },
+        // Pendapatan diserahkan net retur: 1.000.000 − 100.000.
+        { grandTotal: 1_000_000, returnedAmount: 100_000 },
+      ])
+      .mockResolvedValueOnce([
+        // 400.000 jatuh tempo (2F.2), 300.000 lunas-terutang namun belum jatuh,
+        // dan 200.000 DIRECTUR PENUH → bukan piutang kolektibel.
+        { grandTotal: 500_000, paidAmount: 100_000, returnedAmount: 0, dueDate: new Date("2026-07-01T00:00:00.000Z") },
+        { grandTotal: 300_000, paidAmount: 0, returnedAmount: 0, dueDate: new Date("2026-07-30T00:00:00.000Z") },
+        { grandTotal: 200_000, paidAmount: 0, returnedAmount: 200_000, dueDate: new Date("2026-07-01T00:00:00.000Z") },
       ]);
     const upsert = vi.fn().mockResolvedValue({ id: "brief-1" });
     const client = {
@@ -48,7 +55,11 @@ describe("generateDailyBriefForTenant", () => {
     expect(payload.roasting.yieldPercent).toBe(85);
     expect(payload.samples).toEqual({ transactionCount: 2, packCount: 3, totalGrams: 300, totalCost: 75_000 });
     expect(payload.inventoryAlertCount).toBe(1);
+    // Overdue hanya 400.000 (500.000 − 100.000). Nota 300.000 belum jatuh tempo,
+    // nota 200.000 DIRECTUR PENUH → saldo 0, tidak pernah dianggap piutang/terlambat.
     expect(payload.receivables.overdueTotal).toBe(400_000);
+    expect(payload.receivables.overdueCount).toBe(1);
+    expect(payload.receivables.total).toBe(700_000);
     expect(upsert).toHaveBeenCalledOnce();
     expect(upsert.mock.calls[0][0].create).toMatchObject({
       tenantId: "tenant-1",

@@ -37,13 +37,15 @@ function getExportConfig(report: CoffeeFlowReport) {
   const fgCols = [
     { header: "FINISHED GOODS", accessor: (r: any) => r.name, align: "left" as const },
     { header: "Produksi (unit)", accessor: (r: any) => String(r.producedUnits), align: "right" as const },
-    { header: "Terjual (unit)", accessor: (r: any) => String(r.soldUnits), align: "right" as const },
+    { header: "Terjual Neto (unit)", accessor: (r: any) => String(r.soldUnits - r.returnedUnits), align: "right" as const },
+    { header: "Retur (unit)", accessor: (r: any) => String(r.returnedUnits), align: "right" as const },
     { header: "Sample (unit)", accessor: (r: any) => String(r.sampleOutUnits), align: "right" as const },
     { header: "Opname Out (unit)", accessor: (r: any) => String(r.adjustmentOutUnits), align: "right" as const },
     { header: "Stok (unit)", accessor: (r: any) => String(r.currentStockUnits), align: "right" as const },
     { header: "Pendapatan", accessor: (r: any) => String(r.salesRevenue), align: "right" as const },
-    { header: "HPP", accessor: (r: any) => String(r.cogs), align: "right" as const },
+    { header: "HPP (historis)", accessor: (r: any) => String(r.cogs), align: "right" as const },
     { header: "Laba Kotor", accessor: (r: any) => String(r.grossProfit), align: "right" as const },
+    { header: "Estimasi Biaya Resep Saat Ini/unit", accessor: (r: any) => String(r.currentRecipeCostPerUnit), align: "right" as const },
   ];
 
   return {
@@ -73,7 +75,7 @@ function FlowPipeline({ report, onStageClick }: { report: CoffeeFlowReport; onSt
   const totalRBProduced = report.roastedBeans.reduce((s, r) => s + r.producedKg, 0);
   const totalRBLoss = report.roastedBeans.reduce((s, r) => s + r.roastLossKg, 0);
   const totalFGProduced = report.finishedGoods.reduce((s, f) => s + f.producedUnits, 0);
-  const totalFGSold = report.finishedGoods.reduce((s, f) => s + f.soldUnits, 0);
+  const totalFGSold = report.finishedGoods.reduce((s, f) => s + (f.soldUnits - f.returnedUnits), 0);
   const totalRevenue = report.finishedGoods.reduce((s, f) => s + f.salesRevenue, 0);
   const totalCOGS = report.finishedGoods.reduce((s, f) => s + f.cogs, 0);
   const totalGBStock = report.greenBeans.reduce((s, g) => s + g.currentStockKg, 0);
@@ -99,7 +101,7 @@ function FlowPipeline({ report, onStageClick }: { report: CoffeeFlowReport; onSt
     {
       id: "fg", label: "Produk Jadi", sub: "Finished Goods", icon: Box,
       color: "violet", metric: `${totalFGProduced.toLocaleString("id-ID")} unit`,
-      subMetric: `Terjual ${totalFGSold.toLocaleString("id-ID")} unit`, value: `Revenue Rp ${totalRevenue.toLocaleString("id-ID")}`,
+      subMetric: `Terjual neto ${totalFGSold.toLocaleString("id-ID")} unit`, value: `Revenue Rp ${totalRevenue.toLocaleString("id-ID")}`,
       stock: `${totalFGStock.toLocaleString("id-ID")} unit di gudang`,
     },
     {
@@ -360,6 +362,7 @@ export function CoffeeFlowClient({ report }: { report: CoffeeFlowReport }) {
 
         {/* ROASTED BEAN TABLE */}
         <StageDetailCard title="Detail Roasted Bean" icon={Coffee} color="amber" defaultOpen={activeStage === "rb"}>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-amber-50/30">
               <TableRow>
@@ -401,18 +404,22 @@ export function CoffeeFlowClient({ report }: { report: CoffeeFlowReport }) {
               })}
             </TableBody>
           </Table>
+          </div>
         </StageDetailCard>
 
         {/* FINISHED GOODS TABLE */}
         <StageDetailCard title="Detail Produk Jadi" icon={Box} color="violet" defaultOpen={activeStage === "fg" || activeStage === "sales"}>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-violet-50/30">
               <TableRow>
                 <TableHead className="font-semibold text-violet-900">Produk</TableHead>
                 <TableHead className="text-right font-semibold text-violet-900">Diproduksi</TableHead>
-                <TableHead className="text-right font-semibold text-violet-900">Terjual</TableHead>
+                <TableHead className="text-right font-semibold text-violet-900">Terjual Neto</TableHead>
+                <TableHead className="text-right font-semibold text-violet-900">Retur</TableHead>
                 <TableHead className="text-right font-semibold text-violet-900">Sample</TableHead>
                 <TableHead className="text-right font-semibold text-violet-900">Revenue</TableHead>
+                <TableHead className="text-right font-semibold text-violet-900">HPP Historis</TableHead>
                 <TableHead className="text-right font-semibold text-violet-900">Laba Kotor</TableHead>
                 <TableHead className="text-right font-semibold text-violet-900">Opname</TableHead>
                 <TableHead className="text-right font-semibold text-violet-900 bg-violet-50/50">Stok</TableHead>
@@ -420,7 +427,7 @@ export function CoffeeFlowClient({ report }: { report: CoffeeFlowReport }) {
             </TableHeader>
             <TableBody>
               {filteredFG.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-slate-400 py-8">Belum ada data</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center text-slate-400 py-8">Belum ada data</TableCell></TableRow>
               )}
               {filteredFG.map(fg => (
                 <TableRow key={fg.id} className="hover:bg-violet-50/20">
@@ -429,9 +436,11 @@ export function CoffeeFlowClient({ report }: { report: CoffeeFlowReport }) {
                     <div className="text-xs text-slate-400">{fg.weightPerUnitGrams}g/unit</div>
                   </TableCell>
                   <TableCell className="text-right text-emerald-700 font-medium">+{fg.producedUnits.toLocaleString("id-ID")}</TableCell>
-                  <TableCell className="text-right text-indigo-700 font-medium">-{fg.soldUnits.toLocaleString("id-ID")}</TableCell>
+                  <TableCell className="text-right text-indigo-700 font-medium">-{(fg.soldUnits - fg.returnedUnits).toLocaleString("id-ID")}</TableCell>
+                  <TableCell className="text-right text-rose-600">{fg.returnedUnits > 0 ? `+${fg.returnedUnits}` : "-"}</TableCell>
                   <TableCell className="text-right text-domain-sales">{fg.sampleOutUnits > 0 ? `-${fg.sampleOutUnits}` : "-"}</TableCell>
                   <TableCell className="text-right text-slate-700 text-xs font-medium">Rp {fg.salesRevenue.toLocaleString("id-ID")}</TableCell>
+                  <TableCell className="text-right text-slate-600 text-xs font-medium" title="COGS memakai snapshot HPP InvoiceItem saat transaksi (historis), net retur proporsional.">Rp {fg.cogs.toLocaleString("id-ID")}</TableCell>
                   <TableCell className="text-right">
                     <span className={cn("text-xs font-bold", fg.grossProfit >= 0 ? "text-emerald-600" : "text-red-600")}>
                       {fg.grossProfit >= 0 ? "+" : "-"}Rp {Math.abs(fg.grossProfit).toLocaleString("id-ID", { maximumFractionDigits: 0 })}
@@ -443,6 +452,11 @@ export function CoffeeFlowClient({ report }: { report: CoffeeFlowReport }) {
               ))}
             </TableBody>
           </Table>
+          </div>
+          <div className="border-t border-slate-100 px-4 py-2.5 text-[11px] text-slate-400">
+            Terjual neto = SALE_FG_OUT − RETURN_FG_IN. HPP historis memakai snapshot nota, bukan biaya resep saat ini.
+            Estimasi biaya resep saat ini tidak dicampur ke Laba Kotor.
+          </div>
         </StageDetailCard>
       </div>
     </div>

@@ -3,6 +3,8 @@ import { requireTenantPrisma, requireRole } from "@/lib/auth";
 import { getCurrentDate, getZonedDayRange } from "@/lib/date-utils";
 import type { DailyBriefPayload } from "@/lib/daily-brief";
 import { tenantQuery } from "@/lib/tenant-guard";
+import { computeRevenue } from "@/lib/report-finance";
+import { netSoldKg } from "@/lib/sales-volume";
 
 
 // =============================================================================
@@ -10,16 +12,16 @@ import { tenantQuery } from "@/lib/tenant-guard";
 // =============================================================================
 
 export type DashboardKpi = {
-  revenueToday:    number; // sum (subtotal - discount) nota DIKIRIM hari ini (basis pengiriman 2F.2)
+  revenueToday:    number; // pendapatan nota DIKIRIM hari ini, net retur (definisi kanonik tunggal: grandTotal − retur)
   kasToday:        number; // sum Payment.amount diterima hari ini (semua metode)
   totalPiutang:    number; // sum sisa tagihan ISSUED+PARTIAL bersih retur (2F.2)
   piutangCount:    number;
   lowStockCount:   number;
   totalKopiTerjual: number;
+  /** Unit terjual dari produk jadi TANPA resep (tidak dapat dikonversi ke kg). */
+  totalSoldUnitsNoWeight: number;
   averageRoastYield: number; // calculated from totalShrinkagePercent
-  averageGrossMargin: number; // (revenue - cogs) / revenue * 100
-  sampleCostMonth: number; // total sample cost this month
-  samplePacksMonth: number; // total sample packs given this month
+  averageGrossMargin: number; // (revenue - cogs) / revenue * 100, net retur & diskon
 };
 
 export type LowStockItem = {
@@ -36,18 +38,6 @@ export type RevenueTrend = {
   revenue: number;
 };
 
-export type TopProduct = {
-  id: string;
-  name: string;
-  sold: number;
-};
-
-export type TopCustomer = {
-  id: string;
-  name: string;
-  totalSpent: number;
-};
-
 export type ActivityItem = {
   id:          string;
   type:        "PURCHASE" | "ROASTING" | "PRODUCTION" | "SALE";
@@ -61,8 +51,6 @@ export type ActivityItem = {
 export type DashboardData = {
   kpi:          DashboardKpi;
   revenueTrend: RevenueTrend[];
-  topProducts:  TopProduct[];
-  topCustomers: TopCustomer[];
   lowStock:     LowStockItem[];
   activity:     ActivityItem[];
   asOf:         string; // ISO
@@ -117,13 +105,11 @@ export async function getDashboardData(): Promise<DashboardData> {
     recentProductions,
     recentInvoices,
     revenueTrendRaw,
-    topProductsRaw,
-    topCustomersRaw,
-    totalKopiTerjualRaw,
+    soldLedgerEntries,
+    productRecipes,
     roastYieldRaw,
     marginRaw,
     dailyBriefSnapshot,
-    sampleMonthAgg,
     purchaseOrdersToReceive,
     roastingBatchesOpen,
     paymentReviews,
@@ -137,7 +123,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         deliveredAt: { gte: today.start, lt: today.end },
         OR: [{ voidAt: null }, { voidAt: { gte: today.end } }],
       },
-      _sum: { subtotal: true, discount: true },
+      _sum: { grandTotal: true, returnedAmount: true },
     }),
 
     // 2. Kas diterima hari ini (semua Payment yang paidAt hari ini)
@@ -238,10 +224,10 @@ export async function getDashboardData(): Promise<DashboardData> {
       },
     }),
 
-    // 10. Revenue Trend (Last 7 Days) — basis pengiriman (2F.2)
+    // 10. Revenue Trend (Last 7 Days) — basis pengiriman, net retur (2F.2)
     tenantQuery<{ date: string; revenue: number }[]>(tenantId, async (t) => tp.$queryRaw`
       SELECT TO_CHAR(("deliveredAt" AT TIME ZONE ${today.timezone})::date, 'YYYY-MM-DD') as "date",
-             SUM("subtotal" - "discount")::float as "revenue"
+             SUM(GREATEST("grandTotal" - COALESCE("returnedAmount", 0), 0))::float as "revenue"
       FROM "invoices"
       WHERE "tenantId" = ${t}
         AND "deliveredAt" >= ${sevenDayPeriod.start}
@@ -251,52 +237,44 @@ export async function getDashboardData(): Promise<DashboardData> {
       ORDER BY "date" ASC
     `),
 
-    // 11. Top 5 Products (mengecualikan nota void)
-    tenantQuery<{ id: string; name: string; sold: number }[]>(tenantId, async (t) => tp.$queryRaw`
-      SELECT p.id, p."name", SUM(ii."quantity")::int as "sold"
-      FROM "invoice_items" ii
-      JOIN "products" p ON ii."productId" = p.id
-      JOIN "invoices" i ON ii."invoiceId" = i.id
-      WHERE i."tenantId" = ${t} AND i."status" IN ('PAID', 'PARTIAL', 'ISSUED') AND i."voidAt" IS NULL
-      GROUP BY p.id, p."name"
-      ORDER BY "sold" DESC
-      LIMIT 5
-    `),
+    // 11. Total Kopi Terjual — ledger FG (SALE_FG_OUT − RETURN_FG_IN), berat per
+    //     unit dari resep TERBARU produk; produk tanpa resep tetap dihitung
+    //     unitnya (unitsWithoutWeight) dan tidak hilang dari hitungan.
+    tp.inventoryLedger.findMany({
+      where: {
+        refType: { in: ["SALE_FG_OUT", "RETURN_FG_IN"] },
+        product: { type: "FINISHED_GOODS" },
+      },
+      select: { entryType: true, quantityUnit: true, productId: true },
+    }),
 
-    // 12. Top 5 Customers
-    tenantQuery<{ id: string; name: string; totalSpent: number }[]>(tenantId, async (t) => tp.$queryRaw`
-      SELECT c.id, c."name", SUM(i."grandTotal")::float as "totalSpent"
-      FROM "invoices" i
-      JOIN "customers" c ON i."customerId" = c.id
-      WHERE i."tenantId" = ${t} AND i."status" IN ('PAID', 'PARTIAL') AND i."voidAt" IS NULL
-      GROUP BY c.id, c."name"
-      ORDER BY "totalSpent" DESC
-      LIMIT 5
-    `),
+    // 12. Berat per unit (resep terbaru per produk jadi)
+    tp.recipe.findMany({
+      where: { product: { type: "FINISHED_GOODS" } },
+      select: { productId: true, outputGrams: true },
+      orderBy: { createdAt: "desc" },
+    }),
 
-    // 13. Total Kopi Terjual (jual bersih: SALE_FG_OUT − RETURN_FG_IN)
-    tenantQuery<{ totalSoldKg: number }[]>(tenantId, async (t) => tp.$queryRaw`
-      SELECT COALESCE(SUM(il."quantityUnit" * r."outputGrams" / 1000.0 *
-                          CASE WHEN il."entryType" = 'OUT' THEN 1 ELSE -1 END), 0)::float as "totalSoldKg"
-      FROM "inventory_ledger" il
-      JOIN "products" p ON il."productId" = p.id
-      LEFT JOIN "recipes" r ON r."productId" = p.id
-      WHERE il."tenantId" = ${t} AND il."refType" IN ('SALE_FG_OUT', 'RETURN_FG_IN') AND p."type" = 'FINISHED_GOODS'
-    `),
-
-    // 14. Average Roast Yield
+    // 13. Average Roast Yield
     tp.parentRoastingBatch.aggregate({
       _avg: { totalShrinkagePercent: true },
       where: { status: "COMPLETED" }
     }),
 
-    // 15. Gross Margin (All time) — hanya nota terkirim & tidak void (2F.2)
+    // 14. Gross Margin (All time) — hanya nota terkirim & tidak void (2F.2);
+    //     diskon header & retur dinetkan proporsional per nota.
     tenantQuery<{ totalRevenue: number, totalCogs: number }[]>(tenantId, async (t) => tp.$queryRaw`
       SELECT 
-        COALESCE(SUM(ii."subtotal"), 0)::float as "totalRevenue",
-        COALESCE(SUM(ii."hpp" * ii."quantity"), 0)::float as "totalCogs"
+        COALESCE(SUM(ii."subtotal" * net."netFactor"), 0)::float as "totalRevenue",
+        COALESCE(SUM(ii."hpp" * ii."quantity" * net."netFactor"), 0)::float as "totalCogs"
       FROM "invoice_items" ii
       JOIN "invoices" i ON ii."invoiceId" = i.id
+      JOIN (
+        SELECT id,
+          GREATEST("grandTotal" - COALESCE("returnedAmount", 0), 0)
+            / NULLIF("subtotal", 0) AS "netFactor"
+        FROM "invoices"
+      ) net ON net."id" = i.id
       WHERE i."tenantId" = ${t} AND i."deliveredAt" IS NOT NULL AND i."voidAt" IS NULL
     `),
 
@@ -305,26 +283,16 @@ export async function getDashboardData(): Promise<DashboardData> {
       select: { payload: true },
     }),
 
-    // 16. Sample usage this month
-    (() => {
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      return tp.sampleUsage.aggregate({
-        where: { status: "COMPLETED", givenAt: { gte: monthStart, lt: now } },
-        _sum: { totalCost: true },
-        _count: true,
-      });
-    })(),
-
-    // 17. Live work queue: PO yang sudah dikirim/diterima sebagian.
+    // 15. Live work queue: PO yang sudah dikirim/diterima sebagian.
     tp.purchaseOrder.count({ where: { status: { in: ["SENT", "PARTIAL"] } } }),
 
-    // 18. Live work queue: batch roasting aktif yang belum mem-posting hasil.
+    // 16. Live work queue: batch roasting aktif yang belum mem-posting hasil.
     tp.parentRoastingBatch.count({ where: { status: "PENDING" } }),
 
-    // 19. Live work queue: bukti bayar yang belum membentuk kas.
+    // 17. Live work queue: bukti bayar yang belum membentuk kas.
     tp.paymentSubmission.count({ where: { status: "AWAITING_VERIFICATION" } }),
 
-    // 20. Live work queue: tahap fulfillment yang memerlukan tindakan internal.
+    // 18. Live work queue: tahap fulfillment yang memerlukan tindakan internal.
     tp.invoice.groupBy({
       by: ["fulfillmentStatus"],
       where: {
@@ -334,7 +302,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       _count: true,
     }),
 
-    // 21. Live work queue: hanya piutang yang benar-benar lewat jatuh tempo.
+    // 19. Live work queue: hanya piutang yang benar-benar lewat jatuh tempo.
     tp.invoice.aggregate({
       where: { status: { in: ["ISSUED", "PARTIAL"] }, voidAt: null, dueDate: { lt: now } },
       _count: true,
@@ -343,11 +311,30 @@ export async function getDashboardData(): Promise<DashboardData> {
   ]);
 
   // ── KPI calculations ──
-  const revenueToday = Number(revenueTodayRaw._sum.subtotal ?? 0) - Number(revenueTodayRaw._sum.discount ?? 0);
+  // Pendapatan = total tagihan bersih retur untuk nota yang DISERAHKAN
+  // (definisi kanonik tunggal di seluruh laporan — lihat src/lib/report-finance.ts).
+  const revenueToday = computeRevenue([{
+    grandTotal: revenueTodayRaw._sum.grandTotal,
+    returnedAmount: revenueTodayRaw._sum.returnedAmount,
+  }]);
   const kasToday     = Number(kasTodayRaw._sum.amount ?? 0);
   const totalPiutang = Number(piutangSummary[0]?.totalOutstanding ?? 0);
   const piutangCount = Number(piutangSummary[0]?.invoiceCount ?? 0);
-  const totalKopiTerjual = totalKopiTerjualRaw[0]?.totalSoldKg ?? 0;
+
+  // Berat per unit: resep TERBARU per produk; produk tanpa resep → grams null.
+  const gramsByProduct = new Map<string, number>();
+  for (const recipe of productRecipes) {
+    if (!gramsByProduct.has(recipe.productId)) {
+      gramsByProduct.set(recipe.productId, Number(recipe.outputGrams));
+    }
+  }
+  const { kg: totalKopiTerjual, unitsWithoutWeight: totalSoldUnitsNoWeight } = netSoldKg(
+    soldLedgerEntries.map((entry) => ({
+      entryType: entry.entryType as "IN" | "OUT",
+      quantityUnit: Number(entry.quantityUnit ?? 0),
+      outputGrams: gramsByProduct.get(entry.productId as string) ?? null,
+    })),
+  );
   
   // Calculate Roasting Yield (100% - Average Loss %)
   const avgLoss = Number(roastYieldRaw._avg.totalShrinkagePercent ?? 0);
@@ -489,14 +476,11 @@ export async function getDashboardData(): Promise<DashboardData> {
       piutangCount,
       lowStockCount: lowStock.length,
       totalKopiTerjual,
+      totalSoldUnitsNoWeight,
       averageRoastYield,
       averageGrossMargin,
-      sampleCostMonth: Number(sampleMonthAgg._sum.totalCost ?? 0),
-      samplePacksMonth: sampleMonthAgg._count,
     },
     revenueTrend,
-    topProducts: topProductsRaw,
-    topCustomers: topCustomersRaw,
     lowStock,
     activity: activities,
     asOf: now.toISOString(),

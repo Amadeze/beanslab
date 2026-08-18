@@ -48,18 +48,24 @@ describe("computeTrend", () => {
     expect(computeTrend(12_000_000, 10_000_000)).toBe(20);
   });
 
-  it("returns 0 when previous is zero or unknown", () => {
-    expect(computeTrend(5, 0)).toBe(0);
-    expect(computeTrend(5, -5)).toBe(0);
+  it("returns null when previous is zero or negative (not comparable)", () => {
+    expect(computeTrend(5, 0)).toBeNull();
+    expect(computeTrend(5, -5)).toBeNull();
+    expect(computeTrend(0, 0)).toBeNull();
+  });
+
+  it("returns a number for a positive previous value", () => {
+    expect(computeTrend(0, 10)).toBe(-100);
+    expect(typeof computeTrend(10, 100)).toBe("number");
   });
 });
 
 describe("computeAverageInvoice", () => {
-  it("divides revenue by paid count", () => {
+  it("divides revenue by recognized count", () => {
     expect(computeAverageInvoice(10_000_000, 20)).toBe(500_000);
   });
 
-  it("returns 0 when no paid invoice", () => {
+  it("returns 0 when there are no recognized invoices", () => {
     expect(computeAverageInvoice(10_000_000, 0)).toBe(0);
   });
 });

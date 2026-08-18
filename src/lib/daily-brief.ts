@@ -1,5 +1,7 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { getCurrentDate, getZonedDayRange } from "@/lib/date-utils";
+import { computeReceivable } from "@/lib/finance-formulas";
+import { computeRevenue } from "@/lib/report-finance";
 
 export type DailyBriefAction = {
   severity: "INFO" | "WARNING" | "CRITICAL";
@@ -45,9 +47,10 @@ export async function generateDailyBriefForTenant(
       where: {
         tenantId,
         status: { in: ["ISSUED", "PARTIAL", "PAID"] },
-        issuedAt: { gte: period.start, lt: period.end },
+        deliveredAt: { gte: period.start, lt: period.end },
+        OR: [{ voidAt: null }, { voidAt: { gte: period.end } }],
       },
-      select: { subtotal: true, discount: true },
+      select: { grandTotal: true, returnedAmount: true },
     }),
     client.payment.aggregate({
       where: { tenantId, voidAt: null, paidAt: { gte: period.start, lt: period.end } },
@@ -75,7 +78,7 @@ export async function generateDailyBriefForTenant(
     }),
     client.invoice.findMany({
       where: { tenantId, status: { in: ["ISSUED", "PARTIAL"] } },
-      select: { grandTotal: true, paidAmount: true, dueDate: true },
+      select: { grandTotal: true, paidAmount: true, returnedAmount: true, dueDate: true },
     }),
     client.purchase.findMany({
       where: { tenantId, status: "COMPLETED", paymentStatus: { in: ["UNPAID", "PARTIAL"] } },
@@ -92,17 +95,27 @@ export async function generateDailyBriefForTenant(
     client.webhookEvent.count({ where: { tenantId, status: "FAILED" } }),
   ]);
 
-  const salesAccrued = invoices.reduce(
-    (sum, invoice) => sum + Math.max(0, Number(invoice.subtotal) - Number(invoice.discount)),
-    0,
+  // Pendapatan diakui saat DISERAHKAN (basis kanonik 2F.2), net retur.
+  const salesAccrued = computeRevenue(
+    invoices.map((invoice) => ({
+      grandTotal: invoice.grandTotal,
+      returnedAmount: invoice.returnedAmount,
+    })),
   );
   const cashCollected = Number(payments._sum.amount ?? 0);
   const roastInput = roasts.reduce((sum, roast) => sum + Number(roast.targetWeightKg), 0);
   const roastOutput = roasts.reduce((sum, roast) => sum + Number(roast.actualOutputKg ?? 0), 0);
-  const receivables = receivableInvoices.map((invoice) => ({
-    balance: Math.max(0, Number(invoice.grandTotal) - Number(invoice.paidAmount)),
-    overdue: Boolean(invoice.dueDate && invoice.dueDate < now),
-  }));
+  const receivables = receivableInvoices.map((invoice) => {
+    const balance = computeReceivable(
+      Number(invoice.grandTotal),
+      Number(invoice.paidAmount),
+      Number(invoice.returnedAmount),
+    );
+    return {
+      balance,
+      overdue: Boolean(invoice.dueDate && invoice.dueDate < now && balance > 0.01),
+    };
+  });
   const payables = payablePurchases.map((purchase) => ({
     balance: Math.max(0, Number(purchase.totalCost) - Number(purchase.paidAmount)),
     overdue: Boolean(purchase.dueDate && purchase.dueDate < now),

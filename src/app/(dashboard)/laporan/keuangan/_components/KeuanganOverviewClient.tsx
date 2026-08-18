@@ -76,7 +76,7 @@ export default function KeuanganOverviewClient() {
           data={[
             { metric: "Total Pendapatan", value: data.totalRevenue },
             { metric: "Total Beban", value: data.totalExpenses },
-            { metric: "Laba Bersih", value: data.netProfit },
+            { metric: "Laba Operasional", value: data.netProfit },
             { metric: "Arus Kas", value: data.cashFlow },
           ]}
         />
@@ -108,12 +108,12 @@ export default function KeuanganOverviewClient() {
             help="Total beban operasional kas periode ini (tanpa pembelian bahan)."
           />
           <ReportKpiCard
-            label="Laba Bersih"
+            label="Laba Operasional"
             value={formatRupiah(data.netProfit)}
             trend={data.profitTrend}
             icon={data.netProfit > 0 ? TrendingUp : TrendingDown}
             color={data.netProfit > 0 ? "emerald" : "rose"}
-            help="Laba bersih = Pendapatan − Beban − Biaya Pembelian (definisi tunggal di semua laporan)."
+            help="Laba operasional = Pendapatan − Beban − Biaya Pembelian. Laporan Laba Rugi (GL) tetap memakai istilah 'Laba Bersih' dari pembukuan akuntansi."
           />
           <ReportKpiCard
             label="Arus Kas"

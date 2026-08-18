@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryReports } from "@/lib/ai-insights";
-import { requireRole, requireTenantPrisma } from "@/lib/auth";
+import { requireRole, requireTenantPrisma, getTenantTimezone } from "@/lib/auth";
 import { getRequestId, logServerError } from "@/lib/api-observability";
 import {
   layeredIdentifiers,
@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       windowSeconds: 60,
     });
     const tenantPrisma = await requireTenantPrisma();
+    const timezone = await getTenantTimezone();
 
     const body = await req.json();
     const query = body.query as string;
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await queryReports(query, tenantPrisma);
+    const result = await queryReports(query, tenantPrisma, timezone);
 
     return NextResponse.json(result, {
       headers: {

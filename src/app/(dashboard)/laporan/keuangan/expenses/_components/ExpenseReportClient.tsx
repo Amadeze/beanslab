@@ -117,7 +117,7 @@ export default function ExpenseReportClient() {
             { label: "Total Pengeluaran", value: formatRupiah(data.totalExpenses) },
             { label: "Biaya Pembelian", value: formatRupiah(data.totalPurchases) },
             { label: "Hutang Tertunda", value: formatRupiah(data.outstandingPayable) },
-            { label: "Profit", value: formatRupiah(data.profit) },
+            { label: "Laba Operasional", value: formatRupiah(data.profit) },
           ]}
         />
       }
@@ -159,11 +159,11 @@ export default function ExpenseReportClient() {
             color="purple"
           />
           <ReportKpiCard
-            label="Profit"
+            label="Laba Operasional"
             value={formatRupiah(data.profit)}
             icon={data.profit > 0 ? TrendingUp : TrendingDown}
             color={data.profit > 0 ? "emerald" : "rose"}
-            help="Net profit = Revenue − Pengeluaran − Biaya Pembelian (definisi tunggal untuk semua laporan)."
+            help="Laba operasional = Pendapatan (basis diserahkan, net retur) − Pengeluaran − Biaya Pembelian."
           />
         </div>
 

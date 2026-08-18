@@ -635,6 +635,11 @@ export function DashboardShell({ data }: { data: DashboardData }) {
             <span className="inline-flex items-center gap-1.5">
               <Banknote size={12} />
               Piutang aktif {formatRupiah(data.kpi.totalPiutang)} · kopi terjual {formatKg(data.kpi.totalKopiTerjual)}
+              {data.kpi.totalSoldUnitsNoWeight > 0 && (
+                <span title="Produk jadi tanpa resep — dihitung per unit, bukan kilogram.">
+                  (+{data.kpi.totalSoldUnitsNoWeight.toLocaleString("id-ID")} unit tanpa resep)
+                </span>
+              )}
             </span>
           </div>
         </div>

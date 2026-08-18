@@ -27,13 +27,13 @@ export function ReportComparisonBar({
     return new Intl.NumberFormat("id-ID").format(value);
   };
 
-  const getChangePercent = (current: number, previous: number) => {
-    if (previous === 0) return current > 0 ? 100 : 0;
+  const getChangePercent = (current: number, previous: number): number | null => {
+    if (previous === 0) return null; // periode sebelumnya kosong — tidak terbandingkan
     return ((current - previous) / Math.abs(previous)) * 100;
   };
 
-  const getChangeColor = (percent: number, inverse: boolean) => {
-    if (percent === 0) return "text-stone-500";
+  const getChangeColor = (percent: number | null, inverse: boolean) => {
+    if (percent === null || percent === 0) return "text-stone-500";
     const isPositive = percent > 0;
     if (inverse) {
       return isPositive ? "text-rose-600" : "text-emerald-600";
@@ -41,8 +41,8 @@ export function ReportComparisonBar({
     return isPositive ? "text-emerald-600" : "text-rose-600";
   };
 
-  const getChangeBg = (percent: number, inverse: boolean) => {
-    if (percent === 0) return "bg-stone-50";
+  const getChangeBg = (percent: number | null, inverse: boolean) => {
+    if (percent === null || percent === 0) return "bg-stone-50";
     const isPositive = percent > 0;
     if (inverse) {
       return isPositive ? "bg-rose-50" : "bg-emerald-50";
@@ -86,17 +86,24 @@ export function ReportComparisonBar({
                   changeBg
                 )}
               >
-                {changePercent > 0 ? (
+                {changePercent === null ? (
+                  <>
+                    <Minus size={10} className={changeColor} />
+                    <span className={cn("text-xs font-semibold tabular-nums", changeColor)}>—</span>
+                  </>
+                ) : changePercent > 0 ? (
                   <ArrowUpRight size={10} className={changeColor} />
                 ) : changePercent < 0 ? (
                   <ArrowDownRight size={10} className={changeColor} />
                 ) : (
                   <Minus size={10} className={changeColor} />
                 )}
-                <span className={cn("text-xs font-semibold tabular-nums", changeColor)}>
-                  {changePercent > 0 ? "+" : ""}
-                  {changePercent.toFixed(1)}%
-                </span>
+                {changePercent !== null && (
+                  <span className={cn("text-xs font-semibold tabular-nums", changeColor)}>
+                    {changePercent > 0 ? "+" : ""}
+                    {changePercent.toFixed(1)}%
+                  </span>
+                )}
               </div>
             </div>
           );

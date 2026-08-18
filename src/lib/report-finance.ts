@@ -69,14 +69,19 @@ export function computeNetProfit(totals: InputTotals): number {
 
 /**
  * Persentase perubahan antara periode berjalan vs periode sebelumnya.
- * Mengembalikan 0 bila periode sebelumnya 0 atau tidak diketahui (avoid division by zero).
+ * Mengembalikan `null` bila periode sebelumnya 0 atau tidak diketahui
+ * (tidak terbandingkan) — UI wajib menampilkan "—" / "Periode baru",
+ * BUKAN "0.0% vs periode lalu" yang menyesatkan.
  */
-export function computeTrend(current: number, previous: number): number {
-  if (!Number.isFinite(previous) || previous <= 0) return 0;
+export function computeTrend(current: number, previous: number): number | null {
+  if (!Number.isFinite(previous) || previous <= 0) return null;
   return ((current - previous) / previous) * 100;
 }
 
-/** Rata-rata nilai per nota lunas. 0 bila belum ada invoice lunas. */
-export function computeAverageInvoice(revenue: number, paidCount: number): number {
-  return paidCount > 0 ? revenue / paidCount : 0;
+/**
+ * Rata-rata nilai per nota dari himpunan yang sama dengan `revenue`
+ * (himpunan pendapatan diakui: basis diserahkan, net retur). 0 bila kosong.
+ */
+export function computeAverageInvoice(revenue: number, count: number): number {
+  return count > 0 ? revenue / count : 0;
 }

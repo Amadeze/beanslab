@@ -1,7 +1,6 @@
 "use server";
 
 import type { Prisma } from "@prisma/client";
-import { getPnLReport } from "../keuangan/actions";
 import { getSystemUserId, getCurrentTenantId, requireFeature, requireTenantPrisma, getTenantTimezone } from "@/lib/auth";
 import { getPayableAgingBucket } from "@/lib/purchase-payments";
 import { revalidatePath, unstable_cache } from "next/cache";
@@ -16,6 +15,7 @@ import {
   type InputTotals,
 } from "@/lib/report-finance";
 import { computeCashMovement } from "@/lib/gl-cash-flow";
+import { computeCoffeeFlowSales } from "@/lib/coffee-flow";
 import { getRbCostPrioritizingCache, getFgHppPrioritizingCache } from "@/lib/costing";
 import { computeValuationMetrics } from "@/lib/inventory-helpers";
 import { prisma } from "@/lib/prisma";
@@ -74,8 +74,8 @@ async function getDailyFinancialTotals(input: {
         GROUP BY daily."dateKey"
       `);
     },
-    ["daily-financial-totals-v2"],
-    { revalidate: 3600 }
+    ["daily-financial-totals-v3"],
+    { revalidate: 300 }
   );
 
   const rows = await fetchDailyRows(input.tenantId, input.timezone, input.start.toISOString(), input.end.toISOString());
@@ -86,19 +86,6 @@ async function getDailyFinancialTotals(input: {
       { revenue: Number(row.revenue), expenses: Number(row.expenses) },
     ]),
   );
-}
-
-function buildChartDaysEndingAt(end: Date, count: number, timezone: string): DailyChartPoint[] {
-  return Array.from({ length: count }, (_, index) => {
-    const offset = index - (count - 1);
-    const day = getZonedDayRange(end, timezone, offset);
-    return {
-      dateKey: day.dateKey,
-      label: formatChartDate(day.start, timezone),
-      start: day.start,
-      end: day.end,
-    };
-  });
 }
 
 function buildChartDaysFrom(startDate: string, count: number, timezone: string): DailyChartPoint[] {
@@ -698,7 +685,9 @@ export type FinishedGoodsFlow = {
   id: string;
   name: string;
   producedUnits: number;
+  /** Net terjual = SALE_FG_OUT − RETURN_FG_IN (ledger kanonik). */
   soldUnits: number;
+  returnedUnits: number;
   adjustmentOutUnits: number;
   sampleOutUnits: number;
   currentStockUnits: number;
@@ -708,6 +697,12 @@ export type FinishedGoodsFlow = {
   salesRevenue: number;
   cogs: number;
   grossProfit: number;
+  /**
+   * Estimasi biaya per unit memakai RECIPE TERBARU (biaya saat ini) —
+   * HANYA untuk informasi, TIDAK dipakai dalam cogs/grossProfit yang
+   * selalu memakai snapshot InvoiceItem.hpp historis (2F.2).
+   */
+  currentRecipeCostPerUnit: number;
 };
 
 export type CoffeeFlowReport = {
@@ -727,13 +722,10 @@ export async function getCoffeeFlowReport(
   const products = await tp.product.findMany({
     where: { isActive: true },
     include: {
-      ledgerEntries: { 
-        where: { 
-          createdAt: { 
-            lt: periodEnd,
-            ...(periodStart ? { gte: periodStart } : {})
-          } 
-        } 
+      ledgerEntries: {
+        // Stok "saat ini" = saldo ledger sampai akhir periode (2F.2):
+        // entri SEBELUM periode tetap dihitung, hanya dibatasi < periodEnd.
+        where: { createdAt: { lt: periodEnd } },
       },
       recipes: {
         orderBy: { createdAt: "desc" },
@@ -755,13 +747,25 @@ export async function getCoffeeFlowReport(
       invoiceItems: { 
         where: {
           invoice: {
-            issuedAt: {
+            deliveredAt: {
               lt: periodEnd,
               ...(periodStart ? { gte: periodStart } : {})
-            }
+            },
+            OR: [{ voidAt: null }, { voidAt: { gt: periodEnd } }],
           }
         },
-        include: { invoice: { select: { status: true, issuedAt: true } } } 
+        include: {
+          invoice: {
+            select: {
+              status: true,
+              deliveredAt: true,
+              voidAt: true,
+              subtotal: true,
+              grandTotal: true,
+              returnedAmount: true,
+            }
+          }
+        }
       },
       productionBatches: {
         where: { status: "COMPLETED" },
@@ -902,40 +906,44 @@ export async function getCoffeeFlowReport(
         roastLossValue: 0
       });
     } else if (p.type === "FINISHED_GOODS") {
-      let producedU = 0, soldU = 0, adjOutU = 0, sampleOutU = 0, stockU = 0;
+      let producedU = 0, soldU = 0, returnedU = 0, adjOutU = 0, sampleOutU = 0, stockU = 0;
       for (const l of p.ledgerEntries) {
         const qty = Number(l.quantityUnit || 0);
         if (l.entryType === "IN") stockU += qty; else stockU -= qty;
         if (!inPeriod(l.createdAt)) continue;
         if (l.refType === "PRODUCTION_FG_IN" && l.entryType === "IN") producedU += qty;
         if (l.refType === "SALE_FG_OUT" && l.entryType === "OUT") soldU += qty;
+        if (l.refType === "RETURN_FG_IN" && l.entryType === "IN") returnedU += qty;
         if (l.refType === "ADJUSTMENT_OUT" && l.entryType === "OUT") adjOutU += qty;
         if (l.refType === "SAMPLE_FG_OUT" && l.entryType === "OUT" && activeSampleIds.has(l.refId)) sampleOutU += qty;
       }
-      
-      let salesRevenue = 0;
-      let cogs = 0;
-      // Gunakan HPP dari resep, bukan dari invoice
-      const hppPerUnit = recipeHppMap.get(p.id) ?? 0;
-      for (const inv of p.invoiceItems) {
-        if (
-          (inv.invoice.status === "PAID" || inv.invoice.status === "PARTIAL" || inv.invoice.status === "ISSUED")
-          && inv.invoice.issuedAt < periodEnd
-          && inPeriod(inv.invoice.issuedAt)
-        ) {
-          salesRevenue += Number(inv.subtotal);
-          cogs += hppPerUnit * inv.quantity;
-        }
-      }
+
+      // Pendapatan & COGS HISTORIS: hanya nota DISERAHKAN dalam periode,
+      // net retur proporsional per nota, HPP dari snapshot InvoiceItem.hpp.
+      const { revenue, cogs } = computeCoffeeFlowSales(p.invoiceItems.map((item) => ({
+        quantity: Number(item.quantity),
+        subtotal: Number(item.subtotal),
+        hpp: Number(item.hpp),
+        invoice: {
+          deliveredAt: item.invoice.deliveredAt,
+          status: item.invoice.status,
+          voidAt: item.invoice.voidAt,
+          subtotal: Number(item.invoice.subtotal),
+          grandTotal: Number(item.invoice.grandTotal),
+          returnedAmount: Number(item.invoice.returnedAmount ?? 0),
+        },
+      })));
+      const salesRevenue = revenue;
       const grossProfit = salesRevenue - cogs;
 
       const weightGrams = p.recipes.length > 0 ? Number(p.recipes[0].outputGrams) : 0;
       finishedGoods.push({
-        id: p.id, name: p.name, producedUnits: producedU, soldUnits: soldU, adjustmentOutUnits: adjOutU, sampleOutUnits: sampleOutU, currentStockUnits: stockU,
+        id: p.id, name: p.name, producedUnits: producedU, soldUnits: soldU, returnedUnits: returnedU, adjustmentOutUnits: adjOutU, sampleOutUnits: sampleOutU, currentStockUnits: stockU,
         weightPerUnitGrams: weightGrams,
-        soldEquivalentKg: (soldU * weightGrams) / 1000,
+        soldEquivalentKg: (soldU - returnedU) * weightGrams / 1000,
         producedEquivalentKg: (producedU * weightGrams) / 1000,
-        salesRevenue, cogs, grossProfit
+        salesRevenue, cogs, grossProfit,
+        currentRecipeCostPerUnit: recipeHppMap.get(p.id) ?? 0,
       });
     }
   }
@@ -1096,6 +1104,26 @@ export async function getSampleReport(
 // SALES REPORT
 // =============================================================================
 
+export type ProductProfitability = {
+  productId: string;
+  name: string;
+  quantity: number;
+  revenue: number;
+  cogs: number;
+  grossProfit: number;
+  margin: number;
+};
+
+export type ReturnsAnalytics = {
+  totalReturned: number;
+  /** % nilai diretur terhadap pendapatan bersih periode. */
+  returnPercent: number;
+  returnedInvoiceCount: number;
+  topReturnedProducts: { name: string; quantity: number; value: number }[];
+  topReasons: { reason: string; count: number; total: number }[];
+  topCustomers: { name: string; count: number; total: number }[];
+};
+
 export type SalesReportData = {
   totalRevenue: number;
   invoiceCount: number;
@@ -1103,6 +1131,8 @@ export type SalesReportData = {
   topCustomer: string;
   revenueTrend: { date: string; revenue: number }[];
   salesByProduct: { name: string; value: number }[];
+  productProfitability: ProductProfitability[];
+  returns: ReturnsAnalytics;
   detailLimit: number;
   detailTruncated: boolean;
   invoices: {
@@ -1143,7 +1173,12 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
 
   type ProductSalesRow = { name: string; value: string };
   type TopCustomerRow = { name: string };
-  const [paidTotal, invoiceCount, topCustomers, invoices, dailyTotals, productSales] = await Promise.all([
+  type ProductProfitRow = { productId: string; name: string; quantity: number; revenue: string; cogs: string };
+  type ReturnAggRow = { count: number; total: string };
+  type ReturnProductRow = { name: string; quantity: number; value: string };
+  type ReturnReasonRow = { reason: string; count: number; total: string };
+  type ReturnCustomerRow = { name: string; count: number; total: string };
+  const [paidTotal, invoiceCount, topCustomers, invoices, dailyTotals, productSales, productProfitabilityRaw, returnsAgg, returnProducts, returnReasons, returnCustomers] = await Promise.all([
     tp.invoice.aggregate({
       where: reportWhere,
       _sum: { grandTotal: true, returnedAmount: true },
@@ -1196,6 +1231,95 @@ export async function getSalesReport(startDate: string, endDate: string): Promis
       GROUP BY p.category
       ORDER BY SUM(ii.subtotal) DESC
     `),
+    // Profitabilitas per produk: HPP HISTORIS dari snapshot InvoiceItem.hpp,
+    // diskon & retur dialokasikan proporsional per nota (faktor neto).
+    tenantQuery<ProductProfitRow[]>(tenantId, async (t) => prisma.$queryRaw`
+      SELECT
+        p.id AS "productId",
+        p.name,
+        COALESCE(SUM(ii.quantity), 0)::int AS quantity,
+        COALESCE(SUM(ii.subtotal * net."netFactor"), 0)::text AS revenue,
+        COALESCE(SUM(ii."hpp" * ii.quantity * net."netFactor"), 0)::text AS cogs
+      FROM invoice_items ii
+      JOIN invoices i ON i.id = ii."invoiceId"
+      JOIN products p ON p.id = ii."productId"
+      JOIN (
+        SELECT id,
+          GREATEST("grandTotal" - COALESCE("returnedAmount", 0), 0)
+            / NULLIF(subtotal, 0) AS "netFactor"
+        FROM invoices
+      ) net ON net.id = i.id
+      WHERE i."tenantId" = ${t}
+        AND ii."tenantId" = ${t}
+        AND i."deliveredAt" >= ${rangeStartUTC}
+        AND i."deliveredAt" <= ${endUTC}
+        AND (i."voidAt" IS NULL OR i."voidAt" > ${endUTC})
+      GROUP BY p.id, p.name
+      ORDER BY revenue DESC
+    `),
+    // Analitik retur: CreditNote (retur PENJUALAN) terbit untuk nota
+    // yang diserahkan dalam periode.
+    tenantQuery<ReturnAggRow[]>(tenantId, async (t) => prisma.$queryRaw`
+      SELECT
+        COUNT(DISTINCT cn."invoiceId")::int AS count,
+        COALESCE(SUM(cn.total), 0)::text AS total
+      FROM credit_notes cn
+      JOIN invoices i ON i.id = cn."invoiceId"
+      WHERE cn."tenantId" = ${t}
+        AND i."deliveredAt" >= ${rangeStartUTC}
+        AND i."deliveredAt" <= ${endUTC}
+        AND (i."voidAt" IS NULL OR i."voidAt" > ${endUTC})
+    `),
+    tenantQuery<ReturnProductRow[]>(tenantId, async (t) => prisma.$queryRaw`
+      SELECT
+        p.name,
+        COALESCE(SUM(cni.quantity), 0)::int AS quantity,
+        COALESCE(SUM(cni.subtotal), 0)::text AS value
+      FROM credit_note_items cni
+      JOIN credit_notes cn ON cn.id = cni."creditNoteId"
+      JOIN invoices i ON i.id = cn."invoiceId"
+      JOIN products p ON p.id = cni."productId"
+      WHERE cn."tenantId" = ${t}
+        AND cni."tenantId" = ${t}
+        AND i."deliveredAt" >= ${rangeStartUTC}
+        AND i."deliveredAt" <= ${endUTC}
+        AND (i."voidAt" IS NULL OR i."voidAt" > ${endUTC})
+      GROUP BY p.name
+      ORDER BY quantity DESC
+      LIMIT 10
+    `),
+    tenantQuery<ReturnReasonRow[]>(tenantId, async (t) => prisma.$queryRaw`
+      SELECT
+        cn.reason,
+        COUNT(*)::int AS count,
+        COALESCE(SUM(cn.total), 0)::text AS total
+      FROM credit_notes cn
+      JOIN invoices i ON i.id = cn."invoiceId"
+      WHERE cn."tenantId" = ${t}
+        AND i."deliveredAt" >= ${rangeStartUTC}
+        AND i."deliveredAt" <= ${endUTC}
+        AND (i."voidAt" IS NULL OR i."voidAt" > ${endUTC})
+      GROUP BY cn.reason
+      ORDER BY total DESC
+      LIMIT 10
+    `),
+    tenantQuery<ReturnCustomerRow[]>(tenantId, async (t) => prisma.$queryRaw`
+      SELECT
+        c.name,
+        COUNT(DISTINCT cn.id)::int AS count,
+        COALESCE(SUM(cn.total), 0)::text AS total
+      FROM credit_notes cn
+      JOIN invoices i ON i.id = cn."invoiceId"
+      JOIN customers c ON c.id = i."customerId"
+      WHERE cn."tenantId" = ${t}
+        AND c."tenantId" = ${t}
+        AND i."deliveredAt" >= ${rangeStartUTC}
+        AND i."deliveredAt" <= ${endUTC}
+        AND (i."voidAt" IS NULL OR i."voidAt" > ${endUTC})
+      GROUP BY c.id, c.name
+      ORDER BY total DESC
+      LIMIT 10
+    `),
   ]);
 
 const totalRevenue = computeRevenue([
@@ -1212,6 +1336,40 @@ const totalRevenue = computeRevenue([
     name: row.name,
     value: Number(row.value),
   }));
+  const productProfitability: ProductProfitability[] = productProfitabilityRaw.map((row) => {
+    const revenue = Number(row.revenue);
+    const cogs = Number(row.cogs);
+    return {
+      productId: row.productId,
+      name: row.name,
+      quantity: Number(row.quantity),
+      revenue,
+      cogs,
+      grossProfit: revenue - cogs,
+      margin: revenue > 0 ? ((revenue - cogs) / revenue) * 100 : 0,
+    };
+  });
+  const totalReturned = Number(returnsAgg[0]?.total ?? 0);
+  const returns: ReturnsAnalytics = {
+    totalReturned,
+    returnPercent: totalRevenue > 0 ? (totalReturned / totalRevenue) * 100 : 0,
+    returnedInvoiceCount: Number(returnsAgg[0]?.count ?? 0),
+    topReturnedProducts: returnProducts.map((row) => ({
+      name: row.name,
+      quantity: Number(row.quantity),
+      value: Number(row.value),
+    })),
+    topReasons: returnReasons.map((row) => ({
+      reason: row.reason,
+      count: Number(row.count),
+      total: Number(row.total),
+    })),
+    topCustomers: returnCustomers.map((row) => ({
+      name: row.name,
+      count: Number(row.count),
+      total: Number(row.total),
+    })),
+  };
 
   return {
     totalRevenue,
@@ -1220,6 +1378,8 @@ const totalRevenue = computeRevenue([
     topCustomer,
     revenueTrend,
     salesByProduct,
+    productProfitability,
+    returns,
     detailLimit,
     detailTruncated: invoiceCount > detailLimit,
     invoices: invoices.map((i) => ({
@@ -1563,83 +1723,6 @@ export async function getProductionReport(startDate: string, endDate: string): P
 }
 
 // =============================================================================
-// SUMMARY REPORT
-// =============================================================================
-
-export type SummaryReportData = {
-  revenue: number;
-  expenses: number;
-  profit: number;
-  stockValue: number;
-  revenueTrend: number;
-  expensesTrend: number;
-  profitTrend: number;
-  revenueChart: { date: string; value: number }[];
-  pipeline: { label: string; value: string; status: string }[];
-};
-
-export async function getSummaryReport(startDate?: string, endDate?: string): Promise<SummaryReportData> {
-  await requireFeature("ADVANCED_REPORTS");
-
-  const now = new Date();
-  const timezone = await getTenantTimezone();
-  const tenantId = await getCurrentTenantId();
-  const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = endDate ? new Date(endDate) : now;
-
-  const [currentPnl, lastPnl, inventory] = await Promise.all([
-    getPnLReport(now.getMonth() + 1, now.getFullYear()),
-    getPnLReport(now.getMonth(), now.getFullYear()),
-    getInventoryValuationReport(),
-  ]);
-
-  const revenue = currentPnl.netSales;
-  const expenses = currentPnl.opex;
-  const profit = currentPnl.netProfit;
-  const stockValue = inventory.grandTotalValue;
-
-  const lastRevenue = lastPnl.netSales;
-  const lastExpenses = lastPnl.opex;
-  const lastProfit = lastPnl.netProfit;
-
-  const revenueTrend = lastRevenue > 0 ? ((revenue - lastRevenue) / lastRevenue) * 100 : 0;
-  const expensesTrend = lastExpenses > 0 ? ((expenses - lastExpenses) / lastExpenses) * 100 : 0;
-  const profitTrend = lastProfit > 0 ? ((profit - lastProfit) / lastProfit) * 100 : 0;
-
-  // One grouped query replaces up to 30 sequential invoice queries.
-  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  const chartDayCount = Math.max(1, Math.min(daysDiff + 1, 30));
-  const chartDays = buildChartDaysEndingAt(end, chartDayCount, timezone);
-  const dailyTotals = await getDailyFinancialTotals({
-    tenantId,
-    timezone,
-    start: chartDays[0].start,
-    end: chartDays.at(-1)!.end,
-  });
-  const revenueChart = chartDays.map((day) => ({
-    date: day.label,
-    value: dailyTotals.get(day.dateKey)?.revenue ?? 0,
-  }));
-
-  return {
-    revenue,
-    expenses,
-    profit,
-    stockValue,
-    revenueTrend,
-    expensesTrend,
-    profitTrend,
-    revenueChart,
-    pipeline: [
-      { label: "Stok", value: `${inventory.items.length} item`, status: "ok" },
-      { label: "Penjualan", value: formatRupiah(revenue), status: "ok" },
-      { label: "Pengeluaran", value: formatRupiah(expenses), status: "ok" },
-      { label: "Profit", value: formatRupiah(profit), status: profit > 0 ? "ok" : "warning" },
-    ],
-  };
-}
-
-// =============================================================================
 // KEUANGAN OVERVIEW REPORT
 // =============================================================================
 
@@ -1648,10 +1731,11 @@ export type KeuanganOverviewData = {
   totalExpenses: number;
   netProfit: number;
   cashFlow: number;
-  revenueTrend: number;
-  expensesTrend: number;
-  profitTrend: number;
-  cashFlowTrend: number;
+  /** Persen vs periode sebelumnya; `null` bila periode sebelumnya nol/tidak terbandingkan. */
+  revenueTrend: number | null;
+  expensesTrend: number | null;
+  profitTrend: number | null;
+  cashFlowTrend: number | null;
   revenueVsExpensesChart: { date: string; revenue: number; expenses: number }[];
   expenseByCategory: { name: string; value: number }[];
 };

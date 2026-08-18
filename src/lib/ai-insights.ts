@@ -1,6 +1,7 @@
 import { formatRupiah, formatDate } from "./format";
 import { getZonedDayRange, getZonedMonthRange, getCurrentDate } from "./date-utils";
 import { calculateSalesPerformance } from "./financial-reporting";
+import { computeRevenue } from "./report-finance";
 
 export type AiInsightResult = {
   answer: string;
@@ -29,11 +30,14 @@ async function fetchExpenses(prisma: any, start: Date, end: Date): Promise<numbe
   return expenses.reduce((sum: number, e: any) => sum + toNum(e.amount), 0);
 }
 
+// Pendapatan diakui saat nota DISERAHKAN dan tidak di-void (kanonik 2F.2),
+// net retur (returnedAmount) — konsisten dengan seluruh laporan.
+
 async function fetchProfit(prisma: any, start: Date, end: Date) {
   const [invoices, expenses, samples] = await Promise.all([
     prisma.invoice.findMany({
       where: {
-        issuedAt: { gte: start, lt: end },
+        deliveredAt: { gte: start, lt: end },
         voidAt: null,
         status: { in: ["ISSUED", "PARTIAL", "PAID"] },
       },
@@ -41,6 +45,7 @@ async function fetchProfit(prisma: any, start: Date, end: Date) {
         subtotal: true,
         discount: true,
         tax: true,
+        returnedAmount: true,
         customer: { select: { name: true } },
         items: {
           select: {
@@ -63,6 +68,7 @@ async function fetchProfit(prisma: any, start: Date, end: Date) {
     subtotal: toNum(invoice.subtotal),
     discount: toNum(invoice.discount),
     tax: toNum(invoice.tax),
+    returnedAmount: toNum(invoice.returnedAmount),
     customerName: invoice.customer?.name ?? null,
     items: invoice.items.map((item: any) => ({
       productType: item.product?.type ?? null,
@@ -89,16 +95,18 @@ async function fetchProfit(prisma: any, start: Date, end: Date) {
 
 async function fetchTopCustomers(prisma: any, start: Date, end: Date) {
   const invoices = await prisma.invoice.findMany({
-    where: { issuedAt: { gte: start, lt: end }, voidAt: null, status: { in: ["ISSUED", "PAID", "PARTIAL"] } },
-    include: { customer: { select: { name: true } } },
-    select: { grandTotal: true, customer: { select: { name: true } } },
+    where: { deliveredAt: { gte: start, lt: end }, voidAt: null, status: { in: ["ISSUED", "PAID", "PARTIAL"] } },
+    select: { grandTotal: true, returnedAmount: true, customer: { select: { name: true } } },
   });
 
   const customerMap = new Map<string, { revenue: number; count: number }>();
   for (const inv of invoices as any[]) {
     const name = inv.customer?.name ?? "Umum";
     const current = customerMap.get(name) ?? { revenue: 0, count: 0 };
-    current.revenue += toNum(inv.grandTotal);
+    current.revenue += computeRevenue([{
+      grandTotal: toNum(inv.grandTotal),
+      returnedAmount: toNum(inv.returnedAmount),
+    }]);
     current.count += 1;
     customerMap.set(name, current);
   }
@@ -121,8 +129,8 @@ async function fetchGreenBeanStock(prisma: any) {
     .sort((a: any, b: any) => a.stockKg - b.stockKg);
 }
 
-async function fetchMonthlyPurchases(prisma: any, year: number, month: number) {
-  const { start, end } = getZonedMonthRange(year, month);
+async function fetchMonthlyPurchases(prisma: any, year: number, month: number, timezone: string) {
+  const { start, end } = getZonedMonthRange(year, month, timezone);
   const purchases = await prisma.purchase.findMany({
     where: { receivedAt: { gte: start, lt: end }, status: "COMPLETED", voidAt: null },
     select: { totalCost: true },
@@ -131,23 +139,30 @@ async function fetchMonthlyPurchases(prisma: any, year: number, month: number) {
   return { totalCost, count: purchases.length };
 }
 
-async function fetchDailySales(prisma: any) {
+async function fetchDailySales(prisma: any, timezone: string) {
   const today = getCurrentDate();
-  const { start, end } = getZonedDayRange(today);
+  const { start, end } = getZonedDayRange(today, timezone);
 
   const invoices = await prisma.invoice.findMany({
-    where: { issuedAt: { gte: start, lt: end }, voidAt: null, status: { in: ["ISSUED", "PAID", "PARTIAL"] } },
-    select: { grandTotal: true },
+    where: { deliveredAt: { gte: start, lt: end }, voidAt: null, status: { in: ["ISSUED", "PAID", "PARTIAL"] } },
+    select: { grandTotal: true, returnedAmount: true },
   });
 
-  const revenue = invoices.reduce((sum: number, inv: any) => sum + toNum(inv.grandTotal), 0);
+  const revenue = computeRevenue(invoices.map((inv: any) => ({
+    grandTotal: toNum(inv.grandTotal),
+    returnedAmount: toNum(inv.returnedAmount),
+  })));
   const invoiceCount = invoices.length;
   const avgInvoice = invoiceCount > 0 ? revenue / invoiceCount : 0;
 
   return { revenue, invoiceCount, avgInvoice };
 }
 
-export async function queryReports(queryStr: string, prisma: any): Promise<AiInsightResult> {
+export async function queryReports(
+  queryStr: string,
+  prisma: any,
+  timezone: string = "Asia/Jakarta",
+): Promise<AiInsightResult> {
   const query = q(queryStr);
   const now = getCurrentDate();
 
@@ -160,30 +175,27 @@ export async function queryReports(queryStr: string, prisma: any): Promise<AiIns
     if (matchesAny(query, ["minggu ini", "pekan ini"])) {
       const day = now.getDay();
       const diffToMonday = day === 0 ? 6 : day - 1;
-      start = new Date(now);
-      start.setDate(start.getDate() - diffToMonday);
-      start.setHours(0, 0, 0, 0);
-      end = new Date(start);
-      end.setDate(end.getDate() + 7);
+      const monday = getZonedDayRange(now, timezone, -diffToMonday);
+      start = monday.start;
+      end = monday.end;
       periodLabel = "Minggu Ini";
       reportName = "Profit Mingguan";
     } else if (matchesAny(query, ["bulan ini", "bulan berjalan"])) {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const month = getZonedMonthRange(now.getFullYear(), now.getMonth() + 1, timezone);
+      start = month.start;
+      end = month.end;
       periodLabel = "Bulan Ini";
       reportName = "Profit Bulanan";
     } else if (matchesAny(query, ["kemarin", "hari lalu"])) {
-      start = new Date(now);
-      start.setDate(start.getDate() - 1);
-      start.setHours(0, 0, 0, 0);
-      end = new Date(start);
-      end.setDate(end.getDate() + 1);
+      const yesterday = getZonedDayRange(now, timezone, -1);
+      start = yesterday.start;
+      end = yesterday.end;
       periodLabel = "Kemarin";
       reportName = "Profit Harian";
     } else {
-      const { start: s, end: e } = getZonedMonthRange(now.getFullYear(), now.getMonth() + 1);
-      start = s;
-      end = e;
+      const month = getZonedMonthRange(now.getFullYear(), now.getMonth() + 1, timezone);
+      start = month.start;
+      end = month.end;
       periodLabel = "Bulan Ini";
       reportName = "Profit Bulanan";
     }
@@ -199,24 +211,23 @@ export async function queryReports(queryStr: string, prisma: any): Promise<AiIns
 
   if (matchesAny(query, ["customer terbesar", "customer teratas", "top customer", "pelanggan terbesar", "pelanggan teratas", "siapa customer terbesar"])) {
     const today = getCurrentDate();
-    const { start, end } = getZonedDayRange(today);
+    const dayRange = getZonedDayRange(today, timezone);
 
-    let periodStart = start;
-    let periodEnd = end;
+    let periodStart = dayRange.start;
+    let periodEnd = dayRange.end;
     let reportName = "Top Customer Hari Ini";
 
     if (matchesAny(query, ["minggu ini", "pekan ini"])) {
       const day = today.getDay();
       const diffToMonday = day === 0 ? 6 : day - 1;
-      periodStart = new Date(today);
-      periodStart.setDate(periodStart.getDate() - diffToMonday);
-      periodStart.setHours(0, 0, 0, 0);
-      periodEnd = new Date(periodStart);
-      periodEnd.setDate(periodEnd.getDate() + 7);
+      const monday = getZonedDayRange(today, timezone, -diffToMonday);
+      periodStart = monday.start;
+      periodEnd = monday.end;
       reportName = "Top Customer Minggu Ini";
     } else if (matchesAny(query, ["bulan ini", "bulan berjalan"])) {
-      periodStart = new Date(today.getFullYear(), today.getMonth(), 1);
-      periodEnd = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+      const month = getZonedMonthRange(today.getFullYear(), today.getMonth() + 1, timezone);
+      periodStart = month.start;
+      periodEnd = month.end;
       reportName = "Top Customer Bulan Ini";
     }
 
@@ -258,7 +269,7 @@ export async function queryReports(queryStr: string, prisma: any): Promise<AiIns
   if (matchesAny(query, ["pembelian bulan ini", "berapa pembelian", "pembelian gb", "total pembelian", "pembelian bulan berjalan"])) {
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
-    const purchases = await fetchMonthlyPurchases(prisma, year, month);
+    const purchases = await fetchMonthlyPurchases(prisma, year, month, timezone);
 
     return {
       answer: `Total pembelian GB bulan ${month}/${year}: ${formatRupiah(purchases.totalCost)} (${purchases.count} transaksi).`,
@@ -268,7 +279,7 @@ export async function queryReports(queryStr: string, prisma: any): Promise<AiIns
   }
 
   if (matchesAny(query, ["penjualan hari ini", "omzet hari ini", "penjualan hari", "omzet hari", "daily sales", "daily revenue", "pendapatan hari ini", "omzet"])) {
-    const daily = await fetchDailySales(prisma);
+    const daily = await fetchDailySales(prisma, timezone);
 
     return {
       answer: `Omzet hari ini: ${formatRupiah(daily.revenue)} (${daily.invoiceCount} transaksi, avg ${formatRupiah(daily.avgInvoice)} per invoice).`,

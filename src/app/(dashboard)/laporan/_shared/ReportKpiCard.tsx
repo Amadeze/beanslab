@@ -7,7 +7,8 @@ interface ReportKpiCardProps {
   label: string;
   value: string | number;
   subtitle?: string;
-  trend?: number;
+  /** Persen vs periode lalu; `null` = periode sebelumnya kosong ("—"). */
+  trend?: number | null;
   icon?: LucideIcon;
   color?: "emerald" | "amber" | "rose" | "blue" | "purple" | "stone";
   inverse?: boolean;
@@ -47,7 +48,7 @@ export function ReportKpiCard({
 }: ReportKpiCardProps) {
   const c = colorMap[color];
   const trendColor = (() => {
-    if (trend === undefined || trend === 0) return "text-stone-500";
+    if (trend === undefined || trend === null || trend === 0) return "text-stone-500";
     if (inverse) return trend < 0 ? "text-emerald-600" : "text-rose-600";
     return trend > 0 ? "text-emerald-600" : "text-rose-600";
   })();
@@ -81,7 +82,7 @@ export function ReportKpiCard({
           {sparkline && <MiniSparkline data={sparkline} color={c} />}
         </div>
       </div>
-      {trend !== undefined && (
+      {trend !== undefined && trend !== null && (
         <div className="mt-3 flex items-center gap-1.5 border-t border-stone-100 pt-2.5">
           {trend > 0 ? <TrendingUp size={12} className={trendColor} />
             : trend < 0 ? <TrendingDown size={12} className={trendColor} />
@@ -90,6 +91,13 @@ export function ReportKpiCard({
             {trend > 0 ? "+" : ""}{trend.toFixed(1)}%
           </span>
           <span className="text-xs text-stone-400">vs periode lalu</span>
+        </div>
+      )}
+      {trend === null && (
+        <div className="mt-3 flex items-center gap-1.5 border-t border-stone-100 pt-2.5">
+          <Minus size={12} className="text-stone-400" />
+          <span className="text-xs font-semibold tabular-nums text-stone-400">—</span>
+          <span className="text-xs text-stone-400">Periode baru</span>
         </div>
       )}
     </div>

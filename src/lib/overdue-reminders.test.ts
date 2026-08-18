@@ -19,13 +19,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function overdueInvoice() {
+function overdueInvoice(overrides: Partial<{ grandTotal: number; paidAmount: number; returnedAmount: number; id: string; code: string }> = {}) {
   return {
     id: "invoice-1",
     tenantId: "tenant-1",
     code: "INV-001",
     grandTotal: 100_000,
     paidAmount: 25_000,
+    returnedAmount: 0,
     dueDate: new Date("2026-07-10T00:00:00.000Z"),
     paymentUrl: null,
     customer: {
@@ -42,10 +43,31 @@ function overdueInvoice() {
       trialEndsAt: null,
       nextBillingDate: new Date("2026-08-01T00:00:00.000Z"),
     },
+    ...overrides,
   };
 }
 
 describe("sendOverdueReminders", () => {
+  it("skips invoices whose balance is fully offset by returns (2F.2)", async () => {
+    const prisma = {
+      invoice: {
+        findMany: vi.fn().mockResolvedValue([
+          overdueInvoice(), // saldo 75.000 → tetap dikirim
+          overdueInvoice({ id: "invoice-2", code: "INV-002", grandTotal: 50_000, paidAmount: 0, returnedAmount: 50_000 }), // saldo 0 → skip
+        ]),
+      },
+      notificationPreference: { findMany: vi.fn().mockResolvedValue([]) },
+      reminderDelivery: { create: vi.fn(), update: vi.fn() },
+    };
+
+    const result = await sendOverdueReminders(
+      prisma as never,
+      new Date("2026-07-16T00:00:00.000Z"),
+    );
+
+    expect(result).toEqual({ overdueInvoices: 2, sent: 0, failed: 0, skipped: 2 });
+  });
+
   it("skips delivery when no provider is configured", async () => {
     delete process.env.RESEND_API_KEY;
     delete process.env.WA_API_KEY;

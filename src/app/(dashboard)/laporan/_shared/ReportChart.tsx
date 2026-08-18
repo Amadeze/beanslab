@@ -52,11 +52,12 @@ const TOOLTIP_STYLE = {
   fontSize: "12px",
 };
 
-// Default compact number formatter
+// Default compact number formatter (Rupiah) — hindari singkatan yang salah
+// satuan (mis. miliar ditulis "M"). Dipakai hanya untuk label sumbu Y.
 const formatCompact = (value: number): string => {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}M`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)} Miliar`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}Jt`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}rb`;
   return value.toString();
 };
 
@@ -161,8 +162,10 @@ export function ReportChart({
               data={data}
               cx="50%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={100}
+              // Jari-jari relatif terhadap tinggi wadah agar proporsional
+              // (bukan nilai absolut yang meledak di ukuran kecil).
+              innerRadius="38%"
+              outerRadius="68%"
               paddingAngle={2}
               dataKey={yKey}
               nameKey={xKey}

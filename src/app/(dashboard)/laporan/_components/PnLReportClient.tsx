@@ -4,6 +4,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { formatRupiah, formatDateLong } from "@/lib/format";
 import type { PnLReport } from "../../keuangan/actions";
 import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
@@ -244,6 +245,36 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
           />
         </div>
       )}
+
+      {/* Rincian (drill-down) */}
+      <div className="mb-6 rounded-xl border border-stone-200 bg-white p-4">
+        <p className="mb-3 text-xs font-bold uppercase tracking-wider text-stone-500">
+          Rincian Per Komponen
+        </p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <Link
+            href={`/laporan/keuangan/sales?start=${year}-${String(month).padStart(2, "0")}-01&end=${year}-${String(month).padStart(2, "0")}-${String(new Date(year, month, 0).getDate()).padStart(2, "0")}`}
+            className="group rounded-lg border border-stone-200 p-3 transition-colors hover:border-blue-300 hover:bg-blue-50/40"
+          >
+            <p className="text-xs font-semibold text-stone-700 group-hover:text-blue-700">Penjualan per Produk &amp; Retur</p>
+            <p className="mt-0.5 text-[11px] text-stone-400">Breakdown pendapatan, HPP historis, margin &amp; analitik retur</p>
+          </Link>
+          <Link
+            href={`/laporan/keuangan/expenses?start=${year}-${String(month).padStart(2, "0")}-01&end=${year}-${String(month).padStart(2, "0")}-${String(new Date(year, month, 0).getDate()).padStart(2, "0")}`}
+            className="group rounded-lg border border-stone-200 p-3 transition-colors hover:border-amber-300 hover:bg-amber-50/40"
+          >
+            <p className="text-xs font-semibold text-stone-700 group-hover:text-amber-700">Beban Operasional</p>
+            <p className="mt-0.5 text-[11px] text-stone-400">Detail pengeluaran &amp; kategori beban</p>
+          </Link>
+          <Link
+            href="/laporan/akuntansi/buku-besar"
+            className="group rounded-lg border border-stone-200 p-3 transition-colors hover:border-violet-300 hover:bg-violet-50/40"
+          >
+            <p className="text-xs font-semibold text-stone-700 group-hover:text-violet-700">Buku Besar (GL)</p>
+            <p className="mt-0.5 text-[11px] text-stone-400">Jurnal asal angka Laba Bersih pembukuan</p>
+          </Link>
+        </div>
+      </div>
 
       {/* Charts */}
       <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-4">

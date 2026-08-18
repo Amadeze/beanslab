@@ -2,6 +2,8 @@ export type FinancialInvoice = {
   subtotal: number;
   discount: number;
   tax: number;
+  /** Nilai barang diretur (returnedAmount) — dikurangkan dari pendapatan. */
+  returnedAmount?: number;
   customerName: string | null;
   items: Array<{
     productType: string | null;
@@ -30,6 +32,12 @@ export type SalesPerformance = {
  * Calculates accrual sales consistently for both current and comparative periods.
  * Header discounts are allocated proportionally to lines so the breakdown always
  * reconciles to net sales. Taxes collected for third parties are not revenue.
+ *
+ * Retur (returnedAmount): dialokasikan proporsional ke baris.
+ * - Pendapatan: faktor neto (subtotal − diskon − retur) — diskon & retur
+ *   sama-sama mengurangi pendapatan.
+ * - COGS: faktor retur saja (subtotal − retur) — barang diretur kembali ke
+ *   stok sehingga biayanya ikut berkurang; diskon TIDAK mengubah biaya.
  */
 export function calculateSalesPerformance(
   invoices: FinancialInvoice[],
@@ -42,23 +50,29 @@ export function calculateSalesPerformance(
   let grossSales = 0;
   let invoiceDiscount = 0;
   let tax = 0;
+  let totalReturns = 0;
   let cogs = 0;
   let salesVolumeUnits = 0;
 
   for (const invoice of invoices) {
     const headerSubtotal = Math.max(0, invoice.subtotal);
     const headerDiscount = Math.min(Math.max(0, invoice.discount), headerSubtotal);
+    const returnedAmount = Math.max(0, invoice.returnedAmount ?? 0);
     const lineSubtotal = invoice.items.reduce(
       (sum, item) => sum + Math.max(0, item.subtotal),
       0,
     );
-    const netFactor = lineSubtotal > 0
-      ? (headerSubtotal - headerDiscount) / lineSubtotal
+    const revenueFactor = lineSubtotal > 0
+      ? Math.max(0, headerSubtotal - headerDiscount - returnedAmount) / lineSubtotal
       : 0;
-    const invoiceNetSales = headerSubtotal - headerDiscount;
+    const cogsFactor = headerSubtotal > 0
+      ? Math.max(0, headerSubtotal - returnedAmount) / headerSubtotal
+      : 0;
+    const invoiceNetSales = Math.max(0, headerSubtotal - headerDiscount - returnedAmount);
 
     grossSales += headerSubtotal;
     invoiceDiscount += headerDiscount;
+    totalReturns += returnedAmount;
     tax += Math.max(0, invoice.tax);
 
     const customerName = invoice.customerName?.trim();
@@ -72,8 +86,8 @@ export function calculateSalesPerformance(
     for (const item of invoice.items) {
       const category = item.productType || "LAINNYA";
       const productName = item.productName || "Produk Tidak Dikenal";
-      const itemRevenue = Math.max(0, item.subtotal) * netFactor;
-      const itemCogs = Math.max(0, item.hpp) * Math.max(0, item.quantity);
+      const itemRevenue = Math.max(0, item.subtotal) * revenueFactor;
+      const itemCogs = Math.max(0, item.hpp) * Math.max(0, item.quantity) * cogsFactor;
 
       revenueByCategory.set(
         category,
@@ -90,7 +104,7 @@ export function calculateSalesPerformance(
     }
   }
 
-  const netSales = grossSales - invoiceDiscount;
+  const netSales = Math.max(0, grossSales - invoiceDiscount - totalReturns);
   return {
     grossSales,
     invoiceDiscount,

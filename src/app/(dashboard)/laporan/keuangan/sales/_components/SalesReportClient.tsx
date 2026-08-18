@@ -145,20 +145,20 @@ export default function SalesReportClient() {
             icon={TrendingUp}
             color="emerald"
             sparkline={data.revenueTrend.slice(-7).map((r) => r.revenue)}
-            help="Basis pendapatan: invoice berstatus lunas (PAID), sudah dikurangi nilai retur."
+            help="Basis pendapatan: invoice yang DISERAHKAN (deliveredAt), tidak di-void, sudah dikurangi nilai retur."
           />
           <ReportKpiCard
             label="Invoice"
             value={data.invoiceCount}
-            subtitle="nota lunas"
+            subtitle="nota diserahkan"
             icon={FileText}
             color="blue"
-            help="Jumlah nota dengan status lunas pada periode ini."
+            help="Jumlah nota yang diserahkan pada periode ini (tanpa nota void)."
           />
           <ReportKpiCard
             label="Rata-rata"
             value={formatRupiah(data.avgInvoice)}
-            subtitle="per nota lunas"
+            subtitle="per nota diserahkan"
             icon={ReceiptText}
             color="purple"
           />
@@ -206,6 +206,118 @@ export default function SalesReportClient() {
           data={data.invoices}
           pageSize={10}
         />
+
+        {/* Profitabilitas Produk */}
+        <div className="rounded-xl border border-stone-200 bg-white p-4">
+          <p className="mb-1 text-xs font-bold uppercase tracking-wider text-stone-500">
+            Profitabilitas per Produk
+          </p>
+          <p className="mb-3 text-xs text-stone-500">
+            HPP historis dari snapshot nota (InvoiceItem.hpp), diskon &amp; retur dialokasikan proporsional per nota.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
+                  <th className="py-2 pr-3 font-semibold">Produk</th>
+                  <th className="py-2 pr-3 text-right font-semibold">Terjual</th>
+                  <th className="py-2 pr-3 text-right font-semibold">Pendapatan</th>
+                  <th className="py-2 pr-3 text-right font-semibold">HPP</th>
+                  <th className="py-2 pr-3 text-right font-semibold">Laba Kotor</th>
+                  <th className="py-2 text-right font-semibold">Margin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.productProfitability.map((row) => (
+                  <tr key={row.productId} className="border-b border-stone-100">
+                    <td className="py-2 pr-3 font-medium text-stone-800">{row.name}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-stone-600">{row.quantity.toLocaleString("id-ID")}</td>
+                    <td className="py-2 pr-3 text-right font-mono tabular-nums text-stone-800">{formatRupiah(row.revenue)}</td>
+                    <td className="py-2 pr-3 text-right font-mono tabular-nums text-stone-600">{formatRupiah(row.cogs)}</td>
+                    <td className="py-2 pr-3 text-right font-mono tabular-nums text-stone-800">{formatRupiah(row.grossProfit)}</td>
+                    <td className="py-2 text-right font-semibold tabular-nums text-stone-700">{row.margin.toFixed(1)}%</td>
+                  </tr>
+                ))}
+                {data.productProfitability.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-4 text-center text-stone-400">Tidak ada penjualan pada periode ini.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Analitik Retur */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-stone-200 bg-white p-4">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-stone-500">
+              Retur Penjualan · {formatRupiah(data.returns.totalReturned)}{data.returns.returnedInvoiceCount > 0 ? ` · ${data.returns.returnedInvoiceCount} nota` : ""}
+              <span className="ml-1 font-normal normal-case text-stone-400">
+                ({data.returns.returnPercent.toFixed(1)}% dari pendapatan)
+              </span>
+            </p>
+            <div className="space-y-3">
+              {data.returns.topReasons.length > 0 && (
+                <div>
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400">Alasan Terbanyak</p>
+                  <div className="space-y-1">
+                    {data.returns.topReasons.map((r) => (
+                      <div key={r.reason} className="flex items-center justify-between text-sm">
+                        <span className="text-stone-700">{r.reason} <span className="text-stone-400">({r.count}×)</span></span>
+                        <span className="font-mono text-xs tabular-nums text-stone-600">{formatRupiah(r.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {data.returns.topCustomers.length > 0 && (
+                <div>
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400">Pelanggan dengan Retur Terbesar</p>
+                  <div className="space-y-1">
+                    {data.returns.topCustomers.map((c) => (
+                      <div key={c.name} className="flex items-center justify-between text-sm">
+                        <span className="text-stone-700">{c.name} <span className="text-stone-400">({c.count}×)</span></span>
+                        <span className="font-mono text-xs tabular-nums text-stone-600">{formatRupiah(c.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {data.returns.topReasons.length === 0 && data.returns.topCustomers.length === 0 && (
+                <p className="text-sm text-stone-400">Tidak ada retur pada periode ini.</p>
+              )}
+            </div>
+          </div>
+          <div className="rounded-xl border border-stone-200 bg-white p-4">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-stone-500">Produk Paling Sering Diretur</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
+                    <th className="py-2 pr-3 font-semibold">Produk</th>
+                    <th className="py-2 pr-3 text-right font-semibold">Qty</th>
+                    <th className="py-2 text-right font-semibold">Nilai</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.returns.topReturnedProducts.map((p) => (
+                    <tr key={p.name} className="border-b border-stone-100">
+                      <td className="py-2 pr-3 font-medium text-stone-800">{p.name}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums text-stone-600">{p.quantity.toLocaleString("id-ID")}</td>
+                      <td className="py-2 text-right font-mono tabular-nums text-stone-700">{formatRupiah(p.value)}</td>
+                    </tr>
+                  ))}
+                  {data.returns.topReturnedProducts.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="py-4 text-center text-stone-400">Tidak ada retur pada periode ini.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </ReportLayout>
   );

@@ -4,6 +4,7 @@ import {
   sendOverdueReminderWhatsApp,
 } from "./notifications";
 import { getTenantAccessState } from "./subscription";
+import { computeReceivable } from "./finance-formulas";
 import { getCurrentDate } from "@/lib/date-utils";
 
 function reminderDate(now: Date) {
@@ -69,7 +70,12 @@ export async function sendOverdueReminders(
       result.skipped += 1;
       continue;
     }
-    const balance = Number(invoice.grandTotal) - Number(invoice.paidAmount);
+    // Piutang kolektibel = tagihan − pembayaran − retur (kanonik 2F.3).
+    const balance = computeReceivable(
+      Number(invoice.grandTotal),
+      Number(invoice.paidAmount),
+      Number(invoice.returnedAmount),
+    );
     if (balance <= 0.01) {
       result.skipped += 1;
       continue;

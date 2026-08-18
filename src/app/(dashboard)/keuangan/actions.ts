@@ -17,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 import { withSerializableRetry } from "@/lib/transaction-retry";
 import { computeCashMovement } from "@/lib/gl-cash-flow";
 import { computePayable } from "@/lib/finance-formulas";
+import { computeRevenue } from "@/lib/report-finance";
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/lib/expense-categories";
 
 // =============================================================================
@@ -262,14 +263,14 @@ export async function getKeuanganPageData(): Promise<KeuanganPageData> {
         deliveredAt: { gte: currentPeriod.start, lt: currentPeriod.end },
         OR: [{ voidAt: null }, { voidAt: { gte: currentPeriod.end } }],
       },
-      _sum: { subtotal: true, discount: true },
+      _sum: { grandTotal: true, returnedAmount: true },
     }),
     tp.invoice.aggregate({
       where: {
         deliveredAt: { gte: previousPeriod.start, lt: previousPeriod.end },
         OR: [{ voidAt: null }, { voidAt: { gte: previousPeriod.end } }],
       },
-      _sum: { subtotal: true, discount: true },
+      _sum: { grandTotal: true, returnedAmount: true },
     }),
   ]);
 
@@ -344,8 +345,15 @@ export async function getKeuanganPageData(): Promise<KeuanganPageData> {
         overdue31_60:  { count: bucketCount("OVERDUE_31_60"),  total: bucketTotal("OVERDUE_31_60") },
         overdue61Plus: { count: bucketCount("OVERDUE_61_PLUS"), total: bucketTotal("OVERDUE_61_PLUS") },
       },
-      revenueMTD: Number(revenueMTDRaw._sum.subtotal ?? 0) - Number(revenueMTDRaw._sum.discount ?? 0),
-      revenueLastMonth: Number(revenueLastMonthRaw._sum.subtotal ?? 0) - Number(revenueLastMonthRaw._sum.discount ?? 0),
+      // Pendapatan MTD: basis diserahkan (deliveredAt), net retur — definisi kanonik tunggal.
+      revenueMTD: computeRevenue([{
+        grandTotal: revenueMTDRaw._sum.grandTotal,
+        returnedAmount: revenueMTDRaw._sum.returnedAmount,
+      }]),
+      revenueLastMonth: computeRevenue([{
+        grandTotal: revenueLastMonthRaw._sum.grandTotal,
+        returnedAmount: revenueLastMonthRaw._sum.returnedAmount,
+      }]),
       kasAndBank,
       hutangSupplier,
       arusKasBulanIni,

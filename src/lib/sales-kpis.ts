@@ -23,7 +23,7 @@ export interface SalesKpis {
   paidCount: number;
   unpaidCount: number;
   totalInvoices: number;
-  /** Rata-rata per nota dari himpunan yang sama dengan totalRevenue. */
+  /** Rata-rata per nota dari himpunan yang sama dengan totalRevenue (hanya nota diserahkan). */
   avgInvoice: number;
 }
 
@@ -45,7 +45,7 @@ export function computeSalesKpis(invoices: SalesKpiInvoice[]): SalesKpis {
   ).length;
   const totalInvoices = valid.length;
   const avgInvoice =
-    totalInvoices > 0 ? Math.round(totalRevenue / totalInvoices) : 0;
+    recognized.length > 0 ? Math.round(totalRevenue / recognized.length) : 0;
 
   return { totalRevenue, paidCount, unpaidCount, totalInvoices, avgInvoice };
 }

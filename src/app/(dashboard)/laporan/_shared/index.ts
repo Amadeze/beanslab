@@ -32,6 +32,5 @@ export type {
   ExpenseReportData,
   RoastingReportData,
   ProductionReportData,
-  SummaryReportData,
   KeuanganOverviewData,
 } from "../actions";
