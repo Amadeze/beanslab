@@ -1,1 +1,0 @@
--- No-op: migration was applied outside of Prisma history

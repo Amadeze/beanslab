@@ -8,7 +8,7 @@ import { releaseInvoiceReservations } from "./storefront-commerce";
 export async function expirePaymentSubmissions(client: PrismaClient, now = getCurrentDate()) {
   const expired = await client.paymentSubmission.findMany({
     where: {
-      status: { in: ["AWAITING_PROOF", "AWAITING_VERIFICATION", "REJECTED"] },
+      status: { in: ["AWAITING_PROOF", "REJECTED"] },
       expiresAt: { lte: now },
     },
     select: { id: true },
@@ -22,7 +22,7 @@ export async function expirePaymentSubmissions(client: PrismaClient, now = getCu
         where: { id: candidate.id },
         include: { invoice: true },
       });
-      if (!submission || !["AWAITING_PROOF", "AWAITING_VERIFICATION", "REJECTED"].includes(submission.status)) return;
+      if (!submission || !["AWAITING_PROOF", "REJECTED"].includes(submission.status)) return;
       if (submission.invoice.status === "PAID" || Number(submission.invoice.paidAmount) > 0) {
         await tx.paymentSubmission.update({ where: { id: submission.id }, data: { status: "EXPIRED" } });
         return;

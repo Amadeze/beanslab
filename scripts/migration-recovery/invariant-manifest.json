@@ -1,0 +1,239 @@
+﻿{
+  "generatedAt": "2026-08-19T01:18:42.701Z",
+  "scans": {
+    "scan1Checks": 23,
+    "scan2Checks": 23,
+    "finalChecks": 23,
+    "preservedChecks": 18,
+    "excludedChecks": 5,
+    "excludedReasons": [
+      "profit_distribution_values_valid: table profit_distributions was intentionally removed from schema.prisma (finance refactor; ProfitDistribution folded into CapitalTransaction) and does not exist in the canonical database.",
+      "withdrawal_requires_partner: column partnerId was removed from capital_transactions.",
+      "capital_transaction_amount_positive: amount is now signed — positive for INITIAL/INJECTION, negative for WITHDRAWAL/DIVIDEND (documented in schema.prisma); amount > 0 would reject withdrawals.",
+      "inventory_ledger_exactly_one_target: the SUPPLY cutover added supplyItemId; supply entries legitimately have both productId and packagingId NULL.",
+      "inventory_ledger_exactly_one_positive_quantity: supply entries use supplyQuantity with quantityKg/quantityUnit both NULL."
+    ]
+  },
+  "checks": [
+    {
+      "table": "capital_transactions",
+      "name": "capital_transaction_amount_positive",
+      "expr": "amount > 0",
+      "stmt": "ALTER TABLE \"capital_transactions\" ADD CONSTRAINT \"capital_t",
+      "source": "20260716220000_domain_invariants",
+      "preserved": false,
+      "excludedReason": "amount is now signed — positive for INITIAL/INJECTION, negative for WITHDRAWAL/DIVIDEND (documented in schema.prisma); amount > 0 would reject withdrawals."
+    },
+    {
+      "table": "capital_transactions",
+      "name": "withdrawal_requires_partner",
+      "expr": "type <> OR \"partnerId\" IS NOT NULL",
+      "stmt": "ALTER TABLE \"capital_transactions\" ADD CONSTRAINT \"withdrawa",
+      "source": "20260716225000_partner_financial_invariants",
+      "preserved": false,
+      "excludedReason": "Column partnerId was removed from capital_transactions."
+    },
+    {
+      "table": "contract_prices",
+      "name": "contract_prices_quantity_check",
+      "expr": "\"minOrderQty\" >= 0",
+      "stmt": "CREATE TABLE \"contract_prices\" ( \"id\" TEXT NOT NULL, \"contra",
+      "source": "20260727120000_add_contract_module_and_schema_repairs",
+      "preserved": true
+    },
+    {
+      "table": "contract_prices",
+      "name": "contract_prices_value_check",
+      "expr": "(\"pricePerKg\" IS NOT NULL AND \"pricePerKg\" >= 0) OR (\"pricePerUnit\" IS NOT NULL AND \"pricePerUnit\" >= 0)",
+      "stmt": "CREATE TABLE \"contract_prices\" ( \"id\" TEXT NOT NULL, \"contra",
+      "source": "20260727120000_add_contract_module_and_schema_repairs",
+      "preserved": true
+    },
+    {
+      "table": "cupping_scores",
+      "name": "cupping_scores_range_check",
+      "expr": "\"score\" >= 0 AND \"maxScore\" > 0 AND \"score\" <= \"maxScore\"",
+      "stmt": "CREATE TABLE \"cupping_scores\" ( \"id\" TEXT NOT NULL, \"session",
+      "source": "20260727110000_add_cupping_module",
+      "preserved": true
+    },
+    {
+      "table": "expenses",
+      "name": "expense_amount_positive",
+      "expr": "amount > 0",
+      "stmt": "ALTER TABLE \"expenses\" ADD CONSTRAINT \"expense_amount_positi",
+      "source": "20260716220000_domain_invariants",
+      "preserved": true
+    },
+    {
+      "table": "inventory_ledger",
+      "name": "inventory_ledger_exactly_one_positive_quantity",
+      "expr": "(\"quantityKg\" IS NOT NULL AND \"quantityKg\" > 0 AND \"quantityUnit\" IS NULL) OR (\"quantityUnit\" IS NOT NULL AND \"quantityUnit\" > 0 AND \"quantityKg\" IS NULL)",
+      "stmt": "ALTER TABLE \"inventory_ledger\" ADD CONSTRAINT \"inventory_led",
+      "source": "20260716220000_domain_invariants",
+      "preserved": false,
+      "excludedReason": "SUPPLY entries use supplyQuantity with quantityKg/quantityUnit both NULL — the old check rejects them."
+    },
+    {
+      "table": "inventory_ledger",
+      "name": "inventory_ledger_exactly_one_target",
+      "expr": "(\"productId\" IS NULL) <> (\"packagingId\" IS NULL)",
+      "stmt": "ALTER TABLE \"inventory_ledger\" ADD CONSTRAINT \"inventory_led",
+      "source": "20260716220000_domain_invariants",
+      "preserved": false,
+      "excludedReason": "The SUPPLY cutover added supplyItemId; supply entries legitimately have both productId and packagingId NULL."
+    },
+    {
+      "table": "invoice_items",
+      "name": "invoice_item_values_valid",
+      "expr": "quantity > 0 AND \"unitPrice\" >= 0 AND discount >= 0 AND discount <= \"unitPrice\" AND subtotal >= 0 AND hpp >= 0",
+      "stmt": "ALTER TABLE \"invoice_items\" ADD CONSTRAINT \"invoice_item_val",
+      "source": "20260716220000_domain_invariants",
+      "preserved": true
+    },
+    {
+      "table": "invoices",
+      "name": "invoice_values_valid",
+      "expr": "subtotal >= 0 AND discount >= 0 AND tax >= 0 AND \"shippingCost\" >= 0 AND \"grandTotal\" >= 0 AND \"paidAmount\" >= 0 AND \"paidAmount\" <= \"grandTotal\" + 0.01",
+      "stmt": "ALTER TABLE \"invoices\" ADD CONSTRAINT \"invoice_values_valid\"",
+      "source": "20260716220000_domain_invariants",
+      "preserved": true
+    },
+    {
+      "table": "packagings",
+      "name": "packagings_stock_nonnegative",
+      "expr": "\"stockUnit\" >= 0",
+      "stmt": "ALTER TABLE \"packagings\" ADD CONSTRAINT \"packagings_stock_no",
+      "source": "20260716220000_domain_invariants",
+      "preserved": true
+    },
+    {
+      "table": "parent_roasting_batches",
+      "name": "roasting_completed_has_output",
+      "expr": "status <> OR \"actualOutputKg\" IS NOT NULL",
+      "stmt": "ALTER TABLE \"parent_roasting_batches\" ADD CONSTRAINT \"roasti",
+      "source": "20260716220000_domain_invariants",
+      "preserved": true
+    },
+    {
+      "table": "parent_roasting_batches",
+      "name": "roasting_output_valid",
+      "expr": "\"actualOutputKg\" IS NULL OR (\"actualOutputKg\" > 0 AND \"actualOutputKg\" < \"targetWeightKg\")",
+      "stmt": "ALTER TABLE \"parent_roasting_batches\" ADD CONSTRAINT \"roasti",
+      "source": "20260716220000_domain_invariants",
+      "preserved": true
+    },
+    {
+      "table": "parent_roasting_batches",
+      "name": "roasting_target_positive",
+      "expr": "\"targetWeightKg\" > 0",
+      "stmt": "ALTER TABLE \"parent_roasting_batches\" ADD CONSTRAINT \"roasti",
+      "source": "20260716220000_domain_invariants",
+      "preserved": true
+    },
+    {
+      "table": "payments",
+      "name": "payment_amount_positive",
+      "expr": "amount > 0",
+      "stmt": "ALTER TABLE \"payments\" ADD CONSTRAINT \"payment_amount_positi",
+      "source": "20260716220000_domain_invariants",
+      "preserved": true
+    },
+    {
+      "table": "production_batches",
+      "name": "production_values_positive",
+      "expr": "\"unitsProduced\" > 0 AND \"totalRbUsedKg\" > 0 AND \"hppPerUnit\" >= 0",
+      "stmt": "ALTER TABLE \"production_batches\" ADD CONSTRAINT \"production_",
+      "source": "20260716220000_domain_invariants",
+      "preserved": true
+    },
+    {
+      "table": "products",
+      "name": "products_stock_nonnegative",
+      "expr": "\"stockKg\" >= 0 AND \"stockUnit\" >= 0",
+      "stmt": "ALTER TABLE \"products\" ADD CONSTRAINT \"products_stock_nonneg",
+      "source": "20260716220000_domain_invariants",
+      "preserved": true
+    },
+    {
+      "table": "profit_distributions",
+      "name": "profit_distribution_values_valid",
+      "expr": "\"netProfit\" > 0 AND amount >= 0",
+      "stmt": "ALTER TABLE \"profit_distributions\" ADD CONSTRAINT \"profit_di",
+      "source": "20260716220000_domain_invariants",
+      "preserved": false,
+      "excludedReason": "Table profit_distributions was intentionally removed from schema.prisma (finance refactor; ProfitDistribution folded into CapitalTransaction) and does not exist in the canonical database."
+    },
+    {
+      "table": "purchases",
+      "name": "purchase_credit_requires_due_date",
+      "expr": "status <> OR \"paymentStatus\" = OR \"dueDate\" IS NOT NULL",
+      "stmt": "ALTER TABLE \"purchases\" ADD CONSTRAINT \"purchase_credit_requ",
+      "source": "20260716224000_supplier_payable_invariants",
+      "preserved": true
+    },
+    {
+      "table": "purchases",
+      "name": "purchase_payment_values_valid",
+      "expr": "\"paidAmount\" >= 0 AND \"paidAmount\" <= \"totalCost\" + 0.01 AND ( status <> OR (\"paymentStatus\" = AND \"paidAmount\" <= 0.01) OR (\"paymentStatus\" = AND \"paidAmount\" > 0.01 AND \"paidAmount\" < \"totalCost\" - 0.01) OR (\"paymentStatus\" = AND \"paidAmount\" >= \"totalCost\" - 0.01) )",
+      "stmt": "ALTER TABLE \"purchases\" ADD CONSTRAINT \"purchase_payment_val",
+      "source": "20260716223000_supplier_accounts_payable",
+      "preserved": true
+    },
+    {
+      "table": "purchases",
+      "name": "void_purchase_has_no_payment_balance",
+      "expr": "status <> OR \"paidAmount\" <= 0.01",
+      "stmt": "ALTER TABLE \"purchases\" ADD CONSTRAINT \"purchase_credit_requ",
+      "source": "20260716224000_supplier_payable_invariants",
+      "preserved": true
+    },
+    {
+      "table": "supplier_payments",
+      "name": "supplier_payment_amount_positive",
+      "expr": "amount > 0",
+      "stmt": "ALTER TABLE \"supplier_payments\" ADD CONSTRAINT \"supplier_pay",
+      "source": "20260716223000_supplier_accounts_payable",
+      "preserved": true
+    },
+    {
+      "table": "tenant_payment_methods",
+      "name": "tenant_payment_methods_manual_shape_check",
+      "expr": "(\"method\" = AND \"bankName\" IS NOT NULL AND \"accountNumber\" IS NOT NULL AND \"accountHolder\" IS NOT NULL) OR (\"method\" = AND \"qrisImageUrl\" IS NOT NULL) OR (\"method\" IN ( , ))",
+      "stmt": "ALTER TABLE \"tenant_payment_methods\" ADD CONSTRAINT \"tenant_",
+      "source": "20260729150000_add_manual_tenant_payments",
+      "preserved": true
+    }
+  ],
+  "partialIndexes": [
+    {
+      "unique": true,
+      "name": "live_sessions_active_unique",
+      "table": "live_sessions",
+      "columns": "\"tenantId\", \"machineId\"",
+      "predicate": "\"status\" =",
+      "source": "20260804120000_live_session_single_active",
+      "preserved": true
+    }
+  ],
+  "doBlocks": [
+    {
+      "source": "20260727140000_journal_idempotency",
+      "snippet": "DO $$ BEGIN IF EXISTS ( SELECT 1 FROM \"journal_entries\" WHERE \"refType\" IS NOT NULL AND \"reference\" IS NOT NULL GROUP BY \"tenantId\", \"refType\", \"reference\" HAVING COUNT(*) > 1 ) THEN RAISE EXCEPTION",
+      "preserved": true,
+      "preservedAs": "data precheck only (unique index emitted by baseline @@unique)"
+    },
+    {
+      "source": "20260728190000_add_studio_connector_actor",
+      "snippet": "DO $$ BEGIN IF NOT EXISTS ( SELECT 1 FROM pg_constraint WHERE conname = ) THEN ALTER TABLE \"artisan_connectors\" ADD CONSTRAINT \"artisan_connectors_authorizedByUserId_fkey\" FOREIGN KEY (\"authorizedByUserId\") REFERENCES \"users\"(\"id\") ON DELETE SET NULL ON UPDATE CASCADE",
+      "preserved": false,
+      "excludedReason": "Redundant: the FK is representable in schema.prisma and is emitted by the baseline (artisan_connectors.authorizedByUserId relation)."
+    },
+    {
+      "source": "20260804120000_live_session_single_active",
+      "snippet": "DO $$ BEGIN IF EXISTS ( SELECT 1 FROM \"live_sessions\" WHERE \"status\" = GROUP BY \"tenantId\", \"machineId\" HAVING COUNT(*) > 1 ) THEN RAISE EXCEPTION",
+      "preserved": true,
+      "preservedAs": "data precheck inside the partial index DO block"
+    }
+  ]
+}

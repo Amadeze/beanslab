@@ -1999,6 +1999,7 @@ enum SalesChannel {
   WHATSAPP
   MARKETPLACE
   B2B_DIRECT
+  STOREFRONT
   OTHER
 }
 

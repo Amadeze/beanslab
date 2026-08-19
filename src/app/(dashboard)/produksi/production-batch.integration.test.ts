@@ -8,13 +8,13 @@ import {
   voidProductionBatch,
 } from "@/app/(dashboard)/produksi/actions";
 import { appendLedger } from "@/lib/stock";
-import { assertSafeTestDatabase } from "../../../../test/setup/assert-safe-test-db";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { resolveTestDatabaseUrl } from "../../../../test/setup/test-database-guard";
 import { randomUUID } from "node:crypto";
 
 const integrationEnabled = process.env.RUN_INTEGRATION === "true";
 const suite = integrationEnabled ? describe : describe.skip;
+
+const TEST_DATABASE_URL = integrationEnabled ? resolveTestDatabaseUrl() : "";
 
 const TEST_TENANT_ID = "test-tenant";
 const TEST_USER_ID = "test-system-user";
@@ -39,37 +39,6 @@ vi.mock("next/navigation", () => ({
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
 }));
-
-function parseEnvFile(path: string): Record<string, string> {
-  const result: Record<string, string> = {};
-  try {
-    for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
-      const match = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
-      if (!match) continue;
-      const value = match[2].replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1");
-      if (value.length > 0) result[match[1]] = value;
-    }
-  } catch {
-    // .env.local may be absent
-  }
-  return result;
-}
-
-function resolveTestDatabaseUrl(): string {
-  const url = process.env.TEST_DATABASE_URL;
-  if (!url) {
-    throw new Error("[production-batch.integration] TEST_DATABASE_URL is required when RUN_INTEGRATION=true");
-  }
-  const fromEnvFile = parseEnvFile(join(process.cwd(), ".env.local"));
-  for (const key of ["DATABASE_URL", "DIRECT_URL"] as const) {
-    const value = fromEnvFile[key] ?? process.env[key];
-    if (value && value === url) {
-      throw new Error(`[production-batch.integration] TEST_DATABASE_URL must not equal ${key}`);
-    }
-  }
-  assertSafeTestDatabase({ DATABASE_URL: url });
-  return url;
-}
 
 suite("createProductionBatch — supply items (Commit 4)", () => {
   let client: PrismaClient;
@@ -107,7 +76,7 @@ suite("createProductionBatch — supply items (Commit 4)", () => {
   }
 
   beforeAll(async () => {
-    const pool = new Pool({ connectionString: resolveTestDatabaseUrl(), max: 5 });
+    const pool = new Pool({ connectionString: TEST_DATABASE_URL, max: 5 });
     client = new PrismaClient({ adapter: new PrismaPg(pool) });
     await client.$connect();
     global.__testPrismaClient = client;

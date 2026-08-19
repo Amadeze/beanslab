@@ -22,6 +22,7 @@ import {
 } from "@/lib/fulfillment-status";
 import { withSerializableRetry } from "@/lib/transaction-retry";
 import { computeReceivable } from "@/lib/finance-formulas";
+import { buildMidtransItemDetails } from "@/lib/midtrans-item-details";
 
 // =============================================================================
 // TYPES
@@ -930,12 +931,19 @@ export async function approveInvoiceForMidtrans(invoiceId: string) {
 
     if (tenant.midtransServerKey) {
       try {
-        const itemDetails = inv.items.map(i => ({
+        const midtransLines = inv.items.map(i => ({
           id: i.productId,
           price: Number(i.unitPrice),
           quantity: i.quantity,
-          name: i.product.name.substring(0, 50)
+          name: i.product.name.substring(0, 50),
         }));
+
+        const safeItemDetails = buildMidtransItemDetails(
+          midtransLines,
+          Number(inv.grandTotal),
+          Number(inv.shippingCost),
+          Number(inv.tax)
+        );
 
         const snapParams = {
           order_id: inv.code,
@@ -945,7 +953,7 @@ export async function approveInvoiceForMidtrans(invoiceId: string) {
             phone: inv.customer.phone || undefined,
             email: inv.customer.email || undefined,
           },
-          item_details: itemDetails
+          item_details: safeItemDetails
         };
 
         const snapRes = await createMidtransSnapTransaction(

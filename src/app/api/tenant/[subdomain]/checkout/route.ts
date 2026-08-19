@@ -38,6 +38,8 @@ import {
   STOREFRONT_GRIND_SIZES,
   type StorefrontGrindSize,
 } from "@/lib/storefront-grind";
+import { buildMidtransItemDetails } from "@/lib/midtrans-item-details";
+import { recoverOrInitializeMidtrans } from "@/lib/midtrans-gateway";
 
 type CheckoutItemInput = {
   id?: string;
@@ -112,7 +114,7 @@ async function findOfferingRows(tenantId: string, offeringIds: string[]) {
       grindOptions: true,
       allowCustomGrind: true,
       variants: {
-        where: { isActive: true },
+        where: { isActive: true, unitPrice: { gt: 0 } },
         select: { id: true, packageName: true, netWeightGrams: true, unitPrice: true },
       },
     },
@@ -208,8 +210,8 @@ export async function POST(
       }
     }
 
-    const activePaymentMethods = await prisma.tenantPaymentMethod.findMany({
-      where: { tenantId: tenant.id, isActive: true },
+const activePaymentMethods = await prisma.tenantPaymentMethod.findMany({
+      where: { tenantId: tenant.id, isActive: true, method: { not: "CREDIT" } },
       orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
     });
     const selectedPaymentMethod = paymentMethodId
@@ -250,6 +252,7 @@ export async function POST(
         id: { in: productIds },
         type: "FINISHED_GOODS",
         isActive: true,
+        price: { gt: 0 },
       },
       select: {
         id: true,
@@ -426,24 +429,35 @@ export async function POST(
       });
     }
 
-    const { tax, shippingCost, grandTotal } = calculateStorefrontTotals(subtotal, shippingMethod, {
-      pickupEnabled: tenant.storefrontPickupEnabled,
-      deliveryEnabled: tenant.storefrontDeliveryEnabled,
-      flatShippingRate: Number(tenant.storefrontFlatShippingRate),
-      freeShippingMinimum: tenant.storefrontFreeShippingMinimum === null
-        ? null
-        : Number(tenant.storefrontFreeShippingMinimum),
-      taxRate: Number(tenant.storefrontTaxRate),
-    });
+let tax: number, shippingCost: number, grandTotal: number;
+    try {
+      const totals = calculateStorefrontTotals(subtotal, shippingMethod, {
+        pickupEnabled: tenant.storefrontPickupEnabled,
+        deliveryEnabled: tenant.storefrontDeliveryEnabled,
+        flatShippingRate: Number(tenant.storefrontFlatShippingRate),
+        freeShippingMinimum: tenant.storefrontFreeShippingMinimum === null
+          ? null
+          : Number(tenant.storefrontFreeShippingMinimum),
+        taxRate: Number(tenant.storefrontTaxRate),
+      });
+      tax = totals.tax;
+      shippingCost = totals.shippingCost;
+      grandTotal = totals.grandTotal;
+    } catch (err) {
+      if (err instanceof Error) {
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      return NextResponse.json({ error: "Konfigurasi pengiriman tidak valid" }, { status: 400 });
+    }
     if (grandTotal <= 0) {
       return NextResponse.json({ error: "Total checkout tidak valid" }, { status: 400 });
     }
 
-    // 3. Midtrans Integration Check
+    // 3. Prepare Midtrans integration (if configured)
     const hasMidtrans = !selectedPaymentMethod && tenant.midtransServerKey && tenant.midtransClientKey;
-    let midtransOrderId = null;
-    let paymentUrl = null;
-    let snapToken = null;
+    let midtransOrderId: string | null = null;
+    let paymentUrl: string | null = null;
+    let snapToken: string | null = null;
 
     const invoiceCode = `INV-${tenant.code}-${getCurrentDate().getFullYear()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
     const orderPublicToken = crypto.randomBytes(24).toString("base64url");
@@ -456,43 +470,11 @@ export async function POST(
       midtransItemDetails.push({ id: "TAX", price: Math.round(tax), quantity: 1, name: `Pajak ${Number(tenant.storefrontTaxRate)}%` });
     }
 
+    // Derive deterministic Midtrans order ID upfront (for idempotency)
     if (hasMidtrans) {
-      const serverKey = decryptCredential(tenant.midtransServerKey);
       midtransOrderId = rawIdempotencyKey
         ? `${tenant.code}-${crypto.createHash("sha256").update(rawIdempotencyKey).digest("hex").slice(0, 24)}`
         : `${invoiceCode}-${Date.now().toString().slice(-6)}`;
-      const snap = new midtransClient.Snap({
-        isProduction: tenant.midtransIsProduction,
-        serverKey,
-        clientKey: tenant.midtransClientKey || "",
-      });
-
-      const parameter = {
-        transaction_details: {
-          order_id: midtransOrderId,
-          gross_amount: Math.round(grandTotal),
-        },
-        customer_details: {
-          first_name: customerName,
-          phone: customerPhone,
-          email: customerEmail || undefined,
-        },
-        item_details: midtransItemDetails
-      };
-
-      try {
-        const transaction = await snap.createTransaction(parameter);
-        snapToken = transaction.token;
-        paymentUrl = transaction.redirect_url;
-      } catch (err: unknown) {
-        logServerError("tenant.checkout.midtrans", err, {
-          requestId,
-          subdomain,
-        });
-        // Fallback to manual if Midtrans fails
-        midtransOrderId = null;
-        paymentUrl = null;
-      }
     }
 
     // 4. Buat customer, invoice, line item, dan ledger stok dalam satu transaksi dengan retry untuk P2034
@@ -538,6 +520,7 @@ export async function POST(
           midtransOrderId,
           paymentUrl,
           paymentMethod: selectedPaymentMethod?.method ?? null,
+          salesChannel: "STOREFRONT",
           items: {
             create: invoiceItemsData
           }
@@ -618,6 +601,74 @@ export async function POST(
       return existing;
     });
 
+    // 5. Recover or initialize Midtrans AFTER invoice is committed (idempotent)
+    if (hasMidtrans) {
+      // Prepare line items with exact prices for invariant-safe rounding
+      const midtransLines = invoiceItemsData.map(item => {
+        const product = productById.get(item.productId);
+        return {
+          id: item.offeringId
+            ? `OFF-${item.offeringId}-${item.offeringVariantId}`.substring(0, 50)
+            : `${item.productId}-${item.grindSize}`.substring(0, 50),
+          price: item.unitPrice,  // exact price
+          quantity: item.quantity,
+          name: item.offeringId
+            ? `${item.offeringName} ${item.packageName}`.substring(0, 50)
+            : `${product?.name || "Product"} - ${item.grindSize}`.substring(0, 50),
+        };
+      });
+
+      const safeItemDetails = buildMidtransItemDetails(
+        midtransLines,
+        grandTotal,
+        shippingCost,
+        tax
+      );
+
+      // Use recovery logic that handles Windows A/B/C/D
+      const recovery = await recoverOrInitializeMidtrans(
+        {
+          midtransServerKey: tenant.midtransServerKey!,
+          midtransClientKey: tenant.midtransClientKey || "",
+          midtransIsProduction: tenant.midtransIsProduction
+        },
+        {
+          id: invoice.id,
+          code: invoice.code,
+          midtransOrderId: invoice.midtransOrderId,
+          paymentUrl: invoice.paymentUrl,
+          snapToken: null, // Invoice model doesn't have snapToken field
+          grandTotal,
+          customerName,
+          customerPhone,
+          customerEmail: customerEmail ?? null,
+          itemDetails: safeItemDetails,
+        }
+      );
+
+      snapToken = recovery.snapToken;
+      paymentUrl = recovery.paymentUrl;
+
+      // Persist recovered/initialized Midtrans result
+      if (recovery.action !== "noop" && recovery.action !== "terminal" && recovery.paymentUrl) {
+        await prisma.invoice.update({
+          where: { id: invoice.id },
+          data: { midtransOrderId: invoice.midtransOrderId, paymentUrl: recovery.paymentUrl },
+        });
+      }
+
+      // Log recovery action for observability
+      if (recovery.action !== "noop") {
+        logServerError("tenant.checkout.midtrans.recovery", new Error(`Midtrans recovery action: ${recovery.action}`), {
+          requestId,
+          subdomain,
+          invoiceId: invoice.id,
+          midtransOrderId: invoice.midtransOrderId,
+          action: recovery.action,
+        });
+      }
+    }
+
     revalidatePath("/penjualan");
     revalidatePath("/inventory");
 
@@ -631,7 +682,7 @@ export async function POST(
       ]);
     }
 
-    return NextResponse.json({
+return NextResponse.json({
       success: true,
       invoice: {
         code: invoice.code,
@@ -639,7 +690,7 @@ export async function POST(
         grandTotal: Number(invoice.grandTotal),
       },
       snapToken,
-      paymentUrl: invoice.paymentUrl,
+      paymentUrl,
       orderUrl: `/tenant/${subdomain}/order/${resolvedPublicOrderToken}`,
       replayed,
     });

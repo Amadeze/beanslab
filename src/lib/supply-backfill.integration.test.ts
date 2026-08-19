@@ -8,53 +8,12 @@ import {
   runSupplyBackfillCutover,
   validateSupplyBackfill,
 } from "./supply-backfill";
-import { assertSafeTestDatabase } from "../../test/setup/assert-safe-test-db";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { resolveTestDatabaseUrl } from "../../test/setup/test-database-guard";
 
 const integrationEnabled = process.env.RUN_INTEGRATION === "true";
 const suite = integrationEnabled ? describe : describe.skip;
 
-function parseEnvFile(path: string): Record<string, string> {
-  const result: Record<string, string> = {};
-  try {
-    for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
-      const match = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
-      if (!match) continue;
-      const value = match[2].replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1");
-      if (value.length > 0) result[match[1]] = value;
-    }
-  } catch {
-    // .env.local may be absent
-  }
-  return result;
-}
-
-function devOrProdDatabaseUrls(): string[] {
-  const fromEnvFile = parseEnvFile(join(process.cwd(), ".env.local"));
-  const urls: string[] = [];
-  for (const key of ["DATABASE_URL", "DIRECT_URL"] as const) {
-    const value = fromEnvFile[key] ?? process.env[key];
-    if (value) urls.push(value);
-  }
-  return urls;
-}
-
-function resolveTestDatabaseUrl(): string {
-  const url = process.env.TEST_DATABASE_URL;
-  if (!url) {
-    throw new Error(
-      "[supply-backfill.integration] TEST_DATABASE_URL is required when RUN_INTEGRATION=true",
-    );
-  }
-  if (devOrProdDatabaseUrls().includes(url)) {
-    throw new Error(
-      "[supply-backfill.integration] TEST_DATABASE_URL must not equal DATABASE_URL/DIRECT_URL (development/production database)",
-    );
-  }
-  assertSafeTestDatabase({ DATABASE_URL: url });
-  return url;
-}
+const TEST_DATABASE_URL = integrationEnabled ? resolveTestDatabaseUrl() : "";
 
 suite("supply backfill + validation — real PostgreSQL (TEST_DATABASE_URL)", () => {
   let client: PrismaClient;
@@ -63,7 +22,7 @@ suite("supply backfill + validation — real PostgreSQL (TEST_DATABASE_URL)", ()
 
   beforeAll(async () => {
     const pool = new Pool({
-      connectionString: resolveTestDatabaseUrl(),
+      connectionString: TEST_DATABASE_URL,
       max: 5,
     });
     client = new PrismaClient({ adapter: new PrismaPg(pool) });

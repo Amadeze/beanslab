@@ -725,38 +725,42 @@ describe("getLocationOpnameDrafts / getLocationOpnameHistory", () => {
 });
 
 describe("migration static checks", () => {
-  const transferSql = readFileSync(
-    join(process.cwd(), "prisma/migrations/20260808190000_add_location_transfer/migration.sql"),
-    "utf8",
-  );
-  const opnameSql = readFileSync(
-    join(process.cwd(), "prisma/migrations/20260809200000_add_location_opname/migration.sql"),
+  const baselineSql = readFileSync(
+    join(process.cwd(), "prisma/migrations/000000000000_baseline/migration.sql"),
     "utf8",
   );
 
+  function tableSection(tableName: string): string {
+    const start = baselineSql.indexOf(`CREATE TABLE "${tableName}"`);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const end = baselineSql.indexOf(");", start);
+    return baselineSql.slice(start, end);
+  }
+
+  const transferSection = tableSection("location_transfers");
+  const opnameSection = tableSection("location_opnames");
+
   it("transfer status column uses LocationTransferStatus enum, not TEXT", () => {
-    expect(transferSql).toContain('"status" "LocationTransferStatus" NOT NULL DEFAULT \'PENDING\'');
-    expect(transferSql).not.toMatch(/"status"\s+TEXT/);
+    expect(transferSection).toContain('"status" "LocationTransferStatus" NOT NULL DEFAULT \'PENDING\'');
+    expect(transferSection).not.toMatch(/"status"\s+TEXT/);
   });
 
   it("opname status uses LocationOpnameStatus enum, not TEXT", () => {
-    expect(opnameSql).toContain('"status" "LocationOpnameStatus" NOT NULL DEFAULT \'DRAFT\'');
-    expect(opnameSql).not.toMatch(/"status"\s+TEXT/);
+    expect(opnameSection).toContain('"status" "LocationOpnameStatus" NOT NULL DEFAULT \'DRAFT\'');
+    expect(opnameSection).not.toMatch(/"status"\s+TEXT/);
   });
 
-  it("enum ADD VALUE uses valid PostgreSQL string literals", () => {
-    expect(opnameSql).toContain("ALTER TYPE \"LedgerRefType\" ADD VALUE IF NOT EXISTS 'LOCATION_OPNAME_IN';");
-    expect(opnameSql).toContain("ALTER TYPE \"LedgerRefType\" ADD VALUE IF NOT EXISTS 'LOCATION_OPNAME_OUT';");
-    expect(opnameSql).not.toMatch(/ADD VALUE "LOCATION_OPNAME_IN/);
+  it("LedgerRefType enum contains LOCATION_OPNAME values as valid string literals", () => {
+    expect(baselineSql).toContain("'LOCATION_OPNAME_IN'");
+    expect(baselineSql).toContain("'LOCATION_OPNAME_OUT'");
+    expect(baselineSql).not.toMatch(/ADD VALUE "LOCATION_OPNAME_IN/);
   });
 
   it("no NOT NULL + ON DELETE SET NULL contradictions", () => {
-    expect(transferSql).toContain('FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT');
-    expect(opnameSql).toContain('FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT');
+    expect(baselineSql).toContain('FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT');
   });
 
-  it("no destructive statements in Smart Storage migrations", () => {
-    expect(transferSql).not.toMatch(/DROP\s+TABLE/i);
-    expect(opnameSql).not.toMatch(/DROP\s+TABLE/i);
+  it("no destructive statements in the baseline", () => {
+    expect(baselineSql).not.toMatch(/DROP\s+TABLE/i);
   });
 });
