@@ -382,6 +382,21 @@ model Tenant {
   storefrontTaxRate             Decimal  @default(0) @db.Decimal(5, 2)
   storefrontReservationMinutes  Int      @default(1440)
 
+  // Phase 2H Batch 2 — Shipping / RajaOngkir (tenant-owned configuration).
+  // ONE origin per tenant (MVP). National courier defaults OFF so existing
+  // tenants remain valid without configuring an origin.
+  nationalCourierEnabled      Boolean @default(false)
+  rajaOngkirOriginId          String? // canonical provider destination id
+  rajaOngkirOriginLabel       String? // human-readable snapshot for UI display
+  rajaOngkirOriginProvince    String?
+  rajaOngkirOriginCity        String?
+  rajaOngkirOriginDistrict    String?
+  rajaOngkirOriginSubdistrict String?
+  rajaOngkirOriginPostalCode  String?
+  rajaOngkirOriginStreet      String? // roastery street/address detail
+  rajaOngkirCourierCodes      Json? // enabled national courier codes (string[])
+  rajaOngkirTareGrams         Int     @default(0) // default packing/tare grams
+
   // Tax (PPN/PPh) configuration — toggle ON/OFF per tenant (pola Odoo/QuickBooks).
   // Saat OFF: form invoice/kasir menyembunyikan seksi pajak dan memaksa tax = 0.
   // Perubahan setting TIDAK mengubah invoice historis.
@@ -471,6 +486,28 @@ model Tenant {
   coffeeSources                    CoffeeSource[]
 
   @@map("tenants")
+}
+
+// =============================================================================
+// TABLE 0.95 · PlatformIntegration (Global Platform Integration Credentials)
+// One encrypted platform credential store per external provider (e.g. RajaOngkir
+// shipping cost API). Global — NOT tenant-scoped. The API key belongs to the
+// Roastd.id platform / Superadmin, never to a tenant. Secrets are encrypted at
+// rest via src/lib/credentials.ts (AES-256-GCM) and masked at the UI.
+// =============================================================================
+
+model PlatformIntegration {
+  id                  String    @id @default(cuid())
+  provider            String    @unique
+  encryptedApiKey     String?
+  isActive            Boolean   @default(false)
+  lastTestedAt        DateTime?
+  connectionStatus    String? // UNKNOWN | OK | FAILED
+  lastConnectionError String? // sanitized only — never raw provider body/key
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@map("platform_integrations")
 }
 
 // =============================================================================
