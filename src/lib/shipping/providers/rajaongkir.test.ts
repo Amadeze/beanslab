@@ -4,6 +4,7 @@ import {
   calculateDomesticCost,
   searchDomesticDestination,
   trackWaybill,
+  trackWaybillDetailed,
   type RajaOngkirClientConfig,
 } from "./rajaongkir";
 import { ShippingProviderError } from "../errors";
@@ -191,6 +192,70 @@ describe("rajaongkir provider", () => {
       expect(body).toContain("courier=jne");
       // The key must never leak into the request body.
       expect(body).not.toContain("secret-platform-key");
+    });
+  });
+
+  describe("trackWaybillDetailed", () => {
+    it("returns full provider response with details", async () => {
+      mockFetchOnce({
+        json: async () => ({
+          code: 200,
+          data: {
+            summary: { awb: "123", courier: "jne", status: "IN_TRANSIT", delivered: false },
+            details: [
+              { timestamp: "2026-08-21 10:00", description: "Picked up", location: "Jakarta" },
+              { timestamp: "2026-08-22 14:00", description: "In transit", location: "Bandung" },
+            ],
+          },
+        }),
+      });
+
+      const result = await trackWaybillDetailed({ awb: "123", courier: "jne" }, CONFIG);
+      expect(result.awb).toBe("123");
+      expect(result.courier).toBe("jne");
+      expect(result.summary.status).toBe("IN_TRANSIT");
+      expect(result.summary.delivered).toBe(false);
+      expect(result.details).toHaveLength(2);
+      expect(result.details[0].description).toBe("Picked up");
+      // Must not leak API key
+      expect(JSON.stringify(result)).not.toContain("secret-platform-key");
+    });
+
+    it("handles response with history instead of details", async () => {
+      mockFetchOnce({
+        json: async () => ({
+          code: 200,
+          data: {
+            summary: { awb: "456", courier: "jnt", status: "DELIVERED", delivered: true },
+            history: [{ description: "Delivered to recipient" }],
+          },
+        }),
+      });
+
+      const result = await trackWaybillDetailed({ awb: "456", courier: "jnt" }, CONFIG);
+      expect(result.details).toHaveLength(1);
+      expect(result.details[0].description).toBe("Delivered to recipient");
+    });
+
+    it("throws on missing AWB", async () => {
+      const err = await trackWaybillDetailed({ awb: "", courier: "jne" }, CONFIG).catch((e) => e);
+      expect(err.code).toBe("PROVIDER_BAD_REQUEST");
+    });
+
+    it("serializes lastPhoneNumber when supplied", async () => {
+      mockFetchOnce({
+        json: async () => ({
+          code: 200,
+          data: { summary: { awb: "789", courier: "pos" }, details: [] },
+        }),
+      });
+
+      await trackWaybillDetailed(
+        { awb: "789", courier: "pos", lastPhoneNumber: "08123456789" },
+        CONFIG,
+      );
+      const body = (global.fetch as any).mock.calls[0][1].body as string;
+      expect(body).toContain("last_phone_number=08123456789");
     });
   });
 

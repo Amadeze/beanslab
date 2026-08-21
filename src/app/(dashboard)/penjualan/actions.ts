@@ -101,6 +101,7 @@ export type InvoiceRow = {
   shippingAddress: string | null;
   courierName: string | null;
   trackingNumber: string | null;
+  shippingCourierCode: string | null;
   shippingCost: number;
 };
 
@@ -260,6 +261,7 @@ export async function getSalesPageData(): Promise<SalesPageData> {
       shippingAddress: inv.shippingAddress,
       courierName: inv.courierName,
       trackingNumber: inv.trackingNumber,
+      shippingCourierCode: inv.shippingCourierCode,
       shippingCost: Number(inv.shippingCost || 0),
     };
   });
@@ -1125,6 +1127,237 @@ export async function updateInvoiceShipping(
   } catch (error: any) {
     console.error("Update Shipping Error:", error);
     return { success: false, error: "Gagal update data pengiriman: " + error.message };
+  }
+}
+
+// =============================================================================
+// AWB / TRACKING — Phase 2H Batch 4
+// =============================================================================
+
+/**
+ * Save or replace AWB for a COURIER invoice. Derives courier code from the
+ * immutable Invoice shipping snapshot — never trusts client-provided courier.
+ */
+export async function saveInvoiceAwb(
+  invoiceId: string,
+  data: { awb: string },
+) {
+  try {
+    await requireRole("OWNER", "MANAGER", "CASHIER");
+    const tenantId = await getCurrentTenantId();
+    const tenantPrisma = await requireTenantPrisma();
+
+    const parsed = z
+      .object({ awb: z.string().trim().min(1).max(150) })
+      .parse(data);
+
+    const invoice = await tenantPrisma.invoice.findUnique({
+      where: { id: invoiceId },
+      select: {
+        id: true,
+        tenantId: true,
+        shippingMethod: true,
+        shippingCourierCode: true,
+        courierName: true,
+        trackingNumber: true,
+        status: true,
+      },
+    });
+
+    if (!invoice) return { success: false, error: "Nota tidak ditemukan." };
+    if (invoice.tenantId !== tenantId)
+      return { success: false, error: "Akses ditolak." };
+    if (invoice.status === "VOID")
+      return { success: false, error: "Nota yang sudah di-void tidak dapat diubah." };
+    if (invoice.shippingMethod !== "COURIER")
+      return { success: false, error: "AWB hanya untuk pengiriman kurir." };
+
+    // Derive courier code from invoice shipping snapshot (server-side only)
+    const courierCode = invoice.shippingCourierCode;
+    if (!courierCode)
+      return {
+        success: false,
+        error: "Kode kurir tidak tersedia. Invoice harus melalui checkout kurir.",
+      };
+
+    // Atomic: both InvoiceTracking and Invoice.trackingNumber must succeed or both roll back
+    await tenantPrisma.$transaction(async (tx) => {
+      await tx.invoiceTracking.upsert({
+        where: { invoiceId },
+        create: {
+          tenantId,
+          invoiceId,
+          awb: parsed.awb,
+          courierCode,
+        },
+        update: {
+          awb: parsed.awb,
+          courierCode,
+          // Reset tracking state on AWB change
+          providerStatus: null,
+          providerDelivered: null,
+          events: Prisma.JsonNull,
+          lastRefreshedAt: null,
+        },
+      });
+
+      // Also update the legacy trackingNumber on Invoice
+      if (invoice.trackingNumber !== parsed.awb) {
+        await tx.invoice.update({
+          where: { id: invoiceId },
+          data: { trackingNumber: parsed.awb },
+        });
+      }
+    });
+
+    await recordAudit(
+      {},
+      {
+        tenantId,
+        userId: await getSystemUserId(),
+        action: "UPDATE",
+        entityType: "InvoiceAwb",
+        entityId: invoiceId,
+        before: { awb: invoice.trackingNumber },
+        after: { awb: parsed.awb, courierCode },
+      },
+    );
+
+    revalidatePath("/penjualan");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Save AWB Error:", error);
+    return { success: false, error: "Gagal menyimpan AWB: " + error.message };
+  }
+}
+
+/**
+ * Refresh tracking from RajaOngkir provider. Updates InvoiceTracking only —
+ * NEVER mutates fulfillment status, accounting, or stock.
+ */
+export async function refreshInvoiceTracking(invoiceId: string) {
+  try {
+    await requireRole("OWNER", "MANAGER", "CASHIER");
+    const tenantId = await getCurrentTenantId();
+    const tenantPrisma = await requireTenantPrisma();
+
+    const invoice = await tenantPrisma.invoice.findUnique({
+      where: { id: invoiceId },
+      select: {
+        id: true,
+        tenantId: true,
+        shippingMethod: true,
+        trackingNumber: true,
+      },
+    });
+
+    if (!invoice) return { success: false, error: "Nota tidak ditemukan." };
+    if (invoice.tenantId !== tenantId)
+      return { success: false, error: "Akses ditolak." };
+    if (invoice.shippingMethod !== "COURIER")
+      return { success: false, error: "Tracking hanya untuk pengiriman kurir." };
+
+    const tracking = await tenantPrisma.invoiceTracking.findUnique({
+      where: { invoiceId },
+    });
+
+    if (!tracking)
+      return {
+        success: false,
+        error: "AWB belum tercatat. Silakan masukkan AWB terlebih dahulu.",
+      };
+
+    // Resolve provider config (server-side only, never leaks key)
+    const { getRajaOngkirClientConfig } = await import(
+      "@/lib/shipping/platform-integration"
+    );
+    const config = await getRajaOngkirClientConfig();
+
+    const { trackWaybillDetailed } = await import(
+      "@/lib/shipping/providers/rajaongkir"
+    );
+    const { normalizeTrackingResponse } = await import(
+      "@/lib/shipping/tracking"
+    );
+
+    const providerResult = await trackWaybillDetailed(
+      { awb: tracking.awb, courier: tracking.courierCode },
+      config,
+    );
+
+    const normalized = normalizeTrackingResponse(
+      tracking.awb,
+      tracking.courierCode,
+      {
+        summary: providerResult.summary,
+        details: providerResult.details,
+      },
+    );
+
+    // Upsert — never create duplicate tracking rows
+    await tenantPrisma.invoiceTracking.update({
+      where: { invoiceId },
+      data: {
+        providerStatus: normalized.providerStatus,
+        providerDelivered: normalized.providerDelivered,
+        events: normalized.events,
+        lastRefreshedAt: new Date(normalized.lastRefreshedAt),
+      },
+    });
+
+    revalidatePath("/penjualan");
+    return {
+      success: true,
+      tracking: {
+        awb: normalized.awb,
+        courierCode: normalized.courierCode,
+        providerStatus: normalized.providerStatus,
+        providerDelivered: normalized.providerDelivered,
+        events: normalized.events,
+        lastRefreshedAt: normalized.lastRefreshedAt,
+      },
+    };
+  } catch (error: any) {
+    console.error("Refresh Tracking Error:", error);
+    return {
+      success: false,
+      error: "Gagal refresh tracking: " + error.message,
+    };
+  }
+}
+
+/**
+ * Read-only: get current tracking state for an invoice.
+ */
+export async function getInvoiceTracking(invoiceId: string) {
+  try {
+    const tenantId = await getCurrentTenantId();
+    const tenantPrisma = await requireTenantPrisma();
+
+    const invoice = await tenantPrisma.invoice.findUnique({
+      where: { id: invoiceId },
+      select: { id: true, tenantId: true },
+    });
+
+    if (!invoice) return { success: false, error: "Nota tidak ditemukan." };
+    if (invoice.tenantId !== tenantId)
+      return { success: false, error: "Akses ditolak." };
+
+    const tracking = await tenantPrisma.invoiceTracking.findUnique({
+      where: { invoiceId },
+      select: {
+        awb: true,
+        courierCode: true,
+        providerStatus: true,
+        providerDelivered: true,
+        events: true,
+        lastRefreshedAt: true,
+      },
+    });
+
+    return { success: true, tracking };
+  } catch (error: any) {
+    return { success: false, error: error.message };
   }
 }
 

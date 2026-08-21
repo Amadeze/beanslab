@@ -476,6 +476,7 @@ model Tenant {
   paymentNotificationDeliveries    PaymentNotificationDelivery[]
   stockReservations                StockReservation[]
   fulfillmentTasks                 FulfillmentTask[]
+  invoiceTrackings                 InvoiceTracking[]
   tenantRoastLevels                TenantRoastLevel[]
   roastProfiles                    RoastProfile[]
   warehouses                       Warehouse[]
@@ -1610,6 +1611,7 @@ model Invoice {
   paymentSubmissions PaymentSubmission[]
   stockReservations  StockReservation[]
   fulfillmentTasks   FulfillmentTask[]
+  tracking           InvoiceTracking?
   tenantId           String
   tenant             Tenant              @relation(fields: [tenantId], references: [id])
 
@@ -1623,6 +1625,33 @@ model Invoice {
   @@index([tenantId, customerId, issuedAt])
   @@index([tenantId, fulfillmentStatus, issuedAt])
   @@map("invoices")
+}
+
+// =============================================================================
+// TABLE 12b · InvoiceTracking
+// AWB / tracking state for COURIER shipments. informational only — never
+// triggers fulfillment status changes or accounting mutations.
+// =============================================================================
+
+model InvoiceTracking {
+  id        String @id @default(cuid())
+  tenantId  String
+  invoiceId String @unique
+
+  awb               String // normalized waybill / AWB number
+  courierCode       String // RajaOngkir courier code (jne, jnt, etc.)
+  providerStatus    String? // latest normalized provider status label
+  providerDelivered Boolean? // provider says delivered?
+  events            Json? // normalized tracking event history (provider shape)
+  lastRefreshedAt   DateTime? // when tracking was last refreshed from provider
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, invoiceId])
+  @@map("invoice_tracking")
 }
 
 // Units promised to a storefront order but not yet posted as physical stock-out.

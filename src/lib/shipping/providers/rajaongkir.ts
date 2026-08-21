@@ -376,3 +376,90 @@ export async function trackWaybill(
     delivered: deliveredFlag,
   };
 }
+
+export interface RajaOngkirWaybillDetailed {
+  awb: string;
+  courier: string;
+  summary: { status?: string; delivered?: boolean };
+  details: Array<Record<string, unknown>>;
+}
+
+/**
+ * Track a waybill and return the FULL provider response data (summary +
+ * details/history). Used by the tracking normalization layer. Never leaks
+ * the API key or raw HTTP artifacts.
+ */
+export async function trackWaybillDetailed(
+  input: RajaOngkirTrackInput,
+  config: RajaOngkirClientConfig,
+): Promise<RajaOngkirWaybillDetailed> {
+  if (!input.awb || !input.courier) {
+    throw new ShippingProviderError(
+      "PROVIDER_BAD_REQUEST",
+      "AWB and courier are required for tracking.",
+    );
+  }
+
+  const form = new URLSearchParams({
+    awb: String(input.awb),
+    courier: String(input.courier),
+  });
+  if (input.lastPhoneNumber) {
+    form.set("last_phone_number", String(input.lastPhoneNumber));
+  }
+
+  const body = await requestJson(config, "/track/waybill", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form.toString(),
+  });
+
+  const data =
+    body && typeof body === "object"
+      ? ((body as Record<string, unknown>).data ?? body)
+      : {};
+
+  const dataObj = (typeof data === "object" && data !== null
+    ? data
+    : {}) as Record<string, unknown>;
+
+  const summaryObj =
+    dataObj.summary && typeof dataObj.summary === "object"
+      ? (dataObj.summary as Record<string, unknown>)
+      : dataObj;
+
+  const status =
+    typeof summaryObj.status === "string"
+      ? summaryObj.status
+      : typeof dataObj.status === "string"
+        ? dataObj.status
+        : undefined;
+  const deliveredFlag =
+    typeof summaryObj.delivered === "boolean"
+      ? summaryObj.delivered
+      : typeof dataObj.delivered === "boolean"
+        ? dataObj.delivered
+        : undefined;
+
+  // Extract details array — provider may put it at data.details or data.history
+  const rawDetails = Array.isArray(dataObj.details)
+    ? dataObj.details
+    : Array.isArray(dataObj.history)
+      ? dataObj.history
+      : [];
+
+  const details = rawDetails.filter(
+    (d): d is Record<string, unknown> =>
+      typeof d === "object" && d !== null,
+  );
+
+  return {
+    awb: String(input.awb),
+    courier: String(input.courier),
+    summary: {
+      status,
+      delivered: deliveredFlag,
+    },
+    details,
+  };
+}

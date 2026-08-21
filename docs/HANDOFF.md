@@ -1,4 +1,4 @@
-# HANDOFF — Batch 3 Customer Shipping
+# HANDOFF — Batch 4 AWB / Tracking
 
 Last updated: 2026-08-21
 
@@ -6,29 +6,26 @@ Last updated: 2026-08-21
 
 | Field | Value |
 |---|---|
-| Implementation HEAD | Batch 3 commit (pending) |
+| Implementation HEAD | Batch 4 commit (pending) |
 | Branch | `wip/non-kopi-commit3` |
-| Batch 3 status | **CLOSED + PUSHED** |
+| Batch 4 status | **CLOSED + PUSHED** |
 
-## Batch 3 WIP Summary
+## Batch 4 WIP Summary
 
-All Batch 3 application code changes are uncommitted on `wip/non-kopi-commit3`.
+All Batch 4 application code changes are uncommitted on `wip/non-kopi-commit3`.
 
 Files changed (uncommitted):
 
-- `src/app/api/tenant/[subdomain]/shipping/quote/route.ts` — rewritten
-- `src/app/api/tenant/[subdomain]/shipping/destinations/route.ts` — rewritten
-- `src/app/api/tenant/[subdomain]/checkout/route.ts` — COURIER revalidation rewrite, snapshot fields
-- `src/lib/shipping/quote-token.ts` — rewritten, `payload|null` verify, TTL `>=` fix
-- `src/lib/shipping/fingerprint.ts` — rewritten, canonical normalization, `deterministicStringify`
-- `src/lib/shipping/weight.ts` — rewritten, tenant-scoped variant query
-- `src/lib/shipping/origin-token.ts` — added `tenantId?` to payload
-- `prisma/schema.prisma` — removed `shippingQuoteToken` from Invoice
-- `prisma/migrations/000000000003_storefront_shipping_checkout/migration.sql` — 9 columns
-- `src/lib/shipping/fingerprint.test.ts` — 11 tests
-- `src/lib/shipping/quote-token.test.ts` — 15 tests
-- `src/lib/shipping/weight.test.ts` — 6 tests
-- `src/lib/shipping/origin-token.test.ts` — 18 tests (pre-existing Batch 2, verified)
+- `prisma/schema.prisma` — added InvoiceTracking model + Invoice/Tenant relations
+- `prisma/migrations/000000000004_storefront_awb_tracking/migration.sql` — CREATE TABLE, indexes, FKs
+- `src/lib/shipping/tracking.ts` — normalization types + normalizeTrackingEvent/Response
+- `src/lib/shipping/tracking.test.ts` — 12 normalization tests
+- `src/lib/shipping/providers/rajaongkir.ts` — added trackWaybillDetailed()
+- `src/lib/shipping/providers/rajaongkir.test.ts` — 4 new trackWaybillDetailed tests
+- `src/app/(dashboard)/penjualan/actions.ts` — saveInvoiceAwb, refreshInvoiceTracking, getInvoiceTracking; InvoiceRow extended
+- `src/app/(dashboard)/penjualan/_components/ResiDialog.tsx` — AWB input with tracking refresh + display
+- `src/app/(dashboard)/penjualan/_components/InvoiceTable.test.ts` — fixture updated
+- `src/app/(dashboard)/penjualan/awb-tracking.test.ts` — 19 real unit tests
 
 ## Validation Summary
 
@@ -38,39 +35,34 @@ Files changed (uncommitted):
 | `prisma generate` | PASS |
 | `typecheck` | PASS |
 | `eslint --quiet` | PASS |
-| Unit tests (full) | 849 pass / 0 fail / 36 skipped |
+| Focused AWB/tracking tests | 19/19 PASS |
+| Full unit suite | 880 pass / 0 fail / 315 skipped |
 | `next build --webpack` | PASS |
-| `git diff --check` | PASS (CRLF warning only) |
-| Migration 003 local | PASS (4/4, status clean, diff empty) |
-| Integration | 34/39 pass, 8 pre-existing, 0 Batch 3-attributed |
+| `git diff --check` | PASS |
+| Migration 004 local | PASS (5/5, status clean, diff empty) |
 
 ## Closure Blockers — RESOLVED
 
-### 1. Pre-existing Integration Failure Proof — RESOLVED
+### 1. Fake Tests — RESOLVED
 
-8 finance/purchase-void tests confirmed pre-existing against clean checkpoint d23482d. Do not block Batch 3. Tracked as separate regression debt.
+All 19 `expect(true).toBe(true)` placeholders replaced with real unit tests that exercise the actual server-action functions against mocked Prisma.
 
-### 2. Production Prisma Baseline Adoption — RESOLVED
+### 2. AWB Atomicity — RESOLVED
 
-Production baseline recovery complete:
-- 000 baseline resolved as applied
-- 001 invariants deployed
-- 002 RajaOngkir foundation deployed
-- Production schema matches d23482d exactly (EMPTY diff)
-- Invariant preflight: ALL PASS
+`saveInvoiceAwb` wraps InvoiceTracking upsert + Invoice.trackingNumber update in `$transaction`. Both succeed or both roll back. Audit fires after commit.
 
-Migration 003 pending deployment until this commit reaches production.
+### 3. ResiDialog Error Flow — RESOLVED
+
+`saveInvoiceAwb` result is checked. Error → toast + early return. `updateInvoiceShipping` never called on AWB failure.
 
 ## Next Session Sequence
 
 | Session | Task |
 |---|---|
-| #1 | ~~Confirm pre-existing integration failures against d23482d~~ — RESOLVED |
-| #2 | ~~Production migration baseline adoption~~ — RESOLVED |
-| #3 | ~~Review Batch 3 final WIP, commit, push~~ — THIS SESSION |
-| #4 | Authorize Batch 4 (AWB / Tracking) |
+| #1 | ~~Review Batch 4 final WIP, commit, push~~ — THIS SESSION |
+| #2 | Authorize Batch 5 (Storefront UX) |
 
 ## DO NOT
 
-- Start Batch 4 until explicitly authorized
+- Start Batch 5 until explicitly authorized
 - Touch `information_architecture_audit.md` (untracked, untouched)

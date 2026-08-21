@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,11 +10,16 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { updateInvoiceShipping } from "../actions";
+import {
+  updateInvoiceShipping,
+  saveInvoiceAwb,
+  refreshInvoiceTracking,
+  getInvoiceTracking,
+} from "../actions";
 import type { InvoiceRow } from "../actions";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
-import { Truck } from "lucide-react";
+import { Truck, RefreshCw, Package } from "lucide-react";
 import {
   nextOperatorFulfillmentStatuses,
   type OperatorFulfillmentStatus,
@@ -25,6 +30,20 @@ const fulfillmentLabels: Partial<Record<OperatorFulfillmentStatus, string>> = {
   SHIPPED: "Dalam pengiriman",
   DELIVERED: "Pesanan selesai",
 };
+
+interface TrackingState {
+  awb: string;
+  courierCode: string;
+  providerStatus: string | null;
+  providerDelivered: boolean;
+  events: Array<{
+    timestamp: string | null;
+    description: string;
+    location: string | null;
+    status: string | null;
+  }>;
+  lastRefreshedAt: string | null;
+}
 
 interface ResiDialogProps {
   invoice: InvoiceRow | null;
@@ -38,23 +57,59 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
   const [shippingCost, setShippingCost] = useState("");
   const [fulfillmentStatus, setFulfillmentStatus] = useState("SHIPPED");
   const [isLoading, setIsLoading] = useState(false);
+  const [isTrackingLoading, setIsTrackingLoading] = useState(false);
+  const [tracking, setTracking] = useState<TrackingState | null>(null);
+
+  const loadTracking = useCallback(async () => {
+    if (!invoice) return;
+    try {
+      const res = await getInvoiceTracking(invoice.id);
+      if (res.success && res.tracking) {
+        setTracking(res.tracking as TrackingState);
+      } else {
+        setTracking(null);
+      }
+    } catch {
+      setTracking(null);
+    }
+  }, [invoice]);
 
   useEffect(() => {
     if (invoice && open) {
       setCourierName(invoice.courierName || "");
       setTrackingNumber(invoice.trackingNumber || "");
-      setShippingCost(invoice.shippingCost ? invoice.shippingCost.toString() : "");
+      setShippingCost(
+        invoice.shippingCost ? invoice.shippingCost.toString() : "",
+      );
       const nextStatuses = nextOperatorFulfillmentStatuses(
         invoice.fulfillmentStatus as OperatorFulfillmentStatus,
       );
       setFulfillmentStatus(nextStatuses[0] ?? invoice.fulfillmentStatus);
+      loadTracking();
+    } else {
+      setTracking(null);
     }
-  }, [invoice, open]);
+  }, [invoice, open, loadTracking]);
 
   const handleSave = async () => {
     if (!invoice) return;
     setIsLoading(true);
     try {
+      // Save AWB to InvoiceTracking if courier order with AWB
+      if (
+        invoice.shippingMethod === "COURIER" &&
+        trackingNumber.trim() &&
+        invoice.shippingCourierCode
+      ) {
+        const awbResult = await saveInvoiceAwb(invoice.id, {
+          awb: trackingNumber.trim(),
+        });
+        if (!awbResult.success) {
+          toastSafe.error(awbResult.error || "Gagal menyimpan AWB");
+          return;
+        }
+      }
+
       const res = await updateInvoiceShipping(invoice.id, {
         courierName,
         trackingNumber,
@@ -74,24 +129,45 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
     }
   };
 
+  const handleRefreshTracking = async () => {
+    if (!invoice) return;
+    setIsTrackingLoading(true);
+    try {
+      const res = await refreshInvoiceTracking(invoice.id);
+      if (res.error) {
+        toastSafe.error(res.error);
+      } else {
+        setTracking(res.tracking as TrackingState);
+        toast.success("Tracking berhasil diperbarui");
+      }
+    } catch (e: any) {
+      toastSafe.error(e.message || "Gagal memperbarui tracking");
+    } finally {
+      setIsTrackingLoading(false);
+    }
+  };
+
+  const isCourierOrder = invoice?.shippingMethod === "COURIER";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-[1.25rem] p-6 border-white/60 bg-white/70 backdrop-blur-xl shadow-2xl">
+      <DialogContent className="sm:max-w-[500px] rounded-[1.25rem] p-6 border-white/60 bg-white/70 backdrop-blur-xl shadow-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-slate-800">
             <Truck className="h-5 w-5 text-amber-600" />
             Update Pengiriman
           </DialogTitle>
           <DialogDescription className="text-slate-500">
-            Perbarui tahap penyerahan, kurir, atau nomor resi untuk pesanan <strong className="text-slate-800">{invoice?.code}</strong>
+            Perbarui tahap penyerahan, kurir, atau nomor resi untuk pesanan{" "}
+            <strong className="text-slate-800">{invoice?.code}</strong>
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           {invoice?.shippingMethod && (
-             <div className="text-xs font-semibold bg-amber-50 text-amber-700 px-3 py-2 rounded-lg border border-amber-200">
-               Metode: {invoice.shippingMethod}
-             </div>
+            <div className="text-xs font-semibold bg-amber-50 text-amber-700 px-3 py-2 rounded-lg border border-amber-200">
+              Metode: {invoice.shippingMethod}
+            </div>
           )}
           {invoice?.shippingAddress && (
             <div className="text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-200">
@@ -100,17 +176,29 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
             </div>
           )}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Status Operasional</label>
-            <select value={fulfillmentStatus} onChange={(event) => setFulfillmentStatus(event.target.value)} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
-              {invoice ? nextOperatorFulfillmentStatuses(
-                invoice.fulfillmentStatus as OperatorFulfillmentStatus,
-              ).map((status) => (
-                <option key={status} value={status}>{fulfillmentLabels[status] ?? status}</option>
-              )) : null}
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+              Status Operasional
+            </label>
+            <select
+              value={fulfillmentStatus}
+              onChange={(event) => setFulfillmentStatus(event.target.value)}
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+            >
+              {invoice
+                ? nextOperatorFulfillmentStatuses(
+                    invoice.fulfillmentStatus as OperatorFulfillmentStatus,
+                  ).map((status) => (
+                    <option key={status} value={status}>
+                      {fulfillmentLabels[status] ?? status}
+                    </option>
+                  ))
+                : null}
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Nama Ekspedisi/Kurir</label>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+              Nama Ekspedisi/Kurir
+            </label>
             <input
               className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
               placeholder="Contoh: JNE, J&T, GoSend"
@@ -119,16 +207,75 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Nomor Resi / Lacak</label>
-            <input
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
-              placeholder="Masukkan nomor resi..."
-              value={trackingNumber}
-              onChange={(e) => setTrackingNumber(e.target.value)}
-            />
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+              Nomor Resi / AWB
+            </label>
+            <div className="flex gap-2">
+              <input
+                className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                placeholder="Masukkan nomor resi..."
+                value={trackingNumber}
+                onChange={(e) => setTrackingNumber(e.target.value)}
+              />
+              {isCourierOrder && trackingNumber.trim() && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshTracking}
+                  disabled={isTrackingLoading}
+                  className="h-10 rounded-xl px-3"
+                  title="Lacak Pengiriman"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${isTrackingLoading ? "animate-spin" : ""}`}
+                  />
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Tracking Status Display */}
+          {isCourierOrder && tracking && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                <Package className="h-3.5 w-3.5" />
+                Status Pengiriman
+              </div>
+              {tracking.providerStatus && (
+                <div className="text-sm font-semibold text-slate-800">
+                  {tracking.providerStatus}
+                </div>
+              )}
+              {tracking.lastRefreshedAt && (
+                <div className="text-xs text-slate-400">
+                  Terakhir diperbarui:{" "}
+                  {new Date(tracking.lastRefreshedAt).toLocaleString("id-ID")}
+                </div>
+              )}
+              {tracking.events && tracking.events.length > 0 && (
+                <div className="mt-2 space-y-1.5 max-h-40 overflow-y-auto">
+                  {tracking.events.slice(0, 10).map((event, idx) => (
+                    <div
+                      key={idx}
+                      className="text-xs border-l-2 border-amber-300 pl-2 py-0.5"
+                    >
+                      <div className="text-slate-700">{event.description}</div>
+                      <div className="text-slate-400 flex gap-2">
+                        {event.timestamp && <span>{event.timestamp}</span>}
+                        {event.location && <span>- {event.location}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Ongkos Kirim (Rp)</label>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+              Ongkos Kirim (Rp)
+            </label>
             <input
               type="number"
               className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
@@ -136,7 +283,9 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
               value={shippingCost}
               onChange={(e) => setShippingCost(e.target.value)}
             />
-            <p className="text-xs text-slate-400">Ongkir akan ditambahkan ke total tagihan pesanan.</p>
+            <p className="text-xs text-slate-400">
+              Ongkir akan ditambahkan ke total tagihan pesanan.
+            </p>
           </div>
         </div>
 
