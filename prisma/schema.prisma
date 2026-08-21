@@ -1553,22 +1553,31 @@ model Invoice {
 
   customerId String
 
-  subtotal             Decimal           @db.Decimal(14, 2) // sebelum diskon, pajak & ongkir
-  discount             Decimal           @default(0) @db.Decimal(14, 2)
-  tax                  Decimal           @default(0) @db.Decimal(14, 2)
-  shippingCost         Decimal           @default(0) @db.Decimal(14, 2) // ongkos kirim
-  shippingMethod       ShippingMethod? // "PICKUP", "LOCAL_DELIVERY", "COURIER"
-  shippingAddress      String? // alamat spesifik jika dikirim
-  courierName          String? // nama ekspedisi
-  trackingNumber       String? // nomor resi
-  publicOrderToken     String?           @unique
-  fulfillmentStatus    FulfillmentStatus @default(AWAITING_PAYMENT)
-  reservationExpiresAt DateTime?
-  paidAt               DateTime?
-  packedAt             DateTime?
-  shippedAt            DateTime?
-  deliveredAt          DateTime?
-  grandTotal           Decimal           @db.Decimal(14, 2) // = subtotal - discount + tax + shippingCost
+  subtotal              Decimal           @db.Decimal(14, 2) // sebelum diskon, pajak & ongkir
+  discount              Decimal           @default(0) @db.Decimal(14, 2)
+  tax                   Decimal           @default(0) @db.Decimal(14, 2)
+  shippingCost          Decimal           @default(0) @db.Decimal(14, 2) // ongkos kirim
+  shippingMethod        ShippingMethod? // "PICKUP", "LOCAL_DELIVERY", "COURIER"
+  shippingAddress       String? // alamat spesifik jika dikirim
+  courierName           String? // nama ekspedisi
+  trackingNumber        String? // nomor resi
+  shippingCourierCode   String? // kode kurir RajaOngkir (jne, jnt, etc.)
+  shippingServiceCode   String? // kode layanan RajaOngkir (REG, YES, etc.)
+  shippingServiceName   String? // nama layanan manusia
+  shippingEtd           String? // estimasi waktu kirim (cth: "2-3")
+  shipmentWeightGrams   Int? // berat total kirim (gram) yang dipakai untuk quote
+  shippingSnapshot      Json? // snapshot imutabel seluruh transaksi shipping
+  cartFingerprint       String? // hash keranjang saat quote dibuat
+  destinationProviderId String? // provider ID tujuan dari token
+  destinationSnapshot   Json? // snapshot wilayah tujuan dari token
+  publicOrderToken      String?           @unique
+  fulfillmentStatus     FulfillmentStatus @default(AWAITING_PAYMENT)
+  reservationExpiresAt  DateTime?
+  paidAt                DateTime?
+  packedAt              DateTime?
+  shippedAt             DateTime?
+  deliveredAt           DateTime?
+  grandTotal            Decimal           @db.Decimal(14, 2) // = subtotal - discount + tax + shippingCost
 
   // ── PPN/PPH fields ──
   taxType        TaxType  @default(NONE)

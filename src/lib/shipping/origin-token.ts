@@ -27,6 +27,10 @@ export interface OriginSelectionPayload {
   district?: string;
   subdistrict?: string;
   postalCode?: string;
+  // Optional tenant binding. Public storefront destination tokens MUST carry
+  // the resolved tenant id so a token minted for tenant A is rejected by
+  // tenant B. Admin origin-search tokens (session-scoped) may omit it.
+  tenantId?: string;
   issuedAt: number; // epoch ms
 }
 
