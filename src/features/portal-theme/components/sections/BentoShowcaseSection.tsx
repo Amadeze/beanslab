@@ -24,8 +24,8 @@ interface BentoShowcaseProps {
 }
 
 export function BentoShowcaseSection({ settings, blocks }: BentoShowcaseProps) {
-  const title = (settings.title as string) || "The Wholesale Bento Showcase";
-  const subtitle = (settings.subtitle as string) || "Engineered for excellence. Explore our roast profiles, cupping metrics, and origin traceability.";
+  const title = (settings.title as string) || "Tampilan Bento Grosir";
+  const subtitle = (settings.subtitle as string) || "Dirancang untuk keunggulan. Jelajahi profil sangrai, metrik cupping, dan jejak asal biji kami.";
   const columns = (settings.columns as number) || 4;
   const gapStyle = (settings.gapStyle as string) || "normal";
 
@@ -43,14 +43,14 @@ export function BentoShowcaseSection({ settings, blocks }: BentoShowcaseProps) {
       colSpan: 2,
       rowSpan: 2,
       settings: {
-        title: "Signature Blend: Gayo Mountain Reserve",
-        subtitle: "Cupping Score: 88.5 • Anaerobic Natural",
-        content: "Our flagship espresso base profile, roasted specifically to cut through milk while retaining vibrant tropical fruit acidity and intense cacao sweetness.",
-        badge: "Top Wholesale Best Seller",
-        imageUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80",
+        title: "Blend Signature: Gayo Mountain Reserve",
+        subtitle: "Skor Cupping: 88.5 • Anaerobic Natural",
+        content: "Profil espresso andalan kami, dirancang khusus untuk memotong susu sambil mempertahankan keasaman buah tropis yang segar dan rasa kakao yang intens.",
+        badge: "Best Seller Grosir Terlaris",
+        imageUrl: "",
         icon: "Coffee",
         accentColor: "#D4A574",
-        ctaText: "Order 5kg Sample",
+        ctaText: "Pesan Sampel 5kg",
         ctaLink: "#catalog"
       }
     },
@@ -60,10 +60,10 @@ export function BentoShowcaseSection({ settings, blocks }: BentoShowcaseProps) {
       colSpan: 1,
       rowSpan: 1,
       settings: {
-        title: "Precision Roasting",
+        title: "Sangrai Presisi",
         subtitle: "Loring S15 Falcon & Probat",
-        content: "Zero-smoke closed-loop roasting ensuring 100% batch consistency across 500kg monthly contracts.",
-        badge: "Tech",
+        content: "Sangrai tertutup tanpa asap yang menjamin konsistensi batch 100% untuk kontrak bulanan 500kg.",
+        badge: "Teknologi",
         icon: "Flame",
         accentColor: "#F97316"
       }
@@ -74,10 +74,10 @@ export function BentoShowcaseSection({ settings, blocks }: BentoShowcaseProps) {
       colSpan: 1,
       rowSpan: 1,
       settings: {
-        title: "Direct Trade Traceability",
-        subtitle: "100% Farmer Equity",
-        content: "We source directly from 12 cooperative washing stations across Gayo, Kintamani, and Toraja.",
-        badge: "Origin",
+        title: "Jejak Perdagangan Langsung",
+        subtitle: "100% Keadilan Petani",
+        content: "Kami membeli langsung dari 12 stasiun pencucian koperasi di Gayo, Kintamani, dan Toraja.",
+        badge: "Asal",
         icon: "MapPin",
         accentColor: "#10B981"
       }
@@ -88,13 +88,13 @@ export function BentoShowcaseSection({ settings, blocks }: BentoShowcaseProps) {
       colSpan: 2,
       rowSpan: 1,
       settings: {
-        title: "Wholesale Partner Program & Barista Training",
-        subtitle: "Complete Cafe Support System",
-        content: "Complimentary SCA-certified sensory training, machine calibration, and custom private label packaging for orders above 25kg/month.",
-        badge: "Partner Benefit",
+        title: "Program Mitra Grosir & Pelatihan Barista",
+        subtitle: "Sistem Dukungan Cafe Lengkap",
+        content: "Pelatihan sensori bersertifikat SCA gratis, kalibrasi mesin, dan kemasan label pribadi khusus untuk pesanan di atas 25kg/bulan.",
+        badge: "Manfaat Mitra",
         icon: "Award",
         accentColor: "#8B5CF6",
-        ctaText: "Join Partner Network",
+        ctaText: "Gabung Jaringan Mitra",
         ctaLink: "#contact"
       }
     }
@@ -153,6 +153,13 @@ export function BentoShowcaseSection({ settings, blocks }: BentoShowcaseProps) {
                     : "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.01) 100%)"
                 }}
               >
+                {/* No-Image Fallback */}
+                {!bgImg && (
+                  <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
+                    <Coffee size={80} style={{ color: (st.accentColor as string) || "var(--portal-accent, #D4A574)" }} />
+                  </div>
+                )}
+
                 {/* Glow Orb on Hover */}
                 <div 
                   className="absolute -top-24 -right-24 w-48 h-48 rounded-full opacity-0 group-hover:opacity-30 blur-2xl transition-opacity duration-700 pointer-events-none"

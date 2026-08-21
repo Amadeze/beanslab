@@ -2,7 +2,7 @@
 
 import { Tenant, Product } from "@prisma/client";
 import { useCartStore } from "../_store/cartStore";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { ThemeEngine } from "./themes/ThemeEngine";
 import { UniversalTheme } from "./themes/UniversalTheme";
@@ -12,13 +12,10 @@ import {
   type StorefrontGrindSize,
   type StorefrontOffering,
 } from "@/lib/storefront-grind";
+import type { CourierShippingState } from "./CourierShippingSearch";
 
 // =============================================================================
 // TENANT PORTAL CLIENT — $10k Architecture
-// =============================================================================
-// This is now a thin orchestration layer.
-// If a PortalThemeConfig exists (block-based customizer), render via PortalThemeRenderer.
-// Otherwise, fall back to the legacy ThemeEngine + UniversalTheme rendering.
 // =============================================================================
 
 type ExtendedTenant = Tenant & {
@@ -33,6 +30,7 @@ type ExtendedTenant = Tenant & {
   midtransClientKey?: string | null;
   midtransIsProduction?: boolean;
   themeConfig?: any;
+  storefrontTaxRate?: number | null;
   paymentMethods?: Array<{
     id: string;
     method: "CASH" | "TRANSFER" | "QRIS" | "CREDIT";
@@ -55,6 +53,13 @@ interface TenantPortalClientProps {
   isPreviewMode?: boolean;
 }
 
+const defaultCourierShipping: CourierShippingState = {
+  destinationToken: null,
+  shippingQuoteToken: null,
+  selectedRate: null,
+  shippingCost: 0,
+};
+
 export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClientProps) {
   const [mounted, setMounted] = useState(false);
   const cart = useCartStore();
@@ -68,25 +73,54 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
   const [paymentMethodId, setPaymentMethodId] = useState(tenant.paymentMethods?.[0]?.id || "");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
+  // ─── COURIER shipping state ────────────────────────────────────────────
+  const [courierShipping, setCourierShippingState] = useState<CourierShippingState>(defaultCourierShipping);
+  const [courierRateChangedError, setCourierRateChangedError] = useState<string | null>(null);
+
+  const setCourierShipping = useCallback((state: CourierShippingState) => {
+    setCourierShippingState(state);
+    setCourierRateChangedError(null);
+  }, []);
+
+  const onClearRateChanged = useCallback(() => {
+    setCourierRateChangedError(null);
+  }, []);
+
+  // Clear COURIER state when switching away from COURIER
+  useEffect(() => {
+    if (shippingMethod !== "COURIER") {
+      setCourierShippingState(defaultCourierShipping);
+      setCourierRateChangedError(null);
+    }
+  }, [shippingMethod]);
+
+  // Build cart items for quote request
+  const courierCartItems = (cart.items[tenant.subdomain || ""] || []).map((item: any) => ({
+    productId: item.productId || null,
+    offeringId: item.offeringId || null,
+    variantId: item.variantId || null,
+    quantity: item.quantity,
+  }));
+
   const themeMode = tenant.themeMode || "light";
   const isDark = themeMode === "dark";
   const iconStyle = tenant.iconStyle || "regular";
   const iconProps = { weight: iconStyle as "thin" | "light" | "regular" | "bold" | "fill" | "duotone" };
-  
-  let iconStroke = 2; // Default
+
+  let iconStroke = 2;
   if (iconStyle === "thin") iconStroke = 1;
   if (iconStyle === "light") iconStroke = 1.5;
   if (iconStyle === "bold") iconStroke = 3;
 
   // ─── Content (with fallbacks) ─────────────────────────────────────────
-  const heroGreeting = tenant.heroText || "Crafting Excellence,\nOne Roast at a Time.";
-  const aboutText = tenant.aboutText || `Welcome to the official wholesale portal of ${tenant.name}. Gain access to our exclusive catalog of specialty coffee.`;
-  const catalogTitle = tenant.catalogTitle || "The Collection";
-  const catalogSubtitle = tenant.catalogSubtitle || "Meticulously profiled and roasted for consistency. Available exclusively for our B2B partners.";
-  const footerText = tenant.footerText || "All rights reserved.";
+  const heroGreeting = tenant.heroText || `Selamat datang di ${tenant.name}`;
+  const aboutText = tenant.aboutText || `Portal resmi ${tenant.name}. Akses katalog kopi spesialti eksklusif kami.`;
+  const catalogTitle = tenant.catalogTitle || "Katalog Produk";
+  const catalogSubtitle = tenant.catalogSubtitle || "Kopi yang dikurasi dan dipanggang untuk konsistensi.";
+  const footerText = tenant.footerText || "Hak cipta dilindungi.";
 
   // ─── Contact Links ────────────────────────────────────────────────────
-  let waLink = "mailto:hello@roastd.id";
+  let waLink = "";
   if (tenant.whatsappNumber) {
     let cleanWa = tenant.whatsappNumber.replace(/\D/g, '');
     if (cleanWa.startsWith('0')) cleanWa = '62' + cleanWa.substring(1);
@@ -95,7 +129,7 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
   const emailLink = tenant.contactEmail ? `mailto:${tenant.contactEmail}` : null;
   const igLink = tenant.instagramHandle ? `https://instagram.com/${tenant.instagramHandle.replace('@', '')}` : null;
 
-  // Sync state dengan cart localStorage jika ada data sebelumnya
+  // ─── Persist customer info ────────────────────────────────────────────
   useEffect(() => {
     setMounted(true);
     const savedName = localStorage.getItem("ros_customer_name");
@@ -164,6 +198,7 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
     setIsCartOpen(true);
   };
 
+  // ─── Checkout ─────────────────────────────────────────────────────────
   const handleCheckout = async () => {
     if (isCheckingOut) return;
     if (isPreviewMode) {
@@ -178,10 +213,17 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
       toast.error("Mohon pilih metode pembayaran.");
       return;
     }
+    // Validate COURIER has required tokens
+    if (shippingMethod === "COURIER") {
+      if (!courierShipping.destinationToken || !courierShipping.shippingQuoteToken) {
+        toast.error("Mohon pilih tujuan dan layanan pengiriman terlebih dahulu.");
+        return;
+      }
+    }
 
     try {
       setIsCheckingOut(true);
-      const checkoutPayload = {
+      const checkoutPayload: Record<string, any> = {
         customerName,
         customerPhone,
         customerAddress: customerAddress || "Ambil di roastery",
@@ -189,6 +231,13 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
         paymentMethodId: paymentMethodId || undefined,
         items: cart.items[tenant.subdomain || ""] || [],
       };
+
+      // Wire COURIER tokens
+      if (shippingMethod === "COURIER") {
+        checkoutPayload.shippingQuoteToken = courierShipping.shippingQuoteToken;
+        checkoutPayload.destinationToken = courierShipping.destinationToken;
+      }
+
       const idempotencyStorageKey = `ros_checkout_operation_${tenant.subdomain || "storefront"}`;
       const fingerprint = JSON.stringify(checkoutPayload);
       let operationKey = crypto.randomUUID();
@@ -207,6 +256,17 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
         headers: { "Content-Type": "application/json", "Idempotency-Key": operationKey },
         body: fingerprint,
       });
+
+      // Handle SHIPPING_RATE_CHANGED (409)
+      if (res.status === 409) {
+        const errorData = await res.json();
+        if (errorData.code === "SHIPPING_RATE_CHANGED") {
+          setCourierRateChangedError(errorData.error || "Harga ongkir berubah. Silakan pilih ulang.");
+          setCourierShippingState(defaultCourierShipping);
+          toast.error("Harga ongkir telah berubah. Silakan pilih ulang tujuan dan layanan.");
+          return;
+        }
+      }
 
       if (!res.ok) {
         const errorData = await res.json();
@@ -239,17 +299,17 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
         text += `${idx + 1}. ${item.name} - ${item.quantity}x @ Rp ${item.price.toLocaleString("id-ID")} = Rp ${(item.quantity * item.price).toLocaleString("id-ID")}\n`;
       });
       text += `\nTotal Harga: Rp ${cart.getTotalPrice(tenant.subdomain || "").toLocaleString("id-ID")}\n\nMohon diinformasikan ketersediaan dan ongkos kirim. Terima kasih.`;
-      
+
       let cleanWa = tenant.whatsappNumber?.replace(/\D/g, '') || '';
       if (cleanWa.startsWith('0')) cleanWa = '62' + cleanWa.substring(1);
-      
+
       if (!cleanWa) {
         cart.clearCart(tenant.subdomain || "");
         setIsCartOpen(false);
         toast.success(`Pesanan terekam (Ref: ${invoiceCode}) tapi nomor WhatsApp admin belum diatur di sistem.`);
         return;
       }
-      
+
       window.open(`https://wa.me/${cleanWa}?text=${encodeURIComponent(text)}`, '_blank');
       cart.clearCart(tenant.subdomain || "");
       setIsCartOpen(false);
@@ -262,8 +322,8 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
   };
 
   // ─── Render ───────────────────────────────────────────────────────────
+  const taxRate = Number(tenant.storefrontTaxRate || 0);
 
-  // Always render the full portal with cart, checkout, dashboard
   const themeProps = {
     tenant, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
     customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleAddOfferingToCart, handleCheckout, mounted, heroGreeting, aboutText,
@@ -271,6 +331,12 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
     isCheckingOut,
     paymentMethodId,
     setPaymentMethodId,
+    courierShipping,
+    setCourierShipping,
+    courierShippingCartItems: courierCartItems,
+    courierRateChangedError,
+    onClearRateChanged,
+    taxRate,
   };
 
   return (

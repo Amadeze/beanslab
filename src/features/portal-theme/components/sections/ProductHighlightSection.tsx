@@ -38,7 +38,7 @@ export function ProductHighlightSection({ settings, typography, products = [], o
           <div className="flex-1 w-full flex flex-col justify-center">
             {product?.roastLevel && (
               <span className="text-xs uppercase tracking-widest font-semibold mb-2 block" style={{ color: "var(--portal-accent, #D4A574)" }}>
-                {product.roastLevel} • {product.origin || "Specialty Roast"}
+                {product.roastLevel} • {product.origin || "Roast Spesialitas"}
               </span>
             )}
             <h2
@@ -48,7 +48,7 @@ export function ProductHighlightSection({ settings, typography, products = [], o
                 fontFamily: "var(--portal-font-heading)",
               }}
             >
-              {product ? product.name : "Spotlight Roast"}
+              {product ? product.name : "Pilihan Unggulan"}
             </h2>
             {showPrice && product && (
               <div className="text-2xl font-bold mb-6" style={{ color: "var(--portal-primary, #D4A574)" }}>
@@ -57,7 +57,7 @@ export function ProductHighlightSection({ settings, typography, products = [], o
             )}
             {showDescription && (
               <p className="text-sm md:text-base leading-relaxed mb-8" style={{ color: "var(--portal-text-muted, #6B7280)" }}>
-                {product ? (product.description || "Meticulously profiled and roasted for consistency. Exceptional aroma, balanced body, and clean finish tailored for wholesale service.") : "Product details will be rendered dynamically from your active inventory."}
+                {product ? (product.description || "Disangrai dengan presisi untuk konsistensi. Aroma istimewa, body seimbang, dan clean finish yang dirancang untuk layanan grosir.") : "Detail produk akan ditampilkan secara dinamis dari inventaris aktif Anda."}
               </p>
             )}
             <div>
@@ -70,7 +70,7 @@ export function ProductHighlightSection({ settings, typography, products = [], o
                 }}
               >
                 <Plus size={18} strokeWidth={2.5} />
-                <span>Order This Roast</span>
+                <span>Pesan Sekarang</span>
               </button>
             </div>
           </div>

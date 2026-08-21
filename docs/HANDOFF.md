@@ -1,4 +1,4 @@
-# HANDOFF — Batch 4 AWB / Tracking
+# HANDOFF — Batch 5 Storefront UX Maturity
 
 Last updated: 2026-08-21
 
@@ -6,26 +6,39 @@ Last updated: 2026-08-21
 
 | Field | Value |
 |---|---|
-| Implementation HEAD | Batch 4 commit (pending) |
+| Implementation HEAD | Batch 5 commit (pending) |
 | Branch | `wip/non-kopi-commit3` |
-| Batch 4 status | **CLOSED + PUSHED** |
+| Batch 5 status | **CLOSED + PUSHED** |
 
-## Batch 4 WIP Summary
+## Batch 5 WIP Summary
 
-All Batch 4 application code changes are uncommitted on `wip/non-kopi-commit3`.
+All Batch 5 application code changes are uncommitted on `wip/non-kopi-commit3`.
 
 Files changed (uncommitted):
 
-- `prisma/schema.prisma` — added InvoiceTracking model + Invoice/Tenant relations
-- `prisma/migrations/000000000004_storefront_awb_tracking/migration.sql` — CREATE TABLE, indexes, FKs
-- `src/lib/shipping/tracking.ts` — normalization types + normalizeTrackingEvent/Response
-- `src/lib/shipping/tracking.test.ts` — 12 normalization tests
-- `src/lib/shipping/providers/rajaongkir.ts` — added trackWaybillDetailed()
-- `src/lib/shipping/providers/rajaongkir.test.ts` — 4 new trackWaybillDetailed tests
-- `src/app/(dashboard)/penjualan/actions.ts` — saveInvoiceAwb, refreshInvoiceTracking, getInvoiceTracking; InvoiceRow extended
-- `src/app/(dashboard)/penjualan/_components/ResiDialog.tsx` — AWB input with tracking refresh + display
-- `src/app/(dashboard)/penjualan/_components/InvoiceTable.test.ts` — fixture updated
-- `src/app/(dashboard)/penjualan/awb-tracking.test.ts` — 19 real unit tests
+- `src/app/tenant/[subdomain]/_components/TenantPortalClient.tsx` — COURIER state, checkout wiring, SHIPPING_RATE_CHANGED handling
+- `src/app/tenant/[subdomain]/_components/CourierShippingSearch.tsx` — destination search + rate selection component
+- `src/app/tenant/[subdomain]/_components/CourierShippingSearch.test.ts` — 24 tests
+- `src/app/tenant/[subdomain]/_components/themes/ThemeProps.ts` — COURIER shipping props + taxRate
+- `src/app/tenant/[subdomain]/_components/themes/UniversalTheme.tsx` — renders CourierShippingSearch, fixes totals display
+- `src/app/tenant/[subdomain]/_components/engine/catalog/CoffeeCards.tsx` — fake demo content removed
+- `src/app/tenant/[subdomain]/_components/themes/AdvancedImage.tsx` — Unsplash fallback removed
+- `src/app/tenant/[subdomain]/_components/engine/hero/HeroCenter.tsx` — Unsplash fallback removed
+- `src/app/tenant/[subdomain]/_components/engine/hero/HeroSplit.tsx` — Unsplash fallback removed
+- `src/app/tenant/[subdomain]/_components/engine/content/JournalGrid.tsx` — Unsplash fallback removed
+- `src/app/tenant/[subdomain]/_components/themes/TenantPortalLayout.tsx` — Roastd.id branding removed
+- `src/app/tenant/[subdomain]/error.tsx` — "Kembali ke beranda"
+- `src/app/tenant/[subdomain]/order/[token]/page.tsx` — tracking timeline + InvoiceTracking query
+- `src/features/portal-theme/components/PortalThemeRenderer.tsx` — SectionErrorBoundary fixed
+- `src/features/portal-theme/components/sections/BentoShowcaseSection.tsx` — Unsplash + English removed
+- `src/features/portal-theme/components/sections/CatalogGridSection.tsx` — English → Bahasa
+- `src/features/portal-theme/components/sections/FeaturedCollectionSection.tsx` — English → Bahasa, empty state
+- `src/features/portal-theme/components/sections/FooterNavSection.tsx` — Roastd.id → Nama Toko
+- `src/features/portal-theme/components/sections/HeaderNavSection.tsx` — Roastd.id → Nama Toko
+- `src/features/portal-theme/components/sections/InteractiveFlavorSection.tsx` — Unsplash + English removed
+- `src/features/portal-theme/components/sections/ProductHighlightSection.tsx` — English → Bahasa
+- `src/features/portal-theme/components/sections/StickyNarrativeSection.tsx` — Unsplash + English removed
+- `src/app/tenant/[subdomain]/_store/cartStore.test.ts` — 11 tests
 
 ## Validation Summary
 
@@ -35,34 +48,20 @@ Files changed (uncommitted):
 | `prisma generate` | PASS |
 | `typecheck` | PASS |
 | `eslint --quiet` | PASS |
-| Focused AWB/tracking tests | 19/19 PASS |
-| Full unit suite | 880 pass / 0 fail / 315 skipped |
+| Focused storefront tests | 35/35 PASS (cartStore 11, CourierShippingSearch 24) |
+| Full unit suite | 915 pass / 0 fail / 315 skipped |
 | `next build --webpack` | PASS |
 | `git diff --check` | PASS |
-| Migration 004 local | PASS (5/5, status clean, diff empty) |
-
-## Closure Blockers — RESOLVED
-
-### 1. Fake Tests — RESOLVED
-
-All 19 `expect(true).toBe(true)` placeholders replaced with real unit tests that exercise the actual server-action functions against mocked Prisma.
-
-### 2. AWB Atomicity — RESOLVED
-
-`saveInvoiceAwb` wraps InvoiceTracking upsert + Invoice.trackingNumber update in `$transaction`. Both succeed or both roll back. Audit fires after commit.
-
-### 3. ResiDialog Error Flow — RESOLVED
-
-`saveInvoiceAwb` result is checked. Error → toast + early return. `updateInvoiceShipping` never called on AWB failure.
+| No schema migration | CONFIRMED |
 
 ## Next Session Sequence
 
 | Session | Task |
 |---|---|
-| #1 | ~~Review Batch 4 final WIP, commit, push~~ — THIS SESSION |
-| #2 | Authorize Batch 5 (Storefront UX) |
+| #1 | ~~Review Batch 5 final WIP, commit, push~~ — THIS SESSION |
+| #2 | Authorize Batch 6 (Theme / Customizer) |
 
 ## DO NOT
 
-- Start Batch 5 until explicitly authorized
+- Start Batch 6 until explicitly authorized
 - Touch `information_architecture_audit.md` (untracked, untouched)

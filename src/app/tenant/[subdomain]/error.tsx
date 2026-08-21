@@ -14,7 +14,7 @@ export default function StorefrontError({
       error={error}
       unstable_retry={unstable_retry}
       homeHref="/"
-      homeLabel="Kembali ke roastd.id"
+      homeLabel="Kembali ke beranda"
     />
   );
 }

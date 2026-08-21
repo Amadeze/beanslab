@@ -2,6 +2,7 @@
 
 import React from "react";
 import { RepSection, RepHeading, RepText, RepCard } from "../components/PrimitiveRenderer";
+import { Coffee } from "lucide-react";
 
 // =============================================================================
 // JOURNAL GRID
@@ -16,15 +17,15 @@ interface Article {
 }
 
 const defaultArticles: Article[] = [
-  { id: "1", title: "The Science of Extraction", excerpt: "Understanding the delicate balance of time, temperature, and yield.", date: "Oct 12, 2026", imageUrl: "https://images.unsplash.com/photo-1495474472202-d9ee64b8bb53?auto=format&fit=crop&q=80&w=600" },
-  { id: "2", title: "Journey to Costa Rica", excerpt: "Our sourcing trip to the Tarrazú region and the farmers we met.", date: "Sep 28, 2026", imageUrl: "https://images.unsplash.com/photo-1524350876685-274059332607?auto=format&fit=crop&q=80&w=600" },
-  { id: "3", title: "Mastering the Pour Over", excerpt: "A step-by-step guide to brewing the perfect V60 at home.", date: "Sep 15, 2026", imageUrl: "https://images.unsplash.com/photo-1544243542-9907c030dff7?auto=format&fit=crop&q=80&w=600" },
+  { id: "1", title: "Sains Ekstraksi", excerpt: "Memahami keseimbangan halus antara waktu, suhu, dan yield.", date: "12 Okt 2026", imageUrl: "" },
+  { id: "2", title: "Perjalanan ke Kosta Rika", excerpt: "Perjalanan pengambilan sumber kami ke wilayah Tarrazú dan para petani yang kami temui.", date: "28 Sep 2026", imageUrl: "" },
+  { id: "3", title: "Menguasai Pour Over", excerpt: "Panduan langkah demi langkah menyeduh V60 yang sempurna di rumah.", date: "15 Sep 2026", imageUrl: "" },
 ];
 
-export function JournalGrid({ 
-  headline = "Journal", 
-  subheadline = "Thoughts, stories, and brewing guides from our team.", 
-  articles = defaultArticles 
+export function JournalGrid({
+  headline = "Jurnal",
+  subheadline = "Pikiran, cerita, dan panduan menyeduh dari tim kami.",
+  articles = defaultArticles
 }) {
   return (
     <div className="w-full bg-[var(--rep-bg)] py-20">
@@ -35,19 +36,25 @@ export function JournalGrid({
             <RepText size="lg" muted>{subheadline}</RepText>
           </div>
           <a href="#" className="text-[var(--rep-primary)] font-bold text-[length:var(--rep-fs-sm)] tracking-widest uppercase hover:underline">
-            View All →
+            Lihat Semua →
           </a>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {articles.map((article) => (
             <RepCard key={article.id} padding="none" className="group cursor-pointer border-transparent bg-transparent shadow-none hover:shadow-none hover:-translate-y-1 transition-transform">
-              <div className="aspect-[4/3] rounded-[var(--rep-radius)] overflow-hidden mb-6 relative">
-                <img 
-                  src={article.imageUrl} 
-                  alt={article.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
+              <div className="aspect-[4/3] rounded-[var(--rep-radius)] overflow-hidden mb-6 relative bg-[var(--rep-surface,#1a1a2e)]">
+                {article.imageUrl ? (
+                  <img
+                    src={article.imageUrl}
+                    alt={article.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Coffee size={40} className="text-[var(--rep-text-muted,rgba(255,255,255,0.2))]" />
+                  </div>
+                )}
               </div>
               <div className="px-2">
                 <RepText size="xs" muted className="mb-2 font-semibold uppercase tracking-wider">{article.date}</RepText>

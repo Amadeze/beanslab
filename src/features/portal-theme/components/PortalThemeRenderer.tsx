@@ -230,12 +230,31 @@ function getWidthClass(width: string | undefined): string {
 
 // ── Error Boundary ──────────────────────────────────────────────────────────
 
-function SectionErrorBoundary({ children, sectionType }: { children: React.ReactNode; sectionType: string }) {
-  return (
-    <div>
-      {children}
-    </div>
-  );
+import { Component, type ReactNode } from "react";
+
+class SectionErrorBoundary extends Component<
+  { children: ReactNode; sectionType: string },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode; sectionType: string }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="py-8 text-center text-sm text-gray-400">
+          Bagian &quot;{this.props.sectionType}&quot; gagal dimuat.
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // ── Unknown Section Fallback ────────────────────────────────────────────────
@@ -243,7 +262,7 @@ function SectionErrorBoundary({ children, sectionType }: { children: React.React
 function UnknownSectionFallback({ type }: { type: string }) {
   return (
     <div className="py-8 text-center text-sm text-gray-400">
-      Unknown section type: {type}
+      Jenis bagian tidak dikenali: {type}
     </div>
   );
 }

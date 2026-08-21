@@ -15,12 +15,23 @@ type Destination = {
 const fulfillmentLabels: Record<string, string> = {
   AWAITING_PAYMENT: "Menunggu pembayaran",
   PAID: "Pembayaran diterima",
-  NEEDS_PRODUCTION: "Sedang disiapkan / diproduksi",
+  NEEDS_PRODUCTION: "Sedang disiapkan",
   READY_TO_PACK: "Siap dikemas",
   PACKED: "Sudah dikemas",
   SHIPPED: "Dalam pengiriman",
   DELIVERED: "Pesanan selesai",
   CANCELLED: "Pesanan dibatalkan",
+};
+
+const fulfillmentColors: Record<string, string> = {
+  AWAITING_PAYMENT: "bg-amber-100 text-amber-800",
+  PAID: "bg-blue-100 text-blue-800",
+  NEEDS_PRODUCTION: "bg-blue-100 text-blue-800",
+  READY_TO_PACK: "bg-indigo-100 text-indigo-800",
+  PACKED: "bg-purple-100 text-purple-800",
+  SHIPPED: "bg-sky-100 text-sky-800",
+  DELIVERED: "bg-emerald-100 text-emerald-800",
+  CANCELLED: "bg-red-100 text-red-800",
 };
 
 export default async function PublicOrderPage({ params }: { params: Promise<{ subdomain: string; token: string }> }) {
@@ -43,6 +54,12 @@ export default async function PublicOrderPage({ params }: { params: Promise<{ su
           grindSize: true, customGrindLabel: true,
           offeringName: true, packageName: true, netWeightGrams: true, roastLevel: true,
           product: { select: { name: true } },
+        },
+      },
+      tracking: {
+        select: {
+          awb: true, courierCode: true, providerStatus: true,
+          providerDelivered: true, events: true, lastRefreshedAt: true,
         },
       },
       fulfillmentTasks: { where: { status: { in: ["OPEN", "IN_PROGRESS"] } }, select: { shortageQuantity: true } },
@@ -91,7 +108,57 @@ export default async function PublicOrderPage({ params }: { params: Promise<{ su
           <section className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl border border-stone-200 bg-stone-50 p-4"><p className="text-xs font-bold uppercase tracking-wider text-stone-500">Total</p><p className="mt-1 text-xl font-black">Rp {Number(invoice.grandTotal).toLocaleString("id-ID")}</p></div>
             <div className="rounded-xl border border-stone-200 bg-stone-50 p-4"><p className="text-xs font-bold uppercase tracking-wider text-stone-500">Pembayaran</p><p className="mt-1 text-sm font-black">{invoice.status === "PAID" ? "Lunas" : amountDue > 0 ? `Sisa Rp ${amountDue.toLocaleString("id-ID")}` : invoice.status}</p></div>
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4"><p className="text-xs font-bold uppercase tracking-wider text-stone-500">Pengiriman</p><p className="mt-1 text-sm font-black">{invoice.shippingMethod === "PICKUP" ? "Ambil di roastery" : invoice.trackingNumber ? `${invoice.courierName || "Kurir"} · ${invoice.trackingNumber}` : "Belum dikirim"}</p></div>
+            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-stone-500">Pengiriman</p>
+              <p className="mt-1 text-sm font-black">{invoice.shippingMethod === "PICKUP" ? "Ambil di roastery" : invoice.trackingNumber ? `${invoice.courierName || "Kurir"} · ${invoice.trackingNumber}` : "Belum dikirim"}</p>
+            </div>
+          </section>
+
+          {/* Fulfillment + Tracking Status */}
+          <section className="rounded-xl border border-stone-200 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-xs font-black uppercase tracking-wider text-stone-600">Status Pesanan</h2>
+              <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${fulfillmentColors[invoice.fulfillmentStatus] || "bg-stone-100 text-stone-800"}`}>
+                {fulfillmentLabels[invoice.fulfillmentStatus] || invoice.fulfillmentStatus}
+              </span>
+            </div>
+            {invoice.tracking ? (
+              <div className="mt-3 rounded-lg bg-stone-50 p-3 text-sm">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="font-bold text-stone-700">{invoice.tracking.courierCode?.toUpperCase()}</span>
+                  <span className="text-stone-500">·</span>
+                  <span className="font-mono text-stone-600">{invoice.tracking.awb}</span>
+                </div>
+                {invoice.tracking.providerStatus && (
+                  <p className="mt-1.5 text-xs text-stone-500">
+                    Status kurir: <span className="font-semibold text-stone-700">{invoice.tracking.providerStatus}</span>
+                  </p>
+                )}
+                {invoice.tracking.lastRefreshedAt && (
+                  <p className="mt-0.5 text-[11px] text-stone-400">
+                    Diperbarui: {new Date(invoice.tracking.lastRefreshedAt).toLocaleString("id-ID")}
+                  </p>
+                )}
+                {Array.isArray(invoice.tracking.events) && invoice.tracking.events.length > 0 && (
+                  <div className="mt-3 space-y-2 border-t border-stone-200 pt-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Riwayat Tracking</p>
+                    {(invoice.tracking.events as any[]).slice(0, 5).map((event, idx) => (
+                      <div key={idx} className="flex gap-3 text-xs">
+                        <span className="text-stone-400 whitespace-nowrap">{event.timestamp || "-"}</span>
+                        <span className="text-stone-600">{event.description}</span>
+                        {event.location && <span className="text-stone-400">· {event.location}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : invoice.trackingNumber ? (
+              <p className="mt-2 text-xs text-stone-500">
+                Resi: {invoice.trackingNumber} — tracking belum diperbarui.
+              </p>
+            ) : invoice.shippingMethod !== "PICKUP" ? (
+              <p className="mt-2 text-xs text-stone-500">Belum ada informasi pengiriman.</p>
+            ) : null}
           </section>
 
           <section>

@@ -11,9 +11,9 @@ interface FooterNavProps {
 
 export function FooterNavSection({ settings, isPreview = false }: FooterNavProps) {
   const styleMode = (settings.styleMode as string) || "editorial_grid";
-  const logoText = (settings.logoText as string) || "ROASTD.ID";
-  const bioText = (settings.bioText as string) || "Empowering specialty coffee roasters and B2B cafe partners with precision telemetry, micro-batch profiling, and direct-trade sourcing.";
-  const copyrightText = (settings.copyrightText as string) || "© 2026 ROASTD.ID • Roastery Operating System. All rights reserved.";
+  const logoText = (settings.logoText as string) || "Nama Toko";
+  const bioText = (settings.bioText as string) || "Menyediakan solusi kopi spesialitas untuk mitra kafe dan bisnis Anda dengan presisi, konsistensi, dan keberlanjutan.";
+  const copyrightText = (settings.copyrightText as string) || "© 2026 Nama Toko. Hak cipta dilindungi.";
   
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
@@ -27,10 +27,10 @@ export function FooterNavSection({ settings, isPreview = false }: FooterNavProps
   };
 
   const navLinks = [
-    { label: "Whole Bean Catalog", href: "#catalog" },
-    { label: "Sensory Flavor Explorer", href: "#matrix" },
-    { label: "Roasting Process & Narrative", href: "#narrative" },
-    { label: "Wholesale Tiers & FAQ", href: "#faq" },
+    { label: "Katalog Biji Utuh", href: "#catalog" },
+    { label: "Eksplorasi Rasa", href: "#matrix" },
+    { label: "Proses Sangrai & Cerita", href: "#narrative" },
+    { label: "Harga Grosir & FAQ", href: "#faq" },
   ];
 
   // ── 1. EDITORIAL GRID (4-Column Luxury Grid) ─────────────────────────────────

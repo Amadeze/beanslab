@@ -20,7 +20,7 @@ Branch: `wip/non-kopi-commit3`
 | Batch 2 | RajaOngkir foundation | ✅ CLOSED + PUSHED |
 | Batch 3 | Customer shipping | ✅ CLOSED + PUSHED |
 | Batch 4 | AWB / Tracking | ✅ CLOSED + PUSHED |
-| Batch 5 | Storefront UX | ⏳ NOT STARTED |
+| Batch 5 | Storefront UX | ✅ CLOSED + PUSHED |
 | Batch 6 | Theme / Customizer | ⏳ NOT STARTED |
 | Batch 7 | SEO / Perf / A11y | ⏳ NOT STARTED |
 | Batch 8 | B2B | ⏳ NOT STARTED |
@@ -70,6 +70,28 @@ Branch: `wip/non-kopi-commit3`
 
 - Customer-side full tracking timeline → Batch 5 Storefront UX
 - Carrier external tracking URL → future if useful
+
+## Batch 5 — Delivered Scope
+
+- Fake/demo storefront content removed (CoffeeCards, hardcoded products/USD/Unsplash)
+- Storefront language → Bahasa Indonesia; empty/error states improved
+- Product/cart UX improved (accurate subtotal + tax + shipping + grand total)
+- COURIER destination search wired to Batch 3 `/shipping/destinations` + `/shipping/quote`
+- Authoritative shipping quote/service selection with destinationToken + shippingQuoteToken
+- Tokens sent to checkout payload for COURIER orders
+- SHIPPING_RATE_CHANGED recoverable UX (stale quote cleared, re-select destination/rate)
+- Customer AWB/tracking timeline (order status page, InvoiceTracking relation)
+- Mobile storefront improvements (cart drawer full-width on small screens)
+- No schema migration (uses existing Batch 3-4 schema)
+- SectionErrorBoundary fixed (proper React class error boundary)
+- cartStore tests (11) + CourierShippingSearch tests (24) = 35 tests PASS
+- typecheck PASS, eslint PASS, webpack build PASS
+
+### Exclusions (Batch 5 scope boundary)
+
+- Theme / Customizer → Batch 6
+- SEO / Perf / A11y → Batch 7
+- B2B → Batch 8
 
 ## Migration State
 
@@ -121,6 +143,20 @@ Do NOT imply migrations 003-004 exist in production yet.
 | `next build --webpack` | PASS |
 | `git diff --check` | PASS |
 | Migration 004 local acceptance | PASS (5/5, status clean, diff empty) |
+
+## Validation Evidence (Batch 5)
+
+| Gate | Result |
+|---|---|
+| `prisma validate` | PASS |
+| `prisma generate` | PASS |
+| `typecheck` | PASS |
+| `eslint --quiet` | PASS |
+| Focused storefront tests | 35/35 PASS (cartStore 11, CourierShippingSearch 24) |
+| Full unit suite | 915 passed, 0 failed, 315 skipped |
+| `next build --webpack` | PASS |
+| `git diff --check` | PASS |
+| No schema migration | CONFIRMED |
 
 ## Closure Blockers (Batch 3) — RESOLVED
 

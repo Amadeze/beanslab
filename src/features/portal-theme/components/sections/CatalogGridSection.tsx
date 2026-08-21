@@ -34,7 +34,7 @@ const GRID_COLS: Record<number, string> = {
 };
 
 export function CatalogGridSection({ settings, typography, products = [], offerings = [], onAddToCart, onAddOfferingToCart, isPreview }: CatalogGridProps) {
-  const title = (settings.title as string) || "The Collection";
+  const title = (settings.title as string) || "Koleksi Kami";
   const subtitle = (settings.subtitle as string) || "";
   const columns = (settings.columns as number) || 3;
   const showPrices = settings.showPrices !== false;
@@ -57,7 +57,7 @@ export function CatalogGridSection({ settings, typography, products = [], offeri
           <div className="flex items-center justify-center gap-4 mb-6">
             <div className="w-12 h-[1px] bg-[var(--portal-accent, #D4A574)]" />
             <span className="text-[11px] font-medium uppercase tracking-[0.2em]" style={{ color: "var(--portal-text-muted, #6B7280)" }}>
-              Our Products
+              Produk Kami
             </span>
             <div className="w-12 h-[1px] bg-[var(--portal-accent, #D4A574)]" />
           </div>
@@ -188,7 +188,7 @@ export function CatalogGridSection({ settings, typography, products = [], offeri
                     {showPrices && (
                       <div>
                         <span className="text-xs block uppercase font-medium" style={{ color: "var(--portal-text-muted, #6B7280)" }}>
-                          Price / kg
+                          Harga / kg
                         </span>
                         <span className="text-base font-bold" style={{ color: "var(--portal-primary, #D4A574)" }}>
                           Rp {Number(product.price || 0).toLocaleString("id-ID")}
@@ -210,7 +210,7 @@ export function CatalogGridSection({ settings, typography, products = [], offeri
                       }}
                     >
                       <Plus size={14} strokeWidth={2.5} />
-                      <span>Order</span>
+                      <span>Pesan</span>
                     </button>
                   </div>
                 </div>
@@ -257,7 +257,7 @@ export function CatalogGridSection({ settings, typography, products = [], offeri
 
         {isPreview && !displayProducts && (
           <p className="mt-8 text-center text-xs" style={{ color: "var(--portal-text-muted, #6B7280)" }}>
-            Products will be rendered dynamically from your inventory catalog
+            Produk akan ditampilkan secara dinamis dari katalog inventaris Anda
           </p>
         )}
       </div>

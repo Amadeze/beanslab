@@ -2,6 +2,7 @@
 
 import React, { MouseEvent } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { Coffee } from "lucide-react";
 import { TCard, TInput, TText, THeading } from "./ThemedPrimitives";
 
 // ============================================================================
@@ -28,7 +29,7 @@ export interface ImageConfig {
 }
 
 export const DEFAULT_IMAGE_CONFIG: ImageConfig = {
-  url: "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&q=80&w=1000",
+  url: "",
   filters: {
     brightness: 100,
     contrast: 100,
@@ -124,12 +125,18 @@ export function PremiumImageRenderer({ config, className = "" }: { config: Image
         animate={config.animation === "floating" ? "animate" : undefined}
         className="w-full h-full relative overflow-hidden shadow-2xl transition-shadow duration-300 hover:shadow-3xl bg-[var(--t-surface)] flex items-center justify-center"
       >
-        <img
-          src={config.url}
-          alt="Product display"
-          className="absolute inset-0 w-full h-full object-cover transition-all duration-300"
-          style={{ filter: filterString }}
-        />
+        {config.url ? (
+          <img
+            src={config.url}
+            alt="Product display"
+            className="absolute inset-0 w-full h-full object-cover transition-all duration-300"
+            style={{ filter: filterString }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Coffee size={64} className="text-[var(--t-text-muted)] opacity-20" />
+          </div>
+        )}
         
         {/* Color Overlay */}
         {config.overlay.active && (

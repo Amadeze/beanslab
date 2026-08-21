@@ -13,9 +13,9 @@ interface HeaderNavProps {
 
 export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPreview = false }: HeaderNavProps) {
   const styleMode = (settings.styleMode as string) || "glass_pill";
-  const logoText = (settings.logoText as string) || "ROASTD.ID";
-  const tickerText = (settings.tickerText as string) || "🚀 FREE NATIONWIDE SHIPPING ON ORDERS OVER 5KG • WEEKLY ROASTING SCHEDULE: TUE & THU";
-  const ctaText = (settings.ctaText as string) || "Wholesale Cart";
+  const logoText = (settings.logoText as string) || "Nama Toko";
+  const tickerText = (settings.tickerText as string) || "🚀 GRATIS PENGIRIMAN NASIONAL UNTUK ORDER DI ATAS 5KG • JADWAL SANGRAI: SELASA & KAMIS";
+  const ctaText = (settings.ctaText as string) || "Keranjang Grosir";
   
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -28,9 +28,9 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
   }, [isPreview]);
 
   const defaultNavLinks = Array.isArray(settings.navLinks) ? settings.navLinks : [
-    { label: "Collection", href: "#catalog" },
-    { label: "Sensory Matrix", href: "#matrix" },
-    { label: "Narrative", href: "#narrative" },
+    { label: "Koleksi", href: "#catalog" },
+    { label: "Matriks Rasa", href: "#matrix" },
+    { label: "Cerita", href: "#narrative" },
     { label: "FAQ", href: "#faq" },
   ];
 
@@ -158,10 +158,10 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
                     className="w-full py-3.5 rounded-2xl bg-[var(--portal-accent,#D4A574)] text-black font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl"
                   >
                     <ShoppingBag size={18} />
-                    <span>View Cart ({cartItemCount})</span>
+                    <span>Lihat Keranjang ({cartItemCount})</span>
                   </button>
                   <p className="text-xs text-white/40 text-center uppercase tracking-widest">
-                    B2B Wholesale Portal
+                    Portal Grosir B2B
                   </p>
                 </div>
               </motion.div>
@@ -249,7 +249,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
                 className="w-full py-4 bg-[var(--portal-accent,#D4A574)] text-black font-black text-base uppercase tracking-widest border-2 border-black shadow-lg flex items-center justify-center gap-2"
               >
                 <ShoppingBag size={20} />
-                <span>OPEN WHOLESALE CART ({cartItemCount})</span>
+                <span>BUKA KERANJANG GROSIR ({cartItemCount})</span>
               </button>
             </div>
           )}
@@ -305,7 +305,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
               className="flex items-center gap-2 px-4 py-2 rounded-none border border-[var(--portal-accent,#D4A574)]/50 bg-[var(--portal-accent,#D4A574)]/10 hover:bg-[var(--portal-accent,#D4A574)] hover:text-black transition-all text-xs uppercase tracking-widest font-semibold text-[var(--portal-accent,#D4A574)]"
             >
               <ShoppingBag size={14} />
-              <span className="hidden sm:inline">Bag ({cartItemCount})</span>
+              <span className="hidden sm:inline">Keranjang ({cartItemCount})</span>
               <span className="sm:hidden">({cartItemCount})</span>
             </button>
 
@@ -348,7 +348,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
                 className="w-full py-4 bg-[var(--portal-accent,#D4A574)] text-black font-bold uppercase tracking-[0.2em] text-sm shadow-xl flex items-center justify-center gap-3"
               >
                 <ShoppingBag size={18} />
-                <span>View Bag ({cartItemCount})</span>
+                <span>Lihat Keranjang ({cartItemCount})</span>
               </button>
             </div>
           )}
@@ -442,7 +442,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
                 className="w-full py-3.5 rounded bg-[#00FF66] text-black font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,102,0.6)]"
               >
                 <ShoppingBag size={18} />
-                <span>OPEN TELEMETRY CART [{cartItemCount}]</span>
+                <span>BUKA KERANJANG [{cartItemCount}]</span>
               </button>
             </div>
           )}
@@ -519,7 +519,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
               className="w-full py-4 rounded-full bg-[#2C302E] text-[#F5F3EF] font-bold text-sm uppercase tracking-wider shadow-lg flex items-center justify-center gap-2"
             >
               <ShoppingBag size={18} />
-              <span>View Cart ({cartItemCount})</span>
+              <span>Lihat Keranjang ({cartItemCount})</span>
             </button>
           </div>
         )}

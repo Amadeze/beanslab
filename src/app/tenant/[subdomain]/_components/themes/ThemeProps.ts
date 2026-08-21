@@ -2,6 +2,7 @@ import { Tenant, Product } from "@prisma/client";
 import { CustomerTier } from "./pricing";
 import type { CartItem } from "../../_store/cartStore";
 import type { StorefrontGrindSize, StorefrontOffering } from "@/lib/storefront-grind";
+import type { CourierShippingState } from "../CourierShippingSearch";
 
 export type ExtendedTenant = Tenant & {
   portalThemeConfig?: any;
@@ -66,4 +67,12 @@ export interface ThemeProps {
   isDark: boolean;
   /** Customer wholesale tier for tiered pricing display */
   customerTier?: CustomerTier;
+  /** COURIER shipping state */
+  courierShipping?: CourierShippingState;
+  setCourierShipping?: (state: CourierShippingState) => void;
+  courierShippingCartItems?: Array<{ productId?: string | null; offeringId?: string | null; variantId?: string | null; quantity: number }>;
+  courierRateChangedError?: string | null;
+  onClearRateChanged?: () => void;
+  /** Tax rate from tenant storefront config */
+  taxRate?: number;
 }

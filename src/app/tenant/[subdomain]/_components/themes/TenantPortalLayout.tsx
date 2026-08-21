@@ -70,7 +70,7 @@ export function TenantPortalLayout(props: TenantPortalLayoutProps) {
 
 const title = catalogTitle || "Daftar Produk";
   const subtitle = catalogSubtitle || "Katalog Grosir B2B";
-  const footer = footerText || tenant?.footerText || "Didukung oleh roastd.id — Roastery Operating System.";
+  const footer = footerText || tenant?.footerText || "Didukung oleh Roastery Operating System.";
   // Tenant media can replace the dependable code-native coffee visual.
   const bgImage = tenant?.backgroundImageUrl || "";
   const products = props.products || [];

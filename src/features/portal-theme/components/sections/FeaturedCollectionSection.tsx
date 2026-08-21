@@ -19,7 +19,7 @@ const GRID_COLS: Record<number, string> = {
 };
 
 export function FeaturedCollectionSection({ settings, typography, products = [], onAddToCart, isPreview }: FeaturedCollectionProps) {
-  const title = (settings.title as string) || "Featured Products";
+  const title = (settings.title as string) || "Produk Unggulan";
   const subtitle = (settings.subtitle as string) || "";
   const columns = (settings.columns as number) || 4;
 
@@ -102,7 +102,7 @@ export function FeaturedCollectionSection({ settings, typography, products = [],
                     }}
                   >
                     <Plus size={14} strokeWidth={2.5} />
-                    <span>Order Now</span>
+                    <span>Pesan Sekarang</span>
                   </button>
                 </div>
               </motion.div>
@@ -115,7 +115,7 @@ export function FeaturedCollectionSection({ settings, typography, products = [],
             {Array.from({ length: Math.min(columns, 4) }).map((_, i) => (
               <div key={i} className="rounded-2xl border p-4 aspect-square flex flex-col items-center justify-center text-center gap-2" style={{ borderColor: "var(--portal-border-subtle, #F0F0F0)" }}>
                 <Coffee size={32} className="opacity-20" style={{ color: "var(--portal-accent, #D4A574)" }} />
-                <span className="text-xs opacity-50" style={{ color: "var(--portal-text-muted)" }}>Featured Product #{i+1}</span>
+                <span className="text-xs opacity-50" style={{ color: "var(--portal-text-muted)" }}>Produk belum tersedia</span>
               </div>
             ))}
           </div>

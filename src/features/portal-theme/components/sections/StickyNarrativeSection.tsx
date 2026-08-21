@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, CheckCircle2, ShieldCheck, Flame, Cpu, Globe, ArrowRight } from "lucide-react";
+import { Sparkles, CheckCircle2, ShieldCheck, Flame, Cpu, Globe, ArrowRight, Coffee } from "lucide-react";
 
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
   CheckCircle2, ShieldCheck, Flame, Cpu, Globe, Sparkles
@@ -19,50 +19,50 @@ const DEFAULT_STEPS = [
   {
     id: "step-1",
     stepNumber: "01",
-    title: "Direct Origin Sourcing & Elevation Selection",
-    subtitle: "High-Altitude Micro-Lots",
-    content: "We partner directly with high-altitude farming collectives above 1,500m across Ethiopia, Sumatra, and Colombia. Every lot is selectively hand-picked at peak Brix sugar content to ensure immaculate natural sweetness and acidity balance.",
-    image: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80",
+    title: "Pemilihan Sumber Asal Langsung & Ketinggian",
+    subtitle: "Micro-Lot Ketinggian Tinggi",
+    content: "Kami bermitra langsung dengan kolektiv petani di atas 1.500m di Ethiopia, Sumatra, dan Kolombia. Setiap lot dipilih secara selektif saat puncak kandungan gula Brix untuk memastikan manisami alami dan keseimbangan keasaman yang sempurna.",
+    image: "",
     icon: "Globe",
-    tag: "100% Traceable"
+    tag: "100% Telusur"
   },
   {
     id: "step-2",
     stepNumber: "02",
-    title: "Anaerobic & Thermal Shock Processing",
-    subtitle: "Precision Fermentation",
-    content: "Our experimental processing facility utilizes temperature-controlled stainless steel bioreactors. By manipulating yeast strains and fermentation curves, we unlock exotic fruit esters and silky mouthfeel without over-fermented funk.",
-    image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&w=800&q=80",
+    title: "Proses Anaerobic & Thermal Shock",
+    subtitle: "Fermentasi Presisi",
+    content: "Fasilitas pemrosesan eksperimental kami menggunakan bioreaktor stainless steel yang dikontrol suhu. Dengan memanipulasi galur ragi dan kurva fermentasi, kami membuka ester buah eksotik dan mulut yang lembut tanpa fermentasi berlebih.",
+    image: "",
     icon: "Cpu",
-    tag: "SCA Awarded"
+    tag: "Pemenang SCA"
   },
   {
     id: "step-3",
     stepNumber: "03",
-    title: "Closed-Loop Loring Roasting & Calibration",
-    subtitle: "Zero Smoke • 100% Consistency",
-    content: "Roasted on state-of-the-art Loring S15 and Probat UG22 roasters with Cropster AI profiling. Our closed-loop convection heating guarantees identical heat transfer across every 50kg batch, eliminating scorching and tipping.",
-    image: "https://images.unsplash.com/photo-1587734195503-904fca47e0e9?auto=format&fit=crop&w=800&q=80",
+    title: "Sangrai Loring Tertutup & Kalibrasi",
+    subtitle: "Zero Smoke • 100% Konsistensi",
+    content: "Disangrai menggunakan Loring S15 dan Probat UG22 terkini dengan profil AI Cropster. Pemanasan konveksi tertutup kami menjamin transfer panas yang identik di setiap batch 50kg, menghilangkan scorching dan tipping.",
+    image: "",
     icon: "Flame",
-    tag: "Batch Verified"
+    tag: "Terverifikasi Per Batch"
   },
   {
     id: "step-4",
     stepNumber: "04",
-    title: "Nitrogen-Flushed Wholesale Dispatch",
-    subtitle: "Locked-in Freshness for 90 Days",
-    content: "Within 24 hours of resting, beans are sealed in one-way valve degassing bags flushed with food-grade liquid nitrogen. This halts oxidation, allowing wholesale partners overseas to serve coffee at peak freshness up to 3 months post-roast.",
-    image: "https://images.unsplash.com/photo-1610632380989-680fe40816c6?auto=format&fit=crop&w=800&q=80",
+    title: "Pengiriman Grosir Flush Nitrogen",
+    subtitle: "Kesegaran Terkunci hingga 90 Hari",
+    content: "Dalam 24 jam setelah istirahat, biji disegel dalam kantong degassing satu arah yang diisi nitrogen cair food-grade. Ini menghentikan oksidasi, memungkinkan mitra grosir di luar negeri menyajikan kopi pada kesegaran puncak hingga 3 bulan pasca sangrai.",
+    image: "",
     icon: "ShieldCheck",
-    tag: "Global Shipping"
+    tag: "Pengiriman Global"
   }
 ];
 
 export function StickyNarrativeSection({ settings, blocks }: StickyNarrativeProps) {
-  const title = (settings.title as string) || "The Craft & Alchemy Narrative";
-  const subtitle = (settings.subtitle as string) || "How we transform high-altitude cherry into world-class wholesale espresso profiles.";
+  const title = (settings.title as string) || "Narasi Keterampilan & Alkemi";
+  const subtitle = (settings.subtitle as string) || "Bagaimana kami mengubah ceri ketinggian tinggi menjadi profil espresso grosir kelas dunia.";
   const pinnedTitle = (settings.pinnedTitle as string) || "Roastd.id Studio";
-  const pinnedSubtitle = (settings.pinnedSubtitle as string) || "B2B Quality Protocol";
+  const pinnedSubtitle = (settings.pinnedSubtitle as string) || "Protokol Kualitas B2B";
 
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const visibleBlocks = blocks.filter((b) => b.visible !== false);
@@ -85,7 +85,7 @@ export function StickyNarrativeSection({ settings, blocks }: StickyNarrativeProp
         {/* Section Header */}
         <div className="max-w-3xl mb-16 sm:mb-20">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-[var(--portal-accent,#D4A574)]/15 border border-[var(--portal-accent,#D4A574)]/30 text-[var(--portal-accent,#D4A574)] mb-4">
-            <Sparkles size={14} /> Sticky Split Narrative
+            <Sparkles size={14} /> Narasi Split Persisten
           </div>
           <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight mb-4" style={{ fontFamily: "var(--portal-font-heading)" }}>
             {title}
@@ -97,21 +97,27 @@ export function StickyNarrativeSection({ settings, blocks }: StickyNarrativeProp
 
         {/* Split Screen Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 lg:gap-20 items-start">
-          
+
           {/* Left Column: Sticky Pinned Visual Card */}
           <div className="lg:col-span-5 lg:sticky lg:top-28 z-20">
-            <motion.div 
+            <motion.div
               key={currentStep.id}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, ease }}
               className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/15 bg-slate-900 shadow-2xl aspect-[16/9] sm:aspect-[1/1] lg:aspect-[4/5] flex flex-col justify-end p-5 sm:p-8 group"
             >
-              <img 
-                src={currentStep.image} 
-                alt={currentStep.title} 
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80"
-              />
+              {currentStep.image ? (
+                <img
+                  src={currentStep.image}
+                  alt={currentStep.title}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/5">
+                  <Coffee size={64} className="text-white/20" />
+                </div>
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
 
               {/* Top Pill */}
@@ -149,8 +155,8 @@ export function StickyNarrativeSection({ settings, blocks }: StickyNarrativeProp
                   viewport={{ margin: "-30% 0px -30% 0px" }}
                   onClick={() => setActiveStepIndex(idx)}
                   className={`p-5 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all duration-500 cursor-pointer ${
-                    isActive 
-                      ? "bg-white/10 border-[var(--portal-accent,#D4A574)]/60 shadow-2xl scale-[1.01] sm:scale-[1.02] backdrop-blur-xl" 
+                    isActive
+                      ? "bg-white/10 border-[var(--portal-accent,#D4A574)]/60 shadow-2xl scale-[1.01] sm:scale-[1.02] backdrop-blur-xl"
                       : "bg-white/[0.02] border-white/5 opacity-60 hover:opacity-90 hover:bg-white/5"
                   }`}
                 >
@@ -172,8 +178,8 @@ export function StickyNarrativeSection({ settings, blocks }: StickyNarrativeProp
                     </div>
 
                     <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 border transition-colors ${
-                      isActive 
-                        ? "bg-[var(--portal-accent,#D4A574)] text-black border-[var(--portal-accent,#D4A574)] shadow-lg" 
+                      isActive
+                        ? "bg-[var(--portal-accent,#D4A574)] text-black border-[var(--portal-accent,#D4A574)] shadow-lg"
                         : "bg-white/5 text-white/40 border-white/10"
                     }`}>
                       <IconComp className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -186,7 +192,7 @@ export function StickyNarrativeSection({ settings, blocks }: StickyNarrativeProp
 
                   {isActive && (
                     <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs font-bold text-[var(--portal-accent,#D4A574)] uppercase tracking-wider">
-                      <span>Active Step Displayed on Left</span>
+                      <span>Langkah Aktif Ditampilkan di Kiri</span>
                       <ArrowRight size={14} className="animate-pulse" />
                     </div>
                   )}

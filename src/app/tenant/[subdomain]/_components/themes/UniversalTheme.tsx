@@ -19,6 +19,7 @@ import type { StorefrontOffering } from "@/lib/storefront-grind";
 import { TenantPortalLayout } from "./TenantPortalLayout";
 import { PortalThemeRenderer } from "@/features/portal-theme/components/PortalThemeRenderer";
 import { STOREFRONT_GRIND_LABEL } from "@/lib/storefront-grind";
+import { CourierShippingSearch } from "../CourierShippingSearch";
 
 export function UniversalTheme({
   tenant, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
@@ -26,6 +27,9 @@ export function UniversalTheme({
   catalogTitle, catalogSubtitle, footerText, waLink, emailLink, igLink, iconProps, iconStroke, isDark,
   isCheckingOut, customerTier,
   paymentMethodId, setPaymentMethodId,
+  courierShipping, setCourierShipping, courierShippingCartItems,
+  courierRateChangedError, onClearRateChanged,
+  taxRate = 0,
 }: ThemeProps) {
 
   const products = tenant.products || [];
@@ -37,20 +41,39 @@ export function UniversalTheme({
   };
 
   const [isConfirmingOrder, setIsConfirmingOrder] = useState(false);
-
-  // Resolve the visual skin from tenant's layoutStyle
   const skin = resolveSkin(tenant.layoutStyle);
+
+  const cartSubtotal = cart.getTotalPrice(tenant.subdomain || "");
+  const isCourier = shippingMethod === "COURIER";
+  const isPickup = shippingMethod === "PICKUP";
+
+  let shippingCost = 0;
+  if (!isPickup) {
+    if (isCourier && courierShipping?.shippingCost) {
+      shippingCost = courierShipping.shippingCost;
+    } else if (!isCourier) {
+      const freeShipping = tenant.storefrontFreeShippingMinimum != null
+        && cartSubtotal >= Number(tenant.storefrontFreeShippingMinimum);
+      shippingCost = freeShipping ? 0 : Math.max(0, Math.round(Number(tenant.storefrontFlatShippingRate || 0)));
+    }
+  }
+
+  const tax = Math.max(0, Math.round(cartSubtotal * Math.max(0, taxRate) / 100));
+  const grandTotal = cartSubtotal + tax + shippingCost;
 
   const themeProps = {
     tenant: themeTenant, products, offerings, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
     customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleAddOfferingToCart, handleCheckout, mounted, heroGreeting, aboutText,
     catalogTitle, catalogSubtitle, footerText, waLink, emailLink, igLink, iconProps, iconStroke, isDark, isCheckingOut, customerTier
     , paymentMethodId, setPaymentMethodId
+    , courierShipping, setCourierShipping, courierShippingCartItems
+    , courierRateChangedError, onClearRateChanged
+    , taxRate
   };
 
   return (
     <div className="relative w-full min-h-screen overflow-x-clip">
-      
+
       {/* ═══ THEME MATRIX OR BLOCK RENDERER ═══ */}
       {tenant.portalThemeConfig ? (
         <PortalThemeRenderer
@@ -75,9 +98,9 @@ export function UniversalTheme({
           <div className="relative">
             <Coffee size={22} weight="bold" />
           </div>
-          <span>Cart ({cartItems.reduce((acc: number, item: any) => acc + item.quantity, 0)})</span>
+          <span>Keranjang ({cartItems.reduce((acc: number, item: any) => acc + item.quantity, 0)})</span>
           <span className="bg-gray-950 text-white text-xs px-2 py-0.5 rounded-full">
-            Rp {cart.getTotalPrice(tenant.subdomain || "").toLocaleString("id-ID")}
+            Rp {grandTotal.toLocaleString("id-ID")}
           </span>
         </button>
       )}
@@ -98,12 +121,12 @@ export function UniversalTheme({
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="relative w-full max-w-md h-full flex flex-col overflow-hidden bg-[var(--t-surface)] text-[var(--t-text)] shadow-2xl"
+              className="relative w-full sm:max-w-md h-full flex flex-col overflow-hidden bg-[var(--t-surface)] text-[var(--t-text)] shadow-2xl"
             >
               {/* Cart Header */}
-              <div className="p-5 md:p-6 flex justify-between items-center flex-shrink-0 border-b border-[var(--t-border)]">
-                <h2 className="text-xl font-bold tracking-tight text-[var(--t-text)]">
-                  Your Cart
+              <div className="p-4 md:p-5 flex justify-between items-center flex-shrink-0 border-b border-[var(--t-border)]">
+                <h2 className="text-lg font-bold tracking-tight text-[var(--t-text)]">
+                  Keranjang
                 </h2>
                 <button
                   onClick={() => setIsCartOpen(false)}
@@ -119,7 +142,8 @@ export function UniversalTheme({
                 {cartItems.length === 0 ? (
                   <div className="text-center py-16 text-[var(--t-text-muted)]">
                     <Package size={48} className="mx-auto mb-4 opacity-30" />
-                    <p className="text-sm font-medium">Your cart is empty</p>
+                    <p className="text-sm font-medium">Keranjang kosong</p>
+                    <p className="text-xs mt-1 opacity-60">Tambahkan produk untuk mulai berbelanja.</p>
                   </div>
                 ) : (
                   cartItems.map((item: any) => (
@@ -178,7 +202,7 @@ export function UniversalTheme({
                           onClick={() => cart.removeItem(tenant.subdomain || "", item.id)}
                           className="text-xs mt-1 font-semibold text-red-500 hover:text-red-700"
                         >
-                          Remove
+                          Hapus
                         </button>
                       </div>
                     </motion.div>
@@ -189,33 +213,33 @@ export function UniversalTheme({
                 {cartItems.length > 0 && (
                   <div className="pt-6 space-y-4 border-t border-[var(--t-border)] mt-6">
                     <h3 className="text-sm font-bold text-[var(--t-text)] uppercase tracking-wider mb-2">
-                      Shipping Details
+                      Detail Pengiriman
                     </h3>
-                    <input 
-                      value={customerName} 
-                      onChange={e => setCustomerName(e.target.value)} 
-                      placeholder="Full Name" 
+                    <input
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      placeholder="Nama Lengkap"
                       className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
                     />
-                    <input 
-                      value={customerPhone} 
-                      onChange={e => setCustomerPhone(e.target.value)} 
-                      placeholder="WhatsApp Number" 
+                    <input
+                      value={customerPhone}
+                      onChange={e => setCustomerPhone(e.target.value)}
+                      placeholder="Nomor WhatsApp"
                       type="tel"
                       className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
                     />
                     {shippingMethod !== "PICKUP" ? <textarea
-                      value={customerAddress} 
-                      onChange={e => setCustomerAddress(e.target.value)} 
-                      placeholder="Alamat Lengkap (Jalan, Kec, Kota, Kode Pos)" 
+                      value={customerAddress}
+                      onChange={e => setCustomerAddress(e.target.value)}
+                      placeholder="Alamat Lengkap (Jalan, Kec, Kota, Kode Pos)"
                       rows={3}
                       className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
                     /> : null}
 
                     <div className="mb-4 mt-2">
                       <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Metode Pengiriman</label>
-                      <select 
-                        value={shippingMethod} 
+                      <select
+                        value={shippingMethod}
                         onChange={e => setShippingMethod(e.target.value)}
                         className="w-full border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors bg-[var(--t-bg)] text-[var(--t-text)]"
                       >
@@ -226,8 +250,20 @@ export function UniversalTheme({
                           <option value="COURIER">Ekspedisi luar kota</option>
                         </> : null}
                       </select>
-                      {shippingMethod !== "PICKUP" ? <p className="mt-2 text-xs text-[var(--t-text-muted)]">Ongkir {tenant.storefrontFreeShippingMinimum && cart.getTotalPrice(tenant.subdomain || "") >= Number(tenant.storefrontFreeShippingMinimum) ? "gratis" : `Rp ${Number(tenant.storefrontFlatShippingRate || 0).toLocaleString("id-ID")}`}; total final dihitung aman di server.</p> : null}
+                      {!isCourier && shippingMethod !== "PICKUP" && <p className="mt-2 text-xs text-[var(--t-text-muted)]">Ongkir {tenant.storefrontFreeShippingMinimum && cartSubtotal >= Number(tenant.storefrontFreeShippingMinimum) ? "gratis" : `Rp ${Number(tenant.storefrontFlatShippingRate || 0).toLocaleString("id-ID")}`}; total final dihitung aman di server.</p>}
                     </div>
+
+                    {/* COURIER destination + quote search */}
+                    {isCourier && setCourierShipping && courierShippingCartItems && (
+                      <CourierShippingSearch
+                        subdomain={tenant.subdomain || ""}
+                        cartItems={courierShippingCartItems}
+                        onShippingChange={setCourierShipping}
+                        rateChangedError={courierRateChangedError ?? null}
+                        onClearRateChanged={onClearRateChanged || (() => {})}
+                      />
+                    )}
+
                     {tenant.paymentMethods?.length ? (
                       <div className="mb-4 mt-2">
                         <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Metode Pembayaran</label>
@@ -252,12 +288,45 @@ export function UniversalTheme({
 
               {/* Cart Footer */}
               {cartItems.length > 0 && (
-                <div className="p-5 md:p-6 flex-shrink-0 border-t border-[var(--t-border)] bg-[var(--t-bg)]">
-                  <div className="flex justify-between items-center mb-5">
-                    <span className="text-sm text-[var(--t-text-muted)] font-medium">Total</span>
-                    <span className="text-2xl font-black text-[var(--t-text)]">
-                      Rp {cart.getTotalPrice(tenant.subdomain || "").toLocaleString("id-ID")}
-                    </span>
+                <div className="p-4 md:p-5 flex-shrink-0 border-t border-[var(--t-border)] bg-[var(--t-bg)]">
+                  <div className="space-y-2 mb-4">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-[var(--t-text-muted)]">Subtotal</span>
+                      <span className="font-semibold text-[var(--t-text)]">
+                        Rp {cartSubtotal.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                    {tax > 0 && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-[var(--t-text-muted)]">Pajak ({taxRate}%)</span>
+                        <span className="font-semibold text-[var(--t-text)]">
+                          Rp {tax.toLocaleString("id-ID")}
+                        </span>
+                      </div>
+                    )}
+                    {!isPickup && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-[var(--t-text-muted)]">Ongkir</span>
+                        <span className="font-semibold text-[var(--t-text)]">
+                          {isCourier && courierShipping?.selectedRate
+                            ? `${courierShipping.selectedRate.courierName} · Rp ${shippingCost.toLocaleString("id-ID")}`
+                            : shippingCost === 0
+                              ? "Gratis"
+                              : `Rp ${shippingCost.toLocaleString("id-ID")}`}
+                        </span>
+                      </div>
+                    )}
+                    <div className="border-t border-[var(--t-border)] pt-2 flex justify-between items-center">
+                      <span className="text-sm font-bold text-[var(--t-text)]">Total</span>
+                      <span className="text-xl font-black text-[var(--t-text)]">
+                        Rp {grandTotal.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                    {!isPickup && !isCourier && (
+                      <p className="text-[11px] text-[var(--t-text-muted)] text-right">
+                        Ongkir final dihitung di server.
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={() => {
@@ -275,12 +344,12 @@ export function UniversalTheme({
                     className="w-full py-4 rounded-[var(--t-radius)] font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 bg-[var(--t-primary)] text-[var(--t-bg)] shadow-lg disabled:cursor-wait disabled:opacity-60"
                   >
                     <Phone size={18} weight="bold" />
-                    {isCheckingOut ? "Memproses Pesanan..." : tenant.paymentMethods?.length ? "Lanjut Konfirmasi" : "Lanjut Checkout"}
+                    {isCheckingOut ? "Memproses Pesanan..." : tenant.paymentMethods?.length ? "Lanjut ke Konfirmasi" : "Checkout Sekarang"}
                   </button>
                 </div>
               )}
             </motion.div>
-            
+
             {/* Order Confirmation Modal */}
             <AnimatePresence>
               {isConfirmingOrder && (
@@ -313,11 +382,38 @@ export function UniversalTheme({
                       </div>
                       <div className="flex justify-between border-b border-[var(--t-border)] pb-2">
                         <span className="text-[var(--t-text-muted)]">Pengiriman</span>
-                        <span className="font-semibold text-right max-w-[150px] truncate">{shippingMethod === "PICKUP" ? "Ambil Sendiri" : "Kirim Kurir"}</span>
+                        <span className="font-semibold text-right max-w-[150px] truncate">{shippingMethod === "PICKUP" ? "Ambil Sendiri" : shippingMethod === "COURIER" ? `Ekspedisi${courierShipping?.selectedRate ? ` · ${courierShipping.selectedRate.courierName}` : ""}` : "Kirim Kurir"}</span>
                       </div>
-                      <div className="flex justify-between font-bold">
-                        <span>Total Tagihan</span>
-                        <span>Rp {cart.getTotalPrice(tenant.subdomain || "").toLocaleString("id-ID")}</span>
+                      <div className="border-b border-[var(--t-border)] pb-2">
+                        <span className="text-[var(--t-text-muted)] text-xs">Item</span>
+                        {cartItems.map((item: any) => (
+                          <div key={item.id} className="flex justify-between mt-1">
+                            <span className="text-xs">{item.name} × {item.quantity}</span>
+                            <span className="text-xs font-semibold">Rp {(item.price * item.quantity).toLocaleString("id-ID")}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="space-y-1 pt-1">
+                        <div className="flex justify-between text-xs text-[var(--t-text-muted)]">
+                          <span>Subtotal</span>
+                          <span>Rp {cartSubtotal.toLocaleString("id-ID")}</span>
+                        </div>
+                        {tax > 0 && (
+                          <div className="flex justify-between text-xs text-[var(--t-text-muted)]">
+                            <span>Pajak ({taxRate}%)</span>
+                            <span>Rp {tax.toLocaleString("id-ID")}</span>
+                          </div>
+                        )}
+                        {!isPickup && (
+                          <div className="flex justify-between text-xs text-[var(--t-text-muted)]">
+                            <span>Ongkir</span>
+                            <span>{shippingCost === 0 ? "Gratis" : `Rp ${shippingCost.toLocaleString("id-ID")}`}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-bold border-t border-[var(--t-border)] pt-1 mt-1">
+                          <span>Total Tagihan</span>
+                          <span>Rp {grandTotal.toLocaleString("id-ID")}</span>
+                        </div>
                       </div>
                     </div>
 
