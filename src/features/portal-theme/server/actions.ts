@@ -63,7 +63,7 @@ async function safeUpdatePortalTheme(
 
 export async function loadPortalTheme(): Promise<{
   success: boolean;
-  data?: { portalTheme?: any; config?: PortalThemeConfig };
+  data?: { portalTheme?: any; config?: PortalThemeConfig; subdomain?: string };
   error?: string;
 }> {
   try {
@@ -75,6 +75,7 @@ export async function loadPortalTheme(): Promise<{
     const tenant = await tenantPrisma.tenant.findUnique({
       where: { id: user.tenantId },
       select: {
+        subdomain: true,
         themeColor: true,
         heroImageUrl: true,
         heroText: true,
@@ -111,7 +112,7 @@ export async function loadPortalTheme(): Promise<{
       mode: "customizer",
     });
 
-    return { success: true, data: { portalTheme, config } };
+    return { success: true, data: { portalTheme, config, subdomain: tenant?.subdomain ?? undefined } };
   } catch (err) {
     console.error("[loadPortalTheme]", err);
     return { success: false, error: "Failed to load theme." };

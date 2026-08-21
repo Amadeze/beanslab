@@ -5,3 +5,4 @@
 export * from "./default-config";
 export * from "./quick-fill-presets";
 export * from "./theme-presets";
+export * from "./curated-families";

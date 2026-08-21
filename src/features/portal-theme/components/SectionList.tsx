@@ -22,7 +22,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Eye, EyeOff, Copy, Trash2, Plus } from "lucide-react";
 import { useCustomizerStore } from "../client/store";
-import { getSectionDefinition } from "../registry";
+import { getSectionDefinition, SECTION_REGISTRY } from "../registry";
 
 // ── Sortable Item ───────────────────────────────────────────────────────────
 
@@ -114,11 +114,16 @@ function SortableSectionItem({ sectionId }: { sectionId: string }) {
 
 interface SectionListProps {
   onAddSection: () => void;
+  filterTypes?: string[];
 }
 
-export function SectionList({ onAddSection }: SectionListProps) {
+export function SectionList({ onAddSection, filterTypes }: SectionListProps) {
   const sections = useCustomizerStore((s) => s.workingDraft.sections);
   const reorderSections = useCustomizerStore((s) => s.reorderSections);
+  const allDefinitions = SECTION_REGISTRY;
+  const filteredDefinitions = filterTypes
+    ? allDefinitions.filter((d) => filterTypes.includes(d.type))
+    : allDefinitions;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -136,6 +141,10 @@ export function SectionList({ onAddSection }: SectionListProps) {
     }
   }
 
+  const displaySections = filterTypes
+    ? sections.filter((s) => filterTypes.includes(s.type))
+    : sections;
+
   return (
     <div className="space-y-2">
       <DndContext
@@ -144,10 +153,10 @@ export function SectionList({ onAddSection }: SectionListProps) {
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={sections.map((s) => s.id)}
+          items={displaySections.map((s) => s.id)}
           strategy={verticalListSortingStrategy}
         >
-          {sections.map((section) => (
+          {displaySections.map((section) => (
             <SortableSectionItem key={section.id} sectionId={section.id} />
           ))}
         </SortableContext>

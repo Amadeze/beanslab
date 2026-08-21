@@ -1,13 +1,14 @@
 // =============================================================================
-// THEME PRESET SELECTOR — Visual picker for 10 roastery theme identities
+// THEME PRESET SELECTOR — Curated families (7) + compatibility layer (16 presets)
 // =============================================================================
 
 "use client";
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, ChevronRight, Grid, Sparkle } from "lucide-react";
 import { THEME_PRESETS, getThemePresetById } from "../defaults/theme-presets";
+import { CURATED_THEME_FAMILIES, getPrimaryPresetForFamily } from "../defaults/curated-families";
 import { useCustomizerStore } from "../client/store";
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -15,6 +16,7 @@ const ease = [0.22, 1, 0.36, 1] as const;
 export function ThemePresetSelector() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState<string | null>(null);
+  const [showAllPresets, setShowAllPresets] = useState(false);
   const workingDraft = useCustomizerStore((s) => s.workingDraft);
   const updateGlobalColors = useCustomizerStore((s) => s.updateGlobalColors);
   const updateGlobalTypography = useCustomizerStore((s) => s.updateGlobalTypography);
@@ -26,13 +28,11 @@ export function ThemePresetSelector() {
     const preset = getThemePresetById(presetId);
     if (!preset) return;
 
-    // Apply all preset values
     updateGlobalColors(preset.colors);
     updateGlobalTypography(preset.typography);
     updateGlobalLayout(preset.layout);
     updateGlobalAnimations({ ...preset.animations, reduceMotion: false });
 
-    // Apply section layout: if preset defines bespoke defaultSections, replace the structure!
     let updatedSections = workingDraft.sections;
     if (preset.defaultSections && preset.defaultSections.length > 0) {
       updatedSections = preset.defaultSections.map((sec, idx) => ({
@@ -50,7 +50,6 @@ export function ThemePresetSelector() {
       });
     }
 
-    // Apply variant overrides
     const newConfig = {
       ...workingDraft,
       globalSettings: {
@@ -69,17 +68,33 @@ export function ThemePresetSelector() {
     setShowConfirm(null);
   }
 
+  const activePresets = showAllPresets ? THEME_PRESETS : CURATED_THEME_FAMILIES.map((f) => getPrimaryPresetForFamily(f.id)).filter(Boolean) as typeof THEME_PRESETS;
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Sparkles size={14} className="text-amber-500" />
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Theme Presets</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkle size={14} className="text-amber-500" />
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Theme Families</h3>
+        </div>
+        <button
+          onClick={() => setShowAllPresets(!showAllPresets)}
+          className="text-xs font-medium text-blue-500 hover:text-blue-700 flex items-center gap-1"
+        >
+          {showAllPresets ? <Sparkles size={12} /> : <Grid size={12} />}
+          <span>{showAllPresets ? "Curated (7)" : "All Presets (16)"}</span>
+        </button>
       </div>
-      <p className="text-xs text-gray-400">One-click complete visual identities. Click to apply.</p>
+      <p className="text-xs text-gray-400">
+        {showAllPresets
+          ? "All 16 preset identities (compatibility layer). Click to apply."
+          : "7 curated visual families. Each maps to a primary preset with variants."}
+      </p>
 
       <div className="space-y-2">
-        {THEME_PRESETS.map((preset, i) => {
+        {activePresets.map((preset, i) => {
           const isActive = showConfirm === preset.id;
+          const family = CURATED_THEME_FAMILIES.find((f) => f.primaryPresetId === preset.id);
           return (
             <motion.div
               key={preset.id}
@@ -91,7 +106,6 @@ export function ThemePresetSelector() {
                 onClick={() => setShowConfirm(isActive ? null : preset.id)}
                 className="w-full text-left rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md transition-all group"
               >
-                {/* Color preview strip */}
                 <div className="flex h-6">
                   {[preset.colors.primary, preset.colors.secondary, preset.colors.accent, preset.colors.background, preset.colors.surface, preset.colors.text].map((c, j) => (
                     <div key={j} className="flex-1 transition-all duration-200" style={{ backgroundColor: c }} />
@@ -105,22 +119,27 @@ export function ThemePresetSelector() {
                       <div>
                         <div className="text-[11px] font-bold text-gray-800 group-hover:text-blue-700 transition-colors">
                           {preset.name}
+                          {family && !showAllPresets && (
+                            <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold text-amber-800 border border-amber-300/60">
+                              Curated
+                            </span>
+                          )}
                         </div>
                         <div className="text-[9px] text-gray-400">{preset.tagline}</div>
                       </div>
                     </div>
-                    <div className="text-[9px] font-mono text-gray-300">
+                    <div className="flex items-center gap-1 text-[9px] font-mono text-gray-300">
                       {preset.typography.headingFont}
+                      {preset.variants.length > 1 && <ChevronRight size={10} />}
                     </div>
                   </div>
 
-                  {/* Quick stats */}
                   <div className="flex gap-3 mt-2 pt-2 border-t border-gray-100">
                     <span className="text-[8px] text-gray-400">
                       {preset.layout.borderRadius === 0 ? "Sharp" : preset.layout.borderRadius >= 20 ? "Rounded" : "Soft"} corners
                     </span>
                     <span className="text-[8px] text-gray-400">
-                      {preset.animations.globalDuration}ms transitions
+                      {preset.animations.globalDuration}ms
                     </span>
                     <span className="text-[8px] text-gray-400">
                       {preset.variants.length} variant{preset.variants.length > 1 ? "s" : ""}
@@ -129,7 +148,6 @@ export function ThemePresetSelector() {
                 </div>
               </button>
 
-              {/* Confirm overlay */}
               <AnimatePresence>
                 {isActive && (
                   <motion.div

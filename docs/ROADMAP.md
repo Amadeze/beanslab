@@ -21,7 +21,7 @@ Branch: `wip/non-kopi-commit3`
 | Batch 3 | Customer shipping | ✅ CLOSED + PUSHED |
 | Batch 4 | AWB / Tracking | ✅ CLOSED + PUSHED |
 | Batch 5 | Storefront UX | ✅ CLOSED + PUSHED |
-| Batch 6 | Theme / Customizer | ⏳ NOT STARTED |
+| Batch 6 | Theme / Customizer | ✅ CLOSED + PUSHED |
 | Batch 7 | SEO / Perf / A11y | ⏳ NOT STARTED |
 | Batch 8 | B2B | ⏳ NOT STARTED |
 
@@ -93,6 +93,24 @@ Branch: `wip/non-kopi-commit3`
 - SEO / Perf / A11y → Batch 7
 - B2B → Batch 8
 
+## Batch 6 — Delivered Scope
+
+- 7 curated tenant-facing theme families (Minimal, Editorial, Modern, Heritage, Bold, Dark, Boutique)
+- Compatibility preserved for all 16 existing preset IDs (legacy compatibility layer)
+- Contextual customizer IA with 7 tabs: Tema, Header, Beranda, Katalog, Konten, Footer, Pengaturan
+- Contextual Add Section restrictions (only relevant section types per tab)
+- Direct live PortalThemeRenderer preview (no iframe, same render path as production)
+- Real tenant subdomain in preview browser chrome and "View Live Portal" link
+- Global design controls: Colors (12 tokens + presets), Typography (font pairs + scale/weight/transform), Layout (content width, gaps, padding, radius), Animations (duration, easing, scroll/hover/reduce-motion)
+- Supported SEO/Integrations: GA4, Meta Pixel; deprecated customHead/customFooter removed from tenant UI (fields remain inert)
+- Preset application behaves as normal unsaved edit: isDirty=true, Discard restores saved state, Undo/Redo works
+- No schema migration (reuses existing JSON/theme architecture)
+
+### Exclusions (Batch 6 scope boundary)
+
+- SEO / Perf / A11y → Batch 7
+- B2B → Batch 8
+
 ## Migration State
 
 Active local migration chain after Batch 4:
@@ -154,6 +172,21 @@ Do NOT imply migrations 003-004 exist in production yet.
 | `eslint --quiet` | PASS |
 | Focused storefront tests | 35/35 PASS (cartStore 11, CourierShippingSearch 24) |
 | Full unit suite | 915 passed, 0 failed, 315 skipped |
+| `next build --webpack` | PASS |
+| `git diff --check` | PASS |
+| No schema migration | CONFIRMED |
+
+## Validation Evidence (Batch 6)
+
+| Gate | Result |
+|---|---|
+| `prisma validate` | PASS |
+| `prisma generate` | PASS |
+| `typecheck` | PASS |
+| `eslint --quiet` | PASS |
+| Focused Batch 6 tests | 55/55 PASS |
+| Full portal-theme suite | 240/240 PASS |
+| Full unit suite | 972 passed, 2 AWB timeout failures (pre-existing), 315 skipped |
 | `next build --webpack` | PASS |
 | `git diff --check` | PASS |
 | No schema migration | CONFIRMED |

@@ -1,4 +1,4 @@
-# HANDOFF — Batch 5 Storefront UX Maturity
+# HANDOFF — Batch 6 Theme / Customizer Maturity
 
 Last updated: 2026-08-21
 
@@ -6,41 +6,42 @@ Last updated: 2026-08-21
 
 | Field | Value |
 |---|---|
-| Implementation HEAD | Batch 5 commit (pending) |
+| Implementation HEAD | 7d412c1 |
 | Branch | `wip/non-kopi-commit3` |
 | Batch 5 status | **CLOSED + PUSHED** |
+| Batch 6 status | **CLOSED + PUSHED** |
 
-## Batch 5 WIP Summary
+## Batch 6 Summary (Committed)
 
-All Batch 5 application code changes are uncommitted on `wip/non-kopi-commit3`.
+Batch 6 Theme / Customizer Maturity committed and pushed.
 
-Files changed (uncommitted):
+### Delivered
 
-- `src/app/tenant/[subdomain]/_components/TenantPortalClient.tsx` — COURIER state, checkout wiring, SHIPPING_RATE_CHANGED handling
-- `src/app/tenant/[subdomain]/_components/CourierShippingSearch.tsx` — destination search + rate selection component
-- `src/app/tenant/[subdomain]/_components/CourierShippingSearch.test.ts` — 24 tests
-- `src/app/tenant/[subdomain]/_components/themes/ThemeProps.ts` — COURIER shipping props + taxRate
-- `src/app/tenant/[subdomain]/_components/themes/UniversalTheme.tsx` — renders CourierShippingSearch, fixes totals display
-- `src/app/tenant/[subdomain]/_components/engine/catalog/CoffeeCards.tsx` — fake demo content removed
-- `src/app/tenant/[subdomain]/_components/themes/AdvancedImage.tsx` — Unsplash fallback removed
-- `src/app/tenant/[subdomain]/_components/engine/hero/HeroCenter.tsx` — Unsplash fallback removed
-- `src/app/tenant/[subdomain]/_components/engine/hero/HeroSplit.tsx` — Unsplash fallback removed
-- `src/app/tenant/[subdomain]/_components/engine/content/JournalGrid.tsx` — Unsplash fallback removed
-- `src/app/tenant/[subdomain]/_components/themes/TenantPortalLayout.tsx` — Roastd.id branding removed
-- `src/app/tenant/[subdomain]/error.tsx` — "Kembali ke beranda"
-- `src/app/tenant/[subdomain]/order/[token]/page.tsx` — tracking timeline + InvoiceTracking query
-- `src/features/portal-theme/components/PortalThemeRenderer.tsx` — SectionErrorBoundary fixed
-- `src/features/portal-theme/components/sections/BentoShowcaseSection.tsx` — Unsplash + English removed
-- `src/features/portal-theme/components/sections/CatalogGridSection.tsx` — English → Bahasa
-- `src/features/portal-theme/components/sections/FeaturedCollectionSection.tsx` — English → Bahasa, empty state
-- `src/features/portal-theme/components/sections/FooterNavSection.tsx` — Roastd.id → Nama Toko
-- `src/features/portal-theme/components/sections/HeaderNavSection.tsx` — Roastd.id → Nama Toko
-- `src/features/portal-theme/components/sections/InteractiveFlavorSection.tsx` — Unsplash + English removed
-- `src/features/portal-theme/components/sections/ProductHighlightSection.tsx` — English → Bahasa
-- `src/features/portal-theme/components/sections/StickyNarrativeSection.tsx` — Unsplash + English removed
-- `src/app/tenant/[subdomain]/_store/cartStore.test.ts` — 11 tests
+- 7 curated tenant-facing theme families (Minimal, Editorial, Modern, Heritage, Bold, Dark, Boutique)
+- Compatibility preserved for all 16 existing preset IDs
+- Contextual customizer IA: 7 tabs (Tema, Header, Beranda, Katalog, Konten, Footer, Pengaturan)
+- Contextual Add Section restrictions (only relevant section types per tab)
+- Direct live PortalThemeRenderer preview (no iframe, same render path as production)
+- Real tenant subdomain in preview browser chrome and "View Live Portal" link
+- Global design controls: Colors (12 tokens + presets), Typography (font pairs + scale/weight/transform), Layout (content width, gaps, padding, radius), Animations (duration, easing, scroll/hover/reduce-motion)
+- Supported SEO/Integrations: GA4, Meta Pixel; deprecated customHead/customFooter removed from tenant UI (fields remain inert)
+- Preset application behaves as normal unsaved edit: isDirty=true, Discard restores saved state, Undo/Redo works
+- No schema migration (reuses existing JSON/theme architecture)
 
-## Validation Summary
+### Files Changed (Committed)
+
+- `src/app/(dashboard)/settings/portal-customizer/page.tsx` — 7-tab sidebar IA, contextual filtering, real subdomain
+- `src/features/portal-theme/components/AddSectionDialog.tsx` — contextual allowedTypes support
+- `src/features/portal-theme/components/SectionList.tsx` — filterTypes prop support
+- `src/features/portal-theme/components/ThemePresetSelector.tsx` — curated families toggle + 16 preset compat
+- `src/features/portal-theme/defaults/index.ts` — export curated families
+- `src/features/portal-theme/server/actions.ts` — loadPortalTheme returns subdomain
+- `src/features/portal-theme/__tests__/batch6-customizer.test.ts` — 55 focused tests
+- `src/features/portal-theme/components/global/GlobalAnimations.tsx` — global animation controls
+- `src/features/portal-theme/components/global/GlobalSettings.tsx` — layout, SEO, integrations (no customHead/customFooter)
+- `src/features/portal-theme/defaults/curated-families.ts` — 7 curated families mapping
+
+### Validation Summary
 
 | Gate | Result |
 |---|---|
@@ -48,8 +49,9 @@ Files changed (uncommitted):
 | `prisma generate` | PASS |
 | `typecheck` | PASS |
 | `eslint --quiet` | PASS |
-| Focused storefront tests | 35/35 PASS (cartStore 11, CourierShippingSearch 24) |
-| Full unit suite | 915 pass / 0 fail / 315 skipped |
+| Focused Batch 6 tests | 55/55 PASS |
+| Full portal-theme suite | 240/240 PASS |
+| Full unit suite | 972 pass / 2 AWB timeout failures (pre-existing) / 315 skipped |
 | `next build --webpack` | PASS |
 | `git diff --check` | PASS |
 | No schema migration | CONFIRMED |
@@ -58,10 +60,11 @@ Files changed (uncommitted):
 
 | Session | Task |
 |---|---|
-| #1 | ~~Review Batch 5 final WIP, commit, push~~ — THIS SESSION |
-| #2 | Authorize Batch 6 (Theme / Customizer) |
+| #1 | ~~Review Batch 6 final WIP, commit, push~~ — THIS SESSION |
+| #2 | Authorize Batch 7 (SEO / Perf / A11y) |
 
 ## DO NOT
 
-- Start Batch 6 until explicitly authorized
+- Start Batch 7 until explicitly authorized
 - Touch `information_architecture_audit.md` (untracked, untouched)
+- Modify migrations 000-004
