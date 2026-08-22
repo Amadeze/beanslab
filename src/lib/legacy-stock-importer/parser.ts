@@ -4,8 +4,8 @@
 // Pure file parsing: CSV and XLSX → raw rows.
 // No validation, no DB access. Easy to unit test.
 
-import * as XLSX from "xlsx";
 import { parse as csvParse } from "csv-parse/sync";
+import type { CellValue } from "exceljs";
 import type { LegacyStockRawRow, ParseResult, ParseOptions } from "./types";
 
 // ─── Constants ───
@@ -33,10 +33,11 @@ const ALLOWED_HEADERS = new Set([
 ]);
 
 // ─── Helpers ───
-function detectFormat(buffer: Buffer, filename: string): "csv" | "xlsx" {
+function detectFormat(buffer: Buffer, filename: string): "csv" | "xlsx" | "xls" {
   const ext = filename.toLowerCase().split(".").pop();
   if (ext === "csv") return "csv";
-  if (ext === "xlsx" || ext === "xls") return "xlsx";
+  if (ext === "xlsx") return "xlsx";
+  if (ext === "xls") return "xls";
   // Fallback: try to detect by content
   const header = buffer.slice(0, 4).toString("hex");
   if (header.startsWith("504b")) return "xlsx"; // PK zip header
@@ -72,25 +73,54 @@ function parseCsvBuffer(buffer: Buffer, maxRows: number): LegacyStockRawRow[] {
   return records.slice(0, maxRows) as LegacyStockRawRow[];
 }
 
-function parseXlsxBuffer(buffer: Buffer, maxRows: number): LegacyStockRawRow[] {
-  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName) return [];
-  const worksheet = workbook.Sheets[sheetName];
-  const json = XLSX.utils.sheet_to_json(worksheet, {
-    raw: false,
-    defval: "",
-    blankrows: false,
-  });
-  return json.slice(0, maxRows) as LegacyStockRawRow[];
+function stringifyCellValue(value: CellValue): string | number {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "number" || typeof value === "string") return value;
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+  if (value instanceof Date) return value.toISOString();
+  if ("richText" in value) return value.richText.map((entry) => entry.text).join("");
+  if ("hyperlink" in value) return value.text;
+  if ("error" in value) return value.error;
+  if ("result" in value) return stringifyCellValue(value.result);
+  return "";
+}
+
+async function parseXlsxBuffer(buffer: Buffer, maxRows: number): Promise<LegacyStockRawRow[]> {
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  const arrayBuffer = Uint8Array.from(buffer).buffer;
+  await workbook.xlsx.load(arrayBuffer);
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) return [];
+
+  const headerRow = worksheet.getRow(1);
+  const headers = Array.from({ length: headerRow.cellCount }, (_, index) =>
+    String(stringifyCellValue(headerRow.getCell(index + 1).value)),
+  );
+  const rows: LegacyStockRawRow[] = [];
+
+  for (let rowNumber = 2; rowNumber <= worksheet.actualRowCount && rows.length < maxRows; rowNumber += 1) {
+    const row = worksheet.getRow(rowNumber);
+    const record: Record<string, string | number> = {};
+    let hasValue = false;
+    headers.forEach((header, index) => {
+      if (!header) return;
+      const value = stringifyCellValue(row.getCell(index + 1).value);
+      if (value !== "") hasValue = true;
+      record[header] = value;
+    });
+    if (hasValue) rows.push(record as LegacyStockRawRow);
+  }
+
+  return rows;
 }
 
 // ─── Main Parser ───
-export function parseLegacyStockFile(
+export async function parseLegacyStockFile(
   buffer: Buffer,
   filename: string,
   options: ParseOptions = {}
-): ParseResult {
+): Promise<ParseResult> {
   const maxRows = options.maxRows ?? DEFAULT_MAX_ROWS;
   const maxFileSize = options.maxFileSizeBytes ?? DEFAULT_MAX_FILE_SIZE;
   const errors: string[] = [];
@@ -110,8 +140,10 @@ export function parseLegacyStockFile(
     const format = detectFormat(buffer, filename);
     if (format === "csv") {
       rawRows = parseCsvBuffer(buffer, maxRows);
+    } else if (format === "xls") {
+      throw new Error("Format .xls lama tidak didukung. Simpan ulang sebagai .xlsx atau .csv.");
     } else {
-      rawRows = parseXlsxBuffer(buffer, maxRows);
+      rawRows = await parseXlsxBuffer(buffer, maxRows);
     }
   } catch (err) {
     errors.push(`Parse error: ${err instanceof Error ? err.message : "Unknown error"}`);

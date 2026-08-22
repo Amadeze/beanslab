@@ -148,7 +148,7 @@ export function LegacyImportWizard() {
     setApplyResult(null);
     setFileSize(selected.size);
 
-    if (!selected.name.toLowerCase().match(/\.(csv|xlsx?)$/)) {
+    if (!selected.name.toLowerCase().match(/\.(csv|xlsx)$/)) {
       setFileErrors(["Format file tidak didukung. Gunakan .csv atau .xlsx"]);
       return;
     }
@@ -312,7 +312,7 @@ function Step1Upload({
       >
         <input
           type="file"
-          accept=".csv,.xlsx,.xls"
+          accept=".csv,.xlsx"
           onChange={onFileChange}
           className="absolute inset-0 cursor-pointer opacity-0"
         />

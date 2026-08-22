@@ -19,6 +19,12 @@ pnpm build
 
 Do not deploy when preflight, migrations, tenant isolation, stock integrity, tests, or build fail. Lint warnings are technical debt; lint errors are release blockers.
 
+## Current release snapshot (2026-08-22)
+
+The current local branch is **not approved for production deployment**. Static checks, 1,027 unit tests, and the production build pass, but the available environment cannot reach the intended database or verify the private object-storage bucket. Migrations 003–005, database-backed audits, 31 release E2E tests, and external-provider smoke tests must be completed against a safe target before changing the decision to go.
+
+The production dependency audit currently reports one high-severity transitive advisory in Prisma's configuration dependency (`deepmerge-ts`) and one moderate advisory in ExcelJS's `uuid` dependency. Do not force incompatible major overrides; upgrade through the parent packages when compatible releases are available or record explicit release risk acceptance.
+
 ## Required configuration
 
 Copy `.env.local.example` into the secret manager for the hosting platform. Generate `SESSION_SECRET`, `CREDENTIAL_ENCRYPTION_KEY`, and `CRON_SECRET` independently with a cryptographically secure generator. Never commit their real values.

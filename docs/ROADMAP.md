@@ -313,3 +313,30 @@ Migration 003-005 deployment status must be verified against the target environm
 | Full unit suite | 1024 passed, 0 failed, 315 skipped |
 | `next build --webpack` | PASS (68 static pages generated) |
 | Schema/migration change | NONE |
+
+## Final QA / Production Readiness — Current Result
+
+Status: **NO-GO — environment and deployment evidence incomplete**
+
+Delivered hardening:
+
+- Production preflight returns structured, secret-free failure output when the database is unavailable.
+- User-uploaded legacy stock parsing no longer depends on vulnerable SheetJS; CSV/XLSX use ExcelJS and binary XLS is explicitly rejected.
+- Prisma packages are aligned on 7.9.1 and safe transitive patches are pinned for `brace-expansion`, `dompurify`, `fast-uri`, `nanoid`, and `postcss`.
+- High-severity production dependency advisories reduced from 11 to 1; the remaining Prisma-transitive `deepmerge-ts` advisory awaits an upstream-compatible major upgrade.
+- One moderate `uuid` advisory remains transitively through ExcelJS and awaits an upstream-compatible upgrade.
+
+Validation evidence:
+
+| Gate | Result |
+|---|---|
+| `prisma validate` / `prisma generate` | PASS |
+| `typecheck` / `eslint --quiet` | PASS |
+| Import/preflight/database guard tests | 20/20 PASS |
+| Security/tenant/accounting/inventory focused suite | 253/253 PASS |
+| Full unit suite | 1027 passed, 0 failed, 315 skipped |
+| `next build --webpack` | PASS (68 static pages generated) |
+| Playwright discovery | PASS (31 tests in 10 files) |
+| Production preflight | NO-GO: database unreachable; private bucket verification failed |
+
+Release remains blocked until target migration 003–005 state, private storage, tenant/stock/integrity audits, full E2E, and sandbox provider smoke tests are verified with valid credentials.

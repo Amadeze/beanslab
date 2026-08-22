@@ -13,8 +13,12 @@ minimumReleaseAgeExclude:
   - tsx@4.22.5
 overrides:
   '@hono/node-server': 1.19.14
-  fast-uri: 3.1.4
+  brace-expansion@1.1.15: 1.1.18
+  brace-expansion@2.1.2: 2.1.4
+  dompurify: 3.4.14
+  fast-uri: 3.1.5
   find-my-way: 9.7.0
-  postcss: 8.5.19
+  nanoid: 3.3.18
+  postcss: 8.5.26
   sharp: 0.35.3
   valibot: 1.4.2

@@ -34,7 +34,7 @@ export async function parseUploadedFileAction(
 
   const fileName = file.name;
   const buffer = Buffer.from(await file.arrayBuffer());
-  const result = parseLegacyStockFile(buffer, fileName);
+  const result = await parseLegacyStockFile(buffer, fileName);
 
   return {
     rawRows: result.rawRows,

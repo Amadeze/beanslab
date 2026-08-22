@@ -1,4 +1,4 @@
-# HANDOFF — Final Product Coherence
+# HANDOFF — Final QA / Production Readiness
 
 Last updated: 2026-08-22
 
@@ -6,19 +6,21 @@ Last updated: 2026-08-22
 
 | Field | Value |
 |---|---|
-| Implementation HEAD | `06bb4cc` plus uncommitted Product Coherence worktree |
+| Implementation HEAD | Final QA hardening commit (parent `fb2499e`) |
 | Branch | `wip/non-kopi-commit3` |
-| Local commits ahead of origin | 3 (`c0a1f78`, `2fe5b7f`, `06bb4cc`) |
+| Local commits ahead of origin | 5 (including the Final QA hardening commit) |
 | Batch 6.5 status | **COMMITTED LOCALLY — NOT PUSHED** |
 | Batch 7 status | **COMMITTED LOCALLY — NOT PUSHED** |
 | Batch 8 status | **COMMITTED LOCALLY — NOT PUSHED** |
-| Final Product Coherence | **IMPLEMENTED — READY TO COMMIT** |
+| Final Product Coherence | **COMMITTED LOCALLY — NOT PUSHED** |
+| Final QA hardening | **COMMITTED LOCALLY — NOT PUSHED** |
+| Production readiness | **NO-GO — TARGET ENVIRONMENT BLOCKERS REMAIN** |
 
 ## Latest Local Commit
 
-- `06bb4cc feat(storefront): add b2b partner ordering`
+- `chore(release): harden production readiness checks` (this handoff's commit)
 
-No local storefront commit has been pushed.
+No local commit has been pushed.
 
 ## Product Coherence Delivered
 
@@ -41,30 +43,48 @@ No local storefront commit has been pushed.
 | `prisma generate` | PASS |
 | `typecheck` | PASS |
 | `eslint --quiet` | PASS |
-| Focused Product Coherence + sales regression | 22/22 PASS |
-| Full unit suite | 1024 passed, 0 failed, 315 skipped |
+| Import/preflight/database-guard tests | 20/20 PASS |
+| Security/tenant/accounting/inventory focused regression | 253/253 PASS |
+| Full unit suite | 1027 passed, 0 failed, 315 skipped |
 | `next build --webpack` | PASS; 68 static pages generated |
+| Playwright discovery | PASS; 31 tests in 10 files |
+| Production dependency audit | 0 critical, 1 high, 1 moderate |
+| `preflight:production` | EXPECTED NO-GO; structured result, database unreachable and private bucket verification failed |
+| Full release E2E | DEFERRED; no safe local/target database credentials |
+
+## Final QA Hardening Delivered
+
+- Production preflight now returns a stable, secret-free `ready: false` JSON report when the database or readiness query cannot be reached.
+- The legacy stock upload no longer uses the vulnerable SheetJS parser. CSV and XLSX remain supported through the existing ExcelJS dependency.
+- Legacy binary `.xls` uploads are rejected with an explicit instruction to save as `.xlsx` or `.csv`.
+- Prisma packages are aligned on the latest available 7.9.1 release.
+- Patched transitive versions are locked for `brace-expansion`, `dompurify`, `fast-uri`, `nanoid`, and `postcss`.
+- High-severity production advisories were reduced from 11 to 1. The remaining advisory is `deepmerge-ts` below 8 through Prisma's configuration package; forcing a major override is intentionally deferred until Prisma ships a compatible dependency.
+- The remaining moderate advisory is `uuid` below 11.1.1 through ExcelJS; forcing that transitive major upgrade is intentionally deferred.
 
 ## Schema and Deployment
 
-- Product Coherence introduces no schema or migration changes.
+- Final QA hardening introduces no schema or migration changes.
 - Migrations 000–004 remain untouched.
 - Batch 8 migration 005 still needs disposable/target database deploy, status, and diff acceptance when valid credentials are available.
 - No push was performed.
 
-## Deferred to Final QA / Production Readiness
+## Production No-Go Blockers
 
-- Authenticated desktop/mobile browser walkthrough of the complete golden workflow.
-- Migration 003–005 target deployment verification.
-- Midtrans sandbox checkout and external shipping-provider verification.
-- Manual keyboard, zoom 200%, and screen-reader verification on complex dialogs/tables.
-- Raw green-bean B2B sale, OfferingVariant contract prices, and hard MOQ remain separate domain work, not Product Coherence.
+- `DATABASE_URL` and `DIRECT_URL` in the available environment are placeholders/unreachable; no safe `TEST_DATABASE_URL` or local database password is available.
+- Migration 003–005 state cannot be verified against the intended target, and migration 005 still lacks disposable-database deploy/diff acceptance.
+- Private Supabase storage cannot be verified from the available environment.
+- The 31 Playwright release tests are enumerated but cannot run safely without database credentials.
+- Midtrans sandbox and RajaOngkir/external shipping-provider smoke tests require valid sandbox configuration.
+- Email, SaaS subscription Midtrans, WhatsApp, and Xendit are disabled in the available environment. Disabled optional channels may be accepted only as an explicit launch decision.
+- The remaining Prisma-transitive `deepmerge-ts` advisory needs an upstream-compatible upgrade or a documented risk acceptance.
 
 ## Next
 
-1. Review and commit Product Coherence.
-2. Push only with explicit authorization.
-3. Start Final QA / Production Readiness only after the Product Coherence commit is accepted.
+1. Supply a disposable or target database credential and verify migrations 003–005, tenant isolation, stock, and accounting integrity.
+2. Configure and verify the private storage bucket and required external providers.
+3. Run all 31 Playwright release tests and the golden operational smoke workflow.
+4. Push only with explicit authorization after the release gate is green.
 
 ## DO NOT
 

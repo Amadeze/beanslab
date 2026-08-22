@@ -6,6 +6,10 @@ import {
   decryptCredential,
   isEncryptedCredential,
 } from "../src/lib/credentials";
+import {
+  buildUnavailablePreflightReport,
+  type PrivateStorageCheck,
+} from "../src/lib/production-preflight-report";
 
 const requiredEnvironment = [
   "DATABASE_URL",
@@ -23,7 +27,7 @@ const requiredEnvironment = [
 const missingEnvironment = requiredEnvironment.filter((name) => !process.env[name]);
 const warnings: string[] = [];
 const invalidEnvironment: string[] = [];
-let privateStorageCheck: "not_configured" | "reachable_private" | "failed" = "not_configured";
+let privateStorageCheck: PrivateStorageCheck = "not_configured";
 if (process.env.APP_URL && !process.env.APP_URL.startsWith("https://")) {
   invalidEnvironment.push("APP_URL must use HTTPS in production.");
 }
@@ -196,6 +200,15 @@ try {
   }, null, 2));
 
   if (!ready) process.exitCode = 1;
+} catch {
+  console.error(JSON.stringify(buildUnavailablePreflightReport({
+    env: process.env,
+    missingEnvironment,
+    invalidEnvironment,
+    warnings,
+    privateStorageCheck,
+  }), null, 2));
+  process.exitCode = 1;
 } finally {
   await prisma.$disconnect();
 }
