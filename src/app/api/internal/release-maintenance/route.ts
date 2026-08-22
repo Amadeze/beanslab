@@ -306,6 +306,77 @@ async function repairCredentials() {
   });
 }
 
+async function quarantineUnreadableTenantMidtrans() {
+  const currentSecret = process.env.CREDENTIAL_ENCRYPTION_KEY;
+  const legacySecret = process.env.SESSION_SECRET;
+  if (!currentSecret || !legacySecret) {
+    throw new Error("Required encryption secrets are unavailable.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const tenants = await tx.tenant.findMany({
+      where: { midtransServerKey: { not: null } },
+      select: {
+        id: true,
+        midtransClientKey: true,
+        midtransServerKey: true,
+        midtransIsProduction: true,
+      },
+    });
+
+    const unreadable = tenants.filter((tenant) => {
+      if (!tenant.midtransServerKey) return false;
+      return (
+        classifyCredential(
+          tenant.midtransServerKey,
+          currentSecret,
+          legacySecret,
+        ).state === "unreadable"
+      );
+    });
+
+    for (const tenant of unreadable) {
+      await tx.auditLog.create({
+        data: {
+          tenantId: tenant.id,
+          action: "QUARANTINE_UNREADABLE_CREDENTIAL",
+          entityType: "TenantMidtransConfiguration",
+          entityId: tenant.id,
+          before: {
+            midtransServerKeyCiphertext: tenant.midtransServerKey,
+            midtransClientKeyConfigured: Boolean(tenant.midtransClientKey),
+            midtransIsProduction: tenant.midtransIsProduction,
+          },
+          after: {
+            midtransServerKeyConfigured: false,
+            midtransClientKeyConfigured: false,
+            midtransIsProduction: false,
+          },
+          metadata: {
+            reason: "credential-key-unavailable-during-production-readiness",
+            recoverableFromAuditCiphertext: true,
+          },
+        },
+      });
+      await tx.tenant.update({
+        where: { id: tenant.id },
+        data: {
+          midtransClientKey: null,
+          midtransServerKey: null,
+          midtransIsProduction: false,
+        },
+      });
+    }
+
+    return {
+      inspected: tenants.length,
+      quarantined: unreadable.length,
+      auditBackupsCreated: unreadable.length,
+      tenantMidtransDisabled: unreadable.length,
+    };
+  });
+}
+
 export async function POST(req: Request) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -318,6 +389,12 @@ export async function POST(req: Request) {
     }
     if (body.action === "repair-credentials") {
       return NextResponse.json({ ok: true, result: await repairCredentials() });
+    }
+    if (body.action === "quarantine-unreadable-tenant-midtrans") {
+      return NextResponse.json({
+        ok: true,
+        result: await quarantineUnreadableTenantMidtrans(),
+      });
     }
     return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
   } catch (error) {
