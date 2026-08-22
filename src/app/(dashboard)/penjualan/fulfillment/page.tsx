@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/shared";
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
 import { STOREFRONT_GRIND_LABEL } from "@/lib/storefront-grind";
 import { getSalesChannelLabel } from "@/lib/sales-channel";
+import { fulfillmentExecution } from "@/lib/operations-execution";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function FulfillmentPage() {
   await requireRole("OWNER", "MANAGER", "OPERATOR", "CASHIER");
   const tp = await requireTenantPrisma();
   const invoices = await tp.invoice.findMany({
-    where: { fulfillmentStatus: { in: ["AWAITING_PAYMENT", "NEEDS_PRODUCTION", "READY_TO_PACK", "PACKED", "SHIPPED"] } },
+    where: { voidAt: null, fulfillmentStatus: { in: ["AWAITING_PAYMENT", "NEEDS_PRODUCTION", "READY_TO_PACK", "PACKED", "SHIPPED"] } },
     orderBy: { issuedAt: "asc" },
     take: 200,
     select: {
@@ -30,7 +31,7 @@ export default async function FulfillmentPage() {
         product: { select: { name: true, materialOrigin: true } },
       } },
       stockReservations: { where: { status: "ACTIVE" }, select: { productId: true, quantityKg: true } },
-      fulfillmentTasks: { where: { status: { in: ["OPEN", "IN_PROGRESS"] } }, select: { id: true, shortageQuantity: true, product: { select: { id: true, name: true, materialOrigin: true } } } },
+      fulfillmentTasks: { where: { status: { in: ["OPEN", "IN_PROGRESS"] } }, select: { id: true, shortageQuantity: true, product: { select: { id: true, name: true, type: true, materialOrigin: true } } } },
     },
   });
   const productionUnits = invoices.flatMap((invoice) => invoice.fulfillmentTasks).reduce((sum, task) => sum + task.shortageQuantity, 0);
@@ -58,9 +59,25 @@ export default async function FulfillmentPage() {
             const requiredKg = invoice.items.filter((item) => item.productId === task.product.id).reduce((sum, item) => sum + (Number(item.quantity) * Number(item.netWeightGrams ?? 0) / 1000), 0);
             const reservedKg = invoice.stockReservations.filter((reservation) => reservation.productId === task.product.id).reduce((sum, reservation) => sum + Number(reservation.quantityKg ?? 0), 0);
             const missingKg = Math.max(0, requiredKg - reservedKg);
-            return <li key={task.id}>{task.product.materialOrigin === "INTERNAL_ROAST" ? "Sangrai" : "Tambah stok"} {missingKg > 0 ? `${missingKg.toLocaleString("id-ID")} kg` : `${task.shortageQuantity} unit`} · {task.product.name}</li>;
+            const work = task.product.type === "FINISHED_GOODS"
+              ? "Produksi"
+              : task.product.materialOrigin === "INTERNAL_ROAST"
+                ? "Sangrai"
+                : "Tambah stok";
+            return <li key={task.id}>{work} {missingKg > 0 ? `${missingKg.toLocaleString("id-ID")} kg` : `${task.shortageQuantity} unit`} · {task.product.name}</li>;
           })}</ul> : invoice.trackingNumber ? <p className="mt-2 text-xs text-emerald-700">Resi {invoice.trackingNumber}</p> : null}</div>
-          <div className="flex flex-wrap gap-2">{invoice.fulfillmentTasks.length ? invoice.fulfillmentTasks.map((task) => <Link key={task.id} href={task.product.materialOrigin === "INTERNAL_ROAST" ? `/roasting?productId=${encodeURIComponent(task.product.id)}` : "/inventory?view=receiving"} className="inline-flex h-9 items-center rounded-lg bg-amber-700 px-3 text-xs font-bold text-white">{task.product.materialOrigin === "INTERNAL_ROAST" ? "Buka roasting" : "Terima stok"}</Link>) : null}<Link href="/penjualan" className="inline-flex h-9 items-center rounded-lg border border-stone-300 px-3 text-xs font-bold">Buka pesanan</Link></div>
+          <div className="flex flex-wrap gap-2">{invoice.fulfillmentTasks.length ? invoice.fulfillmentTasks.map((task) => {
+            const requiredKg = invoice.items.filter((item) => item.productId === task.product.id).reduce((sum, item) => sum + (Number(item.quantity) * Number(item.netWeightGrams ?? 0) / 1000), 0);
+            const reservedKg = invoice.stockReservations.filter((reservation) => reservation.productId === task.product.id).reduce((sum, reservation) => sum + Number(reservation.quantityKg ?? 0), 0);
+            const action = fulfillmentExecution({
+              productId: task.product.id,
+              productType: task.product.type,
+              materialOrigin: task.product.materialOrigin,
+              shortageUnits: task.shortageQuantity,
+              missingKg: Math.max(0, requiredKg - reservedKg),
+            });
+            return <Link key={task.id} href={action.href} className="inline-flex min-h-9 items-center rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white hover:bg-amber-800">{action.label}</Link>;
+          }) : null}<Link href="/penjualan" className="inline-flex min-h-9 items-center rounded-lg border border-stone-300 px-3 py-2 text-xs font-bold hover:bg-stone-50">Buka pesanan</Link></div>
         </article>)}
       </div>}
     </div></div>

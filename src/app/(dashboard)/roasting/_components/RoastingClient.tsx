@@ -45,8 +45,11 @@ export function RoastingClient({
 }: RoastingClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const requestedOutputProductId = searchParams.get("productId") ?? "";
+  const requestedOutput = rbOptions.find((product) => product.id === requestedOutputProductId);
+  const requestedTargetKg = Number(searchParams.get("targetKg") ?? 0);
   const [drawerOpen, setDrawerOpen] = useState(
-    searchParams.get("mulai") === "1" && activeTab === "batches",
+    (searchParams.get("mulai") === "1" || Boolean(requestedOutput)) && activeTab === "batches",
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -195,6 +198,9 @@ export function RoastingClient({
             batches={batches}
             reusableProfiles={reusableProfiles}
             locationOptions={locationOptions}
+            initialInputProductId={requestedOutput?.sourceGreenBeanId ?? ""}
+            initialRoastLevel={requestedOutput?.roastLevel ?? ""}
+            initialTargetWeightKg={Number.isFinite(requestedTargetKg) && requestedTargetKg > 0 ? requestedTargetKg : 0}
             onSuccess={() => {
               setDrawerOpen(false);
               router.refresh();

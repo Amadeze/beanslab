@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { formatKg } from "@/lib/format";
 import { analyzeRoastOutcome } from "@/lib/roast-intent";
-import { roastedBeanName, greenBeanIdentity, getRoastLevelLabel, type RoastLevelValue } from "@/lib/roast-product";
+import { roastedBeanName, greenBeanIdentity, type RoastLevelValue } from "@/lib/roast-product";
 import { RoastingDestinationField } from "./RoastingDestinationField";
 import {
   createParentRoastingBatch,
@@ -168,6 +168,9 @@ interface RoastingFormProps {
   batches: ParentRoastingBatchRow[];
   reusableProfiles: ReusableRoastProfileRow[];
   locationOptions: RoastingLocationOption[];
+  initialInputProductId?: string;
+  initialRoastLevel?: string;
+  initialTargetWeightKg?: number;
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
 }
@@ -184,6 +187,9 @@ export function RoastingForm({
   batches,
   reusableProfiles,
   locationOptions,
+  initialInputProductId = "",
+  initialRoastLevel = "",
+  initialTargetWeightKg = 0,
   onSuccess,
   onPendingChange,
 }: RoastingFormProps) {
@@ -205,13 +211,13 @@ export function RoastingForm({
     resolver: zodResolver(schema),
     defaultValues: {
       mode: "MANUAL",
-      inputProductId: "",
-      targetWeightKg: 0,
+      inputProductId: initialInputProductId,
+      targetWeightKg: initialTargetWeightKg,
       outputMode: "auto",
       outputProductId: "",
       outputProductName: "",
       outputProductOrigin: "",
-      outputRoastLevel: "",
+      outputRoastLevel: initialRoastLevel,
       actualOutputKg: 0,
       notes: "",
       machineId: "",
@@ -220,7 +226,7 @@ export function RoastingForm({
     },
   });
 
-  const [mode, inputProductId, targetWeightKg, actualOutputKg, outputMode, outputProductId, outputRoastLevel, referenceProfileId, machineId] = watch([
+  const [mode, inputProductId, targetWeightKg, actualOutputKg, outputMode, outputProductId, outputRoastLevel, machineId, outputProductOrigin] = watch([
     "mode",
     "inputProductId",
     "targetWeightKg",
@@ -228,8 +234,8 @@ export function RoastingForm({
     "outputMode",
     "outputProductId",
     "outputRoastLevel",
-    "referenceProfileId",
     "machineId",
+    "outputProductOrigin",
   ]);
 
   const selectedGB = gbOptions.find((g) => g.id === inputProductId);
@@ -255,10 +261,10 @@ export function RoastingForm({
     if (!inputProductId) return;
     setValue("outputMode", "auto");
     setValue("outputProductId", "");
-    if (selectedGB?.origin && !watch("outputProductOrigin")) {
+    if (selectedGB?.origin && !outputProductOrigin) {
       setValue("outputProductOrigin", selectedGB.origin);
     }
-  }, [inputProductId, selectedGB, setValue, watch]);
+  }, [inputProductId, outputProductOrigin, selectedGB, setValue]);
 
   const automaticRb = rbOptions.find((rb) =>
     rb.sourceGreenBeanId === inputProductId && rb.roastLevel === outputRoastLevel

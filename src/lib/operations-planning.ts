@@ -113,6 +113,8 @@ export type DemandPlan = {
   };
 };
 
+export const DEFAULT_ROAST_YIELD = 0.82;
+
 function aggregate<T>(
   rows: T[],
   key: (row: T) => string,
@@ -127,7 +129,7 @@ function aggregate<T>(
 
 function safeYield(value: number | undefined): number {
   // A missing or implausible history must never create an unsafe zero-input plan.
-  return value && value >= 0.5 && value <= 1 ? value : 0.82;
+  return value && value >= 0.5 && value <= 1 ? value : DEFAULT_ROAST_YIELD;
 }
 
 /**
