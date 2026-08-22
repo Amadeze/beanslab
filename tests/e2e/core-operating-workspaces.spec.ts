@@ -70,7 +70,8 @@ test("core workspaces remain task-ready after the restructure", async ({ context
       { path: "/produksi", title: "Produksi & Packing" },
       { path: "/penjualan", title: "Penjualan & Pesanan" },
       { path: "/keuangan", title: "Kas & Piutang" },
-      { path: "/katalog", title: "Katalog" },
+      { path: "/katalog", title: "Produk & Resep" },
+      { path: "/gudang/visual", title: "Peta Gudang" },
     ] as const;
 
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -92,6 +93,14 @@ test("core workspaces remain task-ready after the restructure", async ({ context
       fullPage: false,
     });
 
+    await page.goto("/gudang/visual", { waitUntil: "networkidle" });
+    await expect(page.getByRole("heading", { name: "Peta Gudang", exact: true })).toBeVisible();
+    await expect(page.getByRole("searchbox", { name: "Cari lokasi, lot, atau produk" })).toBeVisible();
+    await page.screenshot({
+      path: "test-results/core-workspace-warehouse-map-desktop.png",
+      fullPage: false,
+    });
+
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/produksi", { waitUntil: "networkidle" });
     await expect(page.getByRole("button", { name: "Batch Baru", exact: true })).toBeVisible();
@@ -106,6 +115,17 @@ test("core workspaces remain task-ready after the restructure", async ({ context
 
     await page.goto("/inventory", { waitUntil: "networkidle" });
     await expect(page.getByRole("button", { name: "Barang Datang", exact: true })).toBeVisible();
+
+    await page.goto("/gudang/visual", { waitUntil: "networkidle" });
+    await expect(page.getByRole("combobox", { name: "Pilih area Pasokan" })).toBeVisible();
+    const warehouseMapOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(warehouseMapOverflow).toBeLessThanOrEqual(2);
+    await page.screenshot({
+      path: "test-results/core-workspace-warehouse-map-mobile.png",
+      fullPage: false,
+    });
 
     await page.goto("/penjualan", { waitUntil: "networkidle" });
     await expect(page.getByRole("button", { name: "Nota Baru", exact: true }).first()).toBeVisible();

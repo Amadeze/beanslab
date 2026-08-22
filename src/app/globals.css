@@ -338,6 +338,23 @@
   --text-primary: #141817;
   --text-secondary: #59605B;
   --text-tertiary: #777D78;
+
+  /* Canonical internal application tokens */
+  --surface-canvas: #ECEAE2;
+  --surface-panel: #F4F2EA;
+  --surface-raised: #FFFDF8;
+  --surface-inverse: #05090D;
+  --domain-inventory: #2B7567;
+  --domain-roasting: #B65331;
+  --domain-production: #A66F12;
+  --domain-sales: #6F4A6A;
+  --domain-finance: #4B6B3C;
+  --status-info: #176B87;
+  --status-success: #2B7567;
+  --status-warning: #8A5B0A;
+  --status-danger: #8C2F39;
+  --control-height: 2.75rem;
+  --focus-ring: #15B8C6;
 }
 
 .dark {

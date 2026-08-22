@@ -256,7 +256,23 @@ export function CompactHeader({
           aria-label="Alur operasional roastery"
           className="border-t border-white/[0.08] bg-[#0B141B]/95 xl:hidden"
         >
-          <div className="mx-auto grid h-[40px] w-full max-w-[1600px] grid-cols-6 px-2 sm:px-6 lg:px-8">
+          <div className="mx-auto flex min-h-11 w-full max-w-[1600px] items-center justify-between gap-3 px-4 sm:hidden">
+            <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-white/80">
+              <span className={cn("h-2 w-2 shrink-0 rounded-full", headerTone?.line ?? "bg-white/50")} />
+              Tahap aktif: {operatingStages[activeIndex]?.label}
+            </span>
+            {operatingStages[activeIndex + 1] ? (
+              <Link
+                href={operatingStages[activeIndex + 1].href}
+                className={cn("shrink-0 text-xs font-bold", headerTone?.signal ?? "text-[#71D2DA]")}
+              >
+                Berikutnya: {operatingStages[activeIndex + 1].shortLabel} →
+              </Link>
+            ) : (
+              <span className="text-xs font-semibold text-white/55">Alur selesai</span>
+            )}
+          </div>
+          <div className="mx-auto hidden h-[44px] w-full max-w-[1600px] grid-cols-6 px-6 sm:grid lg:px-8">
             {operatingStages.map((item, index) => {
               const isActive = item.id === activeStage;
               const isComplete = activeIndex > index;
@@ -293,7 +309,7 @@ export function CompactHeader({
                   </span>
                   <span
                     className={cn(
-                      "relative z-10 truncate text-[7px] font-semibold",
+                      "relative z-10 truncate text-[10px] font-semibold",
                       isActive ? tone.label : "text-white/32",
                     )}
                   >

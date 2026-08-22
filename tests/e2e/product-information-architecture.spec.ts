@@ -63,7 +63,7 @@ test("product IA groups roasting, settings, and offline cashier correctly", asyn
     const appNavigation = page.getByRole("navigation", { name: "Navigasi aplikasi" });
     await expect(appNavigation.getByRole("link", { name: /Kasir/ })).toBeVisible();
     await expect(appNavigation.getByRole("link", { name: "Pasokan & Stok", exact: true })).toBeVisible();
-    await expect(appNavigation.getByRole("link", { name: "Katalog", exact: true })).toBeVisible();
+    await expect(appNavigation.getByRole("link", { name: "Produk & Resep", exact: true })).toBeVisible();
     await expect(appNavigation.getByRole("link", { name: /Master Data/ })).toHaveCount(0);
     await expect(appNavigation.getByRole("link", { name: "Produksi & Packing", exact: true })).toBeVisible();
     await expect(appNavigation.getByRole("link", { name: /Profil Roast/ })).toHaveCount(0);
@@ -106,7 +106,7 @@ test("product IA groups roasting, settings, and offline cashier correctly", asyn
 
     await page.goto("/master-data", { waitUntil: "networkidle" });
     await expect(page).toHaveURL(/\/katalog$/);
-    await expect(page.getByRole("heading", { name: "Katalog", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Produk & Resep", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Produk \d+$/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Kemasan \d+$/ })).toHaveCount(0);
     await page.screenshot({ path: "test-results/product-ia-catalog.png", fullPage: false });

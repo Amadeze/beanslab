@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Boxes,
   ClipboardList,
@@ -21,6 +21,7 @@ import {
   BadgeCheck,
   PackageOpen,
   FileSignature,
+  LayoutGrid,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -56,6 +57,7 @@ const WORKSPACES = {
     { label: "Supplier", href: "/inventory/suppliers", icon: Users },
     { label: "Lot & FEFO", href: "/inventory/lots", icon: PackageCheck },
     { label: "Gudang & Lokasi", href: "/gudang", icon: Warehouse },
+    { label: "Peta Gudang", href: "/gudang/visual", icon: LayoutGrid },
     { label: "Opname", href: "/gudang/opname", icon: ClipboardCheck },
     { label: "Persediaan Non-Kopi", href: "/katalog", query: "tab=supply", icon: PackageOpen },
   ],
@@ -84,7 +86,16 @@ const WORKSPACES = {
 
 export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const currentView = searchParams.get("view");
+  const currentTab = searchParams.get("tab");
+  const items = WORKSPACES[kind];
+  const workspaceLabel = {
+    supply: "Pasokan",
+    roastery: "Roastery",
+    sales: "Penjualan",
+  }[kind];
   const workspaceTone = {
     supply: {
       active: "border-[#2B7567] bg-[#2B7567] text-white",
@@ -103,43 +114,68 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
     },
   }[kind];
 
+  const itemHref = (item: (typeof items)[number]) => {
+    const expectedQuery = "query" in item ? item.query : undefined;
+    return expectedQuery ? `${item.href}?${expectedQuery}` : item.href;
+  };
+
+  const itemIsActive = (item: (typeof items)[number]) => {
+    const expectedQuery = "query" in item ? item.query : undefined;
+    return pathname === item.href &&
+      (expectedQuery === "view=stock"
+        ? !currentView || currentView === "stock"
+        : expectedQuery === "view=po"
+          ? currentView === "po"
+          : expectedQuery === "view=receiving"
+            ? currentView === "receiving"
+            : expectedQuery === "view=mutations"
+              ? currentView === "mutations"
+              : expectedQuery === "tab=profiles"
+                ? currentTab === "profiles"
+                : expectedQuery === "tab=supply"
+                  ? currentTab === "supply"
+                  : !currentTab);
+  };
+
+  const activeHref = itemHref(items.find(itemIsActive) ?? items[0]);
+
   return (
     <nav
-      className="overflow-x-auto border-b border-white/10 bg-[#05090D]"
+      className="border-b border-white/10 bg-[#05090D]"
       aria-label={`Navigasi workspace ${kind}`}
     >
-      <div className="mx-auto flex w-max min-w-full max-w-[1600px] gap-1 px-4 py-1.5 md:px-6 lg:px-8">
-        {WORKSPACES[kind].map((item) => {
+      <div className="mx-auto flex min-h-12 w-full max-w-[1600px] items-center gap-3 px-4 md:hidden">
+        <label htmlFor={`workspace-${kind}`} className="shrink-0 text-xs font-semibold text-white/65">
+          {workspaceLabel}
+        </label>
+        <select
+          id={`workspace-${kind}`}
+          aria-label={`Pilih area ${workspaceLabel}`}
+          value={activeHref}
+          onChange={(event) => router.push(event.target.value)}
+          className="h-10 min-w-0 flex-1 rounded-lg border border-white/15 bg-white/[0.06] px-3 text-sm font-semibold text-white outline-none focus:border-[#00C8DF] focus:ring-2 focus:ring-[#00C8DF]/30"
+        >
+          {items.map((item) => (
+            <option key={itemHref(item)} value={itemHref(item)} className="bg-[#0B141B] text-white">
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mx-auto hidden w-max min-w-full max-w-[1600px] gap-1 overflow-x-auto px-4 py-1.5 md:flex md:px-6 lg:px-8">
+        {items.map((item) => {
           const Icon = item.icon;
-          const expectedQuery = "query" in item ? item.query : undefined;
-          const currentView = searchParams.get("view");
-          const currentTab = searchParams.get("tab");
-          const active =
-            pathname === item.href &&
-            (expectedQuery === "view=stock"
-              ? !currentView || currentView === "stock"
-              : expectedQuery === "view=po"
-                ? currentView === "po"
-                : expectedQuery === "view=receiving"
-                  ? currentView === "receiving"
-                  : expectedQuery === "view=mutations"
-                    ? currentView === "mutations"
-                    : expectedQuery === "tab=profiles"
-                      ? currentTab === "profiles"
-                      : expectedQuery === "tab=supply"
-                        ? currentTab === "supply"
-                        : !currentTab);
-          const href = expectedQuery
-            ? `${item.href}?${expectedQuery}`
-            : item.href;
+          const active = itemIsActive(item);
+          const href = itemHref(item);
 
           return (
             <Link
-              key={`${item.href}-${expectedQuery ?? "root"}`}
+              key={href}
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-[7px] border px-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C8DF]",
+                "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-[8px] border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C8DF]",
                 active
                   ? workspaceTone.active
                   : "border-transparent text-white/46 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",

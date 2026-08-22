@@ -44,6 +44,7 @@ export default async function GudangPage() {
     code: loc.code,
     name: loc.name,
     zone: loc.zone,
+    capacity: loc.capacity === null ? null : Number(loc.capacity),
     isActive: loc.isActive,
     isDefault: loc.isDefault,
     isSystem: loc.isSystem,

@@ -31,8 +31,8 @@ export default async function CatalogPage({
       userRole={session.user?.role || "OWNER"}
       allowedTabs={["produk", "supply", "penawaran"]}
       initialTab={tab}
-      title="Katalog"
-      description="Bahan baku, roasted bean, produk jual, penawaran kopi, resep, harga, dan persediaan non-kopi"
+      title="Produk & Resep"
+      description="Kelola bahan baku, roasted bean, produk jual, penawaran, resep, harga, dan persediaan non-kopi."
     />
   );
 }

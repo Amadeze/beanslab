@@ -154,8 +154,8 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "sales",
       },
       {
-        label: "Katalog",
-        shortLabel: "Katalog",
+        label: "Produk & Resep",
+        shortLabel: "Produk",
         href: "/katalog",
         icon: Boxes,
         tone: "sales",
@@ -175,22 +175,22 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "finance",
       },
       {
-        label: "Laporan",
+        label: "Laporan Lanjutan",
         shortLabel: "Laporan",
         href: "/laporan",
         icon: ChartNoAxesCombined,
         tone: "neutral",
       },
       {
-        label: "Akuntansi",
+        label: "Akuntansi Dasar",
         shortLabel: "Akun",
         href: "/laporan/akuntansi",
         icon: BookOpen,
         tone: "neutral",
       },
       {
-        label: "Insight",
-        shortLabel: "Insight",
+        label: "Tanya Roastd",
+        shortLabel: "Tanya",
         href: "/ai-insights",
         icon: Sparkles,
         tone: "neutral",
@@ -375,10 +375,10 @@ export function Sidebar({
           <div key={section.label} className={cn(sectionIndex > 0 && "mt-6")}>
             {!isCollapsed ? (
               <div className="mb-2.5 flex items-end justify-between px-2">
-                <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/30">
+                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/55">
                   {section.label}
                 </p>
-                <p className="text-[8px] text-white/20">{section.caption}</p>
+                <p className="text-[10px] text-white/42">{section.caption}</p>
               </div>
             ) : sectionIndex > 0 ? (
               <div className="mx-auto mb-3 h-px w-7 bg-white/10" />
@@ -418,7 +418,7 @@ export function Sidebar({
                     </span>
                     {!isCollapsed ? (
                       <>
-                        <span className="min-w-0 flex-1 truncate text-[12px] font-medium">
+                        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
                           {item.label}
                         </span>
                         {item.href === "/penjualan" && pendingPaymentReviews > 0 ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 font-mono text-[9px] font-black text-white">{Math.min(pendingPaymentReviews, 99)}</span> : null}

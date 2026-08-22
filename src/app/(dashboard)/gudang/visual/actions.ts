@@ -9,6 +9,7 @@ export type VisualLocation = {
   code: string;
   name: string;
   zone: string | null;
+  capacity: number | null;
   isActive: boolean;
   isDefault: boolean;
   isSystem: boolean;
@@ -139,6 +140,7 @@ export async function getVisualWarehouseMap(): Promise<VisualWarehouseMap> {
         code: loc.code,
         name: loc.name,
         zone: loc.zone,
+        capacity: loc.capacity == null ? null : Number(loc.capacity),
         isActive: loc.isActive,
         isDefault: loc.isDefault,
         isSystem: loc.isSystem,

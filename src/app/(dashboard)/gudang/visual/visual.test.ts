@@ -249,6 +249,20 @@ describe("visual warehouse map", () => {
     expect(loc.totalKg).toBe(0);
     expect(loc.placements).toHaveLength(0);
     expect(loc.hasExpiryWarning).toBe(false);
+    expect(loc.capacity).toBeNull();
+  });
+
+  it("exposes configured location capacity for occupancy status", async () => {
+    const mockLocations = [
+      { id: "loc-1", code: "A-01", name: "Rak A", zone: "DRY", capacity: 125, isActive: true, isDefault: true, placements: [] },
+    ];
+
+    prisma.warehouse.findMany = vi.fn().mockResolvedValue([
+      { id: "wh-1", code: "WH-01", name: "Gudang", address: null, isActive: true, isDefault: true, locations: mockLocations },
+    ]);
+
+    const result = await getVisualWarehouseMap();
+    expect(result.warehouses[0].rackGroups["DRY"][0].capacity).toBe(125);
   });
 });
 

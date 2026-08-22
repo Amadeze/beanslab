@@ -11,15 +11,24 @@ import { PlacementForm } from "./_components/PlacementForm";
 import { TransferDrawer } from "./_components/TransferDrawer";
 import { getTransferHistory } from "@/lib/lot-transfer";
 
-export default async function LotTracePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LotTracePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ action?: string; sourceLocationId?: string }>;
+}) {
   const { id } = await params;
-  const result = await traceLot(id);
+  const query = await searchParams;
+  const [result, placement, tenantId, transferHistory] = await Promise.all([
+    traceLot(id),
+    getLotPlacement(id),
+    getCurrentTenantId(),
+    getTransferHistory(id),
+  ]);
   if (!("lot" in result)) notFound();
-
-  const placement = await getLotPlacement(id);
   if (!placement) notFound();
 
-  const tenantId = await getCurrentTenantId();
   const locations = await prisma.location.findMany({
     where: { tenantId, isActive: true },
     select: { id: true, code: true, name: true, isSystem: true, warehouse: { select: { name: true } } },
@@ -32,8 +41,6 @@ export default async function LotTracePage({ params }: { params: Promise<{ id: s
     isSystem: loc.isSystem,
     warehouseName: loc.warehouse.name,
   }));
-
-  const transferHistory = await getTransferHistory(id);
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6 lg:p-8">
@@ -84,6 +91,8 @@ export default async function LotTracePage({ params }: { params: Promise<{ id: s
           availableLocations={availableLocations}
           existingPlacements={placement.placements}
           remainingKg={placement.remainingKg}
+          initialOpen={query.action === "transfer"}
+          initialSourceLocationId={query.sourceLocationId}
         />
       </div>
 

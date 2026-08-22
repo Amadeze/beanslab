@@ -19,7 +19,8 @@
 | Operasional â€” Roastery | `/roasting`, `/roasting?tab=profiles`, `/produksi` |
 | Komersial | `/kasir`, `/penjualan`, `/penjualan/pelanggan` |
 | Kontrol | `/keuangan`, `/laporan` |
-| Kelola | `/katalog`, `/settings`, `/settings/organization`, `/settings/team`, `/settings/machines`, `/settings/integrations/artisan`, `/audit`, `/billing` |
+| Komersial — Produk & Resep | `/katalog` |
+| Kelola | `/settings`, `/settings/organization`, `/settings/team`, `/settings/machines`, `/settings/integrations/artisan`, `/audit`, `/billing` |
 
 ## Platform admin
 

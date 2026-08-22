@@ -1,219 +1,221 @@
 "use client";
 
-import { useState } from "react";
-import { X, Package, MapPin, Calendar, Archive, Weight, User, Clock } from "lucide-react";
-import { toast } from "sonner";
-import { toastSafe } from "@/lib/toast";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import {
+  AlertTriangle,
+  ArrowRightLeft,
+  Calendar,
+  MapPin,
+  Package,
+  Scale,
+  ScanLine,
+  Warehouse,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
 
-import { type VisualLocation } from "../actions";
-import { transferLot, type TransferActionResult } from "@/lib/lot-transfer";
+import { toastSafe } from "@/lib/toast";
 import { createLocationOpname } from "@/lib/lot-opname";
-
-const BTN_GHOST =
-  "rounded-xl border border-[var(--glass-border)] px-4 py-2.5 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--glass-bg-hover)] transition disabled:opacity-50 disabled:pointer-events-none";
-const BTN_PRIMARY =
-  "rounded-xl bg-[var(--amber-warm)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition disabled:opacity-50";
+import type { VisualLocation } from "../actions";
 
 const SYSTEM_PURPOSE_LABELS: Record<string, string> = {
   ROASTING_WIP: "Roasting WIP",
 };
 
-export function LocationDetailDrawer({
-  loc,
-  onClose,
-}: {
-  loc: VisualLocation;
-  onClose: () => void;
-}) {
-  const [isTransferring, setIsTransferring] = useState(false);
-  const [isOpname, setIsOpname] = useState(false);
+function quantityLabel(placement: VisualLocation["placements"][number]) {
+  if (placement.quantityKg > 0) return `${placement.quantityKg.toLocaleString("id-ID")} kg`;
+  if (placement.quantityUnit > 0) return `${placement.quantityUnit.toLocaleString("id-ID")} unit`;
+  if (placement.supplyQty > 0) return `${placement.supplyQty.toLocaleString("id-ID")} pcs`;
+  return "0";
+}
 
-  async function handleTransfer() {
-    setIsTransferring(true);
-    try {
-      if (loc.placements.length === 0) {
-        toastSafe.error("Tidak ada stok untuk dipindahkan.");
+function locationMeasurement(loc: VisualLocation) {
+  const measurements = [
+    { value: loc.totalKg, unit: "kg" },
+    { value: loc.totalUnit, unit: "unit" },
+    { value: loc.totalSupply, unit: "pcs" },
+  ].filter((item) => item.value > 0);
+  if (measurements.length !== 1) return null;
+  return measurements[0];
+}
+
+export function LocationDetailDrawer({ loc, onClose }: { loc: VisualLocation; onClose: () => void }) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const [opnameLotId, setOpnameLotId] = useState<string | null>(null);
+  const measurement = locationMeasurement(loc);
+  const occupancy = loc.capacity && measurement ? (measurement.value / loc.capacity) * 100 : null;
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
         return;
       }
-      const firstLot = loc.placements[0];
-      if (!firstLot) return;
-
-      toastSafe.info(
-        `Buka halaman lot untuk transfer. Lot: ${firstLot.batchCode}`,
-        {
-          action: {
-            label: "Buka",
-            onClick: () => {
-              window.location.href = `/inventory/lots/${firstLot.lotId}`;
-            },
-          },
-        },
+      if (event.key !== "Tab") return;
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
       );
-    } catch (err: any) {
-      toastSafe.error(err.message || "Gagal membuka transfer.");
-    } finally {
-      setIsTransferring(false);
-    }
-  }
-
-  async function handleOpname() {
-    if (loc.placements.length === 0) {
-      toastSafe.error("Tidak ada stok untuk di-opname.");
-      return;
-    }
-    const firstLot = loc.placements[0];
-    if (!firstLot) return;
-
-    try {
-      setIsOpname(true);
-      const res = await createLocationOpname({
-        lotId: firstLot.lotId,
-        locationId: loc.id,
-        countedQuantityKg: firstLot.quantityKg > 0 ? firstLot.quantityKg : undefined,
-        countedQuantityUnit: firstLot.quantityUnit > 0 ? firstLot.quantityUnit : undefined,
-        countedSupplyQty: firstLot.supplyQty > 0 ? firstLot.supplyQty : undefined,
-        notes: "Draft dari visual map pindahan opname",
-      });
-      if (res.success) {
-        toast.success("Draft opname berhasil dibuat. Buka halaman Opname untuk konfirmasi.");
-      } else {
-        toastSafe.error(res.error || "Gagal membuat draft opname.");
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
-    } catch (err: any) {
-      toastSafe.error(err.message || "Gagal membuat draft opname.");
+    };
+    document.addEventListener("keydown", onKeyDown);
+    closeButtonRef.current?.focus();
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [onClose]);
+
+  async function handleOpname(placement: VisualLocation["placements"][number]) {
+    try {
+      setOpnameLotId(placement.lotId);
+      const result = await createLocationOpname({
+        lotId: placement.lotId,
+        locationId: loc.id,
+        countedQuantityKg: placement.quantityKg > 0 ? placement.quantityKg : undefined,
+        countedQuantityUnit: placement.quantityUnit > 0 ? placement.quantityUnit : undefined,
+        countedSupplyQty: placement.supplyQty > 0 ? placement.supplyQty : undefined,
+        notes: `Draft opname dari Peta Gudang · ${loc.code}`,
+      });
+      if (result.success) {
+        toast.success("Draft opname dibuat. Konfirmasi hasilnya di halaman Opname.");
+      } else {
+        toastSafe.error(result.error || "Draft opname tidak dapat dibuat.");
+      }
+    } catch (error) {
+      toastSafe.error(error instanceof Error ? error.message : "Draft opname tidak dapat dibuat.");
     } finally {
-      setIsOpname(false);
+      setOpnameLotId(null);
     }
   }
-
-  const qtyDisplay = (p: VisualLocation["placements"][number]) => {
-    if (p.quantityKg > 0) return `${p.quantityKg.toLocaleString("id-ID")} kg`;
-    if (p.quantityUnit > 0) return `${p.quantityUnit} unit`;
-    if (p.supplyQty > 0) return `${p.supplyQty.toLocaleString("id-ID")} pcs`;
-    return "0";
-  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="glass-card w-full max-w-2xl rounded-2xl p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--amber-warm)]/10">
-              <MapPin className="h-5 w-5 text-[var(--amber-warm)]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-[var(--text-primary)]">{loc.name}</h3>
-                {loc.isSystem && (
-                  <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-sky-500">
-                    Sistem{loc.systemPurpose ? ` · ${SYSTEM_PURPOSE_LABELS[loc.systemPurpose] ?? loc.systemPurpose}` : ""}
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-[var(--text-tertiary)]">
-                Kode: {loc.code} · {!loc.isActive && "Non-aktif"}
-              </p>
-            </div>
-          </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-[var(--text-tertiary)] hover:bg-[var(--glass-bg-hover)]">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <dt className="text-[var(--text-tertiary)]">Warehouse</dt>
-            <dd className="font-semibold text-[var(--text-primary)]">
-              {loc.rackGroup}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[var(--text-tertiary)]">Status</dt>
-            <dd className="font-semibold">
-              {loc.lotCount > 0 ? (
-                <span className="text-emerald-600">{loc.lotCount} lot</span>
-              ) : (
-                <span className="text-slate-500">Kosong</span>
-              )}
-            </dd>
-          </div>
-          {loc.hasExpiryWarning && (
-            <div className="col-span-2 rounded-lg bg-rose-50/30 p-3">
-              <span className="flex items-center gap-1 text-xs text-rose-700">
-                <Calendar size={14} />
-                Peringatan: ada lot dengan expiry &lt; 30 hari
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <button type="button" aria-label="Tutup detail lokasi" className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onClick={onClose} />
+      <aside
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="location-detail-title"
+        className="relative flex h-full w-full max-w-[560px] flex-col border-l border-white/10 bg-[#F4F2EA] shadow-[-24px_0_80px_rgba(5,9,13,.35)]"
+      >
+        <header className="shrink-0 border-b border-white/10 bg-[#05090D] px-4 py-4 text-white sm:px-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-[#2B7567]/45 bg-[#2B7567]/20 text-[#87CDBC]">
+                <MapPin size={19} aria-hidden />
               </span>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-5 space-y-3">
-          <h4 className="text-sm font-semibold uppercase text-[var(--text-tertiary)]">
-            Konten ({loc.placements.length})
-          </h4>
-          {loc.placements.length === 0 ? (
-            <p className="text-sm text-[var(--text-secondary)]">Lokasi kosong.</p>
-          ) : (
-            <div className="space-y-2">
-              {loc.placements.map((p) => (
-                <div
-                  key={p.lotId}
-                  className="flex items-center justify-between rounded-xl border border-white/5 bg-white/2 p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <Package size={14} className="text-[var(--amber-warm)]" />
-                    <div>
-                      <p className="font-medium text-[var(--text-primary)]">{p.label}</p>
-                      <p className="text-xs text-[var(--text-tertiary)]">
-                        {p.batchCode} · {p.supplierName ?? "-"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right font-mono text-sm">
-                    {qtyDisplay(p)}
-                    {p.expiryDate && (
-                      <p className="text-xs text-[var(--text-tertiary)]">
-                        {new Date(p.expiryDate).toLocaleDateString("id-ID")}
-                      </p>
-                    )}
-                  </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 id="location-detail-title" className="text-lg font-bold tracking-tight">{loc.name}</h2>
+                  {loc.isSystem ? (
+                    <span className="rounded-full border border-sky-300/25 bg-sky-300/10 px-2 py-0.5 text-xs font-semibold text-sky-200">
+                      Sistem{loc.systemPurpose ? ` · ${SYSTEM_PURPOSE_LABELS[loc.systemPurpose] ?? loc.systemPurpose}` : ""}
+                    </span>
+                  ) : null}
                 </div>
-              ))}
+                <p className="mt-1 font-mono text-xs uppercase tracking-[0.12em] text-white/55">{loc.code} · Zona {loc.rackGroup}</p>
+              </div>
             </div>
-          )}
+            <button ref={closeButtonRef} type="button" onClick={onClose} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-white/15 text-white/75 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C8DF]" aria-label="Tutup detail lokasi">
+              <X size={19} aria-hidden />
+            </button>
+          </div>
+        </header>
+
+        <div className="custom-scrollbar flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+          <section aria-label="Ringkasan lokasi" className="grid grid-cols-2 gap-3">
+            <div className="rounded-[12px] border border-[#CDC8BC] bg-[#FFFDF8] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#777D78]">Status</p>
+              <p className="mt-2 text-base font-bold text-[#141817]">{loc.lotCount > 0 ? `${loc.lotCount} lot tersimpan` : "Lokasi kosong"}</p>
+            </div>
+            <div className="rounded-[12px] border border-[#CDC8BC] bg-[#FFFDF8] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#777D78]">Kapasitas</p>
+              <p className="mt-2 text-base font-bold text-[#141817]">{loc.capacity ? loc.capacity.toLocaleString("id-ID", { maximumFractionDigits: 2 }) : "Belum diatur"}</p>
+            </div>
+            <div className="col-span-2 rounded-[12px] border border-[#CDC8BC] bg-[#FFFDF8] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#777D78]">Pemakaian lokasi</p>
+                  <p className="mt-2 text-sm font-semibold text-[#141817]">
+                    {measurement ? `${measurement.value.toLocaleString("id-ID", { maximumFractionDigits: 2 })} ${measurement.unit}` : loc.lotCount > 0 ? "Satuan campuran" : "Belum ada stok"}
+                  </p>
+                </div>
+                <span className="font-mono text-lg font-bold tabular-nums text-[#2B7567]">{occupancy === null ? "—" : `${Math.round(occupancy)}%`}</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#E4E1D7]" aria-hidden>
+                <div className={`h-full rounded-full ${occupancy !== null && occupancy > 100 ? "bg-rose-600" : occupancy !== null && occupancy >= 80 ? "bg-amber-600" : "bg-[#2B7567]"}`} style={{ width: `${Math.min(100, occupancy ?? 0)}%` }} />
+              </div>
+            </div>
+          </section>
+
+          {loc.hasExpiryWarning ? (
+            <div className="mt-4 flex items-start gap-3 rounded-[12px] border border-rose-300 bg-rose-50 p-4 text-rose-900" role="status">
+              <AlertTriangle className="mt-0.5 shrink-0" size={18} aria-hidden />
+              <div>
+                <p className="text-sm font-bold">Ada lot yang perlu didahulukan</p>
+                <p className="mt-1 text-xs leading-5">Setidaknya satu lot sudah kedaluwarsa atau akan kedaluwarsa dalam 30 hari.</p>
+              </div>
+            </div>
+          ) : null}
+
+          <section aria-labelledby="stored-lots-title" className="mt-6">
+            <div className="flex items-center justify-between gap-3">
+              <h3 id="stored-lots-title" className="text-sm font-bold text-[#141817]">Lot di lokasi ini</h3>
+              <span className="rounded-full bg-[#E4E1D7] px-2.5 py-1 text-xs font-semibold text-[#59605B]">{loc.placements.length}</span>
+            </div>
+
+            {loc.placements.length === 0 ? (
+              <div className="mt-3 rounded-[12px] border border-dashed border-[#BFB9AB] bg-[#FFFDF8] p-7 text-center">
+                <Package className="mx-auto h-9 w-9 text-[#777D78]" aria-hidden />
+                <p className="mt-3 text-sm font-semibold text-[#141817]">Lokasi masih kosong</p>
+                <p className="mt-1 text-xs text-[#59605B]">Pindahkan lot melalui halaman detail lot atau gunakan pemindai lokasi.</p>
+              </div>
+            ) : (
+              <div className="mt-3 space-y-3">
+                {loc.placements.map((placement) => (
+                  <article key={placement.lotId} className="rounded-[12px] border border-[#CDC8BC] bg-[#FFFDF8] p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-[#141817]">{placement.label}</p>
+                        <p className="mt-1 font-mono text-xs text-[#59605B]">{placement.batchCode}</p>
+                        <p className="mt-1 text-xs text-[#777D78]">{placement.supplierName ?? "Supplier tidak dicatat"}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-mono text-sm font-bold tabular-nums text-[#141817]">{quantityLabel(placement)}</p>
+                        {placement.expiryDate ? (
+                          <p className="mt-1 inline-flex items-center gap-1 text-xs text-[#59605B]"><Calendar size={12} aria-hidden />{new Date(placement.expiryDate).toLocaleDateString("id-ID")}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[#E4E1D7] pt-3">
+                      <Link href={`/inventory/lots/${placement.lotId}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[9px] border border-[#BFB9AB] px-2 text-xs font-semibold text-[#141817] transition hover:bg-[#F4F2EA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]"><Package size={14} aria-hidden />Lihat</Link>
+                      <Link href={`/inventory/lots/${placement.lotId}?action=transfer&sourceLocationId=${loc.id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[9px] border border-[#BFB9AB] px-2 text-xs font-semibold text-[#141817] transition hover:bg-[#F4F2EA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]"><ArrowRightLeft size={14} aria-hidden />Pindahkan</Link>
+                      <button type="button" disabled={loc.isSystem || opnameLotId === placement.lotId} onClick={() => handleOpname(placement)} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[9px] border border-[#BFB9AB] px-2 text-xs font-semibold text-[#141817] transition hover:bg-[#F4F2EA] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]"><Scale size={14} aria-hidden />{opnameLotId === placement.lotId ? "Membuat…" : "Opname"}</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-2">
-          <Link href={`/inventory/lots/${loc.placements[0]?.lotId ?? ""}`} className={BTN_GHOST}>
-            <Package size={14} className="mr-1" /> Lihat Lot
-          </Link>
-          <button
-            onClick={handleTransfer}
-            disabled={isTransferring || loc.placements.length === 0 || loc.isSystem}
-            title={loc.isSystem ? "Lokasi sistem dikelola otomatis" : undefined}
-            className={BTN_GHOST}
-          >
-            <Archive size={14} className="mr-1" /> Pindahkan Stok
-          </button>
-          <button
-            onClick={handleOpname}
-            disabled={isOpname || loc.placements.length === 0 || loc.isSystem}
-            title={loc.isSystem ? "Lokasi sistem dikelola otomatis" : undefined}
-            className={BTN_GHOST}
-          >
-            <Weight size={14} className="mr-1" /> {isOpname ? "Membuat..." : "Stock Opname"}
-          </button>
-          <a
-            href={`/gudang/scan?code=${loc.code}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={BTN_GHOST}
-          >
-            <MapPin size={14} className="mr-1" /> Cetak QR
-          </a>
-        </div>
-      </div>
+        <footer className="grid shrink-0 grid-cols-2 gap-3 border-t border-[#CDC8BC] bg-[#FFFDF8] p-4 sm:px-6">
+          <Link href={`/gudang/scan?code=${encodeURIComponent(loc.code)}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-[#2B7567] px-4 text-sm font-semibold text-white transition hover:bg-[#225F54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6] focus-visible:ring-offset-2"><ScanLine size={16} aria-hidden />Pindai lokasi</Link>
+          <Link href="/gudang" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] border border-[#BFB9AB] px-4 text-sm font-semibold text-[#141817] transition hover:bg-[#F4F2EA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]"><Warehouse size={16} aria-hidden />Kelola lokasi</Link>
+        </footer>
+      </aside>
     </div>
   );
 }

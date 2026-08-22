@@ -49,6 +49,15 @@ Warna selalu ditemani icon, label, angka, atau status teks. Jangan menggunakan w
 - Superadmin: obsidian platform navigation + light material data plane.
 - Print: white document dengan copper rule; toolbar obsidian hanya di layar dan hilang saat print.
 - Storefront tenant mempertahankan theming milik tenant. roastd.id hanya mengendalikan editor, frame, dan attribution.
+## Interaction and navigation contract
+
+- Satu layar hanya boleh memiliki satu navigasi utama dan satu navigasi lokal.
+- Mobile menampilkan maksimal lima tujuan tingkat atas; tujuan lain masuk drawer atau pemilih konteks.
+- Jalur operasional mobile hanya menampilkan tahap aktif dan tahap berikutnya.
+- Satu layar memiliki satu primary action. Aksi sekunder memakai outline/ghost dan aksi destruktif dipisahkan.
+- Target sentuh minimum 44×44px. Teks bermakna minimum 12px desktop dan 14px mobile.
+- Breadcrumb hanya dipakai pada hierarki tiga tingkat atau lebih.
+- Status selalu memakai kombinasi label, ikon, dan warna; warna tidak boleh menjadi satu-satunya sinyal.
 
 ## Typography and density
 

@@ -12,7 +12,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   gudang: "Gudang & Lokasi",
   opname: "Opname Lokasi",
   scan: "Stok per Lokasi",
-  visual: "Peta Visual",
+  visual: "Peta Gudang",
   roasting: "Roasting",
   profiles: "Profil Roast",
   batch: "Batch",
@@ -26,7 +26,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   kontrak: "Kontrak OEM",
   pembayaran: "Bukti Bayar",
   pelanggan: "Pelanggan",
-  katalog: "Katalog",
+  katalog: "Produk & Resep",
   laporan: "Laporan",
   sales: "Penjualan",
   expenses: "Pengeluaran",
@@ -46,7 +46,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   "neraca-lajur": "Neraca Lajur",
   "perubahan-ekuitas": "Perubahan Ekuitas",
   integrity: "Integritas Data",
-  "ai-insights": "Insight Assistant",
+  "ai-insights": "Tanya Roastd",
   settings: "Pengaturan",
   organization: "Organisasi",
   team: "Tim",
@@ -105,13 +105,13 @@ export function Breadcrumbs() {
               <ChevronRight size={11} className="text-[var(--text-tertiary)]" />
             ) : null}
             {isLast ? (
-              <span className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+              <span className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]">
                 {crumb.label}
               </span>
             ) : (
               <Link
                 href={crumb.href}
-                className="font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--text-tertiary)] transition hover:text-[var(--text-primary)]"
+                className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition hover:text-[var(--text-primary)]"
               >
                 {crumb.label}
               </Link>

@@ -95,7 +95,7 @@ test("dashboard operations workbench renders on desktop and mobile", async ({ co
     const mobileSidebar = page.locator("aside:visible");
     await expect(mobileSidebar.getByText("Operasional", { exact: true })).toBeVisible();
     await expect(mobileSidebar.getByRole("link", { name: "Pasokan & Stok", exact: true })).toBeVisible();
-    await expect(mobileSidebar.getByRole("link", { name: "Katalog", exact: true })).toBeVisible();
+    await expect(mobileSidebar.getByRole("link", { name: "Produk & Resep", exact: true })).toBeVisible();
     await page.screenshot({
       path: "test-results/dashboard-navigation-mobile.png",
       fullPage: false,

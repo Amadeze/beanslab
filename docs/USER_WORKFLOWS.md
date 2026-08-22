@@ -37,7 +37,7 @@ Profit hanya ditampilkan dari model biaya yang tersedia; laporan harus menyebut 
 - **Pasokan** menyatukan posisi stok, pembelian, penerimaan, mutasi, dan supplier.
 - **Roastery** menyatukan batch roasting, profil/log Artisan, serta produksi dan packing.
 - **Penjualan** menyatukan invoice/pesanan, Kasir, sample, dan pelanggan.
-- **Katalog** menampung produk, resep, harga, serta kemasan.
+- **Produk & Resep** menampung bahan baku, produk, resep, harga, penawaran, serta kemasan.
 - **Pengaturan** menjadi rumah untuk profil organisasi, portal, anggota tim, mesin, koneksi Artisan, audit, serta paket dan tagihan.
 - **Kasir** menangani penjualan langsung di toko: pencarian produk, keranjang, pelanggan, pembayaran tunai/QRIS/transfer, dan pencetakan nota.
 - Checkout Kasir memakai mesin transaksi invoice, pembayaran, ledger, dan audit yang sama dengan modul Penjualan.

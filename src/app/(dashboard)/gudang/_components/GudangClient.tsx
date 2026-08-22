@@ -4,18 +4,18 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, MapPin, ChevronDown, ChevronRight, LayoutGrid, Package } from "lucide-react";
+import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, MapPin, ChevronDown, ChevronRight, Package } from "lucide-react";
 import { createWarehouse, updateWarehouse, toggleWarehouseActive, type WarehouseRow } from "../warehouses/actions";
 import { createLocation, updateLocation, toggleLocationActive, type LocationRow } from "../locations/actions";
 
 const INPUT_GLASS =
-  "w-full rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--amber-warm)]/50";
+  "h-11 w-full rounded-[10px] border border-[var(--glass-border)] bg-[var(--glass-bg)] px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[#2B7567]/30";
 const BTN_PRIMARY =
-  "rounded-xl bg-[var(--amber-warm)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition disabled:opacity-50";
+  "inline-flex min-h-11 items-center justify-center rounded-[10px] bg-[#2B7567] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#225F54] disabled:pointer-events-none disabled:opacity-50";
 const BTN_GHOST =
-  "rounded-xl border border-[var(--glass-border)] px-5 py-2.5 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--glass-bg-hover)] transition";
+  "inline-flex min-h-11 items-center justify-center rounded-[10px] border border-[var(--glass-border)] px-5 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--glass-bg-hover)]";
 const BTN_GHOST_ICON =
-  "rounded-lg p-2 text-[var(--text-tertiary)] hover:bg-[var(--glass-bg-hover)] hover:text-[var(--text-primary)] transition";
+  "inline-flex h-11 w-11 items-center justify-center rounded-[9px] text-[var(--text-tertiary)] transition hover:bg-[var(--glass-bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]";
 
 const SYSTEM_PURPOSE_LABELS: Record<string, string> = {
   ROASTING_WIP: "Roasting WIP",
@@ -38,7 +38,7 @@ export function GudangClient({
   locations: LocationRow[];
   qrMap?: Record<string, string>;
 }) {
-  const [activeTab, setActiveTab] = useState<"warehouses" | "locations" | "visual">("warehouses");
+  const [activeTab, setActiveTab] = useState<"warehouses" | "locations">("warehouses");
   const [expandedWarehouse, setExpandedWarehouse] = useState<string | null>(null);
 
   const [showWarehouseForm, setShowWarehouseForm] = useState(false);
@@ -54,6 +54,7 @@ export function GudangClient({
   const [lCode, setLCode] = useState("");
   const [lName, setLName] = useState("");
   const [lZone, setLZone] = useState("");
+  const [lCapacity, setLCapacity] = useState("");
 
   function resetWarehouseForm() {
     setShowWarehouseForm(false);
@@ -102,6 +103,7 @@ export function GudangClient({
     setLCode("");
     setLName("");
     setLZone("");
+    setLCapacity("");
   }
 
   function startEditLocation(l: LocationRow) {
@@ -110,6 +112,7 @@ export function GudangClient({
     setLCode(l.code);
     setLName(l.name);
     setLZone(l.zone || "");
+    setLCapacity(l.capacity === null ? "" : String(l.capacity));
     setShowLocationForm(true);
     setActiveTab("locations");
   }
@@ -119,8 +122,20 @@ export function GudangClient({
     setLoading(true);
     try {
       const result = editingLocation
-        ? await updateLocation(editingLocation.id, { warehouseId: lWarehouseId, code: lCode, name: lName, zone: lZone })
-        : await createLocation({ warehouseId: lWarehouseId, code: lCode, name: lName, zone: lZone });
+        ? await updateLocation(editingLocation.id, {
+            warehouseId: lWarehouseId,
+            code: lCode,
+            name: lName,
+            zone: lZone,
+            capacity: lCapacity ? Number(lCapacity) : undefined,
+          })
+        : await createLocation({
+            warehouseId: lWarehouseId,
+            code: lCode,
+            name: lName,
+            zone: lZone,
+            capacity: lCapacity ? Number(lCapacity) : undefined,
+          });
       if (result.success) {
         toast.success(editingLocation ? "Lokasi diperbarui." : "Lokasi ditambahkan.");
         resetLocationForm();
@@ -142,37 +157,26 @@ export function GudangClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 border-b border-white/10">
+      <div className="inline-flex w-fit items-center rounded-[10px] border border-[#CDC8BC] bg-[#E4E1D7] p-1">
         <button
           onClick={() => setActiveTab("warehouses")}
-          className={`px-4 py-2 text-sm font-semibold transition ${
+          className={`min-h-10 rounded-[7px] px-4 text-sm font-semibold transition ${
             activeTab === "warehouses"
-              ? "border-b-2 border-[#2B7567] text-[#2B7567]"
-              : "text-[#87CDBC] hover:text-white"
+              ? "bg-[#2B7567] text-white shadow-sm"
+              : "text-[#59605B] hover:bg-white/70 hover:text-[#141817]"
           }`}
         >
           Gudang
         </button>
         <button
           onClick={() => setActiveTab("locations")}
-          className={`px-4 py-2 text-sm font-semibold transition ${
+          className={`min-h-10 rounded-[7px] px-4 text-sm font-semibold transition ${
             activeTab === "locations"
-              ? "border-b-2 border-[#2B7567] text-[#2B7567]"
-              : "text-[#87CDBC] hover:text-white"
+              ? "bg-[#2B7567] text-white shadow-sm"
+              : "text-[#59605B] hover:bg-white/70 hover:text-[#141817]"
           }`}
         >
           Lokasi
-        </button>
-        <button
-          onClick={() => setActiveTab("visual")}
-          className={`px-4 py-2 text-sm font-semibold transition ${
-            activeTab === "visual"
-              ? "border-b-2 border-[#2B7567] text-[#2B7567]"
-              : "text-[#87CDBC] hover:text-white"
-          }`}
-        >
-          <LayoutGrid size={16} className="inline mr-1" />
-          Visual Map
         </button>
       </div>
 
@@ -190,7 +194,7 @@ export function GudangClient({
                 resetWarehouseForm();
                 setShowWarehouseForm(true);
               }}
-              className="flex items-center gap-2 rounded-xl bg-[var(--amber-warm)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition"
+              className="inline-flex min-h-11 items-center gap-2 rounded-[10px] bg-[#2B7567] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#225F54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]"
             >
               <Plus size={16} /> Tambah Gudang
             </button>
@@ -349,6 +353,20 @@ export function GudangClient({
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Zona (opsional)</label>
                 <input type="text" value={lZone} onChange={(e) => setLZone(e.target.value)} maxLength={50} className={INPUT_GLASS} placeholder="Contoh: DRY" />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Kapasitas lokasi (opsional)</label>
+                <input
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  inputMode="decimal"
+                  value={lCapacity}
+                  onChange={(e) => setLCapacity(e.target.value)}
+                  className={INPUT_GLASS}
+                  placeholder="Contoh: 100"
+                />
+                <p className="mt-1 text-xs text-[var(--text-tertiary)]">Gunakan satuan yang sama dengan stok utama lokasi ini, misalnya kg atau unit.</p>
+              </div>
               <div className="flex gap-3">
                 <button type="submit" disabled={loading || !lCode.trim()} className={BTN_PRIMARY}>
                   {loading ? "Menyimpan..." : editingLocation ? "Simpan" : "Tambah"}
@@ -367,7 +385,7 @@ export function GudangClient({
             </div>
             <button
               onClick={() => { resetLocationForm(); setShowLocationForm(true); }}
-              className="flex items-center gap-2 rounded-xl bg-[var(--amber-warm)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition"
+              className="inline-flex min-h-11 items-center gap-2 rounded-[10px] bg-[#2B7567] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#225F54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]"
             >
               <Plus size={16} /> Tambah Lokasi
             </button>
@@ -396,6 +414,7 @@ export function GudangClient({
                   </div>
                   <p className="text-xs text-[var(--text-tertiary)]">Gudang: {l.warehouseName}</p>
                   {l.zone && <p className="text-xs text-[var(--text-tertiary)]">Zona: {l.zone}</p>}
+                  {l.capacity !== null && <p className="text-xs text-[var(--text-tertiary)]">Kapasitas: {l.capacity.toLocaleString("id-ID")}</p>}
                 </div>
                 <div className="flex items-center gap-2">
                   <Link
@@ -421,63 +440,6 @@ export function GudangClient({
           </>
       )}
 
-      {activeTab === "visual" && (
-        <>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-[var(--text-primary)]">Peta Visual Gudang</h2>
-            <Link href="/gudang/visual" className="flex items-center gap-1 text-sm text-[var(--amber-warm)] hover:underline">
-              <LayoutGrid size={14} /> Buka penuh
-            </Link>
-          </div>
-          <div className="space-y-6">
-            {initialWarehouses.length === 0 ? (
-              <p className="text-sm text-[var(--text-secondary)]">Belum ada gudang untuk ditampilkan.</p>
-            ) : (
-              initialWarehouses.map((w) => {
-                const wLocations = initialLocations.filter((l) => l.warehouseId === w.id);
-                const rackGroups: Record<string, LocationRow[]> = {};
-                wLocations.forEach((l) => {
-                  const rg = l.zone ?? (l.code.split("-")[0] ?? "DEFAULT").toUpperCase();
-                  if (!rackGroups[rg]) rackGroups[rg] = [];
-                  rackGroups[rg].push(l);
-                });
-
-                return (
-                  <div key={w.id} className="glass-card rounded-2xl p-4">
-                    <h3 className="font-semibold text-[var(--text-primary)] mb-2">{w.name} [{w.code}]</h3>
-                    {Object.keys(rackGroups).length === 0 ? (
-                      <p className="text-xs text-[var(--text-tertiary)]">Tidak ada lokasi.</p>
-                    ) : (
-                      Object.entries(rackGroups).map(([rg, locs]) => (
-                        <div key={rg} className="mb-3">
-                          <span className="text-xs font-semibold text-[var(--text-tertiary)]">{rg}</span>
-                          <div className="mt-1 grid grid-cols-[repeat(auto-fill,_minmax(70px,_1fr))] gap-2">
-                            {locs.map((l) => (
-                              <div
-                                key={l.id}
-                                className={`flex h-16 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border p-1 text-center text-xs transition hover:scale-105 ${
-                                  l.isActive
-                                    ? "border-slate-200 bg-slate-50 text-slate-500"
-                                    : "border-slate-300 bg-slate-100 text-slate-400"
-                                }`}
-                                title={l.name}
-                                onClick={() => { window.location.href = `/gudang/scan?code=${l.code}`; }}
-                              >
-                                <span className="font-mono font-semibold">{l.code}</span>
-                                <span className="block max-w-full truncate px-1">{l.name}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </>
-      )}
     </div>
   );
 }

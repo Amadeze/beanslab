@@ -185,6 +185,7 @@ export interface LocationRow {
   code: string;
   name: string;
   zone: string | null;
+  capacity: number | null;
   isActive: boolean;
   isDefault: boolean;
   isSystem: boolean;

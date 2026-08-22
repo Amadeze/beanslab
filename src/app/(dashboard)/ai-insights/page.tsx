@@ -99,8 +99,8 @@ export default function AiInsightsPage() {
 
   return (
     <StandardPageLayout
-      title="Insight assistant"
-      description="Tanyakan angka operasional dengan bahasa sehari-hari; jawaban berasal dari laporan Roastd."
+      title="Tanya Roastd"
+      description="Tanyakan angka operasional dengan bahasa sehari-hari. Jawaban berasal dari laporan workspace Anda."
     >
       <GlassPanel padding="none" className="mx-auto flex h-[calc(100dvh-165px)] min-h-[560px] w-full max-w-4xl flex-col overflow-hidden">
         <header className="flex items-center gap-3 border-b border-border/80 px-5 py-4">
@@ -112,7 +112,7 @@ export default function AiInsightsPage() {
             <p className="text-xs text-muted-foreground">Query lokal · tidak mengubah data</p>
           </div>
           <span className="ml-auto rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Read only
+            Hanya baca
           </span>
         </header>
 
