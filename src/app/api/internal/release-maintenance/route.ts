@@ -36,7 +36,7 @@ function safeEqual(actual: string, expected: string) {
 
 function isAuthorized(req: Request) {
   if (
-    process.env.VERCEL_ENV !== "preview" ||
+    !["preview", "production"].includes(process.env.VERCEL_ENV ?? "") ||
     process.env.VERCEL_GIT_COMMIT_REF !== RELEASE_BRANCH
   ) {
     return false;
@@ -384,6 +384,9 @@ export async function POST(req: Request) {
 
   try {
     const body = (await req.json()) as { action?: unknown };
+    if (process.env.VERCEL_ENV === "production" && body.action !== "inspect") {
+      return NextResponse.json({ error: "Unsupported action" }, { status: 403 });
+    }
     if (body.action === "inspect") {
       return NextResponse.json({ ok: true, target: await inspectTarget() });
     }
