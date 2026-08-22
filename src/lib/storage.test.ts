@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { hasValidImageSignature, uploadPrivateObject } from "./storage";
@@ -77,5 +80,31 @@ describe("private object storage", () => {
         extension: "../exe",
       }),
     ).rejects.toThrow("Invalid private object extension");
+  });
+
+  it("uses the explicit E2E local root even when Supabase variables exist", async () => {
+    const localRoot = await mkdtemp(join(tmpdir(), "ros-storage-e2e-"));
+    process.env.ROASTD_E2E_LOCAL_STORAGE_ROOT = localRoot;
+    process.env.SUPABASE_URL = "https://placeholder.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "placeholder-service-role";
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    try {
+      const contents = Buffer.from("private-e2e-object");
+      const objectPath = await uploadPrivateObject({
+        tenantId: "tenant-e2e",
+        namespace: "payment-proofs",
+        buffer: contents,
+        mimeType: "application/octet-stream",
+        extension: "bin",
+      });
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      await expect(
+        readFile(join(localRoot, "private-uploads", ...objectPath.split("/"))),
+      ).resolves.toEqual(contents);
+    } finally {
+      await rm(localRoot, { recursive: true, force: true });
+    }
   });
 });

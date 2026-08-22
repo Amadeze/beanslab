@@ -12,13 +12,26 @@ test("UI Data Entry Simulation (No Cleanup)", async ({ page, context }) => {
     adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
   });
 
-  const tenant = await prisma.tenant.findUnique({ where: { code: 'KIMAISE' } });
-  if (!tenant) throw new Error("KIMAISE not found");
-
   const user = await prisma.user.findFirst({
-    where: { email: 'evm.dama26@gmail.com', tenantId: tenant.id }
+    where: { isActive: true, role: "OWNER", tenant: { isActive: true } },
+    orderBy: { createdAt: "asc" },
   });
-  if (!user) throw new Error("User EVM not found");
+  if (!user) throw new Error("Active E2E owner not found");
+
+  await prisma.product.upsert({
+    where: { tenantId_code: { tenantId: user.tenantId, code: "UI-FG-001" } },
+    update: { name: "UI Finished Good", stockUnit: 100, price: 150000, isActive: true },
+    create: {
+      tenantId: user.tenantId,
+      code: "UI-FG-001",
+      name: "UI Finished Good",
+      type: "FINISHED_GOODS",
+      category: "RETAIL",
+      stockUnit: 100,
+      price: 150000,
+      isActive: true,
+    },
+  });
 
   const sessionCookie = await sealData(
     { user },
@@ -105,23 +118,23 @@ test("UI Data Entry Simulation (No Cleanup)", async ({ page, context }) => {
     await page.getByRole("combobox").nth(0).click();
     await page.waitForTimeout(500); // Tunggu animasi shadcn/ui popover
     await page.getByRole("option").nth(0).click(); 
+    await page.keyboard.press("Escape");
     await page.waitForTimeout(500);
 
     // Step 2: Pilih Produk (Combobox kedua)
     await page.getByRole("combobox").nth(1).click();
-    await page.waitForTimeout(500);
-    // Gunakan keyboard untuk memilih opsi agar kebal terhadap animasi popover
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("Enter");
+    await page.getByRole("option").filter({ hasText: "UI Finished Good" }).click();
 
     // Step 3: Qty
-    await page.getByRole("spinbutton").fill("10");
+    await page.getByRole("spinbutton").fill("1");
 
     // Simpan & Terbitkan
     await page.getByRole("button", { name: "Terbitkan Nota" }).click();
     
     // Tunggu notifikasi sukses
-    await expect(page.getByText(/berhasil/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Nota Berhasil Terbit!" })).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   await prisma.$disconnect();

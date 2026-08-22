@@ -192,6 +192,7 @@ suite("Finance UX 2F.3 Integration", () => {
         status: "COMPLETED",
         paymentStatus: "PARTIAL",
         paidAmount: 400_000,
+        dueDate: new Date("2026-09-01T00:00:00.000Z"),
         receivedAt: new Date("2026-08-01T00:00:00.000Z"),
       },
     });
@@ -242,6 +243,7 @@ suite("Finance UX 2F.3 Integration", () => {
         status: "COMPLETED",
         paymentStatus: "UNPAID",
         paidAmount: 0,
+        dueDate: new Date("2026-09-02T00:00:00.000Z"),
         receivedAt: new Date("2026-08-02T00:00:00.000Z"),
       },
     });

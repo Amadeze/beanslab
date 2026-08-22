@@ -27,6 +27,7 @@ test("core workspaces remain task-ready after the restructure", async ({ context
         email: true,
         role: true,
         tenantId: true,
+        sessionVersion: true,
         tenant: {
           select: {
             isActive: true,

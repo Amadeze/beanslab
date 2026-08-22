@@ -115,6 +115,7 @@ test("all owner dashboard modules render", async ({ context, page }) => {
         email: true,
         role: true,
         tenantId: true,
+        sessionVersion: true,
         tenant: {
           select: {
             isActive: true,
@@ -709,8 +710,8 @@ test("public checkout trusts server price and supports verified partial payment"
     expect(firstBody.success).toBe(true);
     expect(firstBody.orderUrl).toMatch(new RegExp(`/tenant/${subdomain}/order/`));
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: firstBody.invoice.id },
+    const invoice = await prisma.invoice.findFirst({
+      where: { tenantId, code: firstBody.invoice.code },
       include: { items: true },
     });
     expect(Number(invoice?.grandTotal)).toBe(100_000);
@@ -743,7 +744,7 @@ test("public checkout trusts server price and supports verified partial payment"
     expect((await prisma.invoice.findUniqueOrThrow({ where: { id: invoice!.id } })).status).toBe("ISSUED");
 
     const sessionCookie = await sealData(
-      { user: { id: user.id, name: user.name, email: user.email, role: user.role, tenantId } },
+      { user: { id: user.id, name: user.name, email: user.email, role: user.role, tenantId, sessionVersion: user.sessionVersion } },
       { password: SESSION_OPTIONS.password, ttl: SESSION_OPTIONS.cookieOptions.maxAge },
     );
     await context.addCookies([{ name: SESSION_OPTIONS.cookieName, value: sessionCookie, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" }]);
@@ -787,7 +788,12 @@ test("public checkout trusts server price and supports verified partial payment"
     const backorderBody = await backorder.json();
     expect(backorder.status(), JSON.stringify(backorderBody)).toBe(200);
     const backorderInvoice = await prisma.invoice.findUniqueOrThrow({
-      where: { id: backorderBody.invoice.id },
+      where: {
+        tenantId_code: {
+          tenantId,
+          code: backorderBody.invoice.code,
+        },
+      },
     });
     expect(backorderInvoice.fulfillmentStatus).toBe("NEEDS_PRODUCTION");
     const fulfillmentTask = await prisma.fulfillmentTask.findFirstOrThrow({

@@ -27,6 +27,7 @@ test("dashboard operations workbench renders on desktop and mobile", async ({ co
         email: true,
         role: true,
         tenantId: true,
+        sessionVersion: true,
         tenant: {
           select: {
             isActive: true,
@@ -67,7 +68,7 @@ test("dashboard operations workbench renders on desktop and mobile", async ({ co
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/dashboard", { waitUntil: "networkidle" });
     await expect(page.getByTestId("operations-workbench")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Yang perlu diputuskan" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Pekerjaan berikutnya" })).toBeVisible();
     await page.screenshot({
       path: "test-results/dashboard-command-center-desktop.png",
       fullPage: false,
@@ -93,7 +94,7 @@ test("dashboard operations workbench renders on desktop and mobile", async ({ co
     await page.getByRole("button", { name: "Buka menu" }).click();
     const mobileSidebar = page.locator("aside:visible");
     await expect(mobileSidebar.getByText("Operasional", { exact: true })).toBeVisible();
-    await expect(mobileSidebar.getByRole("link", { name: "Pasokan", exact: true })).toBeVisible();
+    await expect(mobileSidebar.getByRole("link", { name: "Pasokan & Stok", exact: true })).toBeVisible();
     await expect(mobileSidebar.getByRole("link", { name: "Katalog", exact: true })).toBeVisible();
     await page.screenshot({
       path: "test-results/dashboard-navigation-mobile.png",

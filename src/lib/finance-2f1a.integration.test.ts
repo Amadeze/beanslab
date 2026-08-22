@@ -172,6 +172,9 @@ suite("Phase 2F.1A — Finance Core Accounting Correctness", () => {
       const id = await createPurchase(4_000_000);
       const vp = await voidPurchase(id, "salah terima");
       expect(vp.success).toBe(true);
+      const voidedPurchase = await prisma.purchase.findUnique({ where: { id } });
+      expect(voidedPurchase).toMatchObject({ status: "VOID", paymentStatus: "UNPAID" });
+      expect(Number(voidedPurchase!.paidAmount)).toBe(0);
       expect(Math.abs(await accountBalance("1-1230"))).toBeLessThan(0.01);
       expect(Math.abs(await accountBalance("1-1000"))).toBeLessThan(0.01);
       expect(Math.abs(await accountBalance("2-1000"))).toBeLessThan(0.01);

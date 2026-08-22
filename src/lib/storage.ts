@@ -86,7 +86,7 @@ export async function uploadImage(input: {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const bucket = process.env.SUPABASE_STORAGE_BUCKET || "ros-assets";
 
-  if (supabaseUrl && serviceRoleKey) {
+  if (!e2eLocalStorageRoot() && supabaseUrl && serviceRoleKey) {
     const body = input.buffer.buffer.slice(
       input.buffer.byteOffset,
       input.buffer.byteOffset + input.buffer.byteLength,
@@ -152,7 +152,7 @@ export async function uploadPrivateObject(input: {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const bucket = process.env.SUPABASE_PRIVATE_STORAGE_BUCKET || "ros-private";
 
-  if (supabaseUrl && serviceRoleKey) {
+  if (!e2eLocalStorageRoot() && supabaseUrl && serviceRoleKey) {
     const response = await fetch(
       `${supabaseUrl}/storage/v1/object/${bucket}/${objectPath}`,
       {
@@ -205,7 +205,7 @@ export async function readPrivateImage(
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const bucket = process.env.SUPABASE_PRIVATE_STORAGE_BUCKET || "ros-private";
-  if (supabaseUrl && serviceRoleKey) {
+  if (!e2eLocalStorageRoot() && supabaseUrl && serviceRoleKey) {
     const response = await fetch(
       `${supabaseUrl}/storage/v1/object/${bucket}/${objectPath}`,
       {

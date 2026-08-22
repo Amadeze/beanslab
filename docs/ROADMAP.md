@@ -25,7 +25,7 @@ Branch: `wip/non-kopi-commit3`
 | Batch 6.5 | Storefront theme architecture cleanup | ✅ COMMITTED LOCALLY (`c0a1f78`) |
 | Batch 7 | SEO / Perf / A11y | ✅ COMMITTED LOCALLY (`2fe5b7f`) |
 | Batch 8 | B2B | ✅ COMMITTED LOCALLY (`06bb4cc`) |
-| Final Product Coherence | Cross-app IA, terminology, states, and workflow consistency | 🟢 IMPLEMENTED — READY TO COMMIT |
+| Final Product Coherence | Cross-app IA, terminology, states, and workflow consistency | ✅ COMMITTED LOCALLY (`fb2499e`) |
 
 ## Batch 3 — Delivered Scope
 
@@ -187,14 +187,14 @@ Active local migration chain after Batch 8:
 000000000005_storefront_b2b_essentials
 ```
 
-Local acceptance evidence through migration 004 (2026-08-21):
+Fresh disposable-database acceptance evidence through migration 005 (2026-08-22):
 
-- Fresh `migrate deploy`: PASS, 5/5 applied
+- Fresh `migrate deploy`: PASS, 6/6 applied
 - `migrate status`: clean (up to date)
 - `migrate diff --script`: empty (no difference)
 - `migrate diff --exit-code`: 0
 
-Do NOT imply migrations 003-004 exist in production yet.
+Do NOT imply migrations 003–005 exist in production yet. Local acceptance is not target deployment evidence.
 
 ## Validation Evidence (Batch 3)
 
@@ -285,7 +285,7 @@ Production baseline recovery complete:
 - Production schema matches d23482d exactly (EMPTY diff)
 - Invariant preflight: ALL PASS
 
-Migration 003-005 deployment status must be verified against the target environment before release. Migration 005 local disposable-database acceptance is still pending because current local database credentials are unavailable.
+Migration 003–005 deployment status must still be verified against the target environment before release. Migration 005 fresh disposable-database deploy/status/diff acceptance is complete.
 
 ## Validation Evidence (Batch 8)
 
@@ -298,8 +298,8 @@ Migration 003-005 deployment status must be verified against the target environm
 | Focused B2B behavior tests | 51/51 PASS |
 | Portal-theme + B2B + sales regression suite | 320/320 PASS |
 | `next build --webpack` | PASS |
-| Migration 005 fresh deploy/diff | DEFERRED — local database credentials unavailable |
-| DB-backed checkout/catalog integration | SKIPPED by existing integration gate; local database credentials unavailable |
+| Migration 005 fresh deploy/status/diff | PASS on isolated PostgreSQL 18 target |
+| DB-backed checkout/catalog integration | PASS in full integration and release E2E suites |
 
 ## Validation Evidence (Final Product Coherence)
 
@@ -316,7 +316,7 @@ Migration 003-005 deployment status must be verified against the target environm
 
 ## Final QA / Production Readiness — Current Result
 
-Status: **NO-GO — environment and deployment evidence incomplete**
+Status: **LOCAL RELEASE CANDIDATE PASS; PRODUCTION TARGET NO-GO**
 
 Delivered hardening:
 
@@ -324,7 +324,9 @@ Delivered hardening:
 - User-uploaded legacy stock parsing no longer depends on vulnerable SheetJS; CSV/XLSX use ExcelJS and binary XLS is explicitly rejected.
 - Prisma packages are aligned on 7.9.1 and safe transitive patches are pinned for `brace-expansion`, `dompurify`, `fast-uri`, `nanoid`, and `postcss`.
 - High-severity production dependency advisories reduced from 11 to 1; the remaining Prisma-transitive `deepmerge-ts` advisory awaits an upstream-compatible major upgrade.
-- One moderate `uuid` advisory remains transitively through ExcelJS and awaits an upstream-compatible upgrade.
+- ExcelJS's compatible transitive `uuid` dependency is pinned to patched 11.1.1; real XLSX parser regression passes.
+- Purchase void now clears payment balance/status atomically and the previously failing finance integration contract is green.
+- Release E2E sessions, storage, onboarding, webhook, theme, and provider fixtures are self-contained without weakening production behavior.
 
 Validation evidence:
 
@@ -332,11 +334,13 @@ Validation evidence:
 |---|---|
 | `prisma validate` / `prisma generate` | PASS |
 | `typecheck` / `eslint --quiet` | PASS |
-| Import/preflight/database guard tests | 20/20 PASS |
-| Security/tenant/accounting/inventory focused suite | 253/253 PASS |
-| Full unit suite | 1027 passed, 0 failed, 315 skipped |
-| `next build --webpack` | PASS (68 static pages generated) |
-| Playwright discovery | PASS (31 tests in 10 files) |
-| Production preflight | NO-GO: database unreachable; private bucket verification failed |
+| Migration 000–005 fresh deploy/status/diff | PASS; 6/6; schema diff empty |
+| Tenant isolation / stock / integrity audits | PASS; no drift or violations |
+| Focused finance regression | 76/76 PASS |
+| Full integration-enabled suite | 150 files; 1,343/1,343 PASS; 0 skipped |
+| Production build | PASS (68 pages generated) |
+| Full production-server Playwright | 31/31 PASS; 0 skipped |
+| Production dependency audit | 0 critical, 1 high, 0 moderate |
+| Production preflight | NO-GO: private bucket verification failed; external provider credentials absent |
 
-Release remains blocked until target migration 003–005 state, private storage, tenant/stock/integrity audits, full E2E, and sandbox provider smoke tests are verified with valid credentials.
+Application behavior is locally accepted. Production deployment remains blocked until target migration 003–005 state, private storage, backup/restore, required external-provider sandbox smoke tests, health/cron checks, and the pilot workflow are verified with valid credentials.

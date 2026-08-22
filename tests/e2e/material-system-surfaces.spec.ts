@@ -115,9 +115,10 @@ test("superadmin control plane uses the same material language", async ({ contex
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
   });
+  let temporarySuperadminId: string | null = null;
 
   try {
-    const superadmin = await prisma.user.findFirst({
+    let superadmin = await prisma.user.findFirst({
       where: { role: "SUPERADMIN", isActive: true },
       select: {
         id: true,
@@ -125,9 +126,35 @@ test("superadmin control plane uses the same material language", async ({ contex
         email: true,
         role: true,
         tenantId: true,
+        sessionVersion: true,
       },
     });
-    test.skip(!superadmin, "An active superadmin is required.");
+    if (!superadmin) {
+      const hostTenant = await prisma.tenant.findFirst({
+        where: { isActive: true },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+      test.skip(!hostTenant, "An active tenant is required to create the E2E superadmin.");
+      superadmin = await prisma.user.create({
+        data: {
+          name: "E2E Superadmin",
+          email: `e2e-superadmin-${Date.now()}@example.invalid`,
+          password: "not-a-login-account",
+          role: "SUPERADMIN",
+          tenantId: hostTenant!.id,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          tenantId: true,
+          sessionVersion: true,
+        },
+      });
+      temporarySuperadminId = superadmin.id;
+    }
     const targetTenant = await prisma.tenant.findFirst({
       where: { id: { not: "default" } },
       orderBy: { createdAt: "desc" },
@@ -198,6 +225,9 @@ test("superadmin control plane uses the same material language", async ({ contex
       fullPage: false,
     });
   } finally {
+    if (temporarySuperadminId) {
+      await prisma.user.deleteMany({ where: { id: temporarySuperadminId } });
+    }
     await prisma.$disconnect();
   }
 });

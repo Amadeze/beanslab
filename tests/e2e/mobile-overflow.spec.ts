@@ -45,6 +45,7 @@ test.describe("Mobile overflow check (360x800)", () => {
         email: true,
         role: true,
         tenantId: true,
+        sessionVersion: true,
         tenant: {
           select: {
             isActive: true,

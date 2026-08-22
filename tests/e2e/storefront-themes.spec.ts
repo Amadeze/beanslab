@@ -88,17 +88,16 @@ test("all tenant storefront themes render settings, content, and cart responsive
       await expect(page.getByText(`Catalog ${layoutStyle}`, { exact: false }).first()).toBeAttached();
       await expect(page.locator("header").first()).toBeVisible();
 
-      const themeWrapper = page.locator(".t-root");
-      await expect(themeWrapper).toHaveAttribute("data-animation", "fast");
-      await expect(themeWrapper).toHaveAttribute("data-animation-direction", "left");
+      const themeWrapper = page.locator(".portal-root");
+      await expect(themeWrapper).toHaveAttribute("data-motion-reduced", "false");
       expect(await themeWrapper.evaluate((element) =>
-        getComputedStyle(element).getPropertyValue("--t-primary").trim()
-      )).toBe("#3b82f6");
+        getComputedStyle(element).getPropertyValue("--portal-primary").trim()
+      )).toBe("#426C7A");
       expect(await themeWrapper.evaluate((element) =>
-        getComputedStyle(element).getPropertyValue("--t-radius").trim()
+        getComputedStyle(element).getPropertyValue("--portal-radius").trim()
       )).toBe("12px");
       expect(await themeWrapper.evaluate((element) =>
-        getComputedStyle(element).getPropertyValue("--t-font-body").trim()
+        getComputedStyle(element).getPropertyValue("--portal-font-body").trim()
       )).toContain("JetBrains Mono");
 
       await page.locator("#catalog").scrollIntoViewIfNeeded();
@@ -107,9 +106,9 @@ test("all tenant storefront themes render settings, content, and cart responsive
 
       const addButton = page.getByRole("button", { name: `Add Coffee ${layoutStyle} to cart` });
       await addButton.click({ force: true });
-      await expect(page.getByRole("heading", { name: "Your Cart" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Keranjang" })).toBeVisible();
       await page.getByRole("button", { name: "Tutup keranjang" }).click();
-      const cartButton = page.getByRole("button", { name: /cart/i }).first();
+      const cartButton = page.getByRole("button", { name: /^Keranjang \(\d+\)/ });
       await expect(cartButton).toContainText("1");
 
       await page.setViewportSize({ width: 390, height: 844 });
@@ -118,7 +117,7 @@ test("all tenant storefront themes render settings, content, and cart responsive
         document.documentElement.scrollWidth - document.documentElement.clientWidth
       );
       expect(overflow, `${layoutStyle} horizontal overflow`).toBeLessThanOrEqual(2);
-      await expect(page.getByRole("button", { name: /cart/i }).first()).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Keranjang \(\d+\)/ })).toBeVisible();
     }
 
     expect(consoleErrors).toEqual([]);

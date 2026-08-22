@@ -6,7 +6,7 @@ Run these commands against the release commit and the target environment:
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm exec prisma migrate deploy
+pnpm prisma:migrate:deploy
 pnpm preflight:production
 pnpm audit:tenant-isolation
 pnpm audit:stock
@@ -21,9 +21,11 @@ Do not deploy when preflight, migrations, tenant isolation, stock integrity, tes
 
 ## Current release snapshot (2026-08-22)
 
-The current local branch is **not approved for production deployment**. Static checks, 1,027 unit tests, and the production build pass, but the available environment cannot reach the intended database or verify the private object-storage bucket. Migrations 003–005, database-backed audits, 31 release E2E tests, and external-provider smoke tests must be completed against a safe target before changing the decision to go.
+The application release candidate passes the complete local gate on an isolated PostgreSQL 18 target: all six migrations deploy from empty, schema diff is empty, tenant/stock/integrity audits pass, 1,343 integration-enabled tests pass, all 31 production-server Playwright tests pass, and the 68-page production build passes.
 
-The production dependency audit currently reports one high-severity transitive advisory in Prisma's configuration dependency (`deepmerge-ts`) and one moderate advisory in ExcelJS's `uuid` dependency. Do not force incompatible major overrides; upgrade through the parent packages when compatible releases are available or record explicit release risk acceptance.
+The branch is still **not approved for production deployment** because the intended environment has not passed preflight: the configured private Supabase bucket cannot be verified, required provider sandbox credentials are absent, and migrations 003–005 plus backup/restore evidence have not been verified on the target database. Local application readiness must not be confused with target-environment readiness.
+
+The production dependency audit reports one high-severity transitive advisory in Prisma's trusted configuration path (`deepmerge-ts`). Prisma 7.9.1 is the latest available parent release and does not expose recursive user input to this merger in this application. Record explicit release risk acceptance and upgrade when Prisma ships the patched major. ExcelJS's `uuid` dependency is pinned to compatible patched version 11.1.1; its XLSX parser/export regression tests pass.
 
 ## Required configuration
 
@@ -49,7 +51,7 @@ Panduan setup provider dan code signing tersedia di `docs/PRODUCTION_INTEGRATION
    pg_dump --format=custom --no-owner --no-acl "$DIRECT_URL" > ros-before-release.dump
    ```
 
-3. Run `pnpm exec prisma migrate deploy` once from a release job, before starting new application instances.
+3. Run `pnpm prisma:migrate:deploy` once from a release job, before starting new application instances.
 4. Run `pnpm preflight:production`, then deploy the application.
 5. Verify `/api/health/live` and `/api/health` return HTTP 200.
 

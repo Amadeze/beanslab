@@ -9,6 +9,7 @@ import { getTenantAccessState } from "../../src/lib/subscription";
 test("product IA groups roasting, settings, and offline cashier correctly", async ({ context, page }) => {
   test.setTimeout(120_000);
   test.skip(!process.env.DATABASE_URL, "DATABASE_URL is required for authenticated IA tests.");
+  page.setDefaultTimeout(15_000);
 
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
@@ -23,6 +24,7 @@ test("product IA groups roasting, settings, and offline cashier correctly", asyn
         email: true,
         role: true,
         tenantId: true,
+        sessionVersion: true,
         tenant: {
           select: {
             isActive: true,
@@ -60,19 +62,20 @@ test("product IA groups roasting, settings, and offline cashier correctly", asyn
     await page.goto("/dashboard", { waitUntil: "networkidle" });
     const appNavigation = page.getByRole("navigation", { name: "Navigasi aplikasi" });
     await expect(appNavigation.getByRole("link", { name: /Kasir/ })).toBeVisible();
-    await expect(appNavigation.getByRole("link", { name: "Pasokan", exact: true })).toBeVisible();
+    await expect(appNavigation.getByRole("link", { name: "Pasokan & Stok", exact: true })).toBeVisible();
     await expect(appNavigation.getByRole("link", { name: "Katalog", exact: true })).toBeVisible();
     await expect(appNavigation.getByRole("link", { name: /Master Data/ })).toHaveCount(0);
-    await expect(appNavigation.getByRole("link", { name: /Produksi & Packing/ })).toHaveCount(0);
+    await expect(appNavigation.getByRole("link", { name: "Produksi & Packing", exact: true })).toBeVisible();
     await expect(appNavigation.getByRole("link", { name: /Profil Roast/ })).toHaveCount(0);
     await expect(appNavigation.getByRole("link", { name: /Mesin Roasting/ })).toHaveCount(0);
     await expect(appNavigation.getByRole("link", { name: /Artisan Sync/ })).toHaveCount(0);
 
     await page.goto("/roasting", { waitUntil: "networkidle" });
-    await expect(page.getByRole("navigation", { name: "Navigasi workspace roastery" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Batch roasting" })).toHaveAttribute("aria-current", "page");
-    await expect(page.getByRole("link", { name: "Produksi & packing" })).toBeVisible();
-    await page.getByRole("link", { name: "Profil & log" }).click();
+    const roasteryNavigation = page.getByRole("navigation", { name: "Navigasi workspace roastery" });
+    await expect(roasteryNavigation).toBeVisible();
+    await expect(roasteryNavigation.getByRole("link", { name: "Batch roasting" })).toHaveAttribute("aria-current", "page");
+    await expect(roasteryNavigation.getByRole("link", { name: "Produksi & packing" })).toBeVisible();
+    await roasteryNavigation.getByRole("link", { name: "Log Roast" }).click();
     await expect(page).toHaveURL(/\/roasting\?tab=profiles$/);
     await expect(page.getByRole("button", { name: /Impor \.alog/ })).toBeVisible();
     await page.screenshot({ path: "test-results/product-ia-roasting-tabs.png", fullPage: false });
@@ -105,7 +108,7 @@ test("product IA groups roasting, settings, and offline cashier correctly", asyn
     await expect(page).toHaveURL(/\/katalog$/);
     await expect(page.getByRole("heading", { name: "Katalog", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Produk \d+$/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Kemasan \d+$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Kemasan \d+$/ })).toHaveCount(0);
     await page.screenshot({ path: "test-results/product-ia-catalog.png", fullPage: false });
 
     await page.goto("/settings/team", { waitUntil: "networkidle" });
@@ -124,7 +127,7 @@ test("product IA groups roasting, settings, and offline cashier correctly", asyn
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     expect(overflow).toBeLessThanOrEqual(2);
-    await page.getByRole("button", { name: /Keranjang ·/ }).click();
+    await page.getByRole("button", { name: /^Keranjang \d+$/ }).click();
     await expect(page.getByRole("heading", { name: "Keranjang Kasir" })).toBeVisible();
     await page.waitForTimeout(500);
     await page.screenshot({ path: "test-results/cashier-offline-mobile.png", fullPage: false });

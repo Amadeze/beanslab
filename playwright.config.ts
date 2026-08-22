@@ -7,6 +7,7 @@ dotenv.config({ path: ".env.local" });
 // credentials encrypted before CREDENTIAL_ENCRYPTION_KEY became mandatory.
 process.env.CREDENTIAL_ENCRYPTION_KEY ??=
   process.env.SESSION_SECRET ?? "e2e-only-credential-encryption-key-at-least-32-characters";
+process.env.MIDTRANS_SERVER_KEY ??= "e2e-only-midtrans-server-key";
 const playwrightPort = process.env.PLAYWRIGHT_PORT ?? "3000";
 const playwrightBaseUrl = `http://localhost:${playwrightPort}`;
 const playwrightServerCommand = process.env.PLAYWRIGHT_SERVER_COMMAND

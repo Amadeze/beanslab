@@ -7,18 +7,18 @@ import { SESSION_OPTIONS } from "../../src/lib/session";
 test("Omni-Test: Advanced UI Data Entry Scenarios", async ({ page, context }) => {
   test.setTimeout(300_000); // 5 minutes for all tests
   test.skip(!process.env.DATABASE_URL, "DATABASE_URL is required");
+  page.setDefaultTimeout(15_000);
 
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
   });
 
-  const tenant = await prisma.tenant.findFirst({ where: { code: 'KIMAISE' } });
-  if (!tenant) throw new Error("Tenant KIMAISE not found. Jalankan setup_db_minimal.mts?");
-
   const user = await prisma.user.findFirst({
-    where: { email: 'evm.dama26@gmail.com', tenantId: tenant.id }
+    where: { isActive: true, role: "OWNER", tenant: { isActive: true } },
+    orderBy: { createdAt: "asc" },
   });
-  if (!user) throw new Error("User EVM not found");
+  if (!user) throw new Error("Active E2E owner not found");
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
 
   // Pastikan ada Pelanggan
   await prisma.customer.upsert({
@@ -34,9 +34,39 @@ test("Omni-Test: Advanced UI Data Entry Scenarios", async ({ page, context }) =>
   });
 
   // Pastikan ada Kemasan
+  const packagingSupply = await prisma.inventorySupplyItem.upsert({
+    where: { tenantId_code: { code: "PKG-OMNI", tenantId: tenant.id } },
+    update: {
+      stockQuantity: 100,
+      isActive: true,
+      avgCostPerUnit: 1500,
+      consumableInProduction: true,
+      includeInProductHpp: true,
+    },
+    create: {
+      tenantId: tenant.id,
+      code: "PKG-OMNI",
+      name: "Omni Pouch 250g",
+      category: "PACKAGING",
+      baseUnit: "PCS",
+      costPerUnit: 1500,
+      avgCostPerUnit: 1500,
+      stockQuantity: 100,
+      capacityGrams: 250,
+      consumableInProduction: true,
+      includeInProductHpp: true,
+      isActive: true,
+    },
+  });
+
   await prisma.packaging.upsert({
     where: { tenantId_code: { code: 'PKG-OMNI', tenantId: tenant.id } },
-    update: { stockUnit: 100, isActive: true, avgCostPerUnit: 1500 },
+    update: {
+      stockUnit: 100,
+      isActive: true,
+      avgCostPerUnit: 1500,
+      supplyItemId: packagingSupply.id,
+    },
     create: {
       tenantId: tenant.id,
       code: 'PKG-OMNI',
@@ -46,6 +76,7 @@ test("Omni-Test: Advanced UI Data Entry Scenarios", async ({ page, context }) =>
       avgCostPerUnit: 1500,
       stockUnit: 100,
       isActive: true,
+      supplyItemId: packagingSupply.id,
     }
   });
 
@@ -175,21 +206,16 @@ test("Omni-Test: Advanced UI Data Entry Scenarios", async ({ page, context }) =>
       // Isi target weight (Pre-roast)
       await page.locator('input[name="targetWeightKg"]').fill("10");
       
-      // Pilih Mesin (Combobox pertama di roasting form)
-      await page.getByRole("combobox").nth(0).click();
+      const roastingForm = page.getByRole("dialog", { name: "Catat Roasting Batch" });
+
+      // Pilih Green Bean.
+      await roastingForm.getByRole("combobox").nth(0).click();
       await page.waitForTimeout(300);
       await page.keyboard.press("ArrowDown");
       await page.keyboard.press("Enter");
 
-      // Pilih Green Bean input (Combobox kedua)
-      await page.getByRole("combobox").nth(1).click();
-      await page.waitForTimeout(500);
-      await page.keyboard.press("ArrowDown");
-      await page.keyboard.press("Enter");
-      await page.waitForTimeout(500);
-
-      // Pilih Roast Level (Combobox ketiga)
-      await page.getByRole("combobox").nth(2).click();
+      // Machine and target profile are optional; choose the required roast level.
+      await roastingForm.getByRole("combobox").nth(3).click();
       await page.waitForTimeout(500);
       await page.keyboard.press("ArrowDown");
       await page.keyboard.press("Enter");
@@ -212,7 +238,7 @@ test("Omni-Test: Advanced UI Data Entry Scenarios", async ({ page, context }) =>
       }
 
       // Klik simpan
-      await page.getByRole("button", { name: /Simpan|Selesai/i }).first().click();
+      await roastingForm.getByRole("button", { name: /Simpan|Selesai/i }).first().click();
       
       // Tunggu notifikasi
       await expect(page.getByText(/berhasil|masuk stok/i).first()).toBeVisible({ timeout: 10_000 });
@@ -234,6 +260,7 @@ test("Omni-Test: Advanced UI Data Entry Scenarios", async ({ page, context }) =>
     await page.waitForTimeout(500); 
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
+    await page.keyboard.press("Escape");
     await page.waitForTimeout(500);
 
     // Step 2: Pilih Produk
@@ -271,43 +298,45 @@ test("Omni-Test: Advanced UI Data Entry Scenarios", async ({ page, context }) =>
 
     // Buka Drawer Batch Baru
     await page.getByRole("button", { name: /Batch Baru/i }).first().click();
+    const productionDialog = page.getByRole("dialog", { name: "Batch Produksi Baru" });
     
     // Pilih Produk Jadi
-    await page.locator('button[role="combobox"]').filter({ hasText: 'Pilih SKU Produk Jadi...' }).first().click();
-    await page.waitForTimeout(500);
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("Enter");
+    await productionDialog.getByRole("combobox").first().click();
+    await page.getByRole("option", { name: "Omni Finished Good", exact: true }).click();
     await page.waitForTimeout(500);
 
     // Isi Jumlah Unit Diproduksi
-    await page.locator('input[name="unitsProduced"]').fill("5");
+    await productionDialog.locator('input[name="unitsProduced"]').fill("5");
 
-    // Pilih Roasted Bean
-    await page.locator('button[role="combobox"]').filter({ hasText: 'Pilih Roasted Bean...' }).first().click();
-    await page.waitForTimeout(500);
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("Enter");
-    await page.waitForTimeout(500);
+    // A saved recipe fills RB and packaging automatically. Only fill manual controls
+    // when the chosen product does not have a recipe.
+    const automaticRecipe = productionDialog.getByRole("button", { name: /Resep otomatis/i });
+    if (!(await automaticRecipe.isVisible())) {
+      const roastedBeanSelect = productionDialog.locator('button[role="combobox"]')
+        .filter({ hasText: 'Pilih Roasted Bean...' }).first();
+      await roastedBeanSelect.click();
+      await page.getByRole("option").first().click();
+      await productionDialog.locator('input[name="rbComponents.0.gramsPerUnit"]').fill("250");
 
-    // Isi Gramasi per Unit
-    await page.locator('input[name="rbComponents.0.gramsPerUnit"]').fill("250");
-
-    // Pilih Kemasan
-    await page.locator('button[role="combobox"]').filter({ hasText: 'Pilih kemasan...' }).first().click();
-    await page.waitForTimeout(500);
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("Enter");
-    await page.waitForTimeout(500);
+      const packagingSelect = productionDialog.locator('button[role="combobox"]')
+        .filter({ hasText: 'Pilih kemasan...' }).first();
+      await packagingSelect.click();
+      await page.getByRole("option").filter({ hasText: "Omni Pouch 250g" }).click();
+    }
 
     // Bersihkan nilai aneh di opsional (workaround untuk karakter "p" yang bocor)
-    await page.locator('input[name="laborCost"]').fill("0");
-    await page.locator('input[name="overheadAllocated"]').fill("0");
+    const laborCost = productionDialog.locator('input[name="laborCost"]');
+    const overhead = productionDialog.locator('input[name="overheadAllocated"]');
+    if (await laborCost.isVisible()) await laborCost.fill("0");
+    if (await overhead.isVisible()) await overhead.fill("0");
 
     // Simpan Batch
-    await page.getByRole("button", { name: /Simpan Batch/i }).click();
+    await productionDialog.getByRole("button", { name: /Simpan Batch/i }).click();
 
-    // Pastikan sukses tertutup
-    await expect(page.getByRole("button", { name: /Simpan Batch/i })).toBeHidden({ timeout: 15_000 });
+    // The submit label changes while pending, so wait for the drawer itself to
+    // close. This proves the server action completed before the next navigation.
+    await expect(productionDialog).toBeHidden({ timeout: 15_000 });
+    await page.waitForLoadState("networkidle");
   });
 
   await test.step("Skenario 5: Buka Kasir (B2C Point of Sales)", async () => {

@@ -31,6 +31,7 @@ test("live telemetry only returns fresh source updates", async ({
         email: true,
         role: true,
         tenantId: true,
+        sessionVersion: true,
         tenant: {
           select: {
             isActive: true,
@@ -53,6 +54,7 @@ test("live telemetry only returns fresh source updates", async ({
       email: owner!.email,
       role: owner!.role,
       tenantId: owner!.tenantId,
+      sessionVersion: owner!.sessionVersion,
     };
     const sessionCookie = await sealData(
       { user },

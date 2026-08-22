@@ -125,6 +125,8 @@ export async function voidPurchaseCore(
         where: { id: purchase.id },
         data: {
           status: "VOID",
+          paidAmount: 0,
+          paymentStatus: "UNPAID",
           voidReason: trimmedReason,
           voidAt: getCurrentDate(),
         },
@@ -142,8 +144,18 @@ export async function voidPurchaseCore(
         action: "VOID",
         entityType: "Purchase",
         entityId: purchase.id,
-        before: { status: purchase.status, totalCost: Number(purchase.totalCost) },
-        after: { status: "VOID", reason: trimmedReason },
+        before: {
+          status: purchase.status,
+          totalCost: Number(purchase.totalCost),
+          paidAmount: Number(purchase.paidAmount),
+          paymentStatus: purchase.paymentStatus,
+        },
+        after: {
+          status: "VOID",
+          paidAmount: 0,
+          paymentStatus: "UNPAID",
+          reason: trimmedReason,
+        },
       });
     },
     { isolationLevel: "Serializable" },
