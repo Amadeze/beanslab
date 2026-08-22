@@ -8,7 +8,7 @@ Branch: `wip/non-kopi-commit3`
 |---|---|
 | 2F Finance | ✅ CLOSED |
 | 2G Reporting & Analytics | ✅ CLOSED |
-| 2H Storefront / B2B Portal | ✅ RELEASE CANDIDATE COMPLETE + PUSHED; TARGET NO-GO |
+| 2H Storefront / B2B Portal | ✅ RELEASE CANDIDATE DEPLOYED; RECOVERY GATE NO-GO |
 
 ## 2H Storefront / B2B Portal — Batch Status
 
@@ -26,7 +26,7 @@ Branch: `wip/non-kopi-commit3`
 | Batch 7 | SEO / Perf / A11y | ✅ CLOSED + PUSHED (`2fe5b7f`) |
 | Batch 8 | B2B | ✅ CLOSED + PUSHED (`06bb4cc`) |
 | Final Product Coherence | Cross-app IA, terminology, states, and workflow consistency | ✅ CLOSED + PUSHED (`fb2499e`) |
-| Final QA / Production Readiness | Full integration, production E2E, dependency and release hardening | ✅ LOCAL GATES CLOSED + PUSHED (`83bb335`); TARGET NO-GO |
+| Final QA / Production Readiness | Full integration, production E2E, dependency and release hardening | ✅ APP + TARGET GATES PASS; BACKUP/RESTORE GATE NO-GO |
 
 ## Batch 3 — Delivered Scope
 
@@ -186,16 +186,17 @@ Active local migration chain after Batch 8:
 000000000003_storefront_shipping_checkout
 000000000004_storefront_awb_tracking
 000000000005_storefront_b2b_essentials
+000000000006_lock_down_supabase_data_api
 ```
 
-Fresh disposable-database acceptance evidence through migration 005 (2026-08-22):
+Fresh disposable-database acceptance evidence through migration 006 (2026-08-22):
 
-- Fresh `migrate deploy`: PASS, 6/6 applied
+- Fresh `migrate deploy`: PASS, 7/7 applied
 - `migrate status`: clean (up to date)
 - `migrate diff --script`: empty (no difference)
 - `migrate diff --exit-code`: 0
 
-Do NOT imply migrations 003–005 exist in production yet. Local acceptance is not target deployment evidence.
+Production acceptance on 2026-08-22 confirms migrations 000–005 present with no failed or pending release migration. Migration 006 was applied as an emergency security hardening after Supabase's publishable-key Data API returned tenant data without RLS; post-fix probes against tenants, users, audit logs, and Prisma history return HTTP 401.
 
 ## Validation Evidence (Batch 3)
 
@@ -286,7 +287,7 @@ Production baseline recovery complete:
 - Production schema matches d23482d exactly (EMPTY diff)
 - Invariant preflight: ALL PASS
 
-Migration 003–005 deployment status must still be verified against the target environment before release. Migration 005 fresh disposable-database deploy/status/diff acceptance is complete.
+Migration 003–005 target deployment is verified. Migration 006 makes the application database server-only at the Supabase Data API boundary while retaining Prisma's direct server connection.
 
 ## Validation Evidence (Batch 8)
 
@@ -317,7 +318,7 @@ Migration 003–005 deployment status must still be verified against the target 
 
 ## Final QA / Production Readiness — Current Result
 
-Status: **LOCAL RELEASE CANDIDATE PASS; PRODUCTION TARGET NO-GO**
+Status: **PRODUCTION DEPLOYED; APPLICATION/TARGET PASS; RECOVERY GATE NO-GO**
 
 Delivered hardening:
 
@@ -335,15 +336,20 @@ Validation evidence:
 |---|---|
 | `prisma validate` / `prisma generate` | PASS |
 | `typecheck` / `eslint --quiet` | PASS |
-| Migration 000–005 fresh deploy/status/diff | PASS; 6/6; schema diff empty |
+| Migration 000–006 fresh deploy/status/diff | PASS; 7/7; schema diff empty |
 | Tenant isolation / stock / integrity audits | PASS; no drift or violations |
 | Focused finance regression | 76/76 PASS |
 | Full integration-enabled suite | 150 files; 1,345/1,345 PASS; 0 skipped |
 | Production build | PASS (68 pages generated) |
 | Full production-server Playwright | 31/31 PASS; 0 skipped |
 | Production dependency audit | 0 critical, 1 high, 0 moderate |
-| Production preflight | NO-GO: private bucket verification failed; external provider credentials absent |
+| Production liveness/readiness | PASS: HTTP 200; database reachable |
+| Target migrations | PASS: 000–005 present, no failed/pending release migration; 006 security hardening applied |
+| Supabase storage | PASS: public bucket HTTP 200/public; private bucket HTTP 200/`public:false` |
+| Supabase Data API | PASS after remediation: publishable-key probes return HTTP 401 |
+| Scheduled operations | PASS: GitHub secrets configured; all five production cron calls HTTP 200 |
+| Production recovery | NO-GO: Supabase Free has no managed daily backup/PITR; no verified off-site dump/restore drill |
 
-Application behavior is locally accepted. Production deployment remains blocked until target migration 003–005 state, private storage, backup/restore, required external-provider sandbox smoke tests, health/cron checks, and the pilot workflow are verified with valid credentials.
+Application behavior and the live target are accepted for health, migrations, storage, data-boundary security, and scheduled operations. Full production approval remains blocked only by recovery evidence and the post-backup destructive pilot/provider transaction smoke. Email, WhatsApp, and RajaOngkir are explicitly disabled for initial launch rather than treated as configured.
 
 Release-gate reliability hardening also rejects documented placeholder secrets/endpoints before network access, refuses to reuse an unrelated server during production E2E, requires a migrated/seeded local E2E owner, and removes the historical cold-import timeout flake from the AWB unit gate.

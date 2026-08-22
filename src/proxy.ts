@@ -16,7 +16,6 @@ const PUBLIC_ROUTES = [
   "/api/auth",
   "/api/billing/checkout",
   "/api/portal-theme",
-  "/api/internal/release-maintenance",
   "/studio/authorize",
 ];
 

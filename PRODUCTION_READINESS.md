@@ -26,9 +26,11 @@ listening on its port. Override `PLAYWRIGHT_PORT` only when the default `3100` i
 
 ## Current release snapshot (2026-08-22)
 
-The application release candidate passes the complete local gate on an isolated PostgreSQL 18 target: all six migrations deploy from empty, schema diff is empty, tenant/stock/integrity audits pass, 1,345 integration-enabled tests pass, all 31 production-server Playwright tests pass through the isolated release runner, and the 68-page production build passes.
+The application release candidate passes the complete local gate on an isolated PostgreSQL 18 target: all seven migrations deploy from empty, schema diff is empty, tenant/stock/integrity audits pass, 1,345 integration-enabled tests pass, all 31 production-server Playwright tests pass through the isolated release runner, and the 68-page production build passes.
 
-The branch is still **not approved for production deployment** because the intended environment has not passed preflight: the configured private Supabase bucket cannot be verified, required provider sandbox credentials are absent, and migrations 003–005 plus backup/restore evidence have not been verified on the target database. Local application readiness must not be confused with target-environment readiness.
+The application is deployed to Vercel Production and the target runtime now passes liveness/readiness. Migrations 000–005 are present with no failed or pending release migration; migration 006 closes direct Supabase Data API access by enabling RLS and revoking `anon`/`authenticated` table grants. The public storage bucket is reachable and public, while the private bucket is reachable and confirmed `public:false`. The GitHub scheduler has matching production secrets and a manual acceptance run completed every operational endpoint with HTTP 200.
+
+Production approval remains blocked by recovery policy: the Supabase organization is on the Free plan, which does not provide the automatic daily backups available on paid plans and cannot enable PITR. Do not run a destructive production pilot until a verified logical backup is stored off-site or the project is upgraded and a restore point is verified. Email, WhatsApp, and RajaOngkir are explicitly disabled for launch; platform subscription Midtrans is configured but should remain a controlled rollout until its provider-side transaction smoke is recorded.
 
 The repository-local `.env.local` currently contains the documented example endpoints rather than target credentials. Preflight rejects these placeholders before making network or database checks. Run target preflight only from the deployment environment or an approved secret-injected release job.
 
@@ -52,7 +54,7 @@ Panduan setup provider dan code signing tersedia di `docs/PRODUCTION_INTEGRATION
 ## Database deploy and rollback
 
 1. Put the application in a maintenance window for schema-changing releases.
-2. Take a provider snapshot and a logical backup using the direct (non-pooler) URL:
+2. Take a provider snapshot and a logical backup using the direct (non-pooler) URL. Supabase Free projects must keep this dump off-site because provider-managed daily backups are not included:
 
    ```bash
    pg_dump --format=custom --no-owner --no-acl "$DIRECT_URL" > ros-before-release.dump
@@ -96,4 +98,4 @@ Use a dedicated pilot tenant and verify this exact chain:
 
 ## Go/no-go
 
-Go only when the preflight result is `ready: true`, all migrations are applied, integrations required by the selected plan are configured, a backup is verified, and the pilot workflow passes. Missing email or WhatsApp credentials may be accepted only if those channels are explicitly disabled for launch; missing core secrets or object storage is a no-go.
+Go only when the preflight result is `ready: true`, all migrations are applied, integrations required by the selected plan are configured, a backup is verified, and the pilot workflow passes. Missing email, WhatsApp, or RajaOngkir credentials may be accepted only when those capabilities are explicitly disabled for launch; missing core secrets, private object storage, or recovery evidence is a no-go.
