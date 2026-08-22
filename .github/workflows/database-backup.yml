@@ -1,0 +1,119 @@
+name: ROS Encrypted Database Backup
+
+on:
+  schedule:
+    - cron: "35 17 * * *" # 02:35 WIT / 00:35 WIB
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup-and-restore-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+      RESTORE_DATABASE_URL: postgresql://postgres:restore-only@127.0.0.1:55432/restore_drill
+      PGPASSWORD: restore-only
+    services:
+      restore-postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: restore-only
+          POSTGRES_DB: restore_drill
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d restore_drill"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require backup secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$BACKUP_DATABASE_URL" ]]; then
+            echo "BACKUP_DATABASE_URL is required." >&2
+            exit 1
+          fi
+          if [[ ${#BACKUP_ENCRYPTION_PASSPHRASE} -lt 24 ]]; then
+            echo "BACKUP_ENCRYPTION_PASSPHRASE must contain at least 24 characters." >&2
+            exit 1
+          fi
+
+      - name: Create logical dump with PostgreSQL 17 client
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p work/database-backup
+          docker run --rm \
+            -e BACKUP_DATABASE_URL \
+            -v "$PWD/work/database-backup:/backup" \
+            postgres:17-alpine \
+            pg_dump --format=custom --compress=9 --no-owner --no-privileges \
+              --file=/backup/roastd-production.dump "$BACKUP_DATABASE_URL"
+          test -s work/database-backup/roastd-production.dump
+
+      - name: Verify dump catalogue
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD/work/database-backup:/backup" \
+            postgres:17-alpine \
+            pg_restore --list /backup/roastd-production.dump \
+            > work/database-backup/catalogue.txt
+          grep -q "TABLE.*tenants" work/database-backup/catalogue.txt
+          grep -q "TABLE.*invoices" work/database-backup/catalogue.txt
+          grep -q "TABLE.*inventory_ledger" work/database-backup/catalogue.txt
+
+      - name: Restore into disposable PostgreSQL and verify canonical tables
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network host \
+            -e PGPASSWORD \
+            -v "$PWD/work/database-backup:/backup" \
+            postgres:17-alpine \
+            pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges \
+              --dbname="$RESTORE_DATABASE_URL" /backup/roastd-production.dump
+          docker run --rm --network host \
+            -e PGPASSWORD \
+            postgres:17-alpine \
+            psql "$RESTORE_DATABASE_URL" --no-psqlrc --set=ON_ERROR_STOP=1 --tuples-only \
+              --command='SELECT COUNT(*) FROM tenants; SELECT COUNT(*) FROM _prisma_migrations; SELECT COUNT(*) FROM inventory_ledger;'
+
+      - name: Encrypt backup and remove plaintext
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl enc -aes-256-cbc -pbkdf2 -iter 250000 -salt \
+            -in work/database-backup/roastd-production.dump \
+            -out work/database-backup/roastd-production.dump.enc \
+            -pass env:BACKUP_ENCRYPTION_PASSPHRASE
+          sha256sum work/database-backup/roastd-production.dump.enc \
+            > work/database-backup/roastd-production.dump.enc.sha256
+          rm -f work/database-backup/roastd-production.dump
+
+      - name: Upload encrypted off-site backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: roastd-production-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/database-backup/roastd-production.dump.enc
+            work/database-backup/roastd-production.dump.enc.sha256
+            work/database-backup/catalogue.txt
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

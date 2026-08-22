@@ -4,7 +4,7 @@
 
 | Route | Tujuan |
 | --- | --- |
-| `/` | Landing roastr.id |
+| `/` | Landing roastd.id |
 | `/login`, `/register` | Authentication dan pembuatan tenant |
 | `/forgot-password`, `/reset-password` | Recovery |
 | `/tenant/[subdomain]` | Storefront publik tenant |
@@ -14,7 +14,7 @@
 
 | Kelompok navigasi | Route |
 | --- | --- |
-| Hari ini | `/dashboard` |
+| Hari ini | `/dashboard`, `/control-tower` |
 | Operasional â€” Pasokan | `/inventory`, `/inventory?view=po`, `/inventory?view=receiving`, `/inventory?view=mutations`, `/inventory/suppliers` |
 | Operasional â€” Roastery | `/roasting`, `/roasting?tab=profiles`, `/produksi` |
 | Komersial | `/kasir`, `/penjualan`, `/penjualan/pelanggan` |

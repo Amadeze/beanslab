@@ -4,7 +4,7 @@
 
 | Area | Temuan | Prioritas | Tindakan |
 | --- | --- | --- | --- |
-| Brand | Roastery OS/ROS/Beanslab bercampur dengan roastr.id | Tinggi | Rebrand user-facing; nama teknis internal dipertahankan |
+| Brand | Roastery OS/ROS/Beanslab bercampur dengan roastd.id | Tinggi | Rebrand user-facing; nama teknis internal dipertahankan |
 | Landing | Klaim absolut, istilah teknis, harga tidak sinkron | Tinggi | Landing baru memakai fitur dan plan catalog aktual |
 | Navigasi | `Master Data` mencampur supplier, pelanggan, produk, kemasan, dan anggota tim | Tinggi | Distribusikan setiap entitas ke Pasokan, Penjualan, Katalog, atau Pengaturan |
 | Navigasi | Administrasi mencampur audit, integrasi, settings, billing | Sedang | Satukan sebagai lapisan Pengaturan |

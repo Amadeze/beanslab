@@ -14,7 +14,7 @@ Selesai: product map, feature inventory, route map, database map, workflow map, 
 
 Dalam transformasi ini:
 
-- Brand dan metadata roastr.id.
+- Brand dan metadata roastd.id.
 - Art direction karbon/parchment/ember.
 - Navigation IA.
 - Copy dan landing berbasis fitur aktual.

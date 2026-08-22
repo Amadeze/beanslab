@@ -14,6 +14,7 @@ import {
   Flame,
   LayoutDashboard,
   LogOut,
+  Radar,
   Settings2,
   ShoppingBag,
   ShoppingCart,
@@ -93,6 +94,13 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         shortLabel: "Hari ini",
         href: "/dashboard",
         icon: LayoutDashboard,
+        tone: "system",
+      },
+      {
+        label: "Control Tower",
+        shortLabel: "Control",
+        href: "/control-tower",
+        icon: Radar,
         tone: "system",
       },
     ],
@@ -216,6 +224,7 @@ export function canAccessNavigation(
   if (userRole === "OPERATOR") {
     return [
       "/dashboard",
+      "/control-tower",
       "/inventory",
       "/roasting",
       "/produksi",

@@ -1,10 +1,10 @@
-# Product Audit — roastr.id
+# Product Audit — roastd.id
 
 Tanggal audit: 24 Juli 2026
 
 ## Ringkasan
 
-roastr.id adalah SaaS multi-tenant untuk coffee roastery. Produk aktif menghubungkan master data, purchasing, inventory ledger, roasting, produksi, penjualan, pembayaran, pengeluaran, laporan, storefront tenant, subscription, audit, Midtrans, dan Artisan desktop sync.
+roastd.id adalah SaaS multi-tenant untuk coffee roastery. Produk aktif menghubungkan master data, purchasing, inventory ledger, roasting, produksi, penjualan, pembayaran, pengeluaran, laporan, storefront tenant, subscription, audit, Midtrans, dan Artisan desktop sync.
 
 Sumber kebenaran audit: route App Router, Server Actions, Prisma schema, migration, test, konfigurasi, dan UI aktual. Fitur yang hanya muncul sebagai kemungkinan tidak dipromosikan.
 
@@ -44,7 +44,7 @@ Sumber kebenaran audit: route App Router, Server Actions, Prisma schema, migrati
 
 ### Diperbaiki dalam transformasi ini
 
-- Brand user-facing pada shell, metadata, auth, billing, email, invoice, dan landing diubah ke `roastr.id`.
+- Brand user-facing pada shell, metadata, auth, billing, email, invoice, dan landing diselaraskan ke `roastd.id`.
 - Landing lama mengandung klaim absolut dan kontradiksi costing; diganti dengan copy berbasis fitur aktual.
 - Harga landing sekarang membaca katalog plan aktual: Basic Rp149.000 dan Pro Rp299.000 per bulan.
 - Guard role ditambahkan pada `createCreditNote`.

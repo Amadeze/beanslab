@@ -6,6 +6,7 @@ import { ChevronRight } from "lucide-react";
 
 const SEGMENT_LABELS: Record<string, string> = {
   dashboard: "Ringkasan",
+  "control-tower": "Control Tower",
   suppliers: "Supplier",
   lots: "Lot & FEFO",
   gudang: "Gudang & Lokasi",

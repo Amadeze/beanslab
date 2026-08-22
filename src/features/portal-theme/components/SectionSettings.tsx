@@ -7,7 +7,6 @@
 import { useState } from "react";
 import { useCustomizerStore } from "../client/store";
 import { getSectionDefinition, resolveSectionType } from "../registry";
-import { QUICK_FILL_PRESETS } from "../defaults/quick-fill-presets";
 import { ImagePicker } from "./ui/ImagePicker";
 import { GradientBuilder } from "./ui/GradientBuilder";
 import { SpacingControl } from "./ui/SpacingControl";
@@ -37,7 +36,6 @@ export function SectionSettings() {
   const addBlock = useCustomizerStore((s) => s.addBlock);
   const removeBlock = useCustomizerStore((s) => s.removeBlock);
   const updateBlockSettings = useCustomizerStore((s) => s.updateBlockSettings);
-  const applySectionPreset = useCustomizerStore((s) => s.applySectionPreset);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("content");
 
@@ -74,41 +72,6 @@ export function SectionSettings() {
         {/* ── Content Tab ─────────────────────────────────────────────── */}
         {activeTab === "content" && (
           <>
-            {QUICK_FILL_PRESETS[section.type] && QUICK_FILL_PRESETS[section.type].length > 0 && (
-              <div className="mb-4 rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50/80 to-orange-50/50 p-3 shadow-sm">
-                <div className="flex items-center gap-1.5 mb-1.5 text-amber-900 font-bold text-xs">
-                  <span>💡</span>
-                  <span>Template Contoh Cepat (1-Click Fill)</span>
-                </div>
-                <p className="text-xs text-amber-700/90 mb-2.5 leading-relaxed">
-                  Biar gak bingung mulai dari mana, klik salah satu template di bawah untuk mengisi tata letak & konten seksi ini secara otomatis:
-                </p>
-                <div className="grid grid-cols-1 gap-1.5">
-                  {QUICK_FILL_PRESETS[section.type].map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => {
-                        const newBlocks = preset.blocks.map((b) => ({
-                          id: `blk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-                          type: b.type,
-                          visible: true,
-                          settings: { ...b.settings },
-                        }));
-                        applySectionPreset(section.id, preset.settings || {}, newBlocks);
-                      }}
-                      className="flex items-start gap-2 text-left rounded-lg border border-amber-200/80 bg-white/90 p-2 text-xs transition-all hover:border-amber-400 hover:bg-white hover:shadow-sm group"
-                    >
-                      <span className="text-base shrink-0 mt-0.5 group-hover:scale-110 transition-transform">{preset.icon}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-bold text-gray-800 text-[11px] truncate group-hover:text-amber-900">{preset.label}</div>
-                        <div className="text-xs text-gray-500 line-clamp-2 leading-tight mt-0.5">{preset.description}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
             {renderContentFields(section, updateSectionSettings)}
             {def?.blockTypes && def.blockTypes.length > 0 && (
               <div className="pt-3 border-t space-y-2">

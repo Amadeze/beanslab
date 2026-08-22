@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi, beforeEach } from "vitest";
 
 const {
   mockFindUnique,
@@ -39,6 +39,14 @@ vi.mock("@/lib/rate-limit", () => ({
 }));
 
 const { POST } = await import("./route");
+
+beforeAll(() => {
+  vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", "origin-search-route-test-secret");
+});
+
+afterAll(() => {
+  vi.unstubAllEnvs();
+});
 
 global.fetch = vi.fn();
 

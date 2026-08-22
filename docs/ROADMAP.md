@@ -27,6 +27,13 @@ Branch: `wip/non-kopi-commit3`
 | Batch 8 | B2B | ✅ CLOSED + PUSHED (`06bb4cc`) |
 | Final Product Coherence | Cross-app IA, terminology, states, and workflow consistency | ✅ CLOSED + PUSHED (`fb2499e`) |
 | Final QA / Production Readiness | Full integration, production E2E, dependency and release hardening | ✅ APP + TARGET GATES PASS; BACKUP/RESTORE GATE NO-GO |
+| Stage 0 Reconciliation | Reproducible tests, storefront cleanup, documentation truth | ✅ CLOSED LOCALLY; RELEASE VALIDATION PASS |
+| Batch 9 | Demand, ATP, shortage, production and purchasing control tower | ✅ CLOSED LOCALLY; READ-ONLY CANONICAL MODEL |
+| Batch 10 | Warehouse execution and traceability intelligence | ✅ SMART STORAGE + CONTROL TOWER CLOSED |
+| Batch 11 | Roast planning and quality intelligence | ✅ ROAST/CUPPING + CONTROL TOWER CLOSED |
+| Batch 12 | B2B operating command | ✅ BATCH 8 CORE + CONTROL TOWER CLOSED |
+| Batch 13 | Profit and finance intelligence | ✅ 2F/2G CORE + CONTROL TOWER CLOSED |
+| Batch 14 | Integration and platform readiness | ✅ APP FOUNDATION CLOSED; PROVIDER ENABLEMENT CONTROLLED |
 
 ## Batch 3 — Delivered Scope
 
@@ -98,7 +105,7 @@ Branch: `wip/non-kopi-commit3`
 
 ## Batch 6 — Delivered Scope
 
-- 7 curated tenant-facing theme families (Minimal, Editorial, Modern, Heritage, Bold, Dark, Boutique)
+- 6 curated tenant-facing storefront directions (Modern Catalog, Editorial Journal, Origin Field Notes, Tactile Brutalist, Reserve Microlot, Community Roastery)
 - Compatibility preserved for all 16 existing preset IDs (legacy compatibility layer)
 - Contextual customizer IA with 7 tabs: Tema, Header, Beranda, Katalog, Konten, Footer, Pengaturan
 - Contextual Add Section restrictions (only relevant section types per tab)
@@ -174,6 +181,40 @@ Branch: `wip/non-kopi-commit3`
 - Key empty and error states use shared actionable language; technical/internal model wording is removed from the audited surfaces
 - Cross-app terminology normalized to Indonesian operator language for storefront, payment review, fulfillment, reports, uploads, integrations, and inventory guidance
 - No schema migration and no commerce, inventory, production, finance, tenant-isolation, or accounting behavior changes
+
+## Competitive Operations Control Tower — Batch 9–14 Reconciliation
+
+The post-launch roadmap is implemented as one canonical read model rather than six parallel transaction systems. `/control-tower` connects the modules already delivered by Phase 2F–2H:
+
+- **Batch 9 — demand and ATP:** open Invoice demand, active StockReservation commitments, physical stock, remaining open PO, historical demand, lead time, and safety stock produce an auditable inventory position and suggested production quantity.
+- **Recipe explosion:** suggested finished-goods production is translated into roasted-bean and canonical InventorySupplyItem requirements. Missing recipes remain explicit blockers; the planner never invents a recipe.
+- **Roast planning:** internal roasted-bean shortage is converted into green-bean input using tenant roast history. Missing or implausible history uses a documented conservative 82% yield, not zero input.
+- **Purchasing:** green bean and supply shortages subtract PO quantities and completed partial receipts before suggesting a purchase.
+- **Batch 10 — warehouse and traceability:** the existing Lot, LotPlacement, warehouse/location, transfer, opname, FEFO, and roast-material reservation model remains canonical. Control Tower surfaces expiring and unplaced lots plus late PO risk.
+- **Batch 11 — roast and QC:** ParentRoastingBatch, Artisan/Studio data, RoastProfile, and optional CuppingSession remain canonical. Control Tower shows open roast work, yield, Artisan readiness, and completed batches without cupping without making cupping a mandatory gate.
+- **Batch 12 — B2B:** Contract, ContractPrice, signed partner access, Invoice `B2B_DIRECT`, canonical credit terms, payment, reservation, and fulfillment remain one flow. Control Tower adds contract expiry, 30-day B2B sales, and overdue B2B receivables.
+- **Batch 13 — profit:** delivered Invoice and immutable InvoiceItem HPP snapshots remain the source of revenue, gross profit, gross margin, and loss-making SKU signals. Accounting entries are not recomputed or duplicated.
+- **Batch 14 — platform:** existing Midtrans, RajaOngkir, Artisan, Studio, webhook inbox, job runs, health checks, and operations workflows remain the integration layer. Control Tower adds tenant configuration readiness gates.
+
+All suggestions are read-only and require a human to open the canonical production, roasting, PO, fulfillment, contract, or finance workflow. No schema migration and no automatic stock/accounting mutation were introduced.
+
+| Control Tower gate | Result |
+|---|---|
+| Demand formula and recipe/yield explosion | 5/5 PASS |
+| Navigation and role access | 17/17 PASS |
+| Full default unit suite from fresh environment | 1,035 PASS; 0 failed; 315 integration tests intentionally skipped |
+| `typecheck` / `eslint --quiet` | PASS |
+| Production build | PASS; `/control-tower` included |
+| Schema/migration change | NONE |
+
+## Free-Plan Recovery Foundation
+
+- `.github/workflows/database-backup.yml` creates a daily PostgreSQL custom-format dump with a PostgreSQL 17 client.
+- Every run verifies the catalogue and restores into a disposable PostgreSQL service before it can upload an artifact.
+- The dump is encrypted with AES-256/PBKDF2; plaintext is deleted before upload; artifacts retain 30 days.
+- Missing database URL or a weak/missing encryption passphrase fails loudly.
+- `docs/DATABASE_RECOVERY.md` defines RPO 24 hours, RTO 60 minutes, manual drill, and production incident recovery.
+- The recovery gate remains **NO-GO until** both GitHub secrets are configured and the first workflow run plus downloaded-artifact drill pass. Code availability is not recovery evidence.
 
 ## Migration State
 

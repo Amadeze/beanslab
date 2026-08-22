@@ -1,8 +1,8 @@
-# Design System — roastr.id Material Intelligence
+# Design System — roastd.id Material Intelligence
 
 ## Brand
 
-Karakter: precise, industrial, warm, calm, operational. Brand selalu `roastr.id`; “Roastery Operating System” adalah descriptor.
+Karakter: precise, industrial, warm, calm, operational. Brand selalu `roastd.id`; “Roastery Operating System” adalah descriptor.
 
 Sistem visual tidak memakai satu accent untuk seluruh produk. Warna menyatakan domain kerja, sedangkan cyan hanya menyatakan kondisi sistem yang hidup, tersambung, atau sedang mengirim telemetry.
 
@@ -48,7 +48,7 @@ Warna selalu ditemani icon, label, angka, atau status teks. Jangan menggunakan w
 - Auth: obsidian editorial panel + parchment form; pada mobile berubah menjadi satu form surface.
 - Superadmin: obsidian platform navigation + light material data plane.
 - Print: white document dengan copper rule; toolbar obsidian hanya di layar dan hilang saat print.
-- Storefront tenant mempertahankan theming milik tenant. roastr.id hanya mengendalikan editor, frame, dan attribution.
+- Storefront tenant mempertahankan theming milik tenant. roastd.id hanya mengendalikan editor, frame, dan attribution.
 
 ## Typography and density
 

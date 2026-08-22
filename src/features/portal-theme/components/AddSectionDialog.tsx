@@ -18,7 +18,6 @@ import {
   getSectionsForArea,
 } from "../registry";
 import type { PortalSectionArea } from "../types";
-import { QUICK_FILL_PRESETS } from "../defaults/quick-fill-presets";
 import { useModalFocus } from "@/hooks/useModalFocus";
 
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
@@ -99,7 +98,6 @@ export function AddSectionDialog({ open, onClose, area }: AddSectionDialogProps)
             <div className="grid grid-cols-1 gap-3 p-3 min-[390px]:grid-cols-2 sm:grid-cols-3 sm:p-6">
               {filteredSections.map((section) => {
                 const IconComp = ICON_MAP[section.icon] || Image;
-                const presetsCount = QUICK_FILL_PRESETS[section.type]?.length || 0;
                 return (
                   <button
                     key={section.type}
@@ -107,12 +105,6 @@ export function AddSectionDialog({ open, onClose, area }: AddSectionDialogProps)
                     onClick={() => handleAdd(section.type)}
                     className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 text-center transition-all hover:border-blue-400 hover:bg-blue-50 hover:shadow-sm relative group"
                   >
-                    {presetsCount > 0 && (
-                      <span className="absolute top-2 right-2 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-800 border border-amber-300/60 shadow-2xs flex items-center gap-0.5">
-                        <span>✨</span>
-                        <span>{presetsCount} Contoh</span>
-                      </span>
-                    )}
                     <div
                       className="flex h-12 w-12 items-center justify-center rounded-xl mt-1"
                       style={{ backgroundColor: "var(--portal-surface-alt, #f5f5f5)" }}
@@ -132,7 +124,6 @@ export function AddSectionDialog({ open, onClose, area }: AddSectionDialogProps)
           <div className="grid grid-cols-1 gap-3 p-3 min-[390px]:grid-cols-2 sm:grid-cols-3 sm:p-6">
             {filteredSections.map((section) => {
               const IconComp = ICON_MAP[section.icon] || Image;
-              const presetsCount = QUICK_FILL_PRESETS[section.type]?.length || 0;
               return (
                 <button
                   key={section.type}
@@ -140,12 +131,6 @@ export function AddSectionDialog({ open, onClose, area }: AddSectionDialogProps)
                   onClick={() => handleAdd(section.type)}
                   className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 text-center transition-all hover:border-blue-400 hover:bg-blue-50 hover:shadow-sm relative group"
                 >
-                  {presetsCount > 0 && (
-                    <span className="absolute top-2 right-2 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-800 border border-amber-300/60 shadow-2xs flex items-center gap-0.5">
-                      <span>✨</span>
-                      <span>{presetsCount} Contoh</span>
-                    </span>
-                  )}
                   <div
                     className="flex h-12 w-12 items-center justify-center rounded-xl mt-1"
                     style={{ backgroundColor: "var(--portal-surface-alt, #f5f5f5)" }}

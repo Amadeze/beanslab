@@ -16,6 +16,8 @@ Last updated: 2026-08-22
 
 The release branch is pushed and deployed. Live readiness, migrations, storage, Supabase Data API isolation, and scheduled operations have target evidence. Production approval is withheld solely because recovery and destructive-pilot evidence are incomplete on the Supabase Free plan.
 
+The repository now includes a no-plan-upgrade recovery path: a daily encrypted `pg_dump`, automated disposable restore drill, 30-day private artifact retention, and `docs/DATABASE_RECOVERY.md`. It is intentionally not counted as recovery evidence until its GitHub secrets are configured and a successful artifact is independently downloaded and restored.
+
 ## Final QA delivered
 
 - Provisioned an isolated local PostgreSQL 18 cluster on `127.0.0.1:55432`; no production database was used.
@@ -78,7 +80,7 @@ Database-backed audits on the disposable target:
 
 ## Remaining no-go blocker
 
-- Supabase organization plan is Free. Current Supabase documentation provides managed daily backups only for Pro/Team/Enterprise and PITR only as a paid add-on. No verified off-site logical dump or restore drill exists yet.
+- Supabase organization plan is Free. The repository now supplies a free off-site logical backup and automated restore-drill workflow, but `BACKUP_DATABASE_URL` and `BACKUP_ENCRYPTION_PASSPHRASE` still need to be configured in GitHub Actions and the first artifact needs independent restore evidence.
 - Do not execute the destructive golden pilot until recovery evidence exists. After backup/upgrade, run the pilot and provider transaction smoke, then record final approval.
 
 ## Go/no-go interpretation

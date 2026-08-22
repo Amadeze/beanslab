@@ -24,6 +24,7 @@ describe("product coherence navigation", () => {
     ]);
     expect(primaryItems.map((item) => item.href)).toEqual([
       "/dashboard",
+      "/control-tower",
       "/inventory",
       "/roasting",
       "/produksi",
@@ -56,6 +57,7 @@ describe("product coherence navigation", () => {
   });
 
   it("keeps role-aware primary destinations after consolidation", () => {
+    expect(canAccessNavigation("/control-tower", "OPERATOR", "BASIC")).toBe(true);
     expect(canAccessNavigation("/produksi", "OPERATOR", "BASIC")).toBe(true);
     expect(canAccessNavigation("/settings", "OPERATOR", "BASIC")).toBe(false);
     expect(canAccessNavigation("/kasir", "CASHIER", "BASIC")).toBe(true);
