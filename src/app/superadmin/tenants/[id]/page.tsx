@@ -17,9 +17,11 @@ import {
 
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getRajaOngkirIntegrationState } from "@/lib/shipping/platform-integration";
 import { getTenantAccessState } from "@/lib/subscription";
 import { tenantStorefrontUrl } from "@/lib/tenant-host";
 import { EditTenantDialog } from "../_components/EditTenantDialog";
+import { TenantSupportConsole } from "../_components/TenantSupportConsole";
 import { TrialExtension } from "../_components/TrialExtension";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +34,8 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
   await requireRole("SUPERADMIN");
   const { id } = await params;
 
-  const [tenant, gmv, roasts30d] = await Promise.all([
+  const since = new Date(Date.now() - 7 * 86_400_000);
+  const [tenant, gmv, roasts30d, rajaOngkir, failedImports, failedJobs, failedWebhooks, failedNotifications] = await Promise.all([
     prisma.tenant.findFirst({
       where: { id, NOT: { id: "default" } },
       include: {
@@ -64,24 +67,86 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
           take: 10,
           select: { id: true, action: true, entityType: true, createdAt: true, user: { select: { name: true } } },
         },
-        _count: { select: { users: true, machines: true, roasts: true, invoices: true, products: true, roastdStudios: true } },
+        _count: { select: { users: true, machines: true, roasts: true, invoices: true, products: true, roastdStudios: true, tenantPaymentMethods: true } },
       },
     }),
     prisma.invoice.aggregate({ where: { tenantId: id, status: { in: ["ISSUED", "PARTIAL", "PAID"] } }, _sum: { grandTotal: true } }),
     prisma.roast.count({ where: { tenantId: id, createdAt: { gte: new Date(Date.now() - 30 * 86_400_000) } } }),
+    getRajaOngkirIntegrationState(),
+    prisma.artisanRoastImport.count({ where: { tenantId: id, status: "FAILED", uploadedAt: { gte: since } } }),
+    prisma.jobRun.count({ where: { tenantId: id, status: "FAILED", startedAt: { gte: since } } }),
+    prisma.webhookEvent.count({ where: { tenantId: id, receivedAt: { gte: since }, OR: [{ error: { not: null } }, { status: { in: ["FAILED", "ERROR"] } }] } }),
+    prisma.paymentNotificationDelivery.count({ where: { tenantId: id, status: "FAILED", createdAt: { gte: since } } }),
   ]);
 
   if (!tenant) notFound();
   const accessState = getTenantAccessState(tenant);
   const owner = tenant.users.find((user) => user.role === "OWNER");
   const onlineConnectors = tenant.roastdStudios.filter((connector) => connector.status === "ONLINE").length;
+  const courierCodes = Array.isArray(tenant.rajaOngkirCourierCodes) ? tenant.rajaOngkirCourierCodes : [];
+  const midtransReady = Boolean(tenant.midtransClientKey && tenant.midtransServerKey);
+  const nationalShippingReady = Boolean(
+    rajaOngkir.isConfigured &&
+    rajaOngkir.isActive &&
+    rajaOngkir.connectionStatus === "OK" &&
+    tenant.rajaOngkirOriginId &&
+    courierCodes.length,
+  );
+  const emailReady = Boolean(process.env.RESEND_API_KEY && process.env.APP_URL && owner?.email);
+  const incidentCount = failedImports + failedJobs + failedWebhooks + failedNotifications;
+  const supportChecks = [
+    {
+      label: "Storefront & checkout",
+      detail: tenant.setupCompletedAt && tenant.subdomain && tenant._count.tenantPaymentMethods > 0
+        ? `${tenant.subdomain} aktif dengan ${tenant._count.tenantPaymentMethods} metode pembayaran.`
+        : "Setup, subdomain, atau metode pembayaran storefront belum lengkap.",
+      status: tenant.setupCompletedAt && tenant.subdomain && tenant._count.tenantPaymentMethods > 0 ? "ready" as const : "attention" as const,
+    },
+    {
+      label: "Midtrans storefront",
+      detail: midtransReady ? `Credential ${tenant.midtransIsProduction ? "production" : "sandbox"} tersimpan.` : "Client Key dan Server Key tenant belum lengkap.",
+      status: midtransReady ? "ready" as const : "attention" as const,
+    },
+    {
+      label: "Pengiriman nasional",
+      detail: !tenant.nationalCourierEnabled
+        ? "Dinonaktifkan oleh tenant; checkout tetap dapat memakai pickup atau pengiriman lokal."
+        : nationalShippingReady
+          ? `${tenant.rajaOngkirOriginLabel || "Asal pengiriman"} · ${courierCodes.length} kurir aktif.`
+          : "RajaOngkir platform, asal kirim, atau pilihan kurir belum siap.",
+      status: !tenant.nationalCourierEnabled ? "off" as const : nationalShippingReady ? "ready" as const : "attention" as const,
+      href: "/superadmin/integrations",
+    },
+    {
+      label: "Email & pemulihan akses",
+      detail: emailReady ? `Siap mengirim ke ${owner?.email}.` : "Email platform, APP_URL, atau owner aktif belum lengkap.",
+      status: emailReady ? "ready" as const : "attention" as const,
+      href: "/superadmin/integrations",
+    },
+    {
+      label: "Artisan & Roastd Studio",
+      detail: !tenant.isArtisanEnabled
+        ? "Integrasi Artisan dinonaktifkan untuk tenant ini."
+        : tenant._count.roastdStudios > 0
+          ? `${onlineConnectors}/${tenant._count.roastdStudios} konektor sedang online.`
+          : "Artisan aktif tetapi belum ada konektor yang didaftarkan.",
+      status: !tenant.isArtisanEnabled ? "off" as const : tenant._count.roastdStudios > 0 ? "ready" as const : "attention" as const,
+      href: "/superadmin/studio",
+    },
+    {
+      label: "Insiden operasional",
+      detail: incidentCount ? `${incidentCount} kegagalan tercatat dalam tujuh hari terakhir.` : "Tidak ada import, job, webhook, atau notifikasi gagal dalam tujuh hari.",
+      status: incidentCount ? "attention" as const : "ready" as const,
+      href: "/superadmin/incidents",
+    },
+  ];
 
   return (
     <div className="mx-auto flex max-w-[1480px] flex-col gap-6 p-5 md:p-8">
       <div className="flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <Link href="/superadmin/tenants" className="mb-5 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground">
-            <ArrowLeft size={14} /> Jaringan roastery
+            <ArrowLeft size={14} /> Tenant & dukungan
           </Link>
           <div className="flex items-center gap-4">
             <div className="flex size-14 items-center justify-center bg-[#080B0C] text-white">
@@ -123,6 +188,18 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
         <Metric icon={<Boxes size={17} />} label="Produk" value={tenant._count.products.toString()} note={`${tenant._count.roasts} roast tersimpan`} />
         <Metric icon={<ReceiptText size={17} />} label="GMV tenant" value={idr.format(Number(gmv._sum.grandTotal ?? 0))} note={`${tenant._count.invoices} invoice`} />
       </section>
+
+      <TenantSupportConsole
+        tenantId={tenant.id}
+        tenantName={tenant.name}
+        ownerEmail={owner?.email ?? null}
+        accessDeliveryReady={emailReady}
+        midtransClientConfigured={Boolean(tenant.midtransClientKey)}
+        midtransServerConfigured={Boolean(tenant.midtransServerKey)}
+        midtransIsProduction={tenant.midtransIsProduction}
+        checks={supportChecks}
+        incidentCount={incidentCount}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <Panel eyebrow="Account & access" title="Tim tenant" icon={<Users size={18} className="text-domain-inventory" />}>

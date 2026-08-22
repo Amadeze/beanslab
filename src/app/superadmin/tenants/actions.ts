@@ -11,6 +11,17 @@ import {
 import { sendPasswordResetEmail } from "@/lib/notifications";
 import { isReservedTenantSubdomain } from "@/lib/tenant-host";
 import { recordAudit } from "@/lib/audit";
+import { encryptCredential } from "@/lib/credentials";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { validateMidtransSupportInput } from "@/lib/tenant-integration-support";
+import { z } from "zod";
+
+const MidtransSupportSchema = z.object({
+  tenantId: z.string().min(1),
+  clientKey: z.string().trim().max(255).optional(),
+  serverKey: z.string().trim().max(255).optional(),
+  isProduction: z.boolean(),
+}).strict();
 
 export async function createTenant(data: {
   code: string;
@@ -229,5 +240,125 @@ export async function extendTenantTrial(data: { tenantId: string; days: 7 | 14 |
   } catch (error) {
     console.error("Extend Trial Error:", error);
     return { success: false, error: error instanceof Error ? error.message : "Trial gagal diperpanjang." };
+  }
+}
+
+export async function updateTenantMidtransSupport(data: unknown) {
+  try {
+    const admin = await requireRole("SUPERADMIN");
+    const parsed = MidtransSupportSchema.safeParse(data);
+    if (!parsed.success) return { success: false, error: "Data credential Midtrans tidak valid." };
+
+    const input = parsed.data;
+    const tenant = await prisma.tenant.findFirst({
+      where: { id: input.tenantId, NOT: { id: "default" } },
+      select: {
+        id: true,
+        midtransClientKey: true,
+        midtransServerKey: true,
+        midtransIsProduction: true,
+      },
+    });
+    if (!tenant) return { success: false, error: "Tenant tidak ditemukan." };
+
+    const validationError = validateMidtransSupportInput({
+      clientKey: input.clientKey,
+      serverKey: input.serverKey,
+      isProduction: input.isProduction,
+      environmentChanged: input.isProduction !== tenant.midtransIsProduction,
+    });
+    if (validationError) return { success: false, error: validationError };
+
+    await prisma.$transaction(async (tx) => {
+      await tx.tenant.update({
+        where: { id: tenant.id },
+        data: {
+          midtransClientKey: input.clientKey || undefined,
+          midtransServerKey: input.serverKey ? encryptCredential(input.serverKey) : undefined,
+          midtransIsProduction: input.isProduction,
+        },
+      });
+      await recordAudit(tx, {
+        tenantId: tenant.id,
+        userId: admin.id,
+        action: "SUPPORT_UPDATE",
+        entityType: "TenantMidtrans",
+        entityId: tenant.id,
+        metadata: {
+          source: "SUPERADMIN_SUPPORT",
+          clientKeyRotated: Boolean(input.clientKey),
+          serverKeyRotated: Boolean(input.serverKey),
+          environmentChanged: input.isProduction !== tenant.midtransIsProduction,
+          environment: input.isProduction ? "PRODUCTION" : "SANDBOX",
+        },
+      });
+    });
+
+    revalidatePath(`/superadmin/tenants/${tenant.id}`);
+    return { success: true };
+  } catch (error) {
+    console.error("Update tenant Midtrans support error:", error);
+    return { success: false, error: "Credential Midtrans tidak dapat disimpan." };
+  }
+}
+
+export async function sendTenantOwnerAccessLink(data: { tenantId: string }) {
+  try {
+    const admin = await requireRole("SUPERADMIN");
+    if (!data.tenantId) return { success: false, error: "Tenant wajib dipilih." };
+    const appUrl = process.env.APP_URL;
+    if (!appUrl) return { success: false, error: "APP_URL belum dikonfigurasi." };
+    await enforceRateLimit({
+      scope: "superadmin-owner-access-link",
+      identifiers: [`admin:${admin.id}`, `tenant:${data.tenantId}`],
+      limit: 5,
+      windowSeconds: 15 * 60,
+    });
+
+    const owner = await prisma.user.findFirst({
+      where: { tenantId: data.tenantId, role: "OWNER", isActive: true },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, email: true, tenantId: true },
+    });
+    if (!owner) return { success: false, error: "Owner aktif tidak ditemukan." };
+
+    const token = createPasswordResetToken();
+    const tokenHash = hashPasswordResetToken(token);
+    await prisma.$transaction(async (tx) => {
+      await tx.passwordResetToken.deleteMany({
+        where: { userId: owner.id, usedAt: null },
+      });
+      await tx.passwordResetToken.create({
+        data: {
+          userId: owner.id,
+          tokenHash,
+          expiresAt: new Date(Date.now() + 30 * 60 * 1_000),
+        },
+      });
+      await recordAudit(tx, {
+        tenantId: owner.tenantId,
+        userId: admin.id,
+        action: "SUPPORT_ACCESS_LINK",
+        entityType: "User",
+        entityId: owner.id,
+        metadata: { source: "SUPERADMIN_SUPPORT", expiresInMinutes: 30 },
+      });
+    });
+
+    const delivery = await sendPasswordResetEmail(
+      owner.email,
+      owner.name,
+      `${appUrl}/reset-password?token=${encodeURIComponent(token)}`,
+    );
+    if (!delivery.success) {
+      await prisma.passwordResetToken.deleteMany({ where: { tokenHash } });
+      return { success: false, error: "Email tautan akses gagal dikirim." };
+    }
+
+    revalidatePath(`/superadmin/tenants/${owner.tenantId}`);
+    return { success: true };
+  } catch (error) {
+    console.error("Send tenant owner access link error:", error);
+    return { success: false, error: "Tautan akses tidak dapat dikirim." };
   }
 }

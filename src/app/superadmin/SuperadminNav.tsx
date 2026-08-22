@@ -1,16 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { CreditCard, LayoutDashboard, MonitorCog, ScrollText, TriangleAlert, Truck, Users } from "lucide-react";
+import { Cable, CreditCard, LayoutDashboard, MonitorCog, ScrollText, TriangleAlert, Users } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/superadmin/dashboard", label: "Ringkasan platform", icon: LayoutDashboard, tone: "text-[#15B8C6]" },
-  { href: "/superadmin/tenants", label: "Jaringan roastery", icon: Users, tone: "text-[#B65331]" },
+  { href: "/superadmin/tenants", label: "Tenant & dukungan", icon: Users, tone: "text-[#B65331]" },
   { href: "/superadmin/subscriptions", label: "Subscription", icon: CreditCard, tone: "text-[#AE6A9B]" },
   { href: "/superadmin/incidents", label: "Incident center", icon: TriangleAlert, tone: "text-[#D5A73B]" },
   { href: "/superadmin/studio", label: "Studio fleet", icon: MonitorCog, tone: "text-[#15B8C6]" },
-  { href: "/superadmin/integrations/pengiriman/rajaongkir", label: "Integrasi Pengiriman", icon: Truck, tone: "text-[#B65331]" },
+  { href: "/superadmin/integrations", label: "Integrasi platform", icon: Cable, tone: "text-[#B65331]" },
   { href: "/superadmin/audit-log", label: "Jejak audit", icon: ScrollText, tone: "text-[#D5A73B]" },
 ];
 

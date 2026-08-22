@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { TenantForm } from "./_components/TenantForm";
 import { EditTenantDialog } from "./_components/EditTenantDialog";
-import { Coffee, ExternalLink } from "lucide-react";
+import { Coffee, ExternalLink, LifeBuoy } from "lucide-react";
 import { tenantStorefrontUrl } from "@/lib/tenant-host";
 
 export const dynamic = "force-dynamic";
@@ -27,9 +27,9 @@ export default async function TenantsPage() {
     <div className="mx-auto flex max-w-7xl flex-col gap-7 p-5 md:p-8">
       <div className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <p className="mb-3 text-xs font-black uppercase tracking-[0.24em] text-domain-roasting">Roastery network</p>
-          <h2 className="text-3xl font-black tracking-[-0.045em]">Tenant registry</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Kelola identitas, akses, domain, dan subscription seluruh roastery.</p>
+          <p className="mb-3 text-xs font-black uppercase tracking-[0.24em] text-domain-roasting">Tenant operations</p>
+          <h2 className="text-3xl font-black tracking-[-0.045em]">Tenant & dukungan</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Kelola identitas dan subscription, lalu buka tenant untuk diagnosis integrasi, insiden, serta bantuan akses.</p>
         </div>
         <TenantForm />
       </div>
@@ -95,16 +95,21 @@ export default async function TenantsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <EditTenantDialog 
-                      tenant={{
-                        id: t.id,
-                        name: t.name,
-                        code: t.code,
-                        isActive: t.isActive,
-                        subscriptionTier: t.subscriptionTier,
-                        subscriptionStatus: t.subscriptionStatus
-                      }}
-                    />
+                    <div className="flex items-center justify-end gap-1">
+                      <Link href={`/superadmin/tenants/${t.id}`} aria-label={`Buka bantuan ${t.name}`} className="flex size-11 items-center justify-center text-muted-foreground hover:bg-muted hover:text-primary">
+                        <LifeBuoy size={17} aria-hidden />
+                      </Link>
+                      <EditTenantDialog
+                        tenant={{
+                          id: t.id,
+                          name: t.name,
+                          code: t.code,
+                          isActive: t.isActive,
+                          subscriptionTier: t.subscriptionTier,
+                          subscriptionStatus: t.subscriptionStatus
+                        }}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -134,16 +139,21 @@ export default async function TenantsPage() {
                   <p className="font-mono text-xs text-muted-foreground">{t.code}</p>
                 </div>
               </div>
-              <EditTenantDialog
-                tenant={{
-                  id: t.id,
-                  name: t.name,
-                  code: t.code,
-                  isActive: t.isActive,
-                  subscriptionTier: t.subscriptionTier,
-                  subscriptionStatus: t.subscriptionStatus
-                }}
-              />
+              <div className="flex items-center gap-1">
+                <Link href={`/superadmin/tenants/${t.id}`} aria-label={`Buka bantuan ${t.name}`} className="flex size-11 items-center justify-center text-muted-foreground hover:bg-muted hover:text-primary">
+                  <LifeBuoy size={17} aria-hidden />
+                </Link>
+                <EditTenantDialog
+                  tenant={{
+                    id: t.id,
+                    name: t.name,
+                    code: t.code,
+                    isActive: t.isActive,
+                    subscriptionTier: t.subscriptionTier,
+                    subscriptionStatus: t.subscriptionStatus
+                  }}
+                />
+              </div>
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-xs">
               <div>
