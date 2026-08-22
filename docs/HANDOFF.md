@@ -1,45 +1,37 @@
-# HANDOFF — Batch 6 Theme / Customizer Maturity
+# HANDOFF — Batch 7 SEO / Performance / Accessibility
 
-Last updated: 2026-08-21
+Last updated: 2026-08-22
 
 ## Current State
 
 | Field | Value |
 |---|---|
-| Implementation HEAD | 7d412c1 |
+| Implementation HEAD | `c0a1f78` plus uncommitted Batch 7 worktree |
 | Branch | `wip/non-kopi-commit3` |
 | Batch 5 status | **CLOSED + PUSHED** |
 | Batch 6 status | **CLOSED + PUSHED** |
+| Batch 6.5 status | **COMMITTED LOCALLY — NOT PUSHED** |
+| Batch 7 status | **IMPLEMENTED — READY TO COMMIT** |
 
-## Batch 6 Summary (Committed)
+## Batch 6.5 Commit
 
-Batch 6 Theme / Customizer Maturity committed and pushed.
+`c0a1f78 feat(storefront): curate themes and consolidate renderer`
+
+This commit is local only. It has not been pushed.
+
+## Batch 7 Summary (Uncommitted)
 
 ### Delivered
 
-- 7 curated tenant-facing theme families (Minimal, Editorial, Modern, Heritage, Bold, Dark, Boutique)
-- Compatibility preserved for all 16 existing preset IDs
-- Contextual customizer IA: 7 tabs (Tema, Header, Beranda, Katalog, Konten, Footer, Pengaturan)
-- Contextual Add Section restrictions (only relevant section types per tab)
-- Direct live PortalThemeRenderer preview (no iframe, same render path as production)
-- Real tenant subdomain in preview browser chrome and "View Live Portal" link
-- Global design controls: Colors (12 tokens + presets), Typography (font pairs + scale/weight/transform), Layout (content width, gaps, padding, radius), Animations (duration, easing, scroll/hover/reduce-motion)
-- Supported SEO/Integrations: GA4, Meta Pixel; deprecated customHead/customFooter removed from tenant UI (fields remain inert)
-- Preset application behaves as normal unsaved edit: isDirty=true, Discard restores saved state, Undo/Redo works
-- No schema migration (reuses existing JSON/theme architecture)
-
-### Files Changed (Committed)
-
-- `src/app/(dashboard)/settings/portal-customizer/page.tsx` — 7-tab sidebar IA, contextual filtering, real subdomain
-- `src/features/portal-theme/components/AddSectionDialog.tsx` — contextual allowedTypes support
-- `src/features/portal-theme/components/SectionList.tsx` — filterTypes prop support
-- `src/features/portal-theme/components/ThemePresetSelector.tsx` — curated families toggle + 16 preset compat
-- `src/features/portal-theme/defaults/index.ts` — export curated families
-- `src/features/portal-theme/server/actions.ts` — loadPortalTheme returns subdomain
-- `src/features/portal-theme/__tests__/batch6-customizer.test.ts` — 55 focused tests
-- `src/features/portal-theme/components/global/GlobalAnimations.tsx` — global animation controls
-- `src/features/portal-theme/components/global/GlobalSettings.tsx` — layout, SEO, integrations (no customHead/customFooter)
-- `src/features/portal-theme/defaults/curated-families.ts` — 7 curated families mapping
+- Tenant-specific canonical metadata, social metadata, icons, and preview `noindex`
+- Safe structured data based only on the real tenant and real sellable catalog
+- Responsive optimized storefront images with a compatibility fallback for persisted external URLs
+- Lazy loading and critical-image preload controls wired to rendering behavior
+- Reduced-motion behavior wired to both tenant settings and OS preference
+- Persisted-cart hydration guard with behavior tests
+- Dialog keyboard/focus management, semantic disclosures, labels, alerts, and pressed-state controls
+- Narrow-screen customizer editor/preview layout and accessible controls
+- No schema migration and no commerce, shipping, accounting, inventory, or B2B changes
 
 ### Validation Summary
 
@@ -49,22 +41,25 @@ Batch 6 Theme / Customizer Maturity committed and pushed.
 | `prisma generate` | PASS |
 | `typecheck` | PASS |
 | `eslint --quiet` | PASS |
-| Focused Batch 6 tests | 55/55 PASS |
-| Full portal-theme suite | 240/240 PASS |
-| Full unit suite | 972 pass / 2 AWB timeout failures (pre-existing) / 315 skipped |
+| Focused Batch 7, cart hydration, and courier tests | 46/46 PASS |
+| Full portal-theme suite | 264/264 PASS |
 | `next build --webpack` | PASS |
 | `git diff --check` | PASS |
 | No schema migration | CONFIRMED |
+
+Live browser validation at 360/390/430 is deferred because the local environment does not provide a usable database password for a tenant route. Responsive source behavior, server rendering tests, type checks, lint, and the production build pass.
 
 ## Next Session Sequence
 
 | Session | Task |
 |---|---|
-| #1 | ~~Review Batch 6 final WIP, commit, push~~ — THIS SESSION |
-| #2 | Authorize Batch 7 (SEO / Perf / A11y) |
+| #1 | Review and commit Batch 7 |
+| #2 | Push only when explicitly authorized |
+| #3 | Authorize Batch 8 (B2B) separately |
 
 ## DO NOT
 
-- Start Batch 7 until explicitly authorized
+- Start Batch 8 without explicit authorization
 - Touch `information_architecture_audit.md` (untracked, untouched)
 - Modify migrations 000-004
+- Push without explicit authorization

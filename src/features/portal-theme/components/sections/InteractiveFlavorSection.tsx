@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Coffee, ArrowRight, Check, SlidersHorizontal, ShoppingBag } from "lucide-react";
+import { StorefrontImage } from "../StorefrontImage";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -129,6 +130,7 @@ export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavor
                 <button
                   key={note.id}
                   onClick={() => setActiveNote(note.id)}
+                  aria-pressed={activeNote === note.id}
                   className={`px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold tracking-wide transition-all duration-300 flex items-center gap-1.5 sm:gap-2 border ${
                     isSelected
                       ? "shadow-lg scale-105"
@@ -170,9 +172,12 @@ export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavor
                 {/* Image Header */}
                 <div className="relative h-48 sm:h-56 w-full overflow-hidden bg-slate-900">
                   {coffee.image ? (
-                    <img
+                    <StorefrontImage
                       src={coffee.image}
                       alt={coffee.name}
+                      width={800}
+                      height={500}
+                      sizes="(max-width: 768px) 100vw, 50vw"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-85 group-hover:opacity-100"
                     />
                   ) : (

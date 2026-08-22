@@ -30,6 +30,8 @@ import { WholesaleRadarSection } from "./sections/WholesaleRadarSection";
 import { KineticMarqueeSection } from "./sections/KineticMarqueeSection";
 import { HeaderNavSection } from "./sections/HeaderNavSection";
 import { FooterNavSection } from "./sections/FooterNavSection";
+import { StorefrontImageProvider } from "./StorefrontImage";
+import { MotionConfig } from "framer-motion";
 
 // ── Section Component Map ───────────────────────────────────────────────────
 
@@ -123,6 +125,24 @@ function generateCSSVariables(
 
       --portal-anim-duration: ${animations.globalDuration}ms;
       --portal-anim-easing: ${animations.globalEasing};
+    }
+
+    .portal-root[data-motion-reduced="true"] *,
+    .portal-root[data-motion-reduced="true"] *::before,
+    .portal-root[data-motion-reduced="true"] *::after {
+      animation-duration: 0.01ms;
+      animation-iteration-count: 1;
+      scroll-behavior: auto;
+      transition-duration: 0.01ms;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .portal-root *, .portal-root *::before, .portal-root *::after {
+        animation-duration: 0.01ms;
+        animation-iteration-count: 1;
+        scroll-behavior: auto;
+        transition-duration: 0.01ms;
+      }
     }
   `;
 }
@@ -294,6 +314,7 @@ export function PortalThemeRenderer({ config, children, isPreview = false, produ
   return (
     <div
       className="portal-root min-h-screen overflow-x-hidden"
+      data-motion-reduced={config.globalSettings.animations.reduceMotion}
       style={{
         backgroundColor: "var(--portal-bg)",
         color: "var(--portal-text)",
@@ -321,6 +342,8 @@ export function PortalThemeRenderer({ config, children, isPreview = false, produ
         );
       })}
 
+      <MotionConfig reducedMotion={config.globalSettings.animations.reduceMotion ? "always" : "user"}>
+      <StorefrontImageProvider settings={config.globalSettings.seo}>
       {/* Sections */}
       {sortedSections.map((section) => {
         const canonicalType = resolveSectionType(section.type);
@@ -373,6 +396,8 @@ export function PortalThemeRenderer({ config, children, isPreview = false, produ
         );
       })}
       {children}
+      </StorefrontImageProvider>
+      </MotionConfig>
     </div>
   );
 }

@@ -1,17 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, Menu, X, Sparkles, Coffee, ArrowRight, ShieldCheck, Activity } from "lucide-react";
+import { useModalFocus } from "@/hooks/useModalFocus";
 
 interface HeaderNavProps {
   settings: Record<string, unknown>;
   onOpenCart?: () => void;
   cartItemCount?: number;
   isPreview?: boolean;
+  sectionId?: string;
 }
 
-export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPreview = false }: HeaderNavProps) {
+export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPreview = false, sectionId }: HeaderNavProps) {
   const styleMode = (settings.styleMode as string) || "glass_pill";
   const logoText = (settings.logoText as string) || "Nama Toko";
   const tickerText = typeof settings.tickerText === "string" ? settings.tickerText : "";
@@ -19,6 +21,9 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
   
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), []);
+  const mobileMenuRef = useModalFocus(mobileMenuOpen, closeMobileMenu);
+  const mobileMenuId = `${sectionId || "portal"}-mobile-menu`;
 
   useEffect(() => {
     if (isPreview) return;
@@ -106,7 +111,9 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
             <button
               onClick={() => setMobileMenuOpen(true)}
               className="md:hidden w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
-              aria-label="Open menu"
+              aria-label="Buka menu"
+              aria-expanded={mobileMenuOpen}
+              aria-controls={mobileMenuId}
             >
               <Menu size={18} />
             </button>
@@ -125,6 +132,12 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
                 className="absolute inset-0 bg-black/70 backdrop-blur-sm"
               />
               <motion.div
+                ref={mobileMenuRef}
+                id={mobileMenuId}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Menu ${logoText}`}
+                tabIndex={-1}
                 initial={{ x: "100%" }}
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
@@ -134,7 +147,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
                 <div>
                   <div className="flex items-center justify-between pb-6 border-b border-white/10">
                     <span className="font-black text-lg tracking-tight text-white font-mono">{logoText}</span>
-                    <button onClick={() => setMobileMenuOpen(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white">
+                    <button onClick={closeMobileMenu} aria-label="Tutup menu" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white">
                       <X size={18} />
                     </button>
                   </div>
@@ -209,6 +222,9 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
             </button>
             <button
               onClick={() => setMobileMenuOpen(true)}
+              aria-label="Buka menu"
+              aria-expanded={mobileMenuOpen}
+              aria-controls={mobileMenuId}
               className="md:hidden p-2 border-2 border-white bg-transparent hover:bg-white hover:text-black transition-colors"
             >
               <Menu size={18} />
@@ -219,11 +235,11 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
         {/* Brutalist Mobile Menu */}
         <AnimatePresence>
           {mobileMenuOpen && (
-            <div className="fixed inset-0 z-50 bg-black text-white p-6 flex flex-col justify-between font-mono md:hidden">
+            <div ref={mobileMenuRef} id={mobileMenuId} role="dialog" aria-modal="true" aria-label={`Menu ${logoText}`} tabIndex={-1} className="fixed inset-0 z-50 bg-black text-white p-6 flex flex-col justify-between font-mono md:hidden">
               <div>
                 <div className="flex items-center justify-between pb-6 border-b-2 border-white">
                   <span className="text-xl font-black uppercase bg-white text-black px-3 py-1">{logoText}</span>
-                  <button onClick={() => setMobileMenuOpen(false)} className="p-2 border-2 border-white hover:bg-white hover:text-black">
+                  <button onClick={closeMobileMenu} aria-label="Tutup menu" className="p-2 border-2 border-white hover:bg-white hover:text-black">
                     <X size={20} />
                   </button>
                 </div>
@@ -307,6 +323,9 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
 
             <button
               onClick={() => setMobileMenuOpen(true)}
+              aria-label="Buka menu"
+              aria-expanded={mobileMenuOpen}
+              aria-controls={mobileMenuId}
               className="md:hidden text-[var(--portal-accent,#D4A574)] p-1 hover:opacity-80"
             >
               <Menu size={22} />
@@ -317,11 +336,11 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
         {/* Editorial Mobile Menu */}
         <AnimatePresence>
           {mobileMenuOpen && (
-            <div className="fixed inset-0 z-50 bg-[#14110F] text-[#F5F0EB] p-8 flex flex-col justify-between md:hidden border-l border-[var(--portal-accent,#D4A574)]/30">
+            <div ref={mobileMenuRef} id={mobileMenuId} role="dialog" aria-modal="true" aria-label={`Menu ${logoText}`} tabIndex={-1} className="fixed inset-0 z-50 bg-[#14110F] text-[#F5F0EB] p-8 flex flex-col justify-between md:hidden border-l border-[var(--portal-accent,#D4A574)]/30">
               <div>
                 <div className="flex items-center justify-between pb-6 border-b border-[var(--portal-accent,#D4A574)]/20">
                   <span className="text-2xl font-bold text-[var(--portal-accent,#D4A574)]" style={{ fontFamily: "Georgia, serif" }}>{logoText}</span>
-                  <button onClick={() => setMobileMenuOpen(false)} className="text-[#F5F0EB]/70 hover:text-white">
+                  <button onClick={closeMobileMenu} aria-label="Tutup menu" className="text-[#F5F0EB]/70 hover:text-white">
                     <X size={24} />
                   </button>
                 </div>
@@ -396,6 +415,9 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
             </button>
             <button
               onClick={() => setMobileMenuOpen(true)}
+              aria-label="Buka menu"
+              aria-expanded={mobileMenuOpen}
+              aria-controls={mobileMenuId}
               className="md:hidden p-1.5 border border-[#00FF66]/40 text-[#00FF66] hover:bg-[#00FF66]/10 rounded"
             >
               <Menu size={18} />
@@ -406,14 +428,14 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
         {/* Cyber Mobile Drawer */}
         <AnimatePresence>
           {mobileMenuOpen && (
-            <div className="fixed inset-0 z-50 bg-[#05070D] text-[#00FF66] p-6 flex flex-col justify-between font-mono md:hidden border-l border-[#00FF66]/30">
+            <div ref={mobileMenuRef} id={mobileMenuId} role="dialog" aria-modal="true" aria-label={`Menu ${logoText}`} tabIndex={-1} className="fixed inset-0 z-50 bg-[#05070D] text-[#00FF66] p-6 flex flex-col justify-between font-mono md:hidden border-l border-[#00FF66]/30">
               <div>
                 <div className="flex items-center justify-between pb-6 border-b border-[#00FF66]/20">
                   <span className="text-lg font-black uppercase text-white flex items-center gap-2">
                     <Activity size={18} className="text-[#00FF66] animate-pulse" />
                     {logoText}
                   </span>
-                  <button onClick={() => setMobileMenuOpen(false)} className="text-[#00FF66] p-1">
+                  <button onClick={closeMobileMenu} aria-label="Tutup menu" className="text-[#00FF66] p-1">
                     <X size={20} />
                   </button>
                 </div>
@@ -479,6 +501,9 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
           </button>
           <button
             onClick={() => setMobileMenuOpen(true)}
+            aria-label="Buka menu"
+            aria-expanded={mobileMenuOpen}
+            aria-controls={mobileMenuId}
             className="md:hidden p-2 rounded-full hover:bg-black/5 text-[#2C302E]"
           >
             <Menu size={20} />
@@ -489,11 +514,11 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
       {/* Scandi Mobile Menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
-          <div className="fixed inset-0 z-50 bg-[#F5F3EF] text-[#2C302E] p-8 flex flex-col justify-between md:hidden border-l border-[#E2DFD7]">
+          <div ref={mobileMenuRef} id={mobileMenuId} role="dialog" aria-modal="true" aria-label={`Menu ${logoText}`} tabIndex={-1} className="fixed inset-0 z-50 bg-[#F5F3EF] text-[#2C302E] p-8 flex flex-col justify-between md:hidden border-l border-[#E2DFD7]">
             <div>
               <div className="flex items-center justify-between pb-6 border-b border-[#E2DFD7]">
                 <span className="text-xl font-bold font-serif">{logoText}</span>
-                <button onClick={() => setMobileMenuOpen(false)} className="p-2 hover:bg-black/5 rounded-full">
+                <button onClick={closeMobileMenu} aria-label="Tutup menu" className="p-2 hover:bg-black/5 rounded-full">
                   <X size={20} />
                 </button>
               </div>

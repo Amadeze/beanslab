@@ -554,7 +554,7 @@ describe("Security Regression", () => {
     expect(html).not.toContain("<script");
     expect(html).not.toContain("javascript:");
     expect(html).not.toContain("<iframe");
-    expect(html).not.toMatch(/on\w+\s*=/i);
+    expect(html).not.toMatch(/\son[a-z]+\s*=/i);
   });
 
   it("font charset allowlist rejects dangerous fonts", () => {

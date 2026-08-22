@@ -68,6 +68,8 @@ export function FaqSection({ settings, blocks, typography }: FaqProps) {
                 <button
                   className="flex w-full items-center justify-between px-6 py-5 text-left"
                   onClick={() => setOpenId(isOpen ? null : block.id)}
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-answer-${block.id}`}
                 >
                   <span
                     className="text-sm font-semibold pr-4"
@@ -85,6 +87,9 @@ export function FaqSection({ settings, blocks, typography }: FaqProps) {
                 <AnimatePresence>
                   {isOpen && (
                     <motion.div
+                      id={`faq-answer-${block.id}`}
+                      role="region"
+                      aria-label={block.settings.question as string}
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}

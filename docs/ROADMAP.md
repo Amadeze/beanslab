@@ -22,7 +22,8 @@ Branch: `wip/non-kopi-commit3`
 | Batch 4 | AWB / Tracking | ✅ CLOSED + PUSHED |
 | Batch 5 | Storefront UX | ✅ CLOSED + PUSHED |
 | Batch 6 | Theme / Customizer | ✅ CLOSED + PUSHED |
-| Batch 7 | SEO / Perf / A11y | ⏳ NOT STARTED |
+| Batch 6.5 | Storefront theme architecture cleanup | ✅ COMMITTED LOCALLY (`c0a1f78`) |
+| Batch 7 | SEO / Perf / A11y | 🟢 IMPLEMENTED — READY TO COMMIT |
 | Batch 8 | B2B | ⏳ NOT STARTED |
 
 ## Batch 3 — Delivered Scope
@@ -111,6 +112,30 @@ Branch: `wip/non-kopi-commit3`
 - SEO / Perf / A11y → Batch 7
 - B2B → Batch 8
 
+## Batch 6.5 — Delivered Scope
+
+- One modern storefront rendering path through `PortalThemeRenderer`
+- Dead duplicate theme engine removed while persisted legacy sections retain compatibility
+- `SECTION_REGISTRY` is the source of truth for area, category, addability, lifecycle status, capabilities, and aliases
+- Canonical section IDs with non-mutating alias resolution for persisted JSON
+- Add Section derives its available sections and grouping from registry metadata
+- Newsletter retained for legacy rendering but hidden from Add Section because no subscriber backend exists
+- Default theme configuration contains canonical IDs and no fake merchant or product content
+- All 16 preset IDs retained for compatibility
+- No schema migration and no commerce, shipping, accounting, or inventory behavior changes
+
+## Batch 7 — Delivered Scope
+
+- Tenant-specific metadata, canonical URLs, social sharing metadata, and preview `noindex`
+- Safe `OnlineStore` and real-catalog `ItemList` structured data with no fake offers
+- Central storefront image component with supported remote optimization, intrinsic sizing, responsive `sizes`, and legacy URL fallback
+- Critical-image preload policy, lazy loading for non-critical media, and reduced-motion support
+- Explicit persisted-cart hydration guard to prevent stale cart UI during initial render
+- Dialog focus containment, Escape dismissal, focus restoration, disclosure semantics, form labels, and selection state semantics
+- Responsive customizer editor/preview layout for narrow screens
+- Unknown and persisted external storefront images remain graceful
+- No schema migration and no commerce, shipping, accounting, or inventory behavior changes
+
 ## Migration State
 
 Active local migration chain after Batch 4:
@@ -190,6 +215,21 @@ Do NOT imply migrations 003-004 exist in production yet.
 | `next build --webpack` | PASS |
 | `git diff --check` | PASS |
 | No schema migration | CONFIRMED |
+
+## Validation Evidence (Batch 7)
+
+| Gate | Result |
+|---|---|
+| `prisma validate` | PASS |
+| `prisma generate` | PASS |
+| `typecheck` | PASS |
+| `eslint --quiet` | PASS |
+| Focused Batch 7, cart hydration, and courier tests | 46/46 PASS |
+| Full portal-theme suite | 264/264 PASS |
+| `next build --webpack` | PASS |
+| `git diff --check` | PASS |
+| No schema migration | CONFIRMED |
+| Live 360/390/430 tenant walkthrough | DEFERRED — local database credentials unavailable; responsive source/tests/build verified |
 
 ## Closure Blockers (Batch 3) — RESOLVED
 

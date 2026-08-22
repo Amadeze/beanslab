@@ -225,7 +225,7 @@ export function CourierShippingSearch({
 
   return (
     <div className="space-y-3">
-      <label className="block text-xs font-semibold text-[var(--t-text-muted)] uppercase tracking-wide">
+      <label htmlFor="storefront-destination-search" className="block text-xs font-semibold text-[var(--t-text-muted)] uppercase tracking-wide">
         Tujuan Pengiriman
       </label>
 
@@ -233,6 +233,11 @@ export function CourierShippingSearch({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--t-text-muted)]" />
         <input
+          id="storefront-destination-search"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={results.length > 0 && !selectedDestination}
+          aria-controls="storefront-destination-results"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -250,7 +255,7 @@ export function CourierShippingSearch({
 
       {/* Search error */}
       {searchError && (
-        <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+        <div role="alert" className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
           <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
           <span>{searchError}</span>
         </div>
@@ -258,11 +263,13 @@ export function CourierShippingSearch({
 
       {/* Search results */}
       {results.length > 0 && !selectedDestination && (
-        <div className="max-h-48 overflow-y-auto rounded-xl border border-[var(--t-border)] bg-[var(--t-surface)] divide-y divide-[var(--t-border)]">
+        <div id="storefront-destination-results" role="listbox" aria-label="Hasil tujuan pengiriman" className="max-h-48 overflow-y-auto rounded-xl border border-[var(--t-border)] bg-[var(--t-surface)] divide-y divide-[var(--t-border)]">
           {results.map((dest) => (
             <button
               key={dest.providerId}
               type="button"
+              role="option"
+              aria-selected="false"
               onClick={() => selectDestination(dest)}
               className="w-full text-left px-3 py-2.5 hover:bg-[var(--t-bg)] transition-colors flex items-start gap-2"
             >
@@ -294,7 +301,7 @@ export function CourierShippingSearch({
 
       {/* Rate fetch error */}
       {rateError && selectedDestination && (
-        <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+        <div role="alert" className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
           <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
           <span>{rateError}</span>
         </div>
@@ -319,6 +326,7 @@ export function CourierShippingSearch({
               <button
                 key={`${rate.courierCode}-${rate.serviceCode}`}
                 type="button"
+                aria-pressed={selectedRate?.token === rate.token}
                 onClick={() => selectRate(rate)}
                 className={`w-full text-left rounded-xl border px-3 py-2.5 transition-colors ${
                   selectedRate?.token === rate.token

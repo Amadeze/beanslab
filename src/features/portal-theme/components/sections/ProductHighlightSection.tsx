@@ -1,6 +1,7 @@
 "use client";
 
 import { Coffee, Plus, Check } from "lucide-react";
+import { StorefrontImage } from "../StorefrontImage";
 
 interface ProductHighlightProps {
   settings: Record<string, unknown>;
@@ -29,7 +30,7 @@ export function ProductHighlightSection({ settings, typography, products = [], o
               style={{ backgroundColor: "var(--portal-surface-alt, #F5F3EF)", borderColor: "var(--portal-border-subtle, #F0F0F0)" }}
             >
               {product && product.imageUrl ? (
-                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                <StorefrontImage src={product.imageUrl} alt={product.name} width={1000} height={1000} sizes="(max-width: 768px) 100vw, 50vw" className="w-full h-full object-cover" />
               ) : (
                 <Coffee size={80} className="opacity-30" style={{ color: "var(--portal-accent, #D4A574)" }} />
               )}

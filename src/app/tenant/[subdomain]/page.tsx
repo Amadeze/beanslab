@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { Metadata } from "next";
+import type { Metadata } from "next";
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { TenantPortalClient } from "./_components/TenantPortalClient";
 import { getTenantAccessState } from "@/lib/subscription";
@@ -7,6 +8,11 @@ import { planHasFeature } from "@/lib/plans";
 import { resolveTenantPortalTheme } from "@/features/portal-theme/resolver";
 import { tenantStorefrontUrl } from "@/lib/tenant-host";
 import { loadStorefrontCatalog } from "@/lib/storefront-catalog";
+import {
+  buildStorefrontMetadata,
+  buildStorefrontStructuredData,
+  serializeStorefrontStructuredData,
+} from "@/lib/storefront-seo";
 
 export const dynamic = "force-dynamic";
 
@@ -17,34 +23,8 @@ interface TenantPageProps {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export async function generateMetadata({ params }: TenantPageProps): Promise<Metadata> {
-  const resolvedParams = await params;
-  const subdomain = resolvedParams.subdomain;
-  
-  const tenant = await prisma.tenant.findUnique({
-    where: { subdomain },
-    select: { name: true, logoUrl: true }
-  });
-
-  if (!tenant) return {};
-
-  return {
-    title: tenant.name,
-    alternates: { canonical: tenantStorefrontUrl(subdomain) },
-    openGraph: { title: tenant.name, url: tenantStorefrontUrl(subdomain) },
-    icons: {
-      icon: tenant.logoUrl || '/favicon.ico',
-    }
-  };
-}
-
-export default async function TenantB2BPortal({ params, searchParams }: TenantPageProps) {
-  const resolvedParams = await params;
-  const subdomain = resolvedParams.subdomain;
-  const resolvedSearchParams = searchParams ? await searchParams : {};
-  const isPreviewMode = resolvedSearchParams?.preview === "1" || resolvedSearchParams?.preview === "true";
-  
-  const tenant = await prisma.tenant.findUnique({
+const getStorefrontTenant = cache((subdomain: string) =>
+  prisma.tenant.findUnique({
     where: { subdomain },
     select: {
       id: true,
@@ -88,7 +68,7 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
       storefrontTaxRate: true,
       tenantPaymentMethods: {
         where: { isActive: true },
-        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+        orderBy: [{ displayOrder: "asc" as const }, { createdAt: "asc" as const }],
         select: {
           id: true,
           provider: true,
@@ -102,8 +82,52 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
           requireProof: true,
         },
       },
-    }
+    },
+  }),
+);
+
+async function loadPortalThemeCompat(tenantId: string) {
+  try {
+    return await prisma.portalTheme.findUnique({
+      where: { tenantId },
+      select: {
+        draftConfig: true,
+        publishedConfig: true,
+        publishedAt: true,
+      },
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function generateMetadata({ params, searchParams }: TenantPageProps): Promise<Metadata> {
+  const [{ subdomain }, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams ?? Promise.resolve({}),
+  ]);
+  const tenant = await getStorefrontTenant(subdomain);
+
+  if (
+    !tenant ||
+    getTenantAccessState(tenant) !== "ACTIVE" ||
+    !planHasFeature(tenant.subscriptionTier, "STOREFRONT")
+  ) return {};
+  const preview = (resolvedSearchParams as Record<string, string | string[] | undefined>).preview;
+  return buildStorefrontMetadata({
+    tenant,
+    canonicalUrl: tenantStorefrontUrl(subdomain),
+    isPreview: preview === "1" || preview === "true",
   });
+}
+
+export default async function TenantB2BPortal({ params, searchParams }: TenantPageProps) {
+  const resolvedParams = await params;
+  const subdomain = resolvedParams.subdomain;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const isPreviewMode = resolvedSearchParams?.preview === "1" || resolvedSearchParams?.preview === "true";
+
+  const tenant = await getStorefrontTenant(subdomain);
 
   if (
     !tenant ||
@@ -118,22 +142,10 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
 
   // Canonical catalog (products + coffee offerings dengan ketersediaan kg real-time)
   // — payload yang sama dipakai customizer preview via /api/portal-theme/products.
-  const catalog = await loadStorefrontCatalog(prisma, tenant.id);
-
-  // Fetch PortalTheme for block-based customizer (graceful fallback if table not yet migrated)
-  let portalTheme: { draftConfig: unknown; publishedConfig: unknown; publishedAt: Date | null } | null = null;
-  try {
-    portalTheme = await prisma.portalTheme.findUnique({
-      where: { tenantId: tenant.id },
-      select: {
-        draftConfig: true,
-        publishedConfig: true,
-        publishedAt: true,
-      },
-    });
-  } catch {
-    // portal_themes table not yet migrated — fall back to legacy rendering
-  }
+  const [catalog, portalTheme] = await Promise.all([
+    loadStorefrontCatalog(prisma, tenant.id),
+    loadPortalThemeCompat(tenant.id),
+  ]);
 
   // Resolve the active theme config (draft for preview, published for public view)
   const resolvedThemeConfig = resolveTenantPortalTheme({
@@ -184,10 +196,27 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
 
   // Type cast back to any or specific shape since Client component expects Decimal type structurally
   // (Prisma types on client actually accept numbers for Decimals usually, or we can just cast to any)
+  const structuredData = !isPreviewMode && resolvedThemeConfig.globalSettings.seo.structuredData
+    ? serializeStorefrontStructuredData(buildStorefrontStructuredData({
+        tenant,
+        canonicalUrl: tenantStorefrontUrl(subdomain),
+        products: catalog.products,
+        offerings: catalog.offerings,
+      }))
+    : null;
+
   return (
-    <TenantPortalClient
-      tenant={serializedTenant as any}
-      isPreviewMode={isPreviewMode}
-    />
+    <>
+      {structuredData ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: structuredData }}
+        />
+      ) : null}
+      <TenantPortalClient
+        tenant={serializedTenant as any}
+        isPreviewMode={isPreviewMode}
+      />
+    </>
   );
 }

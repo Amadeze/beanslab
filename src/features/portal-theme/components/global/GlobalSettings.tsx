@@ -25,8 +25,9 @@ export function GlobalSettingsPanel() {
         <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Layout</h4>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Content Width</label>
+            <label htmlFor="portal-content-width" className="block text-xs font-semibold text-gray-500 mb-1">Content Width</label>
             <input
+              id="portal-content-width"
               type="range"
               min={800}
               max={1600}
@@ -42,8 +43,9 @@ export function GlobalSettingsPanel() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Section Gap</label>
+            <label htmlFor="portal-section-gap" className="block text-xs font-semibold text-gray-500 mb-1">Section Gap</label>
             <input
+              id="portal-section-gap"
               type="range"
               min={16}
               max={120}
@@ -59,8 +61,9 @@ export function GlobalSettingsPanel() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Page Padding</label>
+            <label htmlFor="portal-page-padding" className="block text-xs font-semibold text-gray-500 mb-1">Page Padding</label>
             <input
+              id="portal-page-padding"
               type="range"
               min={12}
               max={64}
@@ -76,8 +79,9 @@ export function GlobalSettingsPanel() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Border Radius</label>
+            <label htmlFor="portal-border-radius" className="block text-xs font-semibold text-gray-500 mb-1">Border Radius</label>
             <input
+              id="portal-border-radius"
               type="range"
               min={0}
               max={32}
@@ -134,8 +138,9 @@ export function GlobalSettingsPanel() {
         <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Integrations</h4>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Google Analytics (GA4)</label>
+            <label htmlFor="portal-google-analytics" className="block text-xs font-semibold text-gray-500 mb-1">Google Analytics (GA4)</label>
             <input
+              id="portal-google-analytics"
               type="text"
               value={integrations.googleAnalyticsId || ""}
               onChange={(e) => updateGlobalIntegrations({ googleAnalyticsId: e.target.value || undefined })}
@@ -144,8 +149,9 @@ export function GlobalSettingsPanel() {
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Meta Pixel (Facebook)</label>
+            <label htmlFor="portal-meta-pixel" className="block text-xs font-semibold text-gray-500 mb-1">Meta Pixel (Facebook)</label>
             <input
+              id="portal-meta-pixel"
               type="text"
               value={integrations.metaPixelId || ""}
               onChange={(e) => updateGlobalIntegrations({ metaPixelId: e.target.value || undefined })}

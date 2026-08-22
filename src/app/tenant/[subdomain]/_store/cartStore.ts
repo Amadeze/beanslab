@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import type { StorefrontGrindSize } from '@/lib/storefront-grind';
 
 export interface CartItem {
@@ -21,6 +21,8 @@ export interface CartItem {
 
 interface CartState {
   items: Record<string, CartItem[]>;
+  hasHydrated: boolean;
+  markHydrated: (value: boolean) => void;
   addItem: (tenantId: string, product: Omit<CartItem, "quantity">) => void;
   removeItem: (tenantId: string, id: string) => void;
   updateQuantity: (tenantId: string, id: string, delta: number) => void;
@@ -29,10 +31,13 @@ interface CartState {
   getTotalPrice: (tenantId: string) => number;
 }
 
-export const useCartStore = create<CartState>()(
+export function createCartStore(storage?: StateStorage) {
+  return create<CartState>()(
   persist(
     (set, get) => ({
       items: {},
+      hasHydrated: false,
+      markHydrated: (value) => set({ hasHydrated: value }),
       addItem: (tenantId, product) => {
         set((state) => {
           const tenantItems = state.items[tenantId] || [];
@@ -82,6 +87,14 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'ros-b2b-cart', // Unique key for local storage
+      version: 1,
+      skipHydration: true,
+      partialize: (state) => ({ items: state.items }),
+      onRehydrateStorage: () => (state) => state?.markHydrated(true),
+      ...(storage ? { storage: createJSONStorage(() => storage) } : {}),
     }
   )
-);
+  );
+}
+
+export const useCartStore = createCartStore();

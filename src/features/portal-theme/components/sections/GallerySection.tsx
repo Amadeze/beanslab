@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Expand } from "lucide-react";
+import { StorefrontImage } from "../StorefrontImage";
 
 interface GalleryProps {
   settings: Record<string, unknown>;
@@ -58,9 +59,12 @@ export function GallerySection({ settings, blocks }: GalleryProps) {
               className="group relative overflow-hidden rounded-xl cursor-pointer"
             >
               {block.settings.imageUrl && (
-                <img
+                <StorefrontImage
                   src={block.settings.imageUrl as string}
                   alt={(block.settings.caption as string) || ""}
+                  width={800}
+                  height={800}
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
               )}

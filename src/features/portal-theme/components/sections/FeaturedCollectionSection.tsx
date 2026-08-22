@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Coffee, Plus, Tag, Star } from "lucide-react";
+import { StorefrontImage } from "../StorefrontImage";
 
 interface FeaturedCollectionProps {
   settings: Record<string, unknown>;
@@ -76,7 +77,7 @@ export function FeaturedCollectionSection({ settings, typography, products = [],
                   style={{ backgroundColor: "var(--portal-surface-alt, #F5F3EF)" }}
                 >
                   {product.imageUrl ? (
-                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <StorefrontImage src={product.imageUrl} alt={product.name} width={800} height={800} sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
                     <Coffee size={40} className="opacity-30" style={{ color: "var(--portal-accent, #D4A574)" }} />
                   )}

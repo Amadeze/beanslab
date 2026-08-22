@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, CheckCircle2, ShieldCheck, Flame, Cpu, Globe, ArrowRight, Coffee } from "lucide-react";
+import { StorefrontImage } from "../StorefrontImage";
 
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
   CheckCircle2, ShieldCheck, Flame, Cpu, Globe, Sparkles
@@ -67,9 +68,12 @@ export function StickyNarrativeSection({ settings, blocks }: StickyNarrativeProp
               className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/15 bg-slate-900 shadow-2xl aspect-[16/9] sm:aspect-[1/1] lg:aspect-[4/5] flex flex-col justify-end p-5 sm:p-8 group"
             >
               {currentStep.image ? (
-                <img
+                <StorefrontImage
                   src={currentStep.image}
                   alt={currentStep.title}
+                  width={900}
+                  height={1100}
+                  sizes="(max-width: 1024px) 100vw, 50vw"
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80"
                 />
               ) : (

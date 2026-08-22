@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Star, Quote } from "lucide-react";
+import { StorefrontImage } from "../StorefrontImage";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -107,9 +108,12 @@ export function TestimonialsSection({ settings, blocks, typography }: Testimonia
 
               <div className="flex items-center gap-3 pt-4 border-t" style={{ borderColor: "var(--portal-border-subtle, #F0F0F0)" }}>
                 {block.settings.avatar ? (
-                  <img
+                  <StorefrontImage
                     src={block.settings.avatar as string}
                     alt={block.settings.name as string}
+                    width={80}
+                    height={80}
+                    sizes="40px"
                     className="h-10 w-10 rounded-full object-cover"
                   />
                 ) : (

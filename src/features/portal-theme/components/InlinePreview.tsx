@@ -5,7 +5,6 @@
 
 "use client";
 
-import { useMemo } from "react";
 import { useCustomizerStore } from "../client/store";
 import { PortalThemeRenderer } from "./PortalThemeRenderer";
 import { Monitor, Tablet, Smartphone } from "lucide-react";
@@ -19,10 +18,10 @@ const VIEWPORT_SIZES = {
 interface InlinePreviewProps {
   products?: any[];
   offerings?: any[];
-  subdomain?: string;
+  subdomain: string;
 }
 
-export function InlinePreview({ products = [], offerings = [], subdomain = "your-roastery" }: InlinePreviewProps) {
+export function InlinePreview({ products = [], offerings = [], subdomain }: InlinePreviewProps) {
   const workingDraft = useCustomizerStore((s) => s.workingDraft);
   const previewViewport = useCustomizerStore((s) => s.previewViewport);
   const size = VIEWPORT_SIZES[previewViewport];
@@ -38,7 +37,7 @@ export function InlinePreview({ products = [], offerings = [], subdomain = "your
       )}
 
       {/* Preview frame */}
-      <div className="flex-1 flex justify-center overflow-auto p-4">
+      <div className="flex-1 flex justify-center overflow-auto p-1.5 sm:p-4">
         <div
           className="bg-white shadow-2xl rounded-xl overflow-hidden border border-gray-300 transition-all duration-300 w-full flex flex-col"
           style={{ width: size.width, maxWidth: size.maxWidth, height: size.height }}
@@ -49,7 +48,7 @@ export function InlinePreview({ products = [], offerings = [], subdomain = "your
             <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
             <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
             <div className="ml-3 flex-1 bg-white rounded-md px-3 py-1 text-xs text-gray-400 font-mono border border-gray-200 truncate">
-              https://{subdomain}.roastd.id
+              {subdomain ? `https://${subdomain}.roastd.id` : "Storefront belum tersedia"}
             </div>
           </div>
 

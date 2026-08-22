@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { StorefrontImage } from "../StorefrontImage";
 
 interface ImageWithTextProps {
   settings: Record<string, unknown>;
@@ -30,9 +31,12 @@ export function ImageWithTextSection({ settings, typography }: ImageWithTextProp
               className="w-full md:w-1/2"
             >
               <div className="relative overflow-hidden rounded-2xl border" style={{ borderColor: "var(--portal-border-subtle, #F0F0F0)" }}>
-                <img
+                <StorefrontImage
                   src={imageUrl}
                   alt={title || ""}
+                  width={1000}
+                  height={750}
+                  sizes="(max-width: 768px) 100vw, 50vw"
                   className="w-full h-auto object-cover"
                   style={{ aspectRatio: (settings.aspectRatio as string) || "16/9" }}
                 />

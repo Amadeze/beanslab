@@ -60,8 +60,8 @@ const defaultCourierShipping: CourierShippingState = {
 };
 
 export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClientProps) {
-  const [mounted, setMounted] = useState(false);
   const cart = useCartStore();
+  const hasHydrated = useCartStore((state) => state.hasHydrated);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   const [customerName, setCustomerName] = useState("");
@@ -130,7 +130,7 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
 
   // ─── Persist customer info ────────────────────────────────────────────
   useEffect(() => {
-    setMounted(true);
+    void useCartStore.persist.rehydrate();
     const savedName = localStorage.getItem("ros_customer_name");
     const savedPhone = localStorage.getItem("ros_customer_phone");
     const savedAddress = localStorage.getItem("ros_customer_address");
@@ -325,7 +325,7 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
 
   const themeProps = {
     tenant, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
-    customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleAddOfferingToCart, handleCheckout, mounted, heroGreeting, aboutText,
+    customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleAddOfferingToCart, handleCheckout, mounted: hasHydrated, heroGreeting, aboutText,
     catalogTitle, catalogSubtitle, footerText, waLink, emailLink, igLink, iconProps, iconStroke, isDark,
     isCheckingOut,
     paymentMethodId,

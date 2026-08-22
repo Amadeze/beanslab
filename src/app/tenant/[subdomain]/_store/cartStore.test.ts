@@ -1,5 +1,5 @@
-import { describe, expect, it, beforeEach } from "vitest";
-import { useCartStore } from "./cartStore";
+import { describe, expect, it, beforeEach, vi } from "vitest";
+import { createCartStore, useCartStore } from "./cartStore";
 
 // Reset the store between tests
 beforeEach(() => {
@@ -138,5 +138,28 @@ describe("cart store", () => {
   it("returns 0 for empty tenant cart", () => {
     expect(useCartStore.getState().getTotalItems("nonexistent")).toBe(0);
     expect(useCartStore.getState().getTotalPrice("nonexistent")).toBe(0);
+  });
+
+  it("defers persisted cart hydration until the client explicitly rehydrates", async () => {
+    const persistedItem = { ...baseProduct, id: "persisted:WHOLE_BEAN:", quantity: 2 };
+    const storage = {
+      getItem: vi.fn(async () => JSON.stringify({
+        state: { items: { [TENANT_A]: [persistedItem] } },
+        version: 1,
+      })),
+      setItem: vi.fn(async () => undefined),
+      removeItem: vi.fn(async () => undefined),
+    };
+    const cartStore = createCartStore(storage);
+
+    expect(cartStore.persist.getOptions().skipHydration).toBe(true);
+    expect(cartStore.getState().items).toEqual({});
+    expect(cartStore.getState().hasHydrated).toBe(false);
+
+    await cartStore.persist.rehydrate();
+
+    expect(cartStore.getState().items[TENANT_A]).toEqual([persistedItem]);
+    expect(cartStore.getState().hasHydrated).toBe(true);
+    expect(storage.getItem).toHaveBeenCalledWith("ros-b2b-cart");
   });
 });

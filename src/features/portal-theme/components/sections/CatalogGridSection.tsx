@@ -6,6 +6,7 @@ import { useState } from "react";
 import { STOREFRONT_GRIND_LABEL, type StorefrontGrindSize } from "@/lib/storefront-grind";
 import type { StorefrontOffering } from "@/lib/storefront-grind";
 import { CoffeeOfferingCard } from "@/components/storefront/CoffeeOfferingCard";
+import { StorefrontImage } from "../StorefrontImage";
 
 interface CatalogGridProps {
   settings: Record<string, unknown>;
@@ -133,9 +134,12 @@ export function CatalogGridSection({ settings, typography, products = [], offeri
                   style={{ backgroundColor: "var(--portal-surface-alt, #F5F3EF)" }}
                 >
                   {product.imageUrl ? (
-                    <img
+                    <StorefrontImage
                       src={product.imageUrl}
                       alt={product.name}
+                      width={800}
+                      height={800}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
@@ -177,8 +181,9 @@ export function CatalogGridSection({ settings, typography, products = [], offeri
                     const selected = grindSelections[product.id] ?? options[0] ?? "WHOLE_BEAN";
                     if (options.length === 1 && selected === "WHOLE_BEAN") return null;
                     return <div className="space-y-2">
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: "var(--portal-text-muted, #6B7280)" }}>Pilihan gilingan</label>
+                      <label htmlFor={`grind-${product.id}`} className="block text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: "var(--portal-text-muted, #6B7280)" }}>Pilihan gilingan</label>
                       <select
+                        id={`grind-${product.id}`}
                         value={selected}
                         onChange={(event) => setGrindSelections((current) => ({ ...current, [product.id]: event.target.value as StorefrontGrindSize }))}
                         className="h-9 w-full rounded-xl border bg-transparent px-3 text-xs"
@@ -186,13 +191,14 @@ export function CatalogGridSection({ settings, typography, products = [], offeri
                       >
                         {options.map((option) => <option key={option} value={option}>{STOREFRONT_GRIND_LABEL[option]}</option>)}
                       </select>
-                      {selected === "CUSTOM" ? <input
+                      {selected === "CUSTOM" ? <><label htmlFor={`custom-grind-${product.id}`} className="sr-only">Catatan gilingan {product.name}</label><input
+                        id={`custom-grind-${product.id}`}
                         value={customLabels[product.id] ?? ""}
                         onChange={(event) => setCustomLabels((current) => ({ ...current, [product.id]: event.target.value }))}
                         placeholder="Contoh: Comandante 22 klik"
                         className="h-9 w-full rounded-xl border bg-transparent px-3 text-xs"
                         style={{ borderColor: "var(--portal-border, #E5E7EB)", color: "var(--portal-text, #1A1A1A)" }}
-                      /> : null}
+                      /></> : null}
                     </div>;
                   })()}
 

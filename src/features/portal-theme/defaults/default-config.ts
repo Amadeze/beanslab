@@ -63,7 +63,7 @@ export const DEFAULT_PORTAL_THEME_CONFIG: PortalThemeConfig = {
       hoverEffects: true,
       reduceMotion: false,
     },
-    seo: { lazyLoadImages: true, preloadCritical: false, structuredData: false },
+    seo: { lazyLoadImages: true, preloadCritical: true, structuredData: true },
     integrations: {},
   },
   sections: [

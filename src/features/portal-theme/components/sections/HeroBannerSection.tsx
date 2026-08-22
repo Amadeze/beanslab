@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { StorefrontImage } from "../StorefrontImage";
 
 interface HeroBannerProps {
   settings: Record<string, unknown>;
@@ -46,9 +47,13 @@ export function HeroBannerSection({ settings, typography }: HeroBannerProps) {
       <div className="absolute inset-0 z-0">
         {imageUrl ? (
           <>
-            <img
+            <StorefrontImage
               src={imageUrl}
               alt=""
+              width={1600}
+              height={900}
+              sizes="100vw"
+              critical
               className="absolute inset-0 h-full w-full object-cover"
               style={{ filter: "saturate(90%) contrast(104%)" }}
             />
@@ -185,9 +190,13 @@ export function HeroBannerSection({ settings, typography }: HeroBannerProps) {
               className="hidden lg:block"
             >
               <div className={`relative min-h-[440px] overflow-hidden border border-white/10 bg-black/10 ${isBrutalist ? "rounded-none border-4" : isCommunity ? "rotate-2 rounded-[2rem]" : "rounded-2xl"}`}>
-                <img
+                <StorefrontImage
                   src={imageUrl}
                   alt=""
+                  width={900}
+                  height={1100}
+                  sizes="(max-width: 1024px) 0px, 50vw"
+                  critical
                   className="absolute inset-0 h-full w-full object-cover"
                   style={{ filter: "saturate(90%) contrast(104%)" }}
                 />

@@ -19,6 +19,7 @@ import {
 } from "../registry";
 import type { PortalSectionArea } from "../types";
 import { QUICK_FILL_PRESETS } from "../defaults/quick-fill-presets";
+import { useModalFocus } from "@/hooks/useModalFocus";
 
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
   Image, Type, AlignLeft, Grid3x3, Play,
@@ -50,6 +51,7 @@ export function AddSectionDialog({ open, onClose, area }: AddSectionDialogProps)
   }, [activeCategory, area]);
 
   const showCategoryTabs = !area;
+  const dialogRef = useModalFocus(open, onClose);
 
   if (!open) return null;
 
@@ -61,13 +63,13 @@ export function AddSectionDialog({ open, onClose, area }: AddSectionDialogProps)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
 
       {/* Dialog */}
-      <div className="relative z-10 w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="add-section-title" tabIndex={-1} className="relative z-10 mx-3 max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b px-6 py-4">
-          <h2 className="text-lg font-bold text-gray-900">Add Section</h2>
-          <button onClick={onClose} className="rounded-lg p-1 hover:bg-gray-100">
+          <h2 id="add-section-title" className="text-lg font-bold text-gray-900">Add Section</h2>
+          <button onClick={onClose} aria-label="Tutup dialog tambah section" className="rounded-lg p-2 hover:bg-gray-100">
             <X size={20} />
           </button>
         </div>
@@ -75,11 +77,13 @@ export function AddSectionDialog({ open, onClose, area }: AddSectionDialogProps)
         {showCategoryTabs && (
           <>
             {/* Category tabs */}
-            <div className="flex gap-1 border-b px-6 pt-3">
+            <div role="tablist" aria-label="Kategori section" className="flex gap-1 overflow-x-auto border-b px-3 pt-3 sm:px-6">
               {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
+                  role="tab"
+                  aria-selected={activeCategory === cat}
                   className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
                     activeCategory === cat
                       ? "bg-gray-100 text-gray-900"
@@ -92,7 +96,7 @@ export function AddSectionDialog({ open, onClose, area }: AddSectionDialogProps)
             </div>
 
             {/* Section grid */}
-            <div className="grid grid-cols-2 gap-3 p-6 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 p-3 min-[390px]:grid-cols-2 sm:grid-cols-3 sm:p-6">
               {filteredSections.map((section) => {
                 const IconComp = ICON_MAP[section.icon] || Image;
                 const presetsCount = QUICK_FILL_PRESETS[section.type]?.length || 0;
@@ -125,7 +129,7 @@ export function AddSectionDialog({ open, onClose, area }: AddSectionDialogProps)
         )}
 
         {!showCategoryTabs && (
-          <div className="grid grid-cols-2 gap-3 p-6 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 p-3 min-[390px]:grid-cols-2 sm:grid-cols-3 sm:p-6">
             {filteredSections.map((section) => {
               const IconComp = ICON_MAP[section.icon] || Image;
               const presetsCount = QUICK_FILL_PRESETS[section.type]?.length || 0;

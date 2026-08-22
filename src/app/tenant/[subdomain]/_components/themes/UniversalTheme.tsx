@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Coffee, Package, Phone, X, CheckCircle } from "@phosphor-icons/react";
 import { ThemeProps } from "./ThemeProps";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { StorefrontOffering } from "@/lib/storefront-grind";
 
 // =============================================================================
@@ -16,10 +16,13 @@ import type { StorefrontOffering } from "@/lib/storefront-grind";
 import { PortalThemeRenderer } from "@/features/portal-theme/components/PortalThemeRenderer";
 import { STOREFRONT_GRIND_LABEL } from "@/lib/storefront-grind";
 import { CourierShippingSearch } from "../CourierShippingSearch";
+import { StorefrontImage } from "@/features/portal-theme/components/StorefrontImage";
+import { useModalFocus } from "@/hooks/useModalFocus";
 
 export function UniversalTheme({
   tenant, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
   customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleAddOfferingToCart, handleCheckout,
+  mounted,
   isCheckingOut,
   paymentMethodId, setPaymentMethodId,
   courierShipping, setCourierShipping, courierShippingCartItems,
@@ -29,9 +32,13 @@ export function UniversalTheme({
 
   const products = tenant.products || [];
   const offerings: StorefrontOffering[] = tenant.offerings || [];
-  const cartItems = cart.items[tenant.subdomain || ""] || [];
+  const cartItems = mounted ? (cart.items[tenant.subdomain || ""] || []) : [];
 
   const [isConfirmingOrder, setIsConfirmingOrder] = useState(false);
+  const closeCart = useCallback(() => setIsCartOpen(false), [setIsCartOpen]);
+  const closeConfirmation = useCallback(() => setIsConfirmingOrder(false), []);
+  const cartDialogRef = useModalFocus(isCartOpen && !isConfirmingOrder, closeCart);
+  const confirmationDialogRef = useModalFocus(isConfirmingOrder, closeConfirmation);
 
   const cartSubtotal = cart.getTotalPrice(tenant.subdomain || "");
   const isCourier = shippingMethod === "COURIER";
@@ -66,6 +73,9 @@ export function UniversalTheme({
       {cartItems.length > 0 && (
         <button
           onClick={() => setIsCartOpen(true)}
+          aria-haspopup="dialog"
+          aria-expanded={isCartOpen}
+          aria-controls="storefront-cart-dialog"
           className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-full bg-amber-500 text-gray-950 font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all border border-amber-300/40"
         >
           <div className="relative">
@@ -87,9 +97,16 @@ export function UniversalTheme({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/50 backdrop-blur-md"
-              onClick={() => setIsCartOpen(false)}
+              onClick={closeCart}
+              aria-hidden="true"
             />
             <motion.div
+              ref={cartDialogRef}
+              id="storefront-cart-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="storefront-cart-title"
+              tabIndex={-1}
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -98,11 +115,11 @@ export function UniversalTheme({
             >
               {/* Cart Header */}
               <div className="p-4 md:p-5 flex justify-between items-center flex-shrink-0 border-b border-[var(--portal-border)]">
-                <h2 className="text-lg font-bold tracking-tight text-[var(--portal-text)]">
+                <h2 id="storefront-cart-title" className="text-lg font-bold tracking-tight text-[var(--portal-text)]">
                   Keranjang
                 </h2>
                 <button
-                  onClick={() => setIsCartOpen(false)}
+                  onClick={closeCart}
                   aria-label="Tutup keranjang"
                   className="w-9 h-9 rounded-[var(--portal-radius)] flex items-center justify-center transition-all hover:bg-[var(--portal-bg)] text-[var(--portal-text-muted)]"
                 >
@@ -127,7 +144,7 @@ export function UniversalTheme({
                     >
                       <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100 bg-gray-50">
                         {item.imageUrl ? (
-                          <img src={item.imageUrl} loading="lazy" decoding="async" className="w-full h-full object-cover" alt={item.name} />
+                          <StorefrontImage src={item.imageUrl} alt={item.name} width={160} height={160} sizes="80px" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-300">
                             <Coffee size={24} />
@@ -173,6 +190,7 @@ export function UniversalTheme({
                         </p>
                         <button
                           onClick={() => cart.removeItem(tenant.subdomain || "", item.id)}
+                          aria-label={`Hapus ${item.name} dari keranjang`}
                           className="text-xs mt-1 font-semibold text-red-500 hover:text-red-700"
                         >
                           Hapus
@@ -188,30 +206,39 @@ export function UniversalTheme({
                     <h3 className="text-sm font-bold text-[var(--portal-text)] uppercase tracking-wider mb-2">
                       Detail Pengiriman
                     </h3>
+                    <label htmlFor="storefront-customer-name" className="sr-only">Nama lengkap</label>
                     <input
+                      id="storefront-customer-name"
+                      autoComplete="name"
                       value={customerName}
                       onChange={e => setCustomerName(e.target.value)}
                       placeholder="Nama Lengkap"
                       className="w-full bg-[var(--portal-bg)] text-[var(--portal-text)] border border-[var(--portal-border)] rounded-[var(--portal-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--portal-primary)] focus:ring-1 focus:ring-[var(--portal-primary)] transition-colors"
                     />
+                    <label htmlFor="storefront-customer-phone" className="sr-only">Nomor WhatsApp</label>
                     <input
+                      id="storefront-customer-phone"
+                      autoComplete="tel"
                       value={customerPhone}
                       onChange={e => setCustomerPhone(e.target.value)}
                       placeholder="Nomor WhatsApp"
                       type="tel"
                       className="w-full bg-[var(--portal-bg)] text-[var(--portal-text)] border border-[var(--portal-border)] rounded-[var(--portal-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--portal-primary)] focus:ring-1 focus:ring-[var(--portal-primary)] transition-colors"
                     />
-                    {shippingMethod !== "PICKUP" ? <textarea
+                    {shippingMethod !== "PICKUP" ? <><label htmlFor="storefront-customer-address" className="sr-only">Alamat lengkap</label><textarea
+                      id="storefront-customer-address"
+                      autoComplete="street-address"
                       value={customerAddress}
                       onChange={e => setCustomerAddress(e.target.value)}
                       placeholder="Alamat Lengkap (Jalan, Kec, Kota, Kode Pos)"
                       rows={3}
                       className="w-full bg-[var(--portal-bg)] text-[var(--portal-text)] border border-[var(--portal-border)] rounded-[var(--portal-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--portal-primary)] focus:ring-1 focus:ring-[var(--portal-primary)] transition-colors"
-                    /> : null}
+                    /></> : null}
 
                     <div className="mb-4 mt-2">
-                      <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Metode Pengiriman</label>
+                      <label htmlFor="storefront-shipping-method" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Metode Pengiriman</label>
                       <select
+                        id="storefront-shipping-method"
                         value={shippingMethod}
                         onChange={e => setShippingMethod(e.target.value)}
                         className="w-full border border-[var(--portal-border)] rounded-[var(--portal-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--portal-primary)] focus:ring-1 focus:ring-[var(--portal-primary)] transition-colors bg-[var(--portal-bg)] text-[var(--portal-text)]"
@@ -246,6 +273,7 @@ export function UniversalTheme({
                               key={method.id}
                               type="button"
                               onClick={() => setPaymentMethodId?.(method.id)}
+                              aria-pressed={paymentMethodId === method.id}
                               className={`w-full rounded-[var(--portal-radius)] border px-4 py-3 text-left text-sm transition-colors ${paymentMethodId === method.id ? "border-[var(--portal-primary)] bg-[var(--portal-bg)] ring-1 ring-[var(--portal-primary)]" : "border-[var(--portal-border)] bg-[var(--portal-bg)]"}`}
                             >
                               <span className="block font-bold text-[var(--portal-text)]">{method.label}</span>
@@ -333,6 +361,11 @@ export function UniversalTheme({
                   className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
                 >
                   <motion.div
+                    ref={confirmationDialogRef}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="storefront-confirmation-title"
+                    tabIndex={-1}
                     initial={{ scale: 0.95, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
@@ -342,7 +375,7 @@ export function UniversalTheme({
                       <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--portal-primary)]/10 text-[var(--portal-primary)]">
                         <CheckCircle size={32} weight="fill" />
                       </div>
-                      <h3 className="text-xl font-bold">Konfirmasi Pesanan</h3>
+                      <h3 id="storefront-confirmation-title" className="text-xl font-bold">Konfirmasi Pesanan</h3>
                       <p className="mt-2 text-sm text-[var(--portal-text-muted)]">
                         Pastikan detail pesanan Anda sudah benar sebelum diproses.
                       </p>
@@ -393,7 +426,7 @@ export function UniversalTheme({
                     <div className="flex gap-3">
                       <button
                         type="button"
-                        onClick={() => setIsConfirmingOrder(false)}
+                        onClick={closeConfirmation}
                         disabled={isCheckingOut}
                         className="w-1/2 rounded-[var(--portal-radius)] border border-[var(--portal-border)] py-3 font-semibold text-[var(--portal-text)] transition-colors hover:bg-[var(--portal-bg)] disabled:opacity-50"
                       >

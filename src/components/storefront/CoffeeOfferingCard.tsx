@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Coffee, Minus, Plus, ShoppingBag } from "lucide-react";
+import { StorefrontImage } from "@/features/portal-theme/components/StorefrontImage";
 
 import {
   STOREFRONT_GRIND_LABEL,
@@ -119,7 +120,7 @@ export function CoffeeOfferingCard({ offering, onAdd, preview = false, appearanc
         style={{ backgroundColor: "var(--portal-surface-alt, var(--t-bg, #f4f4f2))" }}
       >
         {offering.imageUrl ? (
-          <img src={offering.imageUrl} alt={offering.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+          <StorefrontImage src={offering.imageUrl} alt={offering.name} width={800} height={800} sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
         ) : (
           <div className="flex h-full items-center justify-center" aria-hidden="true">
             <Coffee className="h-12 w-12 opacity-30" />
