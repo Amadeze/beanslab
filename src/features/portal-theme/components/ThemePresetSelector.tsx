@@ -1,190 +1,125 @@
-// =============================================================================
-// THEME PRESET SELECTOR — Curated families (7) + compatibility layer (16 presets)
-// =============================================================================
-
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Check, Sparkles, ChevronRight, Grid, Sparkle } from "lucide-react";
-import { THEME_PRESETS, getThemePresetById } from "../defaults/theme-presets";
-import { CURATED_THEME_FAMILIES, getPrimaryPresetForFamily } from "../defaults/curated-families";
+import { Check, Grid2X2, Layers3, Palette, Shapes } from "lucide-react";
+import { THEME_PRESETS } from "../defaults/theme-presets";
+import { CURATED_THEME_FAMILIES } from "../defaults/curated-families";
+import { applyCuratedTheme, type ThemeApplyMode } from "../defaults/theme-blueprints";
 import { useCustomizerStore } from "../client/store";
 
-const ease = [0.22, 1, 0.36, 1] as const;
+const LAYOUT_MARKS: Record<string, string[]> = {
+  modern_catalog: ["col-span-2 h-5", "h-5", "h-3", "h-3", "h-3"],
+  editorial_journal: ["col-span-3 h-4", "col-span-2 h-7", "h-7", "col-span-3 h-2"],
+  origin_field_notes: ["col-span-2 h-6", "h-6", "h-4", "h-4", "h-4"],
+  tactile_brutalist: ["col-span-3 h-7", "h-5", "h-5", "h-5"],
+  reserve_microlot: ["col-span-3 h-6", "col-span-2 h-8", "h-8", "col-span-3 h-2"],
+  community_roastery: ["col-span-2 h-6", "h-6", "h-3", "h-5", "h-3"],
+};
 
 export function ThemePresetSelector() {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showConfirm, setShowConfirm] = useState<string | null>(null);
-  const [showAllPresets, setShowAllPresets] = useState(false);
-  const workingDraft = useCustomizerStore((s) => s.workingDraft);
-  const updateGlobalColors = useCustomizerStore((s) => s.updateGlobalColors);
-  const updateGlobalTypography = useCustomizerStore((s) => s.updateGlobalTypography);
-  const updateGlobalLayout = useCustomizerStore((s) => s.updateGlobalLayout);
-  const updateGlobalAnimations = useCustomizerStore((s) => s.updateGlobalAnimations);
-  const initialize = useCustomizerStore((s) => s.initialize);
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null);
+  const [showLegacy, setShowLegacy] = useState(false);
+  const workingDraft = useCustomizerStore((state) => state.workingDraft);
+  const applyThemeConfig = useCustomizerStore((state) => state.applyThemeConfig);
 
-  function applyPreset(presetId: string) {
-    const preset = getThemePresetById(presetId);
+  const applyFamily = (familyId: string, mode: ThemeApplyMode) => {
+    applyThemeConfig(applyCuratedTheme(workingDraft, familyId, mode));
+    setSelectedFamilyId(null);
+  };
+
+  const applyLegacyStyle = (presetId: string) => {
+    const preset = THEME_PRESETS.find((item) => item.id === presetId);
     if (!preset) return;
-
-    updateGlobalColors(preset.colors);
-    updateGlobalTypography(preset.typography);
-    updateGlobalLayout(preset.layout);
-    updateGlobalAnimations({ ...preset.animations, reduceMotion: false });
-
-    let updatedSections = workingDraft.sections;
-    if (preset.defaultSections && preset.defaultSections.length > 0) {
-      updatedSections = preset.defaultSections.map((sec, idx) => ({
-        ...sec,
-        id: `${sec.type}_${Date.now().toString(36)}_${idx}`,
-        blocks: sec.blocks ? sec.blocks.map((b: any, bIdx: number) => ({ ...b, id: `blk_${Date.now().toString(36)}_${idx}_${bIdx}` })) : [],
-      }));
-    } else {
-      updatedSections = workingDraft.sections.map((section) => {
-        const defaults = preset.sectionDefaults[section.type];
-        if (defaults) {
-          return { ...section, settings: { ...section.settings, ...defaults } };
-        }
-        return section;
-      });
-    }
-
-    const newConfig = {
+    applyThemeConfig({
       ...workingDraft,
+      themeKey: preset.id,
       globalSettings: {
         ...workingDraft.globalSettings,
-        colors: preset.colors,
-        typography: preset.typography,
-        layout: preset.layout,
-        animations: { ...preset.animations, reduceMotion: false },
-        variants: preset.variants,
-        activeVariant: preset.variants.find((v) => v.isDefault)?.id || preset.variants[0]?.id || "light",
+        colors: { ...preset.colors },
+        typography: { ...preset.typography },
+        layout: { ...preset.layout },
+        animations: { ...preset.animations, reduceMotion: workingDraft.globalSettings.animations.reduceMotion },
+        variants: structuredClone(preset.variants),
+        activeVariant: preset.variants.find((variant) => variant.isDefault)?.id ?? preset.variants[0]?.id ?? "light",
       },
-      sections: updatedSections,
-    };
-
-    initialize(newConfig);
-    setShowConfirm(null);
-  }
-
-  const activePresets = showAllPresets ? THEME_PRESETS : CURATED_THEME_FAMILIES.map((f) => getPrimaryPresetForFamily(f.id)).filter(Boolean) as typeof THEME_PRESETS;
+    });
+  };
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sparkle size={14} className="text-amber-500" />
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Theme Families</h3>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Shapes size={14} className="text-amber-500" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Arah storefront</h3>
+          </div>
+          <p className="mt-1 text-[11px] leading-4 text-gray-400">Enam susunan yang benar-benar berbeda. Semua section tetap bisa diedit setelah diterapkan.</p>
         </div>
-        <button
-          onClick={() => setShowAllPresets(!showAllPresets)}
-          className="text-xs font-medium text-blue-500 hover:text-blue-700 flex items-center gap-1"
-        >
-          {showAllPresets ? <Sparkles size={12} /> : <Grid size={12} />}
-          <span>{showAllPresets ? "Curated (7)" : "All Presets (16)"}</span>
+        <button type="button" onClick={() => setShowLegacy((value) => !value)} className="shrink-0 text-[10px] font-semibold text-blue-600 hover:text-blue-800">
+          {showLegacy ? "Kembali" : "Gaya lama"}
         </button>
       </div>
-      <p className="text-xs text-gray-400">
-        {showAllPresets
-          ? "All 16 preset identities (compatibility layer). Click to apply."
-          : "7 curated visual families. Each maps to a primary preset with variants."}
-      </p>
 
-      <div className="space-y-2">
-        {activePresets.map((preset, i) => {
-          const isActive = showConfirm === preset.id;
-          const family = CURATED_THEME_FAMILIES.find((f) => f.primaryPresetId === preset.id);
-          return (
-            <motion.div
-              key={preset.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: i * 0.03, ease }}
-            >
-              <button
-                onClick={() => setShowConfirm(isActive ? null : preset.id)}
-                className="w-full text-left rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md transition-all group"
-              >
-                <div className="flex h-6">
-                  {[preset.colors.primary, preset.colors.secondary, preset.colors.accent, preset.colors.background, preset.colors.surface, preset.colors.text].map((c, j) => (
-                    <div key={j} className="flex-1 transition-all duration-200" style={{ backgroundColor: c }} />
-                  ))}
-                </div>
-
-                <div className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{preset.preview}</span>
-                      <div>
-                        <div className="text-[11px] font-bold text-gray-800 group-hover:text-blue-700 transition-colors">
-                          {preset.name}
-                          {family && !showAllPresets && (
-                            <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold text-amber-800 border border-amber-300/60">
-                              Curated
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[9px] text-gray-400">{preset.tagline}</div>
+      {showLegacy ? (
+        <div className="grid grid-cols-2 gap-2">
+          {THEME_PRESETS.map((preset) => (
+            <button key={preset.id} type="button" onClick={() => applyLegacyStyle(preset.id)} className="rounded-xl border border-gray-200 p-2 text-left hover:border-blue-300">
+              <div className="mb-2 flex h-2 overflow-hidden rounded-full">
+                {[preset.colors.primary, preset.colors.accent, preset.colors.background].map((color) => <span key={color} className="flex-1" style={{ backgroundColor: color }} />)}
+              </div>
+              <span className="block text-[10px] font-bold text-gray-700">{preset.name}</span>
+              <span className="text-[9px] text-gray-400">Gaya saja</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {CURATED_THEME_FAMILIES.map((family) => {
+            const preset = THEME_PRESETS.find((item) => item.id === family.primaryPresetId);
+            const expanded = selectedFamilyId === family.id;
+            return (
+              <div key={family.id} className={`overflow-hidden rounded-xl border bg-white transition ${expanded ? "border-blue-300 shadow-sm" : "border-gray-200 hover:border-gray-300"}`}>
+                <button type="button" onClick={() => setSelectedFamilyId(expanded ? null : family.id)} className="w-full p-3 text-left">
+                  <div className="flex gap-3">
+                    <div className="w-20 shrink-0 rounded-lg border border-gray-200 bg-gray-50 p-2">
+                      <div className="grid grid-cols-3 items-end gap-1" aria-hidden="true">
+                        {(LAYOUT_MARKS[family.id] ?? []).map((mark, index) => (
+                          <span key={index} className={`rounded-[2px] ${mark}`} style={{ backgroundColor: index === 0 ? preset?.colors.primary : index === 1 ? preset?.colors.accent : preset?.colors.surfaceAlt }} />
+                        ))}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-[9px] font-mono text-gray-300">
-                      {preset.typography.headingFont}
-                      {preset.variants.length > 1 && <ChevronRight size={10} />}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 mt-2 pt-2 border-t border-gray-100">
-                    <span className="text-[8px] text-gray-400">
-                      {preset.layout.borderRadius === 0 ? "Sharp" : preset.layout.borderRadius >= 20 ? "Rounded" : "Soft"} corners
-                    </span>
-                    <span className="text-[8px] text-gray-400">
-                      {preset.animations.globalDuration}ms
-                    </span>
-                    <span className="text-[8px] text-gray-400">
-                      {preset.variants.length} variant{preset.variants.length > 1 ? "s" : ""}
-                    </span>
-                  </div>
-                </div>
-              </button>
-
-              <AnimatePresence>
-                {isActive && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2, ease }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-1 rounded-xl border-2 border-blue-300 bg-blue-50 p-3 text-center">
-                      <p className="text-xs text-blue-700 font-semibold mb-2">
-                        Apply "{preset.name}" theme?
-                      </p>
-                      <p className="text-[9px] text-blue-500 mb-3">
-                        This will update colors, typography, layout, and animations.
-                      </p>
-                      <div className="flex gap-2 justify-center">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setShowConfirm(null); }}
-                          className="rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); applyPreset(preset.id); }}
-                          className="flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-                        >
-                          <Check size={12} /> Apply Theme
-                        </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold text-gray-800">{family.name}</span>
+                        <span className="rounded border border-gray-200 px-1.5 py-0.5 font-mono text-[8px] text-gray-400">{family.preview}</span>
                       </div>
+                      <p className="mt-0.5 text-[9px] leading-3.5 text-gray-500">{family.tagline}</p>
+                      <p className="mt-1 text-[8px] font-semibold uppercase tracking-wide text-amber-700">{family.signature}</p>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          );
-        })}
+                  </div>
+                </button>
+                {expanded ? (
+                  <div className="border-t border-gray-100 bg-gray-50 p-3">
+                    <p className="mb-2 text-[9px] leading-4 text-gray-500">Konten tenant tidak dihapus. Pilih seberapa jauh tema diterapkan.</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => applyFamily(family.id, "style")} className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2 py-2 text-[10px] font-bold text-gray-700 hover:border-blue-400">
+                        <Palette size={12} /> Gaya saja
+                      </button>
+                      <button type="button" onClick={() => applyFamily(family.id, "style-and-layout")} className="flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-2 py-2 text-[10px] font-bold text-white hover:bg-blue-700">
+                        <Layers3 size={12} /> Gaya + susunan <Check size={11} />
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-2 text-[9px] leading-4 text-amber-900">
+        <Grid2X2 size={12} className="mt-0.5 shrink-0" />
+        Tema mengatur presentasi. Origin, proses, varietas, tasting notes, harga, dan stok tetap mengikuti data tenant.
       </div>
     </div>
   );

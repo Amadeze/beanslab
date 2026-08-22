@@ -33,26 +33,37 @@ const GRID_COLS: Record<number, string> = {
   4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
 };
 
+type CoffeeOfferingCardPropsAppearance = "clean_grid" | "editorial_list" | "field_cards" | "brutalist_grid" | "reserve_gallery" | "community_cards";
+
 export function CatalogGridSection({ settings, typography, products = [], offerings = [], onAddToCart, onAddOfferingToCart, isPreview }: CatalogGridProps) {
   const title = (settings.title as string) || "Koleksi Kami";
   const subtitle = (settings.subtitle as string) || "";
   const columns = (settings.columns as number) || 3;
+  const styleMode = (settings.styleMode as CoffeeOfferingCardPropsAppearance) || "clean_grid";
   const showPrices = settings.showPrices !== false;
   const [grindSelections, setGrindSelections] = useState<Record<string, StorefrontGrindSize>>({});
   const [customLabels, setCustomLabels] = useState<Record<string, string>>({});
 
   const displayProducts = products && products.length > 0 ? products : null;
 
+  const catalogGrid = styleMode === "editorial_list"
+    ? "grid grid-cols-1 gap-px"
+    : styleMode === "reserve_gallery"
+      ? "grid grid-cols-1 gap-10 md:grid-cols-2"
+      : styleMode === "brutalist_grid"
+        ? "grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3"
+        : "grid grid-cols-1 gap-6 md:grid-cols-2";
+
   return (
-    <section className="w-full" style={{ backgroundColor: "var(--portal-bg, #080B0C)" }}>
-      <div className="max-w-6xl mx-auto px-5 sm:px-8 py-20 md:py-28">
+    <section data-catalog-style={styleMode} className={`w-full ${styleMode === "brutalist_grid" ? "border-y-4" : ""}`} style={{ backgroundColor: "var(--portal-bg, #080B0C)", borderColor: "var(--portal-text, transparent)" }}>
+      <div className={`mx-auto px-5 py-20 sm:px-8 md:py-28 ${styleMode === "editorial_list" ? "max-w-7xl" : styleMode === "reserve_gallery" ? "max-w-5xl" : "max-w-6xl"}`}>
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.8, ease }}
-          className="text-center max-w-2xl mx-auto mb-16"
+          className={`${styleMode === "editorial_list" || styleMode === "brutalist_grid" || styleMode === "field_cards" ? "mb-12 max-w-3xl text-left" : "mx-auto mb-16 max-w-2xl text-center"}`}
         >
           <div className="flex items-center justify-center gap-4 mb-6">
             <div className="w-12 h-[1px] bg-[var(--portal-accent, #D4A574)]" />
@@ -81,11 +92,12 @@ export function CatalogGridSection({ settings, typography, products = [], offeri
         </motion.div>
 
         {offerings.length > 0 ? (
-          <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className={`mb-12 ${catalogGrid}`}>
             {offerings.map((offering) => (
               <CoffeeOfferingCard
                 key={offering.id}
                 offering={offering}
+                appearance={styleMode}
                 preview={isPreview}
                 onAdd={onAddOfferingToCart ? ({ variant, grindSize, customGrindLabel, quantity }) => {
                   for (let index = 0; index < quantity; index += 1) {

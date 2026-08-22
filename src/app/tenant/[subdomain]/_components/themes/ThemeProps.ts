@@ -1,5 +1,4 @@
 import { Tenant, Product } from "@prisma/client";
-import { CustomerTier } from "./pricing";
 import type { CartItem } from "../../_store/cartStore";
 import type { StorefrontGrindSize, StorefrontOffering } from "@/lib/storefront-grind";
 import type { CourierShippingState } from "../CourierShippingSearch";
@@ -65,8 +64,6 @@ export interface ThemeProps {
   iconStroke?: number;
   iconProps: { weight: "thin" | "light" | "regular" | "bold" | "fill" | "duotone" };
   isDark: boolean;
-  /** Customer wholesale tier for tiered pricing display */
-  customerTier?: CustomerTier;
   /** COURIER shipping state */
   courierShipping?: CourierShippingState;
   setCourierShipping?: (state: CourierShippingState) => void;

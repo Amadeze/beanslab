@@ -6,7 +6,7 @@
 
 import { useMemo } from "react";
 import type { PortalThemeConfig, PortalSection, PortalColorTokens } from "../types";
-import { getSectionDefinition } from "../registry";
+import { resolveSectionType } from "../registry";
 import { sanitizeCSS } from "../server/css-sanitizer";
 import { HeroBannerSection } from "./sections/HeroBannerSection";
 import { RichTextSection } from "./sections/RichTextSection";
@@ -55,9 +55,6 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType<any>> = {
   sticky_narrative: StickyNarrativeSection,
   roast_matrix: WholesaleRadarSection,
   marquee_kinetic: KineticMarqueeSection,
-  // Backward-compatible aliases used by the first official theme config.
-  wholesale_radar: WholesaleRadarSection,
-  kinetic_marquee: KineticMarqueeSection,
   header_nav: HeaderNavSection,
   footer_nav: FooterNavSection,
 };
@@ -69,7 +66,6 @@ const CANONICAL_SECTION_ANCHORS: Record<string, string> = {
   sticky_narrative: "narrative",
   interactive_flavor: "flavor",
   roast_matrix: "matrix",
-  wholesale_radar: "matrix",
 };
 
 // ── Font Loading ────────────────────────────────────────────────────────────
@@ -271,6 +267,7 @@ function UnknownSectionFallback({ type }: { type: string }) {
 
 interface PortalThemeRendererProps {
   config: PortalThemeConfig;
+  children?: ReactNode;
   isPreview?: boolean;
   products?: any[];
   offerings?: any[];
@@ -280,7 +277,7 @@ interface PortalThemeRendererProps {
   cartItemCount?: number;
 }
 
-export function PortalThemeRenderer({ config, isPreview = false, products = [], offerings = [], onAddToCart, onAddOfferingToCart, onOpenCart, cartItemCount = 0 }: PortalThemeRendererProps) {
+export function PortalThemeRenderer({ config, children, isPreview = false, products = [], offerings = [], onAddToCart, onAddOfferingToCart, onOpenCart, cartItemCount = 0 }: PortalThemeRendererProps) {
   const cssVars = useMemo(() => generateCSSVariables(config), [config]);
   const fontsUrl = useMemo(() => getGoogleFontsUrl(config), [config]);
 
@@ -326,7 +323,8 @@ export function PortalThemeRenderer({ config, isPreview = false, products = [], 
 
       {/* Sections */}
       {sortedSections.map((section) => {
-        const Component = SECTION_COMPONENTS[section.type];
+        const canonicalType = resolveSectionType(section.type);
+        const Component = SECTION_COMPONENTS[canonicalType];
         if (!Component) {
           return (
             <SectionErrorBoundary key={section.id} sectionType={section.type}>
@@ -339,7 +337,7 @@ export function PortalThemeRenderer({ config, isPreview = false, products = [], 
           <SectionErrorBoundary key={section.id} sectionType={section.type}>
             <section
               id={section.id}
-              data-section-type={section.type}
+              data-section-type={canonicalType}
               className={getWidthClass(section.layout?.width)}
               style={{
                 ...getSpacingStyle(section),
@@ -348,10 +346,10 @@ export function PortalThemeRenderer({ config, isPreview = false, products = [], 
                 ...getAnimationStyle(section),
               }}
             >
-              {CANONICAL_SECTION_ANCHORS[section.type] &&
-              CANONICAL_SECTION_ANCHORS[section.type] !== section.id ? (
+              {CANONICAL_SECTION_ANCHORS[canonicalType] &&
+              CANONICAL_SECTION_ANCHORS[canonicalType] !== section.id ? (
                 <span
-                  id={CANONICAL_SECTION_ANCHORS[section.type]}
+                  id={CANONICAL_SECTION_ANCHORS[canonicalType]}
                   className="block scroll-mt-24"
                   aria-hidden="true"
                 />
@@ -374,6 +372,7 @@ export function PortalThemeRenderer({ config, isPreview = false, products = [], 
           </SectionErrorBoundary>
         );
       })}
+      {children}
     </div>
   );
 }

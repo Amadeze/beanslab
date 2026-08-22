@@ -17,6 +17,9 @@ describe("SECTION_REGISTRY", () => {
       expect(section.description).toBeTruthy();
       expect(section.icon).toBeTruthy();
       expect(section.category).toBeTruthy();
+      expect(section.area).toBeTruthy();
+      expect(["core", "optional", "legacy"]).toContain(section.status);
+      expect(typeof section.addable).toBe("boolean");
       expect(section.defaultSettings).toBeDefined();
     }
   });

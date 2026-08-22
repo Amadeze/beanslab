@@ -2,30 +2,25 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Coffee, Package, Phone, X, CheckCircle } from "@phosphor-icons/react";
-import { ThemeProps, ExtendedTenant } from "./ThemeProps";
+import { ThemeProps } from "./ThemeProps";
 import { useState } from "react";
-import { resolveSkin } from "./skins";
 import type { StorefrontOffering } from "@/lib/storefront-grind";
 
 // =============================================================================
-// UNIVERSAL PREMIUM THEME
+// STOREFRONT SHELL
 // =============================================================================
-// This is a SINGLE component that renders completely differently
-// based on CSS custom properties injected by ThemeEngine.
-// No hardcoded colors, no hardcoded fonts, no hardcoded shadows.
-// Everything reads from --t-* variables.
+// PortalThemeRenderer is the only storefront renderer. This shell contributes
+// cart and checkout UI as children so it shares the same theme-token scope.
 // =============================================================================
 
-import { TenantPortalLayout } from "./TenantPortalLayout";
 import { PortalThemeRenderer } from "@/features/portal-theme/components/PortalThemeRenderer";
 import { STOREFRONT_GRIND_LABEL } from "@/lib/storefront-grind";
 import { CourierShippingSearch } from "../CourierShippingSearch";
 
 export function UniversalTheme({
   tenant, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
-  customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleAddOfferingToCart, handleCheckout, mounted, heroGreeting, aboutText,
-  catalogTitle, catalogSubtitle, footerText, waLink, emailLink, igLink, iconProps, iconStroke, isDark,
-  isCheckingOut, customerTier,
+  customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleAddOfferingToCart, handleCheckout,
+  isCheckingOut,
   paymentMethodId, setPaymentMethodId,
   courierShipping, setCourierShipping, courierShippingCartItems,
   courierRateChangedError, onClearRateChanged,
@@ -33,15 +28,10 @@ export function UniversalTheme({
 }: ThemeProps) {
 
   const products = tenant.products || [];
-  const offerings: StorefrontOffering[] = (tenant as ExtendedTenant & { offerings?: StorefrontOffering[] }).offerings || [];
+  const offerings: StorefrontOffering[] = tenant.offerings || [];
   const cartItems = cart.items[tenant.subdomain || ""] || [];
-  const themeTenant = {
-    ...tenant,
-    backgroundImageUrl: tenant.heroImageUrl || tenant.backgroundImageUrl,
-  };
 
   const [isConfirmingOrder, setIsConfirmingOrder] = useState(false);
-  const skin = resolveSkin(tenant.layoutStyle);
 
   const cartSubtotal = cart.getTotalPrice(tenant.subdomain || "");
   const isCourier = shippingMethod === "COURIER";
@@ -61,33 +51,16 @@ export function UniversalTheme({
   const tax = Math.max(0, Math.round(cartSubtotal * Math.max(0, taxRate) / 100));
   const grandTotal = cartSubtotal + tax + shippingCost;
 
-  const themeProps = {
-    tenant: themeTenant, products, offerings, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
-    customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleAddOfferingToCart, handleCheckout, mounted, heroGreeting, aboutText,
-    catalogTitle, catalogSubtitle, footerText, waLink, emailLink, igLink, iconProps, iconStroke, isDark, isCheckingOut, customerTier
-    , paymentMethodId, setPaymentMethodId
-    , courierShipping, setCourierShipping, courierShippingCartItems
-    , courierRateChangedError, onClearRateChanged
-    , taxRate
-  };
-
   return (
-    <div className="relative w-full min-h-screen overflow-x-clip">
-
-      {/* ═══ THEME MATRIX OR BLOCK RENDERER ═══ */}
-      {tenant.portalThemeConfig ? (
-        <PortalThemeRenderer
-          config={tenant.portalThemeConfig}
-          products={products}
-          offerings={offerings}
-          onAddToCart={handleAddToCart}
-          onAddOfferingToCart={handleAddOfferingToCart}
-          onOpenCart={() => setIsCartOpen(true)}
-          cartItemCount={cartItems.reduce((acc: number, item: any) => acc + item.quantity, 0)}
-        />
-      ) : (
-        <TenantPortalLayout {...themeProps} skin={skin} />
-      )}
+    <PortalThemeRenderer
+      config={tenant.portalThemeConfig}
+      products={products}
+      offerings={offerings}
+      onAddToCart={handleAddToCart}
+      onAddOfferingToCart={handleAddOfferingToCart}
+      onOpenCart={() => setIsCartOpen(true)}
+      cartItemCount={cartItems.reduce((acc: number, item: any) => acc + item.quantity, 0)}
+    >
 
       {/* ═══ FLOATING CART BUTTON ═══ */}
       {cartItems.length > 0 && (
@@ -121,17 +94,17 @@ export function UniversalTheme({
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="relative w-full sm:max-w-md h-full flex flex-col overflow-hidden bg-[var(--t-surface)] text-[var(--t-text)] shadow-2xl"
+              className="relative w-full sm:max-w-md h-full flex flex-col overflow-hidden bg-[var(--portal-surface)] text-[var(--portal-text)] shadow-2xl"
             >
               {/* Cart Header */}
-              <div className="p-4 md:p-5 flex justify-between items-center flex-shrink-0 border-b border-[var(--t-border)]">
-                <h2 className="text-lg font-bold tracking-tight text-[var(--t-text)]">
+              <div className="p-4 md:p-5 flex justify-between items-center flex-shrink-0 border-b border-[var(--portal-border)]">
+                <h2 className="text-lg font-bold tracking-tight text-[var(--portal-text)]">
                   Keranjang
                 </h2>
                 <button
                   onClick={() => setIsCartOpen(false)}
                   aria-label="Tutup keranjang"
-                  className="w-9 h-9 rounded-[var(--t-radius)] flex items-center justify-center transition-all hover:bg-[var(--t-bg)] text-[var(--t-text-muted)]"
+                  className="w-9 h-9 rounded-[var(--portal-radius)] flex items-center justify-center transition-all hover:bg-[var(--portal-bg)] text-[var(--portal-text-muted)]"
                 >
                   <X size={16} weight="bold" />
                 </button>
@@ -140,7 +113,7 @@ export function UniversalTheme({
               {/* Cart Items */}
               <div className="flex-1 overflow-auto p-5 md:p-6 space-y-5">
                 {cartItems.length === 0 ? (
-                  <div className="text-center py-16 text-[var(--t-text-muted)]">
+                  <div className="text-center py-16 text-[var(--portal-text-muted)]">
                     <Package size={48} className="mx-auto mb-4 opacity-30" />
                     <p className="text-sm font-medium">Keranjang kosong</p>
                     <p className="text-xs mt-1 opacity-60">Tambahkan produk untuk mulai berbelanja.</p>
@@ -162,13 +135,13 @@ export function UniversalTheme({
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold line-clamp-1 mb-1 text-[var(--t-text)]">
+                        <h4 className="text-sm font-semibold line-clamp-1 mb-1 text-[var(--portal-text)]">
                           {item.name}
                         </h4>
-                        <p className="text-xs mb-2 text-[var(--t-text-muted)]">
+                        <p className="text-xs mb-2 text-[var(--portal-text-muted)]">
                           Rp {item.price.toLocaleString("id-ID")}
                         </p>
-<p className="text-[11px] font-semibold text-[var(--t-primary)]">
+<p className="text-[11px] font-semibold text-[var(--portal-primary)]">
                           {item.packageName ? `${item.packageName} · ` : ""}
                           {item.grindSize
                             ? (item.grindSize === "CUSTOM" ? item.customGrindLabel : STOREFRONT_GRIND_LABEL[item.grindSize as keyof typeof STOREFRONT_GRIND_LABEL])
@@ -178,24 +151,24 @@ export function UniversalTheme({
                           <button
                             onClick={() => cart.updateQuantity(tenant.subdomain || "", item.id, -1)}
                             aria-label={`Kurangi ${item.name}`}
-                            className="w-7 h-7 rounded-[var(--t-radius)] flex items-center justify-center text-xs font-bold transition-colors border border-[var(--t-border)] hover:bg-[var(--t-bg)] text-[var(--t-text)]"
+                            className="w-7 h-7 rounded-[var(--portal-radius)] flex items-center justify-center text-xs font-bold transition-colors border border-[var(--portal-border)] hover:bg-[var(--portal-bg)] text-[var(--portal-text)]"
                           >
                             −
                           </button>
-                          <span className="text-sm font-bold w-5 text-center text-[var(--t-text)]">
+                          <span className="text-sm font-bold w-5 text-center text-[var(--portal-text)]">
                             {item.quantity}
                           </span>
                           <button
                             onClick={() => cart.updateQuantity(tenant.subdomain || "", item.id, 1)}
                             aria-label={`Tambah ${item.name}`}
-                            className="w-7 h-7 rounded-[var(--t-radius)] flex items-center justify-center text-xs font-bold transition-colors border border-[var(--t-border)] hover:bg-[var(--t-bg)] text-[var(--t-text)]"
+                            className="w-7 h-7 rounded-[var(--portal-radius)] flex items-center justify-center text-xs font-bold transition-colors border border-[var(--portal-border)] hover:bg-[var(--portal-bg)] text-[var(--portal-text)]"
                           >
                             +
                           </button>
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-bold text-[var(--t-text)]">
+                        <p className="text-sm font-bold text-[var(--portal-text)]">
                           Rp {(item.price * item.quantity).toLocaleString("id-ID")}
                         </p>
                         <button
@@ -211,29 +184,29 @@ export function UniversalTheme({
 
                 {/* Checkout Form */}
                 {cartItems.length > 0 && (
-                  <div className="pt-6 space-y-4 border-t border-[var(--t-border)] mt-6">
-                    <h3 className="text-sm font-bold text-[var(--t-text)] uppercase tracking-wider mb-2">
+                  <div className="pt-6 space-y-4 border-t border-[var(--portal-border)] mt-6">
+                    <h3 className="text-sm font-bold text-[var(--portal-text)] uppercase tracking-wider mb-2">
                       Detail Pengiriman
                     </h3>
                     <input
                       value={customerName}
                       onChange={e => setCustomerName(e.target.value)}
                       placeholder="Nama Lengkap"
-                      className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
+                      className="w-full bg-[var(--portal-bg)] text-[var(--portal-text)] border border-[var(--portal-border)] rounded-[var(--portal-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--portal-primary)] focus:ring-1 focus:ring-[var(--portal-primary)] transition-colors"
                     />
                     <input
                       value={customerPhone}
                       onChange={e => setCustomerPhone(e.target.value)}
                       placeholder="Nomor WhatsApp"
                       type="tel"
-                      className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
+                      className="w-full bg-[var(--portal-bg)] text-[var(--portal-text)] border border-[var(--portal-border)] rounded-[var(--portal-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--portal-primary)] focus:ring-1 focus:ring-[var(--portal-primary)] transition-colors"
                     />
                     {shippingMethod !== "PICKUP" ? <textarea
                       value={customerAddress}
                       onChange={e => setCustomerAddress(e.target.value)}
                       placeholder="Alamat Lengkap (Jalan, Kec, Kota, Kode Pos)"
                       rows={3}
-                      className="w-full bg-[var(--t-bg)] text-[var(--t-text)] border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors"
+                      className="w-full bg-[var(--portal-bg)] text-[var(--portal-text)] border border-[var(--portal-border)] rounded-[var(--portal-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--portal-primary)] focus:ring-1 focus:ring-[var(--portal-primary)] transition-colors"
                     /> : null}
 
                     <div className="mb-4 mt-2">
@@ -241,7 +214,7 @@ export function UniversalTheme({
                       <select
                         value={shippingMethod}
                         onChange={e => setShippingMethod(e.target.value)}
-                        className="w-full border border-[var(--t-border)] rounded-[var(--t-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--t-primary)] focus:ring-1 focus:ring-[var(--t-primary)] transition-colors bg-[var(--t-bg)] text-[var(--t-text)]"
+                        className="w-full border border-[var(--portal-border)] rounded-[var(--portal-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--portal-primary)] focus:ring-1 focus:ring-[var(--portal-primary)] transition-colors bg-[var(--portal-bg)] text-[var(--portal-text)]"
                       >
                         {tenant.storefrontPickupEnabled ? <option value="PICKUP">Ambil di roastery · gratis</option> : null}
                         {tenant.storefrontDeliveryEnabled ? <>
@@ -250,7 +223,7 @@ export function UniversalTheme({
                           <option value="COURIER">Ekspedisi luar kota</option>
                         </> : null}
                       </select>
-                      {!isCourier && shippingMethod !== "PICKUP" && <p className="mt-2 text-xs text-[var(--t-text-muted)]">Ongkir {tenant.storefrontFreeShippingMinimum && cartSubtotal >= Number(tenant.storefrontFreeShippingMinimum) ? "gratis" : `Rp ${Number(tenant.storefrontFlatShippingRate || 0).toLocaleString("id-ID")}`}; total final dihitung aman di server.</p>}
+                      {!isCourier && shippingMethod !== "PICKUP" && <p className="mt-2 text-xs text-[var(--portal-text-muted)]">Ongkir {tenant.storefrontFreeShippingMinimum && cartSubtotal >= Number(tenant.storefrontFreeShippingMinimum) ? "gratis" : `Rp ${Number(tenant.storefrontFlatShippingRate || 0).toLocaleString("id-ID")}`}; total final dihitung aman di server.</p>}
                     </div>
 
                     {/* COURIER destination + quote search */}
@@ -273,10 +246,10 @@ export function UniversalTheme({
                               key={method.id}
                               type="button"
                               onClick={() => setPaymentMethodId?.(method.id)}
-                              className={`w-full rounded-[var(--t-radius)] border px-4 py-3 text-left text-sm transition-colors ${paymentMethodId === method.id ? "border-[var(--t-primary)] bg-[var(--t-bg)] ring-1 ring-[var(--t-primary)]" : "border-[var(--t-border)] bg-[var(--t-bg)]"}`}
+                              className={`w-full rounded-[var(--portal-radius)] border px-4 py-3 text-left text-sm transition-colors ${paymentMethodId === method.id ? "border-[var(--portal-primary)] bg-[var(--portal-bg)] ring-1 ring-[var(--portal-primary)]" : "border-[var(--portal-border)] bg-[var(--portal-bg)]"}`}
                             >
-                              <span className="block font-bold text-[var(--t-text)]">{method.label}</span>
-                              <span className="mt-0.5 block text-xs text-[var(--t-text-muted)]">{method.method === "QRIS" ? "Scan QRIS setelah pesanan dibuat" : `${method.bankName} • ${method.accountNumber}`}</span>
+                              <span className="block font-bold text-[var(--portal-text)]">{method.label}</span>
+                              <span className="mt-0.5 block text-xs text-[var(--portal-text-muted)]">{method.method === "QRIS" ? "Scan QRIS setelah pesanan dibuat" : `${method.bankName} • ${method.accountNumber}`}</span>
                             </button>
                           ))}
                         </div>
@@ -288,26 +261,26 @@ export function UniversalTheme({
 
               {/* Cart Footer */}
               {cartItems.length > 0 && (
-                <div className="p-4 md:p-5 flex-shrink-0 border-t border-[var(--t-border)] bg-[var(--t-bg)]">
+                <div className="p-4 md:p-5 flex-shrink-0 border-t border-[var(--portal-border)] bg-[var(--portal-bg)]">
                   <div className="space-y-2 mb-4">
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-[var(--t-text-muted)]">Subtotal</span>
-                      <span className="font-semibold text-[var(--t-text)]">
+                      <span className="text-[var(--portal-text-muted)]">Subtotal</span>
+                      <span className="font-semibold text-[var(--portal-text)]">
                         Rp {cartSubtotal.toLocaleString("id-ID")}
                       </span>
                     </div>
                     {tax > 0 && (
                       <div className="flex justify-between items-center text-sm">
-                        <span className="text-[var(--t-text-muted)]">Pajak ({taxRate}%)</span>
-                        <span className="font-semibold text-[var(--t-text)]">
+                        <span className="text-[var(--portal-text-muted)]">Pajak ({taxRate}%)</span>
+                        <span className="font-semibold text-[var(--portal-text)]">
                           Rp {tax.toLocaleString("id-ID")}
                         </span>
                       </div>
                     )}
                     {!isPickup && (
                       <div className="flex justify-between items-center text-sm">
-                        <span className="text-[var(--t-text-muted)]">Ongkir</span>
-                        <span className="font-semibold text-[var(--t-text)]">
+                        <span className="text-[var(--portal-text-muted)]">Ongkir</span>
+                        <span className="font-semibold text-[var(--portal-text)]">
                           {isCourier && courierShipping?.selectedRate
                             ? `${courierShipping.selectedRate.courierName} · Rp ${shippingCost.toLocaleString("id-ID")}`
                             : shippingCost === 0
@@ -316,14 +289,14 @@ export function UniversalTheme({
                         </span>
                       </div>
                     )}
-                    <div className="border-t border-[var(--t-border)] pt-2 flex justify-between items-center">
-                      <span className="text-sm font-bold text-[var(--t-text)]">Total</span>
-                      <span className="text-xl font-black text-[var(--t-text)]">
+                    <div className="border-t border-[var(--portal-border)] pt-2 flex justify-between items-center">
+                      <span className="text-sm font-bold text-[var(--portal-text)]">Total</span>
+                      <span className="text-xl font-black text-[var(--portal-text)]">
                         Rp {grandTotal.toLocaleString("id-ID")}
                       </span>
                     </div>
                     {!isPickup && !isCourier && (
-                      <p className="text-[11px] text-[var(--t-text-muted)] text-right">
+                      <p className="text-[11px] text-[var(--portal-text-muted)] text-right">
                         Ongkir final dihitung di server.
                       </p>
                     )}
@@ -341,7 +314,7 @@ export function UniversalTheme({
                       setIsConfirmingOrder(true);
                     }}
                     disabled={isCheckingOut}
-                    className="w-full py-4 rounded-[var(--t-radius)] font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 bg-[var(--t-primary)] text-[var(--t-bg)] shadow-lg disabled:cursor-wait disabled:opacity-60"
+                    className="w-full py-4 rounded-[var(--portal-radius)] font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 bg-[var(--portal-primary)] text-[var(--portal-bg)] shadow-lg disabled:cursor-wait disabled:opacity-60"
                   >
                     <Phone size={18} weight="bold" />
                     {isCheckingOut ? "Memproses Pesanan..." : tenant.paymentMethods?.length ? "Lanjut ke Konfirmasi" : "Checkout Sekarang"}
@@ -363,29 +336,29 @@ export function UniversalTheme({
                     initial={{ scale: 0.95, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
-                    className="w-full max-w-sm overflow-hidden rounded-[var(--t-radius)] bg-[var(--t-surface)] p-6 text-[var(--t-text)] shadow-2xl"
+                    className="w-full max-w-sm overflow-hidden rounded-[var(--portal-radius)] bg-[var(--portal-surface)] p-6 text-[var(--portal-text)] shadow-2xl"
                   >
                     <div className="mb-4 text-center">
-                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--t-primary)]/10 text-[var(--t-primary)]">
+                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--portal-primary)]/10 text-[var(--portal-primary)]">
                         <CheckCircle size={32} weight="fill" />
                       </div>
                       <h3 className="text-xl font-bold">Konfirmasi Pesanan</h3>
-                      <p className="mt-2 text-sm text-[var(--t-text-muted)]">
+                      <p className="mt-2 text-sm text-[var(--portal-text-muted)]">
                         Pastikan detail pesanan Anda sudah benar sebelum diproses.
                       </p>
                     </div>
 
-                    <div className="mb-6 space-y-3 rounded-lg border border-[var(--t-border)] bg-[var(--t-bg)] p-4 text-sm">
-                      <div className="flex justify-between border-b border-[var(--t-border)] pb-2">
-                        <span className="text-[var(--t-text-muted)]">Penerima</span>
+                    <div className="mb-6 space-y-3 rounded-lg border border-[var(--portal-border)] bg-[var(--portal-bg)] p-4 text-sm">
+                      <div className="flex justify-between border-b border-[var(--portal-border)] pb-2">
+                        <span className="text-[var(--portal-text-muted)]">Penerima</span>
                         <span className="font-semibold text-right">{customerName}<br/><span className="text-xs font-normal">{customerPhone}</span></span>
                       </div>
-                      <div className="flex justify-between border-b border-[var(--t-border)] pb-2">
-                        <span className="text-[var(--t-text-muted)]">Pengiriman</span>
+                      <div className="flex justify-between border-b border-[var(--portal-border)] pb-2">
+                        <span className="text-[var(--portal-text-muted)]">Pengiriman</span>
                         <span className="font-semibold text-right max-w-[150px] truncate">{shippingMethod === "PICKUP" ? "Ambil Sendiri" : shippingMethod === "COURIER" ? `Ekspedisi${courierShipping?.selectedRate ? ` · ${courierShipping.selectedRate.courierName}` : ""}` : "Kirim Kurir"}</span>
                       </div>
-                      <div className="border-b border-[var(--t-border)] pb-2">
-                        <span className="text-[var(--t-text-muted)] text-xs">Item</span>
+                      <div className="border-b border-[var(--portal-border)] pb-2">
+                        <span className="text-[var(--portal-text-muted)] text-xs">Item</span>
                         {cartItems.map((item: any) => (
                           <div key={item.id} className="flex justify-between mt-1">
                             <span className="text-xs">{item.name} × {item.quantity}</span>
@@ -394,23 +367,23 @@ export function UniversalTheme({
                         ))}
                       </div>
                       <div className="space-y-1 pt-1">
-                        <div className="flex justify-between text-xs text-[var(--t-text-muted)]">
+                        <div className="flex justify-between text-xs text-[var(--portal-text-muted)]">
                           <span>Subtotal</span>
                           <span>Rp {cartSubtotal.toLocaleString("id-ID")}</span>
                         </div>
                         {tax > 0 && (
-                          <div className="flex justify-between text-xs text-[var(--t-text-muted)]">
+                          <div className="flex justify-between text-xs text-[var(--portal-text-muted)]">
                             <span>Pajak ({taxRate}%)</span>
                             <span>Rp {tax.toLocaleString("id-ID")}</span>
                           </div>
                         )}
                         {!isPickup && (
-                          <div className="flex justify-between text-xs text-[var(--t-text-muted)]">
+                          <div className="flex justify-between text-xs text-[var(--portal-text-muted)]">
                             <span>Ongkir</span>
                             <span>{shippingCost === 0 ? "Gratis" : `Rp ${shippingCost.toLocaleString("id-ID")}`}</span>
                           </div>
                         )}
-                        <div className="flex justify-between font-bold border-t border-[var(--t-border)] pt-1 mt-1">
+                        <div className="flex justify-between font-bold border-t border-[var(--portal-border)] pt-1 mt-1">
                           <span>Total Tagihan</span>
                           <span>Rp {grandTotal.toLocaleString("id-ID")}</span>
                         </div>
@@ -422,7 +395,7 @@ export function UniversalTheme({
                         type="button"
                         onClick={() => setIsConfirmingOrder(false)}
                         disabled={isCheckingOut}
-                        className="w-1/2 rounded-[var(--t-radius)] border border-[var(--t-border)] py-3 font-semibold text-[var(--t-text)] transition-colors hover:bg-[var(--t-bg)] disabled:opacity-50"
+                        className="w-1/2 rounded-[var(--portal-radius)] border border-[var(--portal-border)] py-3 font-semibold text-[var(--portal-text)] transition-colors hover:bg-[var(--portal-bg)] disabled:opacity-50"
                       >
                         Batal
                       </button>
@@ -435,7 +408,7 @@ export function UniversalTheme({
                           }
                         }}
                         disabled={isCheckingOut}
-                        className="w-1/2 rounded-[var(--t-radius)] bg-[var(--t-primary)] py-3 font-bold text-[var(--t-bg)] transition-transform hover:scale-[1.02] active:scale-[0.95] disabled:cursor-wait disabled:opacity-70 flex justify-center"
+                        className="w-1/2 rounded-[var(--portal-radius)] bg-[var(--portal-primary)] py-3 font-bold text-[var(--portal-bg)] transition-transform hover:scale-[1.02] active:scale-[0.95] disabled:cursor-wait disabled:opacity-70 flex justify-center"
                       >
                         {isCheckingOut ? <Phone className="animate-spin" size={20} /> : "Konfirmasi"}
                       </button>
@@ -447,6 +420,6 @@ export function UniversalTheme({
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </PortalThemeRenderer>
   );
 }

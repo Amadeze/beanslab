@@ -24,6 +24,8 @@ interface BenefitsProps {
 }
 
 export function BenefitsSection({ settings, blocks, typography }: BenefitsProps) {
+  const title = (settings.title as string) || "";
+  const subtitle = (settings.subtitle as string) || "";
   const columns = (settings.columns as number) || 3;
   const visibleBlocks = blocks.filter((b) => b.type === "benefit" && b.visible !== false);
 
@@ -32,8 +34,7 @@ export function BenefitsSection({ settings, blocks, typography }: BenefitsProps)
   return (
     <section className="w-full" style={{ backgroundColor: "var(--portal-surface, #fff)" }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8 py-20 md:py-28">
-        {/* Header with decorative line */}
-        <motion.div
+        {(title || subtitle) && <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
@@ -46,7 +47,7 @@ export function BenefitsSection({ settings, blocks, typography }: BenefitsProps)
               className="text-[11px] font-medium uppercase tracking-[0.2em]"
               style={{ color: "var(--portal-text-muted, #6B7280)", fontFamily: "var(--portal-font-body)" }}
             >
-              Why Choose Us
+              Benefits
             </span>
             <div className="w-12 h-[1px] bg-[var(--portal-accent, #D4A574)]" />
           </div>
@@ -57,15 +58,16 @@ export function BenefitsSection({ settings, blocks, typography }: BenefitsProps)
               fontFamily: typography?.font || "var(--portal-font-heading)",
             }}
           >
-            Crafted With Intention
+            {title}
           </h2>
-          <p
+          {subtitle && <p
             className="text-base leading-[1.75]"
             style={{ color: "var(--portal-text-muted, #6B7280)", fontFamily: "var(--portal-font-body)" }}
           >
-            Every detail is considered. Every step, purposeful.
-          </p>
+            {subtitle}
+          </p>}
         </motion.div>
+        }
 
         {/* Feature Grid */}
         <div

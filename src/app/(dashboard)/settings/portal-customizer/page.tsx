@@ -20,6 +20,11 @@ import { loadPortalTheme } from "@/features/portal-theme/server/actions";
 import { tenantStorefrontUrl } from "@/lib/tenant-host";
 import { GlobalAnimationsPanel } from "@/features/portal-theme/components/global/GlobalAnimations";
 import { GlobalSettingsPanel } from "@/features/portal-theme/components/global/GlobalSettings";
+import {
+  getSectionsForArea,
+  isSectionArea,
+  sectionTypeMatchesArea,
+} from "@/features/portal-theme/registry";
 
 type SidebarTab = "tema" | "header" | "beranda" | "katalog" | "konten" | "footer" | "pengaturan";
 
@@ -32,20 +37,6 @@ const TAB_CONFIG = [
   { id: "footer", label: "Footer", icon: Layers, description: "Footer & System Info" },
   { id: "pengaturan", label: "Pengaturan", icon: Settings, description: "Animations, SEO, Integrations" },
 ] as const;
-
-const SECTION_TYPE_GROUPS: Record<SidebarTab, readonly string[]> = {
-  tema: [],
-  header: ["header_nav"],
-  beranda: ["hero_banner", "bento_showcase", "marquee_kinetic", "sticky_narrative"],
-  katalog: ["catalog_grid", "featured_collection", "product_highlight", "roast_matrix", "interactive_flavor"],
-  konten: [
-    "rich_text", "image_with_text", "gallery", "video_embed",
-    "benefits", "testimonials", "social_proof", "countdown",
-    "newsletter", "faq", "contact_cta", "wholesale_radar", "kinetic_marquee"
-  ],
-  footer: ["footer_nav"],
-  pengaturan: [],
-} as const;
 
 export default function PortalCustomizerPage() {
   const initialize = useCustomizerStore((s) => s.initialize);
@@ -121,9 +112,10 @@ export default function PortalCustomizerPage() {
 
   const getFilteredSections = () => {
     const workingDraft = useCustomizerStore.getState().workingDraft;
-    const allowedTypes = SECTION_TYPE_GROUPS[activeTab];
-    if (!allowedTypes || allowedTypes.length === 0) return workingDraft.sections;
-    return workingDraft.sections.filter((s) => allowedTypes.includes(s.type as any));
+    if (!isSectionArea(activeTab)) return workingDraft.sections;
+    return workingDraft.sections.filter((section) =>
+      sectionTypeMatchesArea(section.type, activeTab),
+    );
   };
 
   return (
@@ -326,7 +318,9 @@ export default function PortalCustomizerPage() {
                   ) : (
                     <SectionList
                       onAddSection={() => setShowAddDialog(true)}
-                      filterTypes={SECTION_TYPE_GROUPS[activeTab] as string[]}
+                      filterTypes={isSectionArea(activeTab)
+                        ? getSectionsForArea(activeTab).map((section) => section.type)
+                        : []}
                     />
                   )}
                 </div>
@@ -364,7 +358,7 @@ export default function PortalCustomizerPage() {
       <AddSectionDialog
         open={showAddDialog}
         onClose={() => setShowAddDialog(false)}
-        allowedTypes={SECTION_TYPE_GROUPS[activeTab] as string[] | undefined}
+        area={isSectionArea(activeTab) ? activeTab : undefined}
       />
     </div>
   );

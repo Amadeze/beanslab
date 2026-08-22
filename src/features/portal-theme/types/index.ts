@@ -264,6 +264,11 @@ export interface PortalSectionDefinition {
   description: string;
   icon: string;
   category: "content" | "commerce" | "marketing" | "layout";
+  area: PortalSectionArea;
+  status: "core" | "optional" | "legacy";
+  addable: boolean;
+  aliases?: readonly string[];
+  requires?: readonly PortalSectionCapability[];
   defaultSettings: Record<string, unknown>;
   blockTypes?: Array<{
     type: string;
@@ -271,6 +276,19 @@ export interface PortalSectionDefinition {
     defaultSettings: Record<string, unknown>;
   }>;
 }
+
+export type PortalSectionArea =
+  | "header"
+  | "beranda"
+  | "katalog"
+  | "konten"
+  | "footer";
+
+export type PortalSectionCapability =
+  | "storefront_products"
+  | "newsletter_subscriber_backend"
+  | "product_flavor_metadata"
+  | "wholesale_pricing_profiles";
 
 // ── Section Type Union ──────────────────────────────────────────────────────
 export type PortalSectionType =

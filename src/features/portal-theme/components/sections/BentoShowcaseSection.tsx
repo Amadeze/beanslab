@@ -36,71 +36,9 @@ export function BentoShowcaseSection({ settings, blocks }: BentoShowcaseProps) {
 
   const visibleBlocks = blocks.filter((b) => b.visible !== false);
 
-  const defaultBlocks = [
-    {
-      id: "default-1",
-      type: "bento_card",
-      colSpan: 2,
-      rowSpan: 2,
-      settings: {
-        title: "Blend Signature: Gayo Mountain Reserve",
-        subtitle: "Skor Cupping: 88.5 • Anaerobic Natural",
-        content: "Profil espresso andalan kami, dirancang khusus untuk memotong susu sambil mempertahankan keasaman buah tropis yang segar dan rasa kakao yang intens.",
-        badge: "Best Seller Grosir Terlaris",
-        imageUrl: "",
-        icon: "Coffee",
-        accentColor: "#D4A574",
-        ctaText: "Pesan Sampel 5kg",
-        ctaLink: "#catalog"
-      }
-    },
-    {
-      id: "default-2",
-      type: "bento_card",
-      colSpan: 1,
-      rowSpan: 1,
-      settings: {
-        title: "Sangrai Presisi",
-        subtitle: "Loring S15 Falcon & Probat",
-        content: "Sangrai tertutup tanpa asap yang menjamin konsistensi batch 100% untuk kontrak bulanan 500kg.",
-        badge: "Teknologi",
-        icon: "Flame",
-        accentColor: "#F97316"
-      }
-    },
-    {
-      id: "default-3",
-      type: "bento_card",
-      colSpan: 1,
-      rowSpan: 1,
-      settings: {
-        title: "Jejak Perdagangan Langsung",
-        subtitle: "100% Keadilan Petani",
-        content: "Kami membeli langsung dari 12 stasiun pencucian koperasi di Gayo, Kintamani, dan Toraja.",
-        badge: "Asal",
-        icon: "MapPin",
-        accentColor: "#10B981"
-      }
-    },
-    {
-      id: "default-4",
-      type: "bento_card",
-      colSpan: 2,
-      rowSpan: 1,
-      settings: {
-        title: "Program Mitra Grosir & Pelatihan Barista",
-        subtitle: "Sistem Dukungan Cafe Lengkap",
-        content: "Pelatihan sensori bersertifikat SCA gratis, kalibrasi mesin, dan kemasan label pribadi khusus untuk pesanan di atas 25kg/bulan.",
-        badge: "Manfaat Mitra",
-        icon: "Award",
-        accentColor: "#8B5CF6",
-        ctaText: "Gabung Jaringan Mitra",
-        ctaLink: "#contact"
-      }
-    }
-  ];
+  if (visibleBlocks.length === 0) return null;
 
-  const displayBlocks = visibleBlocks.length > 0 ? visibleBlocks : defaultBlocks;
+  const displayBlocks = visibleBlocks;
 
   return (
     <section className="w-full py-14 sm:py-20 md:py-28" style={{ backgroundColor: "var(--portal-bg, #0F172A)", color: "var(--portal-text, #F8FAFC)" }}>

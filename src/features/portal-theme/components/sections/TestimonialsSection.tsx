@@ -19,6 +19,7 @@ interface TestimonialsProps {
 }
 
 export function TestimonialsSection({ settings, blocks, typography }: TestimonialsProps) {
+  const title = (settings.title as string) || "";
   const columns = (settings.columns as number) || 3;
   const showRating = settings.showRating !== false;
   const visibleBlocks = blocks.filter((b) => b.type === "testimonial" && b.visible !== false);
@@ -28,8 +29,7 @@ export function TestimonialsSection({ settings, blocks, typography }: Testimonia
   return (
     <section className="w-full" style={{ backgroundColor: "var(--portal-surface-alt, #F5F3EF)" }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8 py-20 md:py-28">
-        {/* Header */}
-        <motion.div
+        {title && <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
@@ -53,9 +53,10 @@ export function TestimonialsSection({ settings, blocks, typography }: Testimonia
               fontFamily: typography?.font || "var(--portal-font-heading)",
             }}
           >
-            What Our Partners Say
+            {title}
           </h2>
         </motion.div>
+        }
 
         {/* Testimonial Grid */}
         <div

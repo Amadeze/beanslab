@@ -1,7 +1,15 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { CURATED_THEME_FAMILIES, getPrimaryPresetForFamily, validateCuratedFamilies, getAllPresetIds } from "../defaults/curated-families";
 import { THEME_PRESETS, getThemePresetById } from "../defaults/theme-presets";
-import { SECTION_REGISTRY, getSectionDefinition, isValidSectionType, getSectionsByCategory } from "../registry";
+import {
+  PUBLIC_SECTION_REGISTRY,
+  PUBLIC_SECTION_TYPES,
+  PUBLIC_SECTION_TYPE_GROUPS,
+  SECTION_REGISTRY,
+  getSectionDefinition,
+  isValidSectionType,
+  getSectionsByCategory,
+} from "../registry";
 import { useCustomizerStore } from "../client/store";
 import { sanitizeCSS } from "../server/css-sanitizer";
 import { PortalThemeConfigSchema, TypographySchema, AnimationSchema } from "../schemas";
@@ -16,8 +24,8 @@ global.fetch = mockFetch;
 
 // ── Curated Theme Families ───────────────────────────────────────────────────
 describe("Curated Theme Families", () => {
-  it("has exactly 7 curated families", () => {
-    expect(CURATED_THEME_FAMILIES.length).toBe(7);
+  it("has exactly 6 curated structural families", () => {
+    expect(CURATED_THEME_FAMILIES.length).toBe(6);
   });
 
   it("each family has required fields", () => {
@@ -25,6 +33,8 @@ describe("Curated Theme Families", () => {
       expect(family.id).toBeTruthy();
       expect(family.name).toBeTruthy();
       expect(family.tagline).toBeTruthy();
+      expect(family.signature).toBeTruthy();
+      expect(family.sectionRecipe.length).toBeGreaterThanOrEqual(4);
       expect(family.preview).toBeTruthy();
       expect(family.presetIds).toBeInstanceOf(Array);
       expect(family.presetIds.length).toBeGreaterThan(0);
@@ -34,7 +44,14 @@ describe("Curated Theme Families", () => {
 
   it("family IDs match expected set", () => {
     const ids = CURATED_THEME_FAMILIES.map((f) => f.id).sort();
-    expect(ids).toEqual(["bold", "boutique", "dark", "editorial", "heritage", "minimal", "modern"]);
+    expect(ids).toEqual([
+      "community_roastery",
+      "editorial_journal",
+      "modern_catalog",
+      "origin_field_notes",
+      "reserve_microlot",
+      "tactile_brutalist",
+    ]);
   });
 
   it("all preset IDs in families exist in THEME_PRESETS", () => {
@@ -63,13 +80,14 @@ describe("Curated Theme Families", () => {
 
   it("curated families cover distinct visual directions", () => {
     const names = CURATED_THEME_FAMILIES.map((f) => f.name);
-    expect(names).toContain("Minimal");
-    expect(names).toContain("Editorial");
-    expect(names).toContain("Modern");
-    expect(names).toContain("Heritage");
-    expect(names).toContain("Bold");
-    expect(names).toContain("Dark");
-    expect(names).toContain("Boutique");
+    expect(names).toEqual(expect.arrayContaining([
+      "Modern Catalog",
+      "Editorial Journal",
+      "Origin Field Notes",
+      "Tactile Brutalist",
+      "Reserve Microlot",
+      "Community Roastery",
+    ]));
   });
 });
 
@@ -158,6 +176,24 @@ describe("Block Management Operations", () => {
     expect(useCustomizerStore.getState().workingDraft.sections.length).toBe(initialLength);
   });
 
+  it("rejects registry sections that are compatibility-only", () => {
+    const store = useCustomizerStore.getState();
+    for (const type of ["newsletter", "interactive_flavor", "roast_matrix"]) {
+      store.addSection(type);
+    }
+    expect(useCustomizerStore.getState().workingDraft.sections).toHaveLength(0);
+  });
+
+  it("creates addable sections from neutral registry defaults", () => {
+    useCustomizerStore.getState().addSection("marquee_kinetic");
+    const added = useCustomizerStore.getState().workingDraft.sections[0];
+
+    expect(added.type).toBe("marquee_kinetic");
+    expect(added.settings.title).toBe("");
+    expect(added.blocks).toEqual([]);
+    expect(JSON.stringify(added)).not.toMatch(/roastd\.id|direct trade|85\+|sample/i);
+  });
+
   it("removes section by ID", () => {
     useCustomizerStore.getState().addSection("hero_banner");
     const sectionId = useCustomizerStore.getState().workingDraft.sections.find((s) => s.type === "hero_banner")?.id;
@@ -218,32 +254,21 @@ describe("Block Management Operations", () => {
 
 // ── Contextual Add Section ───────────────────────────────────────────────────
 describe("Contextual Add Section Dialog", () => {
-  const SECTION_TYPE_GROUPS = {
-    header: ["header_nav"],
-    beranda: ["hero_banner", "bento_showcase", "marquee_kinetic", "sticky_narrative"],
-    katalog: ["catalog_grid", "featured_collection", "product_highlight", "roast_matrix", "interactive_flavor"],
-    konten: [
-      "rich_text", "image_with_text", "gallery", "video_embed",
-      "benefits", "testimonials", "social_proof", "countdown",
-      "newsletter", "faq", "contact_cta", "wholesale_radar", "kinetic_marquee"
-    ],
-    footer: ["footer_nav"],
-  };
-
   it("Header add dialog exposes only header_nav", () => {
-    const allowed = SECTION_TYPE_GROUPS.header;
+    const allowed = PUBLIC_SECTION_TYPE_GROUPS.header;
     expect(allowed).toEqual(["header_nav"]);
-    const definitions = SECTION_REGISTRY.filter((s) => allowed.includes(s.type));
+    const definitions = SECTION_REGISTRY.filter((s) => allowed.some((type) => type === s.type));
     expect(definitions.length).toBe(1);
     expect(definitions[0].type).toBe("header_nav");
   });
 
   it("Beranda add dialog exposes only Beranda types", () => {
-    const allowed = SECTION_TYPE_GROUPS.beranda;
-    const definitions = SECTION_REGISTRY.filter((s) => allowed.includes(s.type));
-    expect(definitions.length).toBe(4);
+    const allowed = PUBLIC_SECTION_TYPE_GROUPS.beranda;
+    const definitions = SECTION_REGISTRY.filter((s) => allowed.some((type) => type === s.type));
+    expect(definitions.length).toBe(5);
     expect(definitions.map((d) => d.type).sort()).toEqual([
       "bento_showcase",
+      "countdown",
       "hero_banner",
       "marquee_kinetic",
       "sticky_narrative",
@@ -251,51 +276,44 @@ describe("Contextual Add Section Dialog", () => {
   });
 
   it("Katalog add dialog exposes only Katalog types", () => {
-    const allowed = SECTION_TYPE_GROUPS.katalog;
-    const definitions = SECTION_REGISTRY.filter((s) => allowed.includes(s.type));
-    expect(definitions.length).toBe(5);
+    const allowed = PUBLIC_SECTION_TYPE_GROUPS.katalog;
+    const definitions = SECTION_REGISTRY.filter((s) => allowed.some((type) => type === s.type));
+    expect(definitions.length).toBe(3);
     expect(definitions.map((d) => d.type).sort()).toEqual([
       "catalog_grid",
       "featured_collection",
-      "interactive_flavor",
       "product_highlight",
-      "roast_matrix",
     ]);
   });
 
   it("Konten add dialog exposes only Konten types", () => {
-    const allowed = SECTION_TYPE_GROUPS.konten;
-    const definitions = SECTION_REGISTRY.filter((s) => allowed.includes(s.type));
-    // 4 content + 7 marketing = 11
-    expect(definitions.length).toBe(11);
+    const allowed = PUBLIC_SECTION_TYPE_GROUPS.konten;
+    const definitions = SECTION_REGISTRY.filter((s) => allowed.some((type) => type === s.type));
+    expect(definitions.length).toBe(9);
     const types = definitions.map((d) => d.type);
     expect(types).toContain("rich_text");
-    expect(types).toContain("benefits");
     expect(types).toContain("testimonials");
     expect(types).toContain("faq");
   });
 
   it("Footer add dialog exposes only footer_nav", () => {
-    const allowed = SECTION_TYPE_GROUPS.footer;
-    const definitions = SECTION_REGISTRY.filter((s) => allowed.includes(s.type));
+    const allowed = PUBLIC_SECTION_TYPE_GROUPS.footer;
+    const definitions = SECTION_REGISTRY.filter((s) => allowed.some((type) => type === s.type));
     expect(definitions.length).toBe(1);
     expect(definitions[0].type).toBe("footer_nav");
   });
 
-  it("no disallowed section appears in any contextual group", () => {
-    const allAllowed = new Set([
-      ...SECTION_TYPE_GROUPS.header,
-      ...SECTION_TYPE_GROUPS.beranda,
-      ...SECTION_TYPE_GROUPS.katalog,
-      ...SECTION_TYPE_GROUPS.konten,
-      ...SECTION_TYPE_GROUPS.footer,
-    ]);
-    const allSectionTypes = SECTION_REGISTRY.map((s) => s.type);
-    for (const type of allSectionTypes) {
-      if (!allAllowed.has(type)) {
-        // These are global-only sections that should not appear in contextual dialogs
-        expect(["tema", "pengaturan"]).toContain(type); // only global tabs
-      }
+  it("exposes only the curated public catalog", () => {
+    const groupedTypes = Object.values(PUBLIC_SECTION_TYPE_GROUPS).flat();
+    expect(new Set(groupedTypes)).toEqual(new Set(PUBLIC_SECTION_TYPES));
+    expect(PUBLIC_SECTION_REGISTRY.map((section) => section.type)).toHaveLength(19);
+
+    for (const hiddenType of [
+      "newsletter",
+      "interactive_flavor",
+      "roast_matrix",
+    ]) {
+      expect(groupedTypes).not.toContain(hiddenType);
     }
   });
 });

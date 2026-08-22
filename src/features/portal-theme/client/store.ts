@@ -21,8 +21,7 @@ import type {
   BrandKit,
 } from "../types";
 import { DEFAULT_PORTAL_THEME_CONFIG, DEFAULT_SECTION_SPACING, DEFAULT_SECTION_VISIBILITY, DEFAULT_SECTION_ANIMATION, DEFAULT_SECTION_LAYOUT, DEFAULT_SECTION_DECORATION } from "../defaults/default-config";
-import { QUICK_FILL_PRESETS } from "../defaults/quick-fill-presets";
-import { getSectionDefinition } from "../registry";
+import { getSectionDefinition, resolveSectionType } from "../registry";
 import { savePortalThemeDraft, publishPortalTheme, discardPortalThemeChanges } from "../server/actions";
 
 function uid(): string {
@@ -48,6 +47,7 @@ interface CustomizerStore {
 
   // Init
   initialize: (config: PortalThemeConfig) => void;
+  applyThemeConfig: (config: PortalThemeConfig) => void;
 
   // Section actions
   updateSectionSettings: (id: string, settings: Record<string, unknown>) => void;
@@ -130,6 +130,11 @@ export const useCustomizerStore = create<CustomizerStore>((set, get) => ({
     });
   },
 
+  applyThemeConfig: (config) => {
+    (get() as any)._pushUndo();
+    set({ workingDraft: structuredClone(config), isDirty: true });
+  },
+
   // ── Internal: push undo state ──────────────────────────────────────────
   _pushUndo: () => {
     const { workingDraft, undoStack } = get();
@@ -167,24 +172,16 @@ export const useCustomizerStore = create<CustomizerStore>((set, get) => ({
 
   addSection: (type) => {
     (get() as any)._pushUndo();
-    const def = getSectionDefinition(type);
-    if (!def) return;
-
-    const presets = QUICK_FILL_PRESETS[type];
-    const defaultPreset = presets?.[0];
-    const initialBlocks: PortalBlock[] = defaultPreset
-      ? defaultPreset.blocks.map((b) => ({ id: blockUid(), type: b.type, visible: true, settings: { ...b.settings } }))
-      : [];
-    const initialSettings = defaultPreset?.settings
-      ? { ...def.defaultSettings, ...defaultPreset.settings }
-      : { ...def.defaultSettings };
+    const canonicalType = resolveSectionType(type);
+    const def = getSectionDefinition(canonicalType);
+    if (!def?.addable) return;
 
     const newSection: PortalSection = {
       id: uid(),
-      type,
+      type: canonicalType,
       enabled: true,
-      settings: initialSettings,
-      blocks: initialBlocks,
+      settings: { ...def.defaultSettings },
+      blocks: [],
       spacing: { ...DEFAULT_SECTION_SPACING },
       visibility: { ...DEFAULT_SECTION_VISIBILITY },
       animation: { ...DEFAULT_SECTION_ANIMATION },

@@ -3,7 +3,11 @@
 // Used by: renderer, add-section menu, settings forms, defaults, validation
 // =============================================================================
 
-import type { PortalSectionDefinition } from "../types";
+import type {
+  PortalSection,
+  PortalSectionArea,
+  PortalSectionDefinition,
+} from "../types";
 
 export const SECTION_REGISTRY: PortalSectionDefinition[] = [
   // ── Content ─────────────────────────────────────────────────────────────
@@ -13,28 +17,19 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Full-width hero with title, subtitle, image, and CTA button",
     icon: "Image",
     category: "content",
+    area: "beranda",
+    status: "core",
+    addable: true,
     defaultSettings: {
-      title: "Premium Coffee Beans",
-      subtitle: "Roasted to order for your business",
+      styleMode: "catalog_split",
+      title: "Kopi dari roastery Anda",
+      subtitle: "",
       imageUrl: null,
-      buttonText: "View Catalog",
+      buttonText: "Lihat katalog",
       buttonLink: "#catalog",
       overlay: 40,
       textAlignment: "center",
     },
-    blockTypes: [
-      {
-        type: "slide",
-        label: "Slide",
-        defaultSettings: {
-          title: "",
-          subtitle: "",
-          imageUrl: null,
-          buttonText: "",
-          buttonLink: "",
-        },
-      },
-    ],
   },
   {
     type: "rich_text",
@@ -42,11 +37,13 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Text content with customizable typography and alignment",
     icon: "Type",
     category: "content",
+    area: "konten",
+    status: "optional",
+    addable: true,
     defaultSettings: {
       title: "",
       content: "",
       alignment: "left",
-      columns: 1,
     },
   },
   {
@@ -55,6 +52,9 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Side-by-side image and text content",
     icon: "AlignLeft",
     category: "content",
+    area: "konten",
+    status: "optional",
+    addable: true,
     defaultSettings: {
       imageUrl: null,
       title: "",
@@ -69,11 +69,12 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Image grid with lightbox support",
     icon: "Grid3x3",
     category: "content",
+    area: "konten",
+    status: "optional",
+    addable: true,
     defaultSettings: {
       columns: 3,
-      lightbox: true,
       aspectRatio: "1/1",
-      spacing: 8,
     },
     blockTypes: [
       {
@@ -82,7 +83,6 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
         defaultSettings: {
           imageUrl: null,
           caption: "",
-          link: "",
         },
       },
     ],
@@ -93,6 +93,9 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Embed YouTube, Vimeo, or self-hosted video",
     icon: "Play",
     category: "content",
+    area: "konten",
+    status: "optional",
+    addable: true,
     defaultSettings: {
       videoUrl: "",
       posterUrl: "",
@@ -110,8 +113,13 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Grid of products with filtering and sorting",
     icon: "ShoppingBag",
     category: "commerce",
+    area: "katalog",
+    status: "core",
+    addable: true,
+    requires: ["storefront_products"],
     defaultSettings: {
-      title: "The Collection",
+      styleMode: "clean_grid",
+      title: "Pilihan kopi",
       subtitle: "",
       columns: 3,
       productFilter: "all",
@@ -126,11 +134,14 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Highlight specific products in a custom layout",
     icon: "Star",
     category: "commerce",
+    area: "katalog",
+    status: "optional",
+    addable: true,
+    requires: ["storefront_products"],
     defaultSettings: {
       title: "Featured Products",
       subtitle: "",
       productIds: [],
-      layout: "grid",
       columns: 4,
     },
   },
@@ -140,12 +151,14 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: " spotlight a single product with full details",
     icon: "Sparkles",
     category: "commerce",
+    area: "katalog",
+    status: "optional",
+    addable: true,
+    requires: ["storefront_products"],
     defaultSettings: {
       productId: null,
       showPrice: true,
       showDescription: true,
-      showVariants: false,
-      layout: "image-left",
     },
   },
 
@@ -156,9 +169,13 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Showcase key benefits with icons",
     icon: "CheckCircle",
     category: "marketing",
+    area: "konten",
+    status: "optional",
+    addable: true,
     defaultSettings: {
+      title: "Keunggulan roastery",
+      subtitle: "",
       columns: 3,
-      iconStyle: "outline",
     },
     blockTypes: [
       {
@@ -178,8 +195,11 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Customer reviews and testimonials",
     icon: "Quote",
     category: "marketing",
+    area: "konten",
+    status: "optional",
+    addable: true,
     defaultSettings: {
-      layout: "carousel",
+      title: "Testimoni pelanggan",
       columns: 3,
       showRating: true,
     },
@@ -203,6 +223,9 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Countdown to a specific date or event",
     icon: "Timer",
     category: "marketing",
+    area: "beranda",
+    status: "optional",
+    addable: true,
     defaultSettings: {
       title: "Limited Time Offer",
       subtitle: "",
@@ -217,10 +240,10 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Reviews, stats, or logo bar",
     icon: "TrendingUp",
     category: "marketing",
-    defaultSettings: {
-      type: "stats",
-      layout: "row",
-    },
+    area: "konten",
+    status: "optional",
+    addable: true,
+    defaultSettings: {},
     blockTypes: [
       {
         type: "stat",
@@ -239,6 +262,10 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Email capture form",
     icon: "Mail",
     category: "marketing",
+    area: "konten",
+    status: "legacy",
+    addable: false,
+    requires: ["newsletter_subscriber_backend"],
     defaultSettings: {
       title: "Stay Updated",
       subtitle: "Get the latest news and offers",
@@ -255,6 +282,9 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Call-to-action with contact information",
     icon: "Phone",
     category: "layout",
+    area: "konten",
+    status: "optional",
+    addable: true,
     defaultSettings: {
       title: "Get in Touch",
       text: "Ready to place an order? Contact us directly.",
@@ -271,10 +301,11 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Frequently asked questions with accordion",
     icon: "HelpCircle",
     category: "layout",
+    area: "konten",
+    status: "optional",
+    addable: true,
     defaultSettings: {
       title: "Frequently Asked Questions",
-      layout: "accordion",
-      allowSearch: false,
     },
     blockTypes: [
       {
@@ -294,9 +325,12 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Modular bento mosaic canvas with custom tile spans and glassmorphism",
     icon: "LayoutGrid",
     category: "layout",
+    area: "beranda",
+    status: "optional",
+    addable: true,
     defaultSettings: {
-      title: "The Wholesale Bento Showcase",
-      subtitle: "Engineered for excellence. Explore our roast profiles, cupping metrics, and origin traceability.",
+      title: "Sorotan roastery",
+      subtitle: "",
       columns: 4,
       gapStyle: "normal",
     },
@@ -305,10 +339,10 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
         type: "bento_card",
         label: "Bento Card",
         defaultSettings: {
-          title: "Feature Title",
-          subtitle: "Subtitle Note",
-          content: "Detailed description of this feature or product specifications.",
-          badge: "Highlight",
+          title: "",
+          subtitle: "",
+          content: "",
+          badge: "",
           icon: "Coffee",
           accentColor: "#D4A574",
           colSpan: 1,
@@ -323,9 +357,13 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Interactive sensory note filter with fluid layout transitions",
     icon: "Sliders",
     category: "commerce",
+    area: "katalog",
+    status: "legacy",
+    addable: false,
+    requires: ["product_flavor_metadata"],
     defaultSettings: {
-      title: "Sensory Flavor Explorer",
-      subtitle: "Filter our wholesale green & roasted coffee catalog by sensory tasting profile.",
+      title: "Profil rasa",
+      subtitle: "",
     },
   },
   {
@@ -334,23 +372,26 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Editorial split-screen storytelling with sticky pinned visual column",
     icon: "Columns",
     category: "content",
+    area: "beranda",
+    status: "optional",
+    addable: true,
     defaultSettings: {
-      title: "The Craft & Alchemy Narrative",
-      subtitle: "How we transform high-altitude cherry into world-class wholesale espresso profiles.",
-      pinnedTitle: "Roastd.id Studio",
-      pinnedSubtitle: "B2B Quality Protocol",
+      title: "Cerita roastery",
+      subtitle: "",
+      pinnedTitle: "Proses kami",
+      pinnedSubtitle: "",
     },
     blockTypes: [
       {
-        type: "step",
+        type: "narrative_step",
         label: "Narrative Step",
         defaultSettings: {
-          title: "Step Title",
-          subtitle: "Step Subtitle",
-          content: "Detailed explanation of this step in the roasting or sourcing process.",
+          title: "",
+          subtitle: "",
+          content: "",
           imageUrl: null,
           icon: "CheckCircle2",
-          tag: "Verified",
+          tag: "",
         },
       },
     ],
@@ -361,6 +402,11 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Visual sensory cupping comparison & volume tier pricing simulator",
     icon: "BarChart3",
     category: "commerce",
+    area: "katalog",
+    status: "legacy",
+    addable: false,
+    aliases: ["wholesale_radar"],
+    requires: ["wholesale_pricing_profiles"],
     defaultSettings: {
       title: "Wholesale Roast Profile Matrix & Tier Pricing",
       subtitle: "Analyze sensory cupping attributes and simulate volume-based contract discounts in real time.",
@@ -389,7 +435,12 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Infinite loop scrolling text with hover speed controls and kinetic outline styles",
     icon: "MoveHorizontal",
     category: "marketing",
+    area: "beranda",
+    status: "optional",
+    addable: true,
+    aliases: ["kinetic_marquee"],
     defaultSettings: {
+      title: "",
       speed: 30,
       styleMode: "outline",
       direction: "left",
@@ -399,7 +450,7 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
         type: "ticker_item",
         label: "Ticker Text",
         defaultSettings: {
-          text: "100% DIRECT TRADE TRACEABILITY ★",
+          text: "",
         },
       },
     ],
@@ -410,34 +461,136 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     description: "Responsive top navigation bar with 5 layout shapes, live cart counter, and mobile slide-out menu",
     icon: "Navigation",
     category: "layout",
+    area: "header",
+    status: "core",
+    addable: true,
     defaultSettings: {
       styleMode: "glass_pill",
-      logoText: "ROASTD.ID",
-      tickerText: "🚀 FREE NATIONWIDE SHIPPING ON ORDERS OVER 5KG • WEEKLY ROASTING SCHEDULE: TUE & THU",
-      ctaText: "Wholesale Cart",
+      logoText: "Nama roastery",
+      tickerText: "",
+      ctaText: "Keranjang",
     },
   },
   {
     type: "footer_nav",
     label: "Footer & System Info",
-    description: "Multi-style footer with 4 layout shapes, newsletter dispatch, copyright, and operational SLA",
+    description: "Multi-style footer with 4 layout shapes, navigation, copyright, and operational SLA",
     icon: "LayoutBottom",
     category: "layout",
+    area: "footer",
+    status: "core",
+    addable: true,
     defaultSettings: {
       styleMode: "editorial_grid",
-      logoText: "ROASTD.ID",
-      bioText: "Empowering specialty coffee roasters and B2B cafe partners with precision telemetry, micro-batch profiling, and direct-trade sourcing.",
-      copyrightText: "© 2026 ROASTD.ID • Roastery Operating System. All rights reserved.",
+      logoText: "Nama roastery",
+      bioText: "",
+      copyrightText: "Hak cipta roastery Anda.",
     },
   },
 ];
 
 // ── Registry Lookup ─────────────────────────────────────────────────────────
 
+// Persisted tenant configs may still use these first-generation names. Keep the
+// aliases at the compatibility boundary, while newly-authored config uses the
+// canonical registry type.
+export const LEGACY_SECTION_TYPE_ALIASES = SECTION_REGISTRY.reduce<Record<string, string>>(
+  (aliases, definition) => {
+    for (const alias of definition.aliases ?? []) aliases[alias] = definition.type;
+    return aliases;
+  },
+  {},
+);
+
+export function resolveSectionType(type: string): string {
+  return LEGACY_SECTION_TYPE_ALIASES[
+    type as keyof typeof LEGACY_SECTION_TYPE_ALIASES
+  ] ?? type;
+}
+
+const SECTION_AREAS: readonly PortalSectionArea[] = [
+  "header",
+  "beranda",
+  "katalog",
+  "konten",
+  "footer",
+];
+
+export const PUBLIC_SECTION_REGISTRY = SECTION_REGISTRY.filter(
+  (section) => section.addable,
+);
+export const PUBLIC_SECTION_TYPES = PUBLIC_SECTION_REGISTRY.map(
+  (section) => section.type,
+);
+const PUBLIC_SECTION_TYPE_SET = new Set(PUBLIC_SECTION_TYPES);
+
+function groupSectionTypesByArea(addableOnly: boolean) {
+  return Object.fromEntries(
+    SECTION_AREAS.map((area) => [
+      area,
+      SECTION_REGISTRY
+        .filter((section) => section.area === area && (!addableOnly || section.addable))
+        .map((section) => section.type),
+    ]),
+  ) as Record<PortalSectionArea, string[]>;
+}
+
+// Compatibility exports for existing consumers. Both are generated from the
+// registry metadata; neither is an independently maintained taxonomy.
+export const PUBLIC_SECTION_TYPE_GROUPS = groupSectionTypesByArea(true);
+export const EDITOR_SECTION_TYPE_GROUPS = groupSectionTypesByArea(false);
+
+export type PortalCustomizerSectionGroup = PortalSectionArea;
+
+export function isSectionArea(value: string): value is PortalSectionArea {
+  return SECTION_AREAS.includes(value as PortalSectionArea);
+}
+
+export function getSectionsForArea(
+  area: PortalSectionArea,
+  options: { addableOnly?: boolean } = {},
+): PortalSectionDefinition[] {
+  return SECTION_REGISTRY.filter(
+    (section) => section.area === area && (!options.addableOnly || section.addable),
+  );
+}
+
+export function sectionTypeMatchesArea(
+  type: string,
+  area: PortalSectionArea,
+): boolean {
+  const definition = getSectionDefinition(type);
+  // Keep unknown persisted sections reachable from the content editor while
+  // the live renderer presents its graceful fallback.
+  return definition ? definition.area === area : area === "konten";
+}
+
+export function sectionTypeMatchesGroup(
+  type: string,
+  allowedTypes: readonly string[],
+): boolean {
+  return allowedTypes.includes(resolveSectionType(type));
+}
+
+export function isPublicSectionType(type: string): boolean {
+  return PUBLIC_SECTION_TYPE_SET.has(type);
+}
+
+// Use only for newly-authored/template config. Persisted tenant config must pass
+// through untouched so hidden legacy sections keep rendering.
+export function curatePublicSections(
+  sections: readonly PortalSection[],
+): PortalSection[] {
+  return sections
+    .map((section) => ({ ...section, type: resolveSectionType(section.type) }))
+    .filter((section) => isPublicSectionType(section.type));
+}
+
 export function getSectionDefinition(
   type: string,
 ): PortalSectionDefinition | undefined {
-  return SECTION_REGISTRY.find((s) => s.type === type);
+  const canonicalType = resolveSectionType(type);
+  return SECTION_REGISTRY.find((s) => s.type === canonicalType);
 }
 
 export function getSectionsByCategory(
@@ -447,11 +600,11 @@ export function getSectionsByCategory(
 }
 
 export function getSectionCategories(): PortalSectionDefinition["category"][] {
-  return ["content", "commerce", "marketing", "layout"];
+  return Array.from(new Set(PUBLIC_SECTION_REGISTRY.map((section) => section.category)));
 }
 
 export function isValidSectionType(type: string): boolean {
-  return SECTION_REGISTRY.some((s) => s.type === type);
+  return SECTION_REGISTRY.some((s) => s.type === resolveSectionType(type));
 }
 
 export function createSectionFromType(

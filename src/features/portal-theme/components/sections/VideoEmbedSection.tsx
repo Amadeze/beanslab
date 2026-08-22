@@ -22,6 +22,9 @@ export function VideoEmbedSection({ settings }: VideoEmbedProps) {
   const videoUrl = (settings.videoUrl as string) || "";
   const posterUrl = (settings.posterUrl as string) || "";
   const aspectRatio = (settings.aspectRatio as string) || "16/9";
+  const autoplay = settings.autoplay === true;
+  const loop = settings.loop === true;
+  const muted = settings.muted !== false;
 
   if (!videoUrl) return null;
 
@@ -33,7 +36,9 @@ export function VideoEmbedSection({ settings }: VideoEmbedProps) {
       {embedUrl ? (
         <div className="relative overflow-hidden rounded-lg" style={{ aspectRatio }}>
           <iframe
-            src={embedUrl}
+            src={autoplay
+              ? `${embedUrl}${embedUrl.includes("?") ? "&" : "?"}autoplay=1&mute=${muted ? 1 : 0}`
+              : embedUrl}
             className="absolute inset-0 h-full w-full border-0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
@@ -43,6 +48,9 @@ export function VideoEmbedSection({ settings }: VideoEmbedProps) {
         <video
           src={videoUrl}
           poster={posterUrl || undefined}
+          autoPlay={autoplay}
+          loop={loop}
+          muted={muted}
           controls
           className="w-full rounded-lg"
           style={{ aspectRatio }}

@@ -229,7 +229,22 @@ export async function loadStorefrontCatalog(
         lineageProductId: true,
         grindOptions: true,
         allowCustomGrind: true,
-        coffeeSource: { select: { name: true } },
+        coffeeSource: {
+          select: {
+            name: true,
+            country: true,
+            region: true,
+            farm: true,
+            species: true,
+            varietal: true,
+            processMethod: true,
+            fermentationMethod: true,
+            elevation: true,
+            cropYear: true,
+            certifications: true,
+            tastingNotes: true,
+          },
+        },
         variants: {
           where: { isActive: true },
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],

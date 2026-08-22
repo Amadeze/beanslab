@@ -86,7 +86,7 @@ export const THEME_PRESETS: ThemePreset[] = [
     sectionDefaults: {
       hero_banner: { overlay: 55, textAlignment: "left" },
       bento_showcase: { columns: 4, gapStyle: "tight" },
-      kinetic_marquee: { styleMode: "solid", speed: 28 },
+      marquee_kinetic: { styleMode: "solid", speed: 28 },
     },
     defaultSections: DEFAULT_PORTAL_THEME_CONFIG.sections,
   },

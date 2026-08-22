@@ -23,6 +23,7 @@ type CoffeeOfferingCardProps = {
   offering: StorefrontOffering;
   onAdd?: (selection: CoffeeOfferingSelection) => void;
   preview?: boolean;
+  appearance?: "clean_grid" | "editorial_list" | "field_cards" | "brutalist_grid" | "reserve_gallery" | "community_cards";
 };
 
 function maxPackages(availableKg: number | null | undefined, netWeightGrams: number) {
@@ -39,7 +40,7 @@ function formatRupiah(value: number) {
   }).format(value);
 }
 
-export function CoffeeOfferingCard({ offering, onAdd, preview = false }: CoffeeOfferingCardProps) {
+export function CoffeeOfferingCard({ offering, onAdd, preview = false, appearance = "clean_grid" }: CoffeeOfferingCardProps) {
   const grindOptions = useMemo(() => {
     const options = [...(offering.grindOptions ?? [])];
     const allowed = offering.allowCustomGrind
@@ -67,6 +68,22 @@ export function CoffeeOfferingCard({ offering, onAdd, preview = false }: CoffeeO
   const selectionUnavailable = sourceUnavailable || !selectedVariant || packageLimit === 0;
   const customMissing = grindSize === "CUSTOM" && !customGrindLabel.trim();
   const canAdd = !selectionUnavailable && !customMissing && quantity > 0 && (packageLimit == null || quantity <= packageLimit);
+  const isEditorial = appearance === "editorial_list";
+  const isBrutalist = appearance === "brutalist_grid";
+  const isReserve = appearance === "reserve_gallery";
+  const isCommunity = appearance === "community_cards";
+  const source = offering.coffeeSource;
+  const traceability = [
+    { label: "Origin", value: [source?.region, source?.country].filter(Boolean).join(", ") },
+    { label: "Farm / producer", value: source?.farm },
+    { label: "Species", value: source?.species },
+    { label: "Varietas", value: source?.varietal },
+    { label: "Proses", value: source?.processMethod },
+    { label: "Fermentasi", value: source?.fermentationMethod },
+    { label: "Elevasi", value: source?.elevation },
+    { label: "Crop year", value: source?.cropYear },
+    { label: "Sertifikasi", value: source?.certifications?.join(", ") },
+  ].filter((detail): detail is { label: string; value: string } => Boolean(detail.value));
 
   const chooseVariant = (nextId: string) => {
     const next = offering.variants.find((variant) => variant.id === nextId);
@@ -89,7 +106,8 @@ export function CoffeeOfferingCard({ offering, onAdd, preview = false }: CoffeeO
 
   return (
     <article
-      className="group flex h-full flex-col overflow-hidden rounded-[1.35rem] border shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+      data-catalog-card-style={appearance}
+      className={`group flex h-full overflow-hidden border transition duration-300 ${isEditorial ? "flex-col rounded-none shadow-none md:grid md:grid-cols-[minmax(12rem,.7fr)_1.3fr]" : isBrutalist ? "flex-col rounded-none border-2 shadow-[6px_6px_0_var(--portal-text)] hover:-translate-x-0.5 hover:-translate-y-0.5" : isReserve ? "flex-col rounded-sm shadow-sm hover:-translate-y-1" : isCommunity ? "flex-col rotate-[.25deg] rounded-[2rem] shadow-sm hover:-translate-y-1 hover:-rotate-[.25deg]" : "flex-col rounded-[1.35rem] shadow-sm hover:-translate-y-1 hover:shadow-xl"}`}
       style={{
         backgroundColor: "var(--portal-surface, var(--t-surface, #fff))",
         borderColor: "var(--portal-border-subtle, var(--t-border, #e5e7eb))",
@@ -97,7 +115,7 @@ export function CoffeeOfferingCard({ offering, onAdd, preview = false }: CoffeeO
       }}
     >
       <div
-        className="relative aspect-[16/10] overflow-hidden"
+        className={`relative overflow-hidden ${isEditorial ? "min-h-60 md:aspect-auto" : isReserve ? "aspect-[4/5]" : "aspect-[16/10]"}`}
         style={{ backgroundColor: "var(--portal-surface-alt, var(--t-bg, #f4f4f2))" }}
       >
         {offering.imageUrl ? (
@@ -121,6 +139,27 @@ export function CoffeeOfferingCard({ offering, onAdd, preview = false }: CoffeeO
           <p className="mt-2 line-clamp-2 text-sm leading-6 opacity-65">
             {offering.description || "Pilih kemasan dan gilingan sesuai cara seduhmu."}
           </p>
+          {traceability.length > 0 ? (
+            <p className={`mt-3 text-[11px] leading-5 ${appearance === "field_cards" ? "border-y py-3 font-mono uppercase tracking-wide" : "opacity-65"}`} style={{ borderColor: "var(--portal-border-subtle, var(--t-border, #e5e7eb))" }}>
+              {traceability.slice(0, 3).map((detail) => detail.value).join(" · ")}
+            </p>
+          ) : null}
+          {source?.tastingNotes ? (
+            <p className="mt-3 text-xs leading-5 opacity-70"><span className="font-semibold">Tasting notes:</span> {source.tastingNotes}</p>
+          ) : null}
+          {traceability.length > 0 ? (
+            <details className="group/details mt-3 rounded-xl border px-3 py-2 text-xs" style={{ borderColor: "var(--portal-border-subtle, var(--t-border, #e5e7eb))" }}>
+              <summary className="cursor-pointer select-none font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Detail kopi</summary>
+              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-t pt-3" style={{ borderColor: "var(--portal-border-subtle, var(--t-border, #e5e7eb))" }}>
+                {traceability.map((detail) => (
+                  <div key={detail.label}>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide opacity-50">{detail.label}</dt>
+                    <dd className="mt-0.5 leading-5">{detail.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

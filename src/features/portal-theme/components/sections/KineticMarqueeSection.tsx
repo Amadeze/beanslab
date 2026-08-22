@@ -1,31 +1,26 @@
 "use client";
 
 import React from "react";
-import { Sparkles, Coffee, Award, Flame, Globe } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 interface KineticMarqueeProps {
   settings: Record<string, unknown>;
   blocks?: any[];
 }
 
-const DEFAULT_ITEMS = [
-  "100% DIRECT TRADE TRACEABILITY",
-  "★ SCA COMPLIANT CUPPING SCORES 85+ ★",
-  "ZERO-SMOKE CLOSED LOOP LORING ROASTING",
-  "• NITROGEN FLUSHED WHOLESALE CONTRACTS •",
-  "BARISTA TRAINING & CAFE CALIBRATION INCLUDED",
-  "★ COMPLIMENTARY SAMPLES FOR B2B PARTNERS ★",
-];
-
 export function KineticMarqueeSection({ settings, blocks }: KineticMarqueeProps) {
   const speed = (settings.speed as number) || 30; // seconds for full loop
   const styleMode = (settings.styleMode as string) || "outline"; // outline, solid, neon, brutalist
   const direction = (settings.direction as string) || "left"; // left or right
 
-  const visibleBlocks = blocks && blocks.filter(b => b.visible !== false);
-  const items = visibleBlocks && visibleBlocks.length > 0
-    ? visibleBlocks.map(b => b.settings?.text as string || "ROASTD.ID WHOLESALE QUALITY")
-    : DEFAULT_ITEMS;
+  const visibleBlocks = blocks?.filter((block) => block.visible !== false) ?? [];
+  const blockItems = visibleBlocks
+    .map((block) => String(block.settings?.text ?? "").trim())
+    .filter(Boolean);
+  const fallbackTitle = String(settings.title ?? "").trim();
+  const items = blockItems.length > 0 ? blockItems : fallbackTitle ? [fallbackTitle] : [];
+
+  if (items.length === 0) return null;
 
   const animationClass = direction === "right" ? "animate-marquee-right" : "animate-marquee";
 
@@ -34,7 +29,7 @@ export function KineticMarqueeSection({ settings, blocks }: KineticMarqueeProps)
       className="w-full py-8 md:py-12 overflow-hidden select-none border-y border-white/10 relative"
       style={{ backgroundColor: "var(--portal-bg, #090D16)", color: "var(--portal-text, #F8FAFC)" }}
     >
-      <style jsx>{`
+      <style>{`
         @keyframes marquee {
           0% { transform: translate3d(0, 0, 0); }
           100% { transform: translate3d(-50%, 0, 0); }

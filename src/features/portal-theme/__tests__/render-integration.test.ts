@@ -316,11 +316,8 @@ describe("PortalThemeRenderer — resolve → render (SSR, no database)", () => 
     );
     expect(html.length).toBeGreaterThan(0);
     expect(html).not.toMatch(/<script/i);
-    // App-authored inline <style> IS expected here: the kinetic_marquee
-    // section ships @keyframes marquee as a style element. That style tag is
-    // authored by the application (never by tenant custom CSS, which cannot
-    // express selectors/at-rules after sanitization).
-    expect(html).toMatch(/@keyframes marquee/);
+    // The small default theme does not opt into advanced motion sections.
+    expect(html).not.toMatch(/@keyframes marquee/);
     expect(html).not.toMatch(/<style[\s>][^>]*@import/i);
     expect(html).not.toMatch(/<style[\s>][^>]*url\(/i);
   });

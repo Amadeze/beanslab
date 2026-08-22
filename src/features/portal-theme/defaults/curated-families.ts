@@ -1,118 +1,162 @@
-// =============================================================================
-// CURATED THEME FAMILIES — 7 Strong Families Mapped to Existing 16 Presets
-// Preserves all 16 preset IDs for compatibility; UI presents curated choices
-// =============================================================================
+// Six storefront directions. The legacy preset registry remains untouched so
+// previously persisted preset IDs and theme JSON stay compatible.
 
 import { THEME_PRESETS } from "./theme-presets";
+
+export interface ThemeSectionRecipe {
+  type: string;
+  settings?: Record<string, unknown>;
+  optional?: boolean;
+}
 
 export interface CuratedThemeFamily {
   id: string;
   name: string;
   tagline: string;
+  signature: string;
   preview: string;
-  // Maps to existing preset IDs
   presetIds: string[];
-  // The primary preset to use when applying this family
   primaryPresetId: string;
+  sectionRecipe: ThemeSectionRecipe[];
 }
 
-// 7 Curated families for tenant-facing choices
 export const CURATED_THEME_FAMILIES: CuratedThemeFamily[] = [
   {
-    id: "minimal",
-    name: "Minimal",
-    tagline: "Clean, spacious, content-first",
-    preview: "◻️",
-    presetIds: ["neomodern", "luxury"],
+    id: "modern_catalog",
+    name: "Modern Catalog",
+    tagline: "Belanja cepat dengan produk sebagai fokus utama",
+    signature: "Hero terbagi + indeks produk yang rapi",
+    preview: "MC",
+    presetIds: ["neomodern", "roastr_official"],
     primaryPresetId: "neomodern",
+    sectionRecipe: [
+      { type: "header_nav", settings: { styleMode: "glass_pill" } },
+      { type: "hero_banner", settings: { styleMode: "catalog_split", textAlignment: "left" } },
+      { type: "catalog_grid", settings: { styleMode: "clean_grid", columns: 3 } },
+      { type: "featured_collection", optional: true },
+      { type: "faq", optional: true },
+      { type: "contact_cta", optional: true },
+      { type: "footer_nav", settings: { styleMode: "minimal_centered" } },
+    ],
   },
   {
-    id: "editorial",
-    name: "Editorial",
-    tagline: "Storytelling, magazine-like, literary",
-    preview: "📖",
+    id: "editorial_journal",
+    name: "Editorial Journal",
+    tagline: "Cerita roastery terasa seperti jurnal independen",
+    signature: "Masthead besar + katalog bergaya daftar",
+    preview: "EJ",
     presetIds: ["editorial", "liquid_sensory"],
     primaryPresetId: "editorial",
+    sectionRecipe: [
+      { type: "header_nav", settings: { styleMode: "luxury_editorial" } },
+      { type: "hero_banner", settings: { styleMode: "editorial_masthead", textAlignment: "left" } },
+      { type: "image_with_text", optional: true },
+      { type: "rich_text", optional: true },
+      { type: "catalog_grid", settings: { styleMode: "editorial_list", columns: 2 } },
+      { type: "testimonials", optional: true },
+      { type: "footer_nav", settings: { styleMode: "editorial_grid" } },
+    ],
   },
   {
-    id: "modern",
-    name: "Modern",
-    tagline: "Sleek, contemporary, bold statements",
-    preview: "🎨",
-    presetIds: ["roastr_official", "neo_tokyo_cyber", "tactile_brutalist"],
-    primaryPresetId: "roastr_official",
+    id: "origin_field_notes",
+    name: "Origin Field Notes",
+    tagline: "Asal, proses, dan profil kopi mudah dipindai",
+    signature: "Catatan lapangan + kartu traceability",
+    preview: "OF",
+    presetIds: ["nordic_botanical", "botanical"],
+    primaryPresetId: "nordic_botanical",
+    sectionRecipe: [
+      { type: "header_nav", settings: { styleMode: "glass_pill" } },
+      { type: "hero_banner", settings: { styleMode: "field_notes", textAlignment: "left" } },
+      { type: "image_with_text", optional: true },
+      { type: "gallery", optional: true },
+      { type: "catalog_grid", settings: { styleMode: "field_cards", columns: 3 } },
+      { type: "faq", optional: true },
+      { type: "footer_nav", settings: { styleMode: "minimal_centered" } },
+    ],
   },
   {
-    id: "heritage",
-    name: "Heritage",
-    tagline: "Traditional, warm, artisanal",
-    preview: "🏺",
-    presetIds: ["heritage", "heritage_reserve", "nordic_botanical"],
-    primaryPresetId: "heritage",
+    id: "tactile_brutalist",
+    name: "Tactile Brutalist",
+    tagline: "Tegas, fisik, dan berkarakter untuk roastery eksperimental",
+    signature: "Poster hero + grid berbingkai keras",
+    preview: "TB",
+    presetIds: ["tactile_brutalist", "industrial"],
+    primaryPresetId: "tactile_brutalist",
+    sectionRecipe: [
+      { type: "header_nav", settings: { styleMode: "industrial_ticker" } },
+      { type: "hero_banner", settings: { styleMode: "brutalist_poster", textAlignment: "left" } },
+      { type: "marquee_kinetic", optional: true },
+      { type: "catalog_grid", settings: { styleMode: "brutalist_grid", columns: 3 } },
+      { type: "bento_showcase", optional: true },
+      { type: "contact_cta", optional: true },
+      { type: "footer_nav", settings: { styleMode: "brutalist_mono" } },
+    ],
   },
   {
-    id: "bold",
-    name: "Bold",
-    tagline: "High-contrast, energetic, impactful",
-    preview: "⚡",
-    presetIds: ["industrial", "cyber", "playful"],
-    primaryPresetId: "industrial",
-  },
-  {
-    id: "dark",
-    name: "Dark",
-    tagline: "OLED-ready, sophisticated, premium",
-    preview: "🌑",
-    presetIds: ["luxury", "neo_tokyo_cyber", "liquid_sensory", "heritage_reserve"],
+    id: "reserve_microlot",
+    name: "Reserve Microlot",
+    tagline: "Tenang dan premium untuk rilis kopi terbatas",
+    signature: "Hero berbingkai + galeri rilis terpilih",
+    preview: "RM",
+    presetIds: ["luxury", "heritage_reserve"],
     primaryPresetId: "luxury",
+    sectionRecipe: [
+      { type: "header_nav", settings: { styleMode: "luxury_editorial" } },
+      { type: "hero_banner", settings: { styleMode: "reserve_frame", textAlignment: "center" } },
+      { type: "product_highlight", optional: true },
+      { type: "featured_collection", optional: true },
+      { type: "catalog_grid", settings: { styleMode: "reserve_gallery", columns: 2 } },
+      { type: "rich_text", optional: true },
+      { type: "footer_nav", settings: { styleMode: "editorial_grid" } },
+    ],
   },
   {
-    id: "boutique",
-    name: "Boutique",
-    tagline: "Inviting, community-focused, warm",
-    preview: "☕",
-    presetIds: ["club", "botanical", "liquid"],
+    id: "community_roastery",
+    name: "Community Roastery",
+    tagline: "Hangat, sosial, dan mudah didekati pelanggan lokal",
+    signature: "Papan komunitas + kartu modular yang ramah",
+    preview: "CR",
+    presetIds: ["club", "playful"],
     primaryPresetId: "club",
+    sectionRecipe: [
+      { type: "header_nav", settings: { styleMode: "glass_pill" } },
+      { type: "hero_banner", settings: { styleMode: "community_board", textAlignment: "left" } },
+      { type: "bento_showcase", optional: true },
+      { type: "catalog_grid", settings: { styleMode: "community_cards", columns: 3 } },
+      { type: "gallery", optional: true },
+      { type: "testimonials", optional: true },
+      { type: "contact_cta", optional: true },
+      { type: "footer_nav", settings: { styleMode: "minimal_centered" } },
+    ],
   },
 ];
 
-// Helper: get all valid preset IDs from the registry
 export function getAllPresetIds(): string[] {
-  return THEME_PRESETS.map((p) => p.id);
+  return THEME_PRESETS.map((preset) => preset.id);
 }
 
-// Helper: get preset by ID (for compatibility layer)
 export function getPresetById(presetId: string) {
-  return THEME_PRESETS.find((p) => p.id === presetId);
+  return THEME_PRESETS.find((preset) => preset.id === presetId);
 }
 
-// Helper: get curated family by ID
-export function getCuratedFamilyById(familyId: string): CuratedThemeFamily | undefined {
-  return CURATED_THEME_FAMILIES.find((f) => f.id === familyId);
+export function getCuratedFamilyById(familyId: string) {
+  return CURATED_THEME_FAMILIES.find((family) => family.id === familyId);
 }
 
-// Helper: get primary preset for a curated family
 export function getPrimaryPresetForFamily(familyId: string) {
   const family = getCuratedFamilyById(familyId);
-  if (!family) return null;
-  return getPresetById(family.primaryPresetId);
+  return family ? getPresetById(family.primaryPresetId) ?? null : null;
 }
 
-// Verify all preset IDs in curated families exist in THEME_PRESETS
 export function validateCuratedFamilies(): { valid: boolean; errors: string[] } {
-  const allPresetIds = new Set(getAllPresetIds());
+  const presetIds = new Set(getAllPresetIds());
   const errors: string[] = [];
-
   for (const family of CURATED_THEME_FAMILIES) {
-    if (!allPresetIds.has(family.primaryPresetId)) {
-      errors.push(`Family "${family.id}" references unknown primary preset "${family.primaryPresetId}"`);
-    }
+    if (!presetIds.has(family.primaryPresetId)) errors.push(`Family "${family.id}" references unknown primary preset "${family.primaryPresetId}"`);
     for (const presetId of family.presetIds) {
-      if (!allPresetIds.has(presetId)) {
-        errors.push(`Family "${family.id}" references unknown preset "${presetId}"`);
-      }
+      if (!presetIds.has(presetId)) errors.push(`Family "${family.id}" references unknown preset "${presetId}"`);
     }
   }
-
   return { valid: errors.length === 0, errors };
 }

@@ -15,14 +15,21 @@ interface HeroBannerProps {
 const ease = [0.22, 1, 0.36, 1] as const;
 
 export function HeroBannerSection({ settings, typography }: HeroBannerProps) {
-  const title = (settings.title as string) || "Welcome";
+  const title = (settings.title as string) || "Koleksi kopi";
   const subtitle = (settings.subtitle as string) || "";
   const imageUrl = settings.imageUrl as string | null;
   const buttonText = (settings.buttonText as string) || "";
   const buttonLink = (settings.buttonLink as string) || "#";
   const overlay = (settings.overlay as number) || 55;
   const textAlignment = (settings.textAlignment as string) || "left";
+  const styleMode = (settings.styleMode as string) || "catalog_split";
   const reduceMotion = useReducedMotion();
+  const isEditorial = styleMode === "editorial_masthead";
+  const isBrutalist = styleMode === "brutalist_poster";
+  const isReserve = styleMode === "reserve_frame";
+  const isCommunity = styleMode === "community_board";
+  const isFieldNotes = styleMode === "field_notes";
+  const centered = isEditorial || isReserve;
 
   // Split title on ". " or "\n" for two-line reveal
   const titleParts = title.split(/(?:\. |\n)/);
@@ -30,7 +37,11 @@ export function HeroBannerSection({ settings, typography }: HeroBannerProps) {
   const line2 = titleParts.slice(1).join(". ");
 
   return (
-    <section className="relative w-full min-h-[90vh] md:min-h-screen flex items-center overflow-hidden">
+    <section
+      data-hero-style={styleMode}
+      className={`relative flex w-full items-center overflow-hidden ${isEditorial ? "min-h-[74vh] border-y" : isBrutalist ? "min-h-[82vh] border-y-4" : isReserve ? "min-h-[88vh] p-3 sm:p-6" : isCommunity ? "min-h-[78vh]" : "min-h-[90vh] md:min-h-screen"}`}
+      style={{ borderColor: "var(--portal-border, transparent)" }}
+    >
       {/* Background atmosphere */}
       <div className="absolute inset-0 z-0">
         {imageUrl ? (
@@ -72,12 +83,17 @@ export function HeroBannerSection({ settings, typography }: HeroBannerProps) {
 
       {/* Content */}
       <div
-        className="relative z-10 w-full max-w-7xl mx-auto px-5 sm:px-8 lg:px-14 py-16 sm:py-28 md:py-36"
-        style={{ textAlign: textAlignment as any }}
+        className={`relative z-10 mx-auto w-full px-5 sm:px-8 lg:px-14 ${isEditorial ? "max-w-5xl py-24 md:py-32" : isReserve ? "max-w-6xl border py-20 md:py-28" : isBrutalist ? "max-w-none py-16 md:py-24" : "max-w-7xl py-16 sm:py-28 md:py-36"}`}
+        style={{ textAlign: (centered ? "center" : textAlignment) as any, borderColor: "var(--portal-border, transparent)" }}
       >
-        <div className={`grid grid-cols-1 ${imageUrl ? "lg:grid-cols-[minmax(0,.8fr)_minmax(400px,1.2fr)]" : ""} gap-8 sm:gap-12 lg:gap-20 items-center`}>
+        <div className={`grid grid-cols-1 items-center gap-8 sm:gap-12 lg:gap-20 ${imageUrl && !centered ? "lg:grid-cols-[minmax(0,.8fr)_minmax(400px,1.2fr)]" : ""}`}>
           {/* Text Column */}
           <div className="space-y-6 sm:space-y-8">
+            {(isFieldNotes || isBrutalist || isEditorial || isReserve || isCommunity) && (
+              <p className={`text-[10px] font-bold uppercase tracking-[0.28em] ${isBrutalist ? "inline-block border-2 px-3 py-2" : ""}`} style={{ color: imageUrl ? "rgba(255,255,255,.72)" : "var(--portal-text-muted)" }}>
+                {isFieldNotes ? "Origin field notes" : isBrutalist ? "Roastery release" : isEditorial ? "Roastery journal" : isReserve ? "Selected release" : "From the roastery"}
+              </p>
+            )}
             {/* Decorative line */}
             <motion.div
               initial={reduceMotion ? false : { width: 0 }}
@@ -89,7 +105,7 @@ export function HeroBannerSection({ settings, typography }: HeroBannerProps) {
 
             {/* Title — text reveal animation matching landing page */}
             <h1
-              className="text-[clamp(2.2rem,4.5vw,4rem)] font-black leading-[0.92] tracking-[-0.058em]"
+              className={`${isEditorial ? "text-[clamp(3.4rem,9vw,8rem)] font-medium leading-[.82] tracking-[-.07em]" : isBrutalist ? "text-[clamp(3rem,8vw,7rem)] font-black uppercase leading-[.82] tracking-[-.07em]" : isReserve ? "text-[clamp(2.8rem,6vw,5.8rem)] font-medium leading-[.92] tracking-[-.045em]" : "text-[clamp(2.2rem,4.5vw,4rem)] font-black leading-[0.92] tracking-[-0.058em]"}`}
               style={{
                 color: imageUrl ? "#fff" : "var(--portal-text, #F8FAFC)",
                 fontFamily: typography?.font || "var(--portal-font-heading)",
@@ -158,40 +174,17 @@ export function HeroBannerSection({ settings, typography }: HeroBannerProps) {
               </motion.div>
             )}
 
-            {/* Mobile trust badges */}
-            {imageUrl && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.42 }}
-                className="grid grid-cols-3 gap-2 pt-2 lg:hidden"
-              >
-                {[
-                  { label: "Origin", value: "Traceable" },
-                  { label: "Roast", value: "Profiled" },
-                  { label: "Supply", value: "Reliable" },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-md"
-                  >
-                    <p className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/60">{item.label}</p>
-                    <p className="mt-1 text-xs font-semibold text-white">{item.value}</p>
-                  </div>
-                ))}
-              </motion.div>
-            )}
           </div>
 
           {/* Hero Image */}
-          {imageUrl && (
+          {imageUrl && !centered && (
             <motion.div
               initial={reduceMotion ? false : { opacity: 0, scale: 0.95, x: 40 }}
               animate={reduceMotion ? undefined : { opacity: 1, scale: 1, x: 0 }}
               transition={{ duration: 1.2, delay: 0.3, ease }}
               className="hidden lg:block"
             >
-              <div className="relative min-h-[440px] overflow-hidden rounded-2xl border border-white/10 bg-black/10">
+              <div className={`relative min-h-[440px] overflow-hidden border border-white/10 bg-black/10 ${isBrutalist ? "rounded-none border-4" : isCommunity ? "rotate-2 rounded-[2rem]" : "rounded-2xl"}`}>
                 <img
                   src={imageUrl}
                   alt=""

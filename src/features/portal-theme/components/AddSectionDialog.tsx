@@ -12,7 +12,12 @@ import {
   Phone, HelpCircle, X,
 } from "lucide-react";
 import { useCustomizerStore } from "../client/store";
-import { SECTION_REGISTRY, getSectionCategories } from "../registry";
+import {
+  PUBLIC_SECTION_REGISTRY,
+  getSectionCategories,
+  getSectionsForArea,
+} from "../registry";
+import type { PortalSectionArea } from "../types";
 import { QUICK_FILL_PRESETS } from "../defaults/quick-fill-presets";
 
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
@@ -32,29 +37,21 @@ const CATEGORY_LABELS: Record<string, string> = {
 interface AddSectionDialogProps {
   open: boolean;
   onClose: () => void;
-  allowedTypes?: string[]; // When provided, only show these section types
+  area?: PortalSectionArea;
 }
 
-export function AddSectionDialog({ open, onClose, allowedTypes }: AddSectionDialogProps) {
+export function AddSectionDialog({ open, onClose, area }: AddSectionDialogProps) {
   const addSection = useCustomizerStore((s) => s.addSection);
   const [activeCategory, setActiveCategory] = useState<string>("content");
+  const categories = getSectionCategories();
+  const filteredSections = useMemo(() => {
+    if (area) return getSectionsForArea(area, { addableOnly: true });
+    return PUBLIC_SECTION_REGISTRY.filter((section) => section.category === activeCategory);
+  }, [activeCategory, area]);
+
+  const showCategoryTabs = !area;
 
   if (!open) return null;
-
-const categories = getSectionCategories();
-// Filter sections by allowedTypes if provided, otherwise by category
-  const filteredSections = useMemo(() => {
-    let base = SECTION_REGISTRY;
-    if (allowedTypes && allowedTypes.length > 0) {
-      base = base.filter((s) => allowedTypes.includes(s.type));
-    } else {
-      base = base.filter((s) => s.category === activeCategory);
-    }
-    return base;
-  }, [activeCategory, allowedTypes]);
-
-  // When allowedTypes is provided, we don't need category tabs
-  const showCategoryTabs = !allowedTypes || allowedTypes.length === 0;
 
   function handleAdd(type: string) {
     addSection(type);
@@ -102,6 +99,7 @@ const categories = getSectionCategories();
                 return (
                   <button
                     key={section.type}
+                    data-section-type={section.type}
                     onClick={() => handleAdd(section.type)}
                     className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 text-center transition-all hover:border-blue-400 hover:bg-blue-50 hover:shadow-sm relative group"
                   >
@@ -134,6 +132,7 @@ const categories = getSectionCategories();
               return (
                 <button
                   key={section.type}
+                  data-section-type={section.type}
                   onClick={() => handleAdd(section.type)}
                   className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 text-center transition-all hover:border-blue-400 hover:bg-blue-50 hover:shadow-sm relative group"
                 >

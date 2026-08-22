@@ -14,8 +14,8 @@ interface HeaderNavProps {
 export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPreview = false }: HeaderNavProps) {
   const styleMode = (settings.styleMode as string) || "glass_pill";
   const logoText = (settings.logoText as string) || "Nama Toko";
-  const tickerText = (settings.tickerText as string) || "🚀 GRATIS PENGIRIMAN NASIONAL UNTUK ORDER DI ATAS 5KG • JADWAL SANGRAI: SELASA & KAMIS";
-  const ctaText = (settings.ctaText as string) || "Keranjang Grosir";
+  const tickerText = typeof settings.tickerText === "string" ? settings.tickerText : "";
+  const ctaText = (settings.ctaText as string) || "Keranjang";
   
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -29,8 +29,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
 
   const defaultNavLinks = Array.isArray(settings.navLinks) ? settings.navLinks : [
     { label: "Koleksi", href: "#catalog" },
-    { label: "Matriks Rasa", href: "#matrix" },
-    { label: "Cerita", href: "#narrative" },
+    { label: "Tentang", href: "#about" },
     { label: "FAQ", href: "#faq" },
   ];
 
@@ -160,9 +159,6 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
                     <ShoppingBag size={18} />
                     <span>Lihat Keranjang ({cartItemCount})</span>
                   </button>
-                  <p className="text-xs text-white/40 text-center uppercase tracking-widest">
-                    Portal Grosir B2B
-                  </p>
                 </div>
               </motion.div>
             </div>
@@ -370,7 +366,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
             </a>
             <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded bg-[#00FF66]/10 border border-[#00FF66]/30 text-xs text-[#00FF66]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#00FF66] animate-ping" />
-              <span>SYS.ONLINE // TELEMETRY: ACTIVE</span>
+              <span>NAVIGATION // ACTIVE</span>
             </div>
           </div>
 
@@ -423,7 +419,7 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
                 </div>
                 <div className="py-8 space-y-5">
                   <div className="px-3 py-2 rounded bg-[#00FF66]/10 border border-[#00FF66]/30 text-xs mb-6">
-                    ⚡ STATUS: ROAST MATRIX ONLINE
+                    NAVIGATION INDEX
                   </div>
                   {navLinks.map((link, idx) => (
                     <a

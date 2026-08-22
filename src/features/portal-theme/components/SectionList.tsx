@@ -22,7 +22,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Eye, EyeOff, Copy, Trash2, Plus } from "lucide-react";
 import { useCustomizerStore } from "../client/store";
-import { getSectionDefinition, SECTION_REGISTRY } from "../registry";
+import { getSectionDefinition, sectionTypeMatchesGroup } from "../registry";
 
 // ── Sortable Item ───────────────────────────────────────────────────────────
 
@@ -114,16 +114,12 @@ function SortableSectionItem({ sectionId }: { sectionId: string }) {
 
 interface SectionListProps {
   onAddSection: () => void;
-  filterTypes?: string[];
+  filterTypes?: readonly string[];
 }
 
 export function SectionList({ onAddSection, filterTypes }: SectionListProps) {
   const sections = useCustomizerStore((s) => s.workingDraft.sections);
   const reorderSections = useCustomizerStore((s) => s.reorderSections);
-  const allDefinitions = SECTION_REGISTRY;
-  const filteredDefinitions = filterTypes
-    ? allDefinitions.filter((d) => filterTypes.includes(d.type))
-    : allDefinitions;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -142,7 +138,7 @@ export function SectionList({ onAddSection, filterTypes }: SectionListProps) {
   }
 
   const displaySections = filterTypes
-    ? sections.filter((s) => filterTypes.includes(s.type))
+    ? sections.filter((s) => sectionTypeMatchesGroup(s.type, filterTypes))
     : sections;
 
   return (

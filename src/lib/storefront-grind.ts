@@ -75,7 +75,20 @@ export type StorefrontOffering = {
   roastLevel: string | null;
   grindOptions: StorefrontGrindSize[];
   allowCustomGrind: boolean;
-  coffeeSource: { name: string } | null;
+  coffeeSource: {
+    name: string;
+    country?: string | null;
+    region?: string | null;
+    farm?: string | null;
+    species?: string | null;
+    varietal?: string | null;
+    processMethod?: string | null;
+    fermentationMethod?: string | null;
+    elevation?: string | null;
+    cropYear?: string | null;
+    certifications?: string[];
+    tastingNotes?: string | null;
+  } | null;
   lineageProductId?: string | null;
   availableKg?: number | null;
   unavailableReason?: string | null;

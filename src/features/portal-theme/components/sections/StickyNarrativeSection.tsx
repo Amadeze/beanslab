@@ -15,67 +15,26 @@ interface StickyNarrativeProps {
   blocks: any[];
 }
 
-const DEFAULT_STEPS = [
-  {
-    id: "step-1",
-    stepNumber: "01",
-    title: "Pemilihan Sumber Asal Langsung & Ketinggian",
-    subtitle: "Micro-Lot Ketinggian Tinggi",
-    content: "Kami bermitra langsung dengan kolektiv petani di atas 1.500m di Ethiopia, Sumatra, dan Kolombia. Setiap lot dipilih secara selektif saat puncak kandungan gula Brix untuk memastikan manisami alami dan keseimbangan keasaman yang sempurna.",
-    image: "",
-    icon: "Globe",
-    tag: "100% Telusur"
-  },
-  {
-    id: "step-2",
-    stepNumber: "02",
-    title: "Proses Anaerobic & Thermal Shock",
-    subtitle: "Fermentasi Presisi",
-    content: "Fasilitas pemrosesan eksperimental kami menggunakan bioreaktor stainless steel yang dikontrol suhu. Dengan memanipulasi galur ragi dan kurva fermentasi, kami membuka ester buah eksotik dan mulut yang lembut tanpa fermentasi berlebih.",
-    image: "",
-    icon: "Cpu",
-    tag: "Pemenang SCA"
-  },
-  {
-    id: "step-3",
-    stepNumber: "03",
-    title: "Sangrai Loring Tertutup & Kalibrasi",
-    subtitle: "Zero Smoke • 100% Konsistensi",
-    content: "Disangrai menggunakan Loring S15 dan Probat UG22 terkini dengan profil AI Cropster. Pemanasan konveksi tertutup kami menjamin transfer panas yang identik di setiap batch 50kg, menghilangkan scorching dan tipping.",
-    image: "",
-    icon: "Flame",
-    tag: "Terverifikasi Per Batch"
-  },
-  {
-    id: "step-4",
-    stepNumber: "04",
-    title: "Pengiriman Grosir Flush Nitrogen",
-    subtitle: "Kesegaran Terkunci hingga 90 Hari",
-    content: "Dalam 24 jam setelah istirahat, biji disegel dalam kantong degassing satu arah yang diisi nitrogen cair food-grade. Ini menghentikan oksidasi, memungkinkan mitra grosir di luar negeri menyajikan kopi pada kesegaran puncak hingga 3 bulan pasca sangrai.",
-    image: "",
-    icon: "ShieldCheck",
-    tag: "Pengiriman Global"
-  }
-];
-
 export function StickyNarrativeSection({ settings, blocks }: StickyNarrativeProps) {
-  const title = (settings.title as string) || "Narasi Keterampilan & Alkemi";
-  const subtitle = (settings.subtitle as string) || "Bagaimana kami mengubah ceri ketinggian tinggi menjadi profil espresso grosir kelas dunia.";
-  const pinnedTitle = (settings.pinnedTitle as string) || "Roastd.id Studio";
-  const pinnedSubtitle = (settings.pinnedSubtitle as string) || "Protokol Kualitas B2B";
+  const title = (settings.title as string) || "";
+  const subtitle = (settings.subtitle as string) || "";
+  const pinnedTitle = (settings.pinnedTitle as string) || "Proses kami";
+  const pinnedSubtitle = (settings.pinnedSubtitle as string) || "";
 
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const visibleBlocks = blocks.filter((b) => b.visible !== false);
-  const displaySteps = visibleBlocks.length > 0 ? visibleBlocks.map((b, i) => ({
+  const displaySteps = visibleBlocks.map((b, i) => ({
     id: b.id || `step-${i}`,
     stepNumber: `0${i + 1}`.slice(-2),
     title: b.settings?.title as string || `Step ${i + 1}`,
     subtitle: b.settings?.subtitle as string || "",
     content: b.settings?.content as string || "",
-    image: b.settings?.imageUrl as string || DEFAULT_STEPS[i % DEFAULT_STEPS.length].image,
+    image: b.settings?.imageUrl as string || "",
     icon: b.settings?.icon as string || "CheckCircle2",
-    tag: b.settings?.tag as string || "Verified"
-  })) : DEFAULT_STEPS;
+    tag: b.settings?.tag as string || ""
+  }));
+
+  if (displaySteps.length === 0) return null;
 
   const currentStep = displaySteps[activeStepIndex] || displaySteps[0];
 
@@ -122,8 +81,11 @@ export function StickyNarrativeSection({ settings, blocks }: StickyNarrativeProp
 
               {/* Top Pill */}
               <div className="absolute top-4 left-4 right-4 sm:top-6 sm:left-6 sm:right-6 flex items-center justify-between gap-2 sm:gap-3 z-10">
-                <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl bg-black/60 backdrop-blur-md border border-white/20 text-xs sm:text-xs font-extrabold uppercase tracking-wider text-white">
-                  {pinnedTitle}
+                <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl bg-black/60 backdrop-blur-md border border-white/20 text-white">
+                  <span className="block text-xs font-extrabold uppercase tracking-wider">{pinnedTitle}</span>
+                  {pinnedSubtitle && (
+                    <span className="mt-0.5 block text-[10px] text-white/60">{pinnedSubtitle}</span>
+                  )}
                 </div>
                 <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl bg-[var(--portal-accent,#D4A574)] text-black text-xs sm:text-xs font-black uppercase tracking-widest shadow-lg">
                   {currentStep.stepNumber} / {displaySteps.length < 10 ? `0${displaySteps.length}` : displaySteps.length}

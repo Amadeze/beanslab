@@ -337,7 +337,7 @@ export const QUICK_FILL_PRESETS: Record<string, QuickFillPreset[]> = {
   ],
 
   // ── Wholesale Radar & Contract Simulator ────────────────────────────────────
-  wholesale_radar: [
+  roast_matrix: [
     {
       id: "radar_commercial_cafe",
       label: "☕ Commercial Cafe Setup",
@@ -396,7 +396,7 @@ export const QUICK_FILL_PRESETS: Record<string, QuickFillPreset[]> = {
   ],
 
   // ── Kinetic Marquee Ticker ──────────────────────────────────────────────────
-  kinetic_marquee: [
+  marquee_kinetic: [
     {
       id: "marquee_cyber_neon",
       label: "⚡ Cyber Neon Ticker",

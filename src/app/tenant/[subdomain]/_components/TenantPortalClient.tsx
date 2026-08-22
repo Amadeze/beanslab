@@ -4,7 +4,6 @@ import { Tenant, Product } from "@prisma/client";
 import { useCartStore } from "../_store/cartStore";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { ThemeEngine } from "./themes/ThemeEngine";
 import { UniversalTheme } from "./themes/UniversalTheme";
 import {
   offeringLineId,
@@ -339,9 +338,5 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
     taxRate,
   };
 
-  return (
-    <ThemeEngine tenant={tenant}>
-      <UniversalTheme {...themeProps} />
-    </ThemeEngine>
-  );
+  return <UniversalTheme {...themeProps} />;
 }

@@ -14,7 +14,6 @@ const ease = [0.22, 1, 0.36, 1] as const;
 
 export function FaqSection({ settings, blocks, typography }: FaqProps) {
   const title = (settings.title as string) || "FAQ";
-  const layout = (settings.layout as string) || "accordion";
   const [openId, setOpenId] = useState<string | null>(null);
 
   const visibleBlocks = blocks.filter((b) => b.type === "question" && b.visible !== false);

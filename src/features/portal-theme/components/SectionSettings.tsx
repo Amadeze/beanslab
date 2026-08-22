@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { useCustomizerStore } from "../client/store";
-import { getSectionDefinition } from "../registry";
+import { getSectionDefinition, resolveSectionType } from "../registry";
 import { QUICK_FILL_PRESETS } from "../defaults/quick-fill-presets";
 import { ImagePicker } from "./ui/ImagePicker";
 import { GradientBuilder } from "./ui/GradientBuilder";
@@ -394,10 +394,18 @@ function renderContentFields(
 ) {
   const s = section.settings;
 
-  switch (section.type) {
+  switch (resolveSectionType(section.type)) {
     case "hero_banner":
       return (
         <>
+          <Field label="Hero Layout"><SelectInput value={(s.styleMode as string) || "catalog_split"} onChange={(v) => update(section.id, { styleMode: v })} options={[
+            { value: "catalog_split", label: "Catalog Split" },
+            { value: "editorial_masthead", label: "Editorial Masthead" },
+            { value: "field_notes", label: "Origin Field Notes" },
+            { value: "brutalist_poster", label: "Brutalist Poster" },
+            { value: "reserve_frame", label: "Reserve Frame" },
+            { value: "community_board", label: "Community Board" },
+          ]} /></Field>
           <Field label="Title"><TextInput value={(s.title as string) || ""} onChange={(v) => update(section.id, { title: v })} /></Field>
           <Field label="Subtitle"><TextArea value={(s.subtitle as string) || ""} onChange={(v) => update(section.id, { subtitle: v })} rows={2} /></Field>
           <Field label="Button Text"><TextInput value={(s.buttonText as string) || ""} onChange={(v) => update(section.id, { buttonText: v })} /></Field>
@@ -418,6 +426,14 @@ function renderContentFields(
     case "catalog_grid":
       return (
         <>
+          <Field label="Catalog Layout"><SelectInput value={(s.styleMode as string) || "clean_grid"} onChange={(v) => update(section.id, { styleMode: v })} options={[
+            { value: "clean_grid", label: "Clean Grid" },
+            { value: "editorial_list", label: "Editorial List" },
+            { value: "field_cards", label: "Traceability Cards" },
+            { value: "brutalist_grid", label: "Brutalist Grid" },
+            { value: "reserve_gallery", label: "Reserve Gallery" },
+            { value: "community_cards", label: "Community Cards" },
+          ]} /></Field>
           <Field label="Title"><TextInput value={(s.title as string) || ""} onChange={(v) => update(section.id, { title: v })} /></Field>
           <Field label="Subtitle"><TextInput value={(s.subtitle as string) || ""} onChange={(v) => update(section.id, { subtitle: v })} /></Field>
           <Field label="Columns"><NumberInput value={(s.columns as number) || 3} onChange={(v) => update(section.id, { columns: v })} min={1} max={6} /></Field>
@@ -430,14 +446,17 @@ function renderContentFields(
           <Field label="Title"><TextInput value={(s.title as string) || ""} onChange={(v) => update(section.id, { title: v })} /></Field>
           <Field label="Text"><TextArea value={(s.text as string) || ""} onChange={(v) => update(section.id, { text: v })} rows={4} /></Field>
           <Field label="Image Position"><SelectInput value={(s.alignment as string) || "left"} onChange={(v) => update(section.id, { alignment: v })} options={[{ value: "left", label: "Left" }, { value: "right", label: "Right" }]} /></Field>
+          <Field label="Image Ratio"><SelectInput value={(s.aspectRatio as string) || "16/9"} onChange={(v) => update(section.id, { aspectRatio: v })} options={[{ value: "1/1", label: "Square" }, { value: "4/3", label: "4:3" }, { value: "16/9", label: "16:9" }]} /></Field>
         </>
       );
     case "countdown":
       return (
         <>
           <Field label="Title"><TextInput value={(s.title as string) || ""} onChange={(v) => update(section.id, { title: v })} /></Field>
+          <Field label="Subtitle"><TextInput value={(s.subtitle as string) || ""} onChange={(v) => update(section.id, { subtitle: v })} /></Field>
           <Field label="Target Date"><input type="datetime-local" value={(s.targetDate as string) || ""} onChange={(e) => update(section.id, { targetDate: e.target.value })} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm" /></Field>
           <Field label="Expired Text"><TextInput value={(s.expiredText as string) || ""} onChange={(v) => update(section.id, { expiredText: v })} /></Field>
+          <Field label="Timer Style"><SelectInput value={(s.style as string) || "boxes"} onChange={(v) => update(section.id, { style: v })} options={[{ value: "boxes", label: "Boxes" }, { value: "inline", label: "Inline" }]} /></Field>
         </>
       );
     case "gallery":
@@ -445,6 +464,14 @@ function renderContentFields(
         <>
           <Field label="Columns"><NumberInput value={(s.columns as number) || 3} onChange={(v) => update(section.id, { columns: v })} min={2} max={6} /></Field>
           <Field label="Aspect Ratio"><SelectInput value={(s.aspectRatio as string) || "1/1"} onChange={(v) => update(section.id, { aspectRatio: v })} options={[{ value: "1/1", label: "Square" }, { value: "4/3", label: "4:3" }, { value: "16/9", label: "16:9" }]} /></Field>
+        </>
+      );
+    case "video_embed":
+      return (
+        <>
+          <Field label="Video URL"><TextInput value={(s.videoUrl as string) || ""} onChange={(v) => update(section.id, { videoUrl: v })} /></Field>
+          <Field label="Poster Image"><ImagePicker value={(s.posterUrl as string) || ""} onChange={(v) => update(section.id, { posterUrl: v })} /></Field>
+          <Field label="Aspect Ratio"><SelectInput value={(s.aspectRatio as string) || "16/9"} onChange={(v) => update(section.id, { aspectRatio: v })} options={[{ value: "1/1", label: "Square" }, { value: "4/3", label: "4:3" }, { value: "16/9", label: "16:9" }]} /></Field>
         </>
       );
     case "bento_showcase":
@@ -482,6 +509,7 @@ function renderContentFields(
     case "marquee_kinetic":
       return (
         <>
+          <Field label="Ticker Text"><TextInput value={(s.title as string) || ""} onChange={(v) => update(section.id, { title: v })} /></Field>
           <Field label="Scroll Speed (Sec for loop)"><NumberInput value={(s.speed as number) || 30} onChange={(v) => update(section.id, { speed: v })} min={5} max={120} /></Field>
           <Field label="Style Mode"><SelectInput value={(s.styleMode as string) || "outline"} onChange={(v) => update(section.id, { styleMode: v })} options={[{ value: "outline", label: "Kinetic Outline Stroke" }, { value: "solid", label: "Solid White/Hover" }, { value: "neon", label: "Neon Glow" }, { value: "brutalist", label: "High Contrast Brutalist" }]} /></Field>
           <Field label="Direction"><SelectInput value={(s.direction as string) || "left"} onChange={(v) => update(section.id, { direction: v })} options={[{ value: "left", label: "Scroll Left ⬅️" }, { value: "right", label: "Scroll Right ➡️" }]} /></Field>
@@ -503,9 +531,9 @@ function renderContentFields(
               ]} 
             />
           </Field>
-          <Field label="Brand / Logo Text"><TextInput value={(s.logoText as string) || "ROASTD.ID"} onChange={(v) => update(section.id, { logoText: v })} /></Field>
-          <Field label="Announcement / Ticker Text"><TextInput value={(s.tickerText as string) || "🚀 FREE NATIONWIDE SHIPPING ON ORDERS OVER 5KG • WEEKLY ROASTING SCHEDULE: TUE & THU"} onChange={(v) => update(section.id, { tickerText: v })} /></Field>
-          <Field label="CTA Button Label"><TextInput value={(s.ctaText as string) || "Wholesale Cart"} onChange={(v) => update(section.id, { ctaText: v })} /></Field>
+          <Field label="Brand / Logo Text"><TextInput value={(s.logoText as string) || "Nama roastery"} onChange={(v) => update(section.id, { logoText: v })} /></Field>
+          <Field label="Announcement / Ticker Text"><TextInput value={(s.tickerText as string) || ""} onChange={(v) => update(section.id, { tickerText: v })} placeholder="Kosongkan bila tidak ada pengumuman" /></Field>
+          <Field label="CTA Button Label"><TextInput value={(s.ctaText as string) || "Keranjang"} onChange={(v) => update(section.id, { ctaText: v })} /></Field>
         </>
       );
     case "footer_nav":
@@ -519,13 +547,12 @@ function renderContentFields(
                 { value: "editorial_grid", label: "✨ Luxury 4-Column Editorial Grid" },
                 { value: "brutalist_mono", label: "⬛ Brutalist High-Contrast (Giant Typography)" },
                 { value: "minimal_centered", label: "🌿 Clean Centered Minimalist Capsule" },
-                { value: "cyber_terminal", label: "⚡ Terminal System Status Footer" },
               ]} 
             />
           </Field>
-          <Field label="Brand / Logo Text"><TextInput value={(s.logoText as string) || "ROASTD.ID"} onChange={(v) => update(section.id, { logoText: v })} /></Field>
-          <Field label="Footer Description / Bio"><TextArea value={(s.bioText as string) || "Empowering specialty coffee roasters and B2B cafe partners with precision telemetry, micro-batch profiling, and direct-trade sourcing."} onChange={(v) => update(section.id, { bioText: v })} rows={3} /></Field>
-          <Field label="Copyright Notice"><TextInput value={(s.copyrightText as string) || "© 2026 ROASTD.ID • Roastery Operating System. All rights reserved."} onChange={(v) => update(section.id, { copyrightText: v })} /></Field>
+          <Field label="Brand / Logo Text"><TextInput value={(s.logoText as string) || "Nama roastery"} onChange={(v) => update(section.id, { logoText: v })} /></Field>
+          <Field label="Footer Description / Bio"><TextArea value={(s.bioText as string) || ""} onChange={(v) => update(section.id, { bioText: v })} rows={3} /></Field>
+          <Field label="Copyright Notice"><TextInput value={(s.copyrightText as string) || "Hak cipta roastery Anda."} onChange={(v) => update(section.id, { copyrightText: v })} /></Field>
         </>
       );
     default:
