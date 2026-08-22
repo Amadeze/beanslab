@@ -47,7 +47,7 @@ export default function BillingClient({ tenant }: { tenant: BillingTenant }) {
       if (window.snap) {
         window.snap.pay(data.token, {
           onSuccess: function () {
-            toast.success("Pembayaran berhasil! Mengupdate akun Anda...");
+            toast.success("Pembayaran berhasil. Akun sedang diperbarui...");
             setTimeout(() => window.location.reload(), 2000);
           },
           onPending: function () {

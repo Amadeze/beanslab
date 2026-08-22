@@ -3,5 +3,5 @@
 import { RouteErrorState } from "@/components/RouteErrorState";
 
 export default function InventoryError({ error, unstable_retry }: { error: Error & { digest?: string }; unstable_retry: () => void; }) {
-  return <RouteErrorState error={error} unstable_retry={unstable_retry} homeHref="/dashboard" homeLabel="Kembali ke Dashboard" />;
+  return <RouteErrorState error={error} unstable_retry={unstable_retry} homeHref="/dashboard" homeLabel="Kembali ke Ringkasan" />;
 }

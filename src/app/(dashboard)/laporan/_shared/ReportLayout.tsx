@@ -59,7 +59,7 @@ interface TabConfig {
 
 const SUPER_TABS: TabConfig[] = [
   { id: "keuangan", label: "Keuangan", icon: BadgeDollarSign, href: "/laporan/keuangan" },
-  { id: "inventory", label: "Inventory", icon: Package, href: "/laporan/inventory" },
+  { id: "inventory", label: "Persediaan", icon: Package, href: "/laporan/inventory" },
   { id: "analisa/alur-kopi", label: "Analisa", icon: ChartPie, href: "/laporan/analisa/alur-kopi" },
   { id: "akuntansi", label: "Akuntansi", icon: BookOpen, href: "/laporan/akuntansi" },
   { id: "daily", label: "Harian", icon: Calendar, href: "/laporan/daily" },
@@ -135,7 +135,7 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
               Report Center
             </p>
             <h1 className="mt-0.5 font-heading text-lg font-bold tracking-[-0.035em] text-white">
-              {title || currentMain?.label || "Report"}
+              {title || currentMain?.label || "Laporan"}
             </h1>
           </div>
           {actions && <div className="flex items-center gap-2">{actions}</div>}

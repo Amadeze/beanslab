@@ -223,7 +223,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
       const data = await res.json();
       if (data.success) {
         setValue("imageUrl", data.url);
-        toast.success("Foto produk berhasil diupload!");
+        toast.success("Foto produk berhasil diunggah.");
       } else {
         throw new Error(data.error);
       }

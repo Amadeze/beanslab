@@ -8,7 +8,7 @@ Branch: `wip/non-kopi-commit3`
 |---|---|
 | 2F Finance | ✅ CLOSED |
 | 2G Reporting & Analytics | ✅ CLOSED |
-| 2H Storefront / B2B Portal | 🟡 IN PROGRESS |
+| 2H Storefront / B2B Portal | ✅ IMPLEMENTATION COMPLETE LOCALLY |
 
 ## 2H Storefront / B2B Portal — Batch Status
 
@@ -24,7 +24,8 @@ Branch: `wip/non-kopi-commit3`
 | Batch 6 | Theme / Customizer | ✅ CLOSED + PUSHED |
 | Batch 6.5 | Storefront theme architecture cleanup | ✅ COMMITTED LOCALLY (`c0a1f78`) |
 | Batch 7 | SEO / Perf / A11y | ✅ COMMITTED LOCALLY (`2fe5b7f`) |
-| Batch 8 | B2B | 🟢 IMPLEMENTED — READY TO COMMIT |
+| Batch 8 | B2B | ✅ COMMITTED LOCALLY (`06bb4cc`) |
+| Final Product Coherence | Cross-app IA, terminology, states, and workflow consistency | 🟢 IMPLEMENTED — READY TO COMMIT |
 
 ## Batch 3 — Delivered Scope
 
@@ -159,6 +160,20 @@ Branch: `wip/non-kopi-commit3`
 - Strict order-wide MOQ: existing `minOrderQty` is a price-break threshold; no separate hard-MOQ policy exists
 - Customer password/OTP accounts: partner access intentionally uses revocable-by-contract signed links
 
+## Final Product Coherence — Delivered Scope
+
+- Primary sidebar consolidated from duplicated feature links into five task contexts: Hari ini, Operasional, Komersial, Kontrol, and Kelola
+- Workspace subroutes remain available through contextual navigation; persisted URLs and legacy redirects are unchanged
+- Deep routes now keep the correct primary workspace active (Gudang → Pasokan, Cupping → Roastery, Grinding/Eksperimen → Produksi, sales children → Penjualan, audit/billing → Pengaturan)
+- Role-aware navigation remains intact, including operator production access, cashier sales access, Basic accounting/insight access, and Advanced Reports gating
+- Mobile operator dock now prioritizes Dashboard, Pasokan, Roastery, and Produksi instead of leaving a missing cashier slot
+- Settings navigation and settings cards derive from one registry with matching labels, descriptions, roles, and destinations
+- Missing settings entry points for storefront appearance, commerce/shipping, and Artisan integration are visible in the appropriate role context
+- Sales-channel labels use one canonical mapping and include STOREFRONT/B2B without raw enum leakage
+- Key empty and error states use shared actionable language; technical/internal model wording is removed from the audited surfaces
+- Cross-app terminology normalized to Indonesian operator language for storefront, payment review, fulfillment, reports, uploads, integrations, and inventory guidance
+- No schema migration and no commerce, inventory, production, finance, tenant-isolation, or accounting behavior changes
+
 ## Migration State
 
 Active local migration chain after Batch 8:
@@ -285,3 +300,16 @@ Migration 003-005 deployment status must be verified against the target environm
 | `next build --webpack` | PASS |
 | Migration 005 fresh deploy/diff | DEFERRED — local database credentials unavailable |
 | DB-backed checkout/catalog integration | SKIPPED by existing integration gate; local database credentials unavailable |
+
+## Validation Evidence (Final Product Coherence)
+
+| Gate | Result |
+|---|---|
+| `prisma validate` | PASS |
+| `prisma generate` | PASS |
+| `typecheck` | PASS |
+| `eslint --quiet` | PASS |
+| Focused navigation/settings/sales regression | 22/22 PASS |
+| Full unit suite | 1024 passed, 0 failed, 315 skipped |
+| `next build --webpack` | PASS (68 static pages generated) |
+| Schema/migration change | NONE |

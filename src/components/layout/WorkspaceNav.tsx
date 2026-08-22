@@ -73,12 +73,12 @@ const WORKSPACES = {
     { label: "Cupping", href: "/cupping", icon: FlaskConical },
   ],
   sales: [
-    { label: "Invoice & pesanan", href: "/penjualan", icon: ReceiptText },
-    { label: "Fulfillment", href: "/penjualan/fulfillment", icon: PackageCheck },
-    { label: "Review bukti bayar", href: "/penjualan/pembayaran", icon: BadgeCheck },
+    { label: "Nota & pesanan", href: "/penjualan", icon: ReceiptText },
+    { label: "Pemenuhan pesanan", href: "/penjualan/fulfillment", icon: PackageCheck },
+    { label: "Bukti pembayaran", href: "/penjualan/pembayaran", icon: BadgeCheck },
     { label: "Kasir", href: "/kasir", icon: ShoppingCart },
     { label: "Pelanggan", href: "/penjualan/pelanggan", icon: Users },
-    { label: "Kontrak OEM", href: "/penjualan/kontrak", icon: FileSignature },
+    { label: "Kontrak B2B", href: "/penjualan/kontrak", icon: FileSignature },
   ],
 } as const;
 

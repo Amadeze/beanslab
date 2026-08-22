@@ -397,7 +397,7 @@ export function RoastProfileClient({
           if (!isLevelSubmitting) setLevelDrawerOpen(open);
         }}
         title="Tambah Level Roasting"
-        description="Buat label level roasting custom untuk tenant ini."
+        description="Buat label level roasting khusus untuk roastery ini."
         size="sm"
         submitButton={
           <Button

@@ -21,7 +21,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   cupping: "Cupping",
   kasir: "Kasir",
   penjualan: "Penjualan",
-  fulfillment: "Fulfillment",
+  fulfillment: "Pemenuhan Pesanan",
   kontrak: "Kontrak OEM",
   pembayaran: "Bukti Bayar",
   pelanggan: "Pelanggan",
@@ -44,7 +44,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   "laba-ditahan": "Laba Ditahan",
   "neraca-lajur": "Neraca Lajur",
   "perubahan-ekuitas": "Perubahan Ekuitas",
-  integrity: "Integrity",
+  integrity: "Integritas Data",
   "ai-insights": "Insight Assistant",
   settings: "Pengaturan",
   organization: "Organisasi",
@@ -53,9 +53,9 @@ const SEGMENT_LABELS: Record<string, string> = {
   notifications: "Notifikasi",
   payments: "Pembayaran",
   commerce: "Toko & Pengiriman",
-  "portal-customizer": "Portal",
+  "portal-customizer": "Tampilan Storefront",
   integrations: "Integrasi",
-  import: "Import",
+  import: "Impor",
   studio: "Roastd Studio",
   "portal-preview": "Pratinjau Portal",
   audit: "Aktivitas & Audit",
@@ -63,7 +63,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 };
 
 const CONTEXT_LABELS: Array<{ segment: string; parent: string; label: string }> = [
-  { segment: "inventory", parent: "/laporan", label: "Inventory" },
+  { segment: "inventory", parent: "/laporan", label: "Persediaan" },
   { segment: "keuangan", parent: "/laporan", label: "Laporan Keuangan" },
 ];
 

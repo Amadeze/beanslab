@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { AlertTriangle, Check, ExternalLink, History, X } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, FileCheck2, History, X } from "lucide-react";
+import { EmptyState } from "@/components/shared";
 import { rejectPaymentSubmission, verifyPaymentSubmission } from "./actions";
 
 type Row = {
@@ -81,7 +82,7 @@ export function PaymentReviewClient({ rows }: { rows: Row[] }) {
         ))}
       </div>
       {message ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{message}</p> : null}
-      {filteredRows.length === 0 ? <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center text-sm text-stone-500">Tidak ada pembayaran pada filter ini.</div> : null}
+      {filteredRows.length === 0 ? <EmptyState label={rows.length === 0 ? "Belum ada bukti pembayaran" : "Tidak ada pembayaran pada filter ini"} description={rows.length === 0 ? "Bukti yang dikirim pelanggan akan muncul di sini untuk diverifikasi." : "Pilih filter lain untuk melihat riwayat atau seluruh bukti pembayaran."} icon={<FileCheck2 size={21} />} /> : null}
       {filteredRows.map((row) => {
         const outstanding = Math.max(0, row.invoice.grandTotal - row.invoice.paidAmount - row.invoice.returnedAmount);
         const declared = row.declaredAmount ?? row.amount;

@@ -39,7 +39,7 @@ export default function SalesReportClient() {
   );
 
   const columns: ReportColumn<SalesReportData["invoices"][0]>[] = [
-    { key: "code", label: "Invoice", sortable: true },
+    { key: "code", label: "Nota", sortable: true },
     {
       key: "date",
       label: "Tanggal",
@@ -105,7 +105,7 @@ export default function SalesReportClient() {
           title="Laporan Penjualan"
           filename="sales-report"
           columns={[
-            { header: "Invoice", key: "code" },
+            { header: "Nota", key: "code" },
             { header: "Tanggal", key: "date", format: (v) => new Date(v as string).toLocaleDateString("id-ID") },
             { header: "Pelanggan", key: "customer" },
             { header: "Nilai", key: "amount", format: (v) => formatRupiah(Number(v)) },
@@ -117,9 +117,9 @@ export default function SalesReportClient() {
           status="DRAFT"
           summary={[
             { label: "Total Pendapatan", value: formatRupiah(data.totalRevenue) },
-            { label: "Jumlah Invoice", value: `${data.invoiceCount} nota` },
-            { label: "Rata-rata Invoice", value: formatRupiah(data.avgInvoice) },
-            { label: "Top Customer", value: data.topCustomer },
+            { label: "Jumlah Nota", value: `${data.invoiceCount} nota` },
+            { label: "Rata-rata Nota", value: formatRupiah(data.avgInvoice) },
+            { label: "Pelanggan Terbesar", value: data.topCustomer },
           ]}
         />
       }
@@ -148,7 +148,7 @@ export default function SalesReportClient() {
             help="Basis pendapatan: invoice yang DISERAHKAN (deliveredAt), tidak di-void, sudah dikurangi nilai retur."
           />
           <ReportKpiCard
-            label="Invoice"
+            label="Nota"
             value={data.invoiceCount}
             subtitle="nota diserahkan"
             icon={FileText}
@@ -163,7 +163,7 @@ export default function SalesReportClient() {
             color="purple"
           />
           <ReportKpiCard
-            label="Top Customer"
+            label="Pelanggan Terbesar"
             value={data.topCustomer}
             icon={Users}
             color="amber"
@@ -187,7 +187,7 @@ export default function SalesReportClient() {
             className="lg:col-span-2"
           />
           <ReportChart
-            title="Sales by Product"
+            title="Penjualan per Produk"
             type="pie"
             data={data.salesByProduct}
             xKey="name"

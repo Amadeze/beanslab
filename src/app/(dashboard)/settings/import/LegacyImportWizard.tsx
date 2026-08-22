@@ -205,7 +205,7 @@ export function LegacyImportWizard() {
       setApplyResult(result);
       setStep(5);
     } catch (err: any) {
-      toast.error("Gagal menerapkan import", { description: err.message });
+      toast.error("Impor belum dapat diterapkan", { description: err.message });
     } finally {
       setIsApplying(false);
     }
@@ -581,7 +581,7 @@ function Step5Result({ result, onNewImport }: { result: OpeningStockResult; onNe
         <SummaryCard label="Master Dibuat" value={String(result.createdMasters)} tone="success" />
         <SummaryCard label="Master Dicocokkan" value={String(result.matchedMasters)} tone="info" />
         <SummaryCard label="Lot Dibuat" value={String(result.lotsCreated)} tone="default" />
-        <SummaryCard label="Ledger Entry" value={String(result.ledgerEntriesCreated)} tone="default" />
+        <SummaryCard label="Mutasi Persediaan" value={String(result.ledgerEntriesCreated)} tone="default" />
         <SummaryCard label="Total Nilai" value={formatCurrency(result.totalOpeningValue)} tone="default" />
       </div>
 

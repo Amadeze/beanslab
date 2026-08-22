@@ -660,7 +660,7 @@ export function InvoiceForm({
                         <SelectItem value="WALK_IN">Walk-in (Offline)</SelectItem>
                         <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
                         <SelectItem value="MARKETPLACE">Marketplace</SelectItem>
-                        <SelectItem value="B2B_DIRECT">B2B Direct</SelectItem>
+                        <SelectItem value="B2B_DIRECT">B2B langsung</SelectItem>
                         <SelectItem value="OTHER">Lainnya</SelectItem>
                       </SelectContent>
                     </Select>

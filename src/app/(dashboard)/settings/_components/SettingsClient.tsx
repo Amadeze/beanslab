@@ -168,7 +168,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
         if (type === "logo") setLogoUrl(data.url);
         if (type === "hero") setHeroImageUrl(data.url);
         if (type === "background") setBackgroundImageUrl(data.url);
-        toast.success("Image uploaded successfully!");
+        toast.success("Gambar berhasil diunggah.");
       } else {
         throw new Error(data.error);
       }
@@ -181,7 +181,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
 
   const testMidtrans = async () => {
     if (!midtransServerKey && !tenant.midtransServerKeyConfigured) {
-      toast.error("Please save a Server Key first.");
+      toast.error("Simpan Server Key terlebih dahulu.");
       return;
     }
     
@@ -202,7 +202,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
         toastSafe.error(data.message);
       }
     } catch (e) {
-      toast.error("Failed to connect to Midtrans");
+      toast.error("Koneksi ke Midtrans gagal.");
     } finally {
       setIsTestingMidtrans(false);
     }
@@ -245,7 +245,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
         testimonials: testimonials.filter((item) => item.name?.trim() && item.text?.trim()),
         faqs: faqs.filter((item) => item.question?.trim() && item.answer?.trim()),
       });
-      toast.success("Settings saved successfully!");
+      toast.success("Pengaturan berhasil disimpan.");
       setRefreshKey(prev => prev + 1);
     } catch (e: any) {
       toastSafe.error("Failed to save settings: " + (e?.message || String(e)));

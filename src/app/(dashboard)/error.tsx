@@ -14,7 +14,7 @@ export default function DashboardError({
       error={error}
       unstable_retry={unstable_retry}
       homeHref="/dashboard"
-      homeLabel="Kembali ke Dashboard"
+      homeLabel="Kembali ke Ringkasan"
     />
   );
 }

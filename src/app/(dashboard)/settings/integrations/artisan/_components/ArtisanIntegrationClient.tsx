@@ -110,7 +110,7 @@ export function ArtisanIntegrationClient({
     if (!connectorToRevoke) return;
     const result = await revokeConnector(connectorToRevoke);
     if (result.success) {
-      toast.success("Connector berhasil dicabut.");
+      toast.success("Koneksi berhasil dicabut.");
       setConnectors((prev) => prev.map(c => c.id === connectorToRevoke ? { ...c, status: 'REVOKED' } : c));
     } else {
       toast.error(result.error);
@@ -133,14 +133,14 @@ export function ArtisanIntegrationClient({
       });
       const data = await res.json();
       if (data.success) {
-        toast.success("Connector berhasil dihapus.");
+        toast.success("Koneksi berhasil dihapus.");
         // Refresh connectors list
         setConnectors((prev) => prev.filter((c) => c.id !== connectorToDelete));
       } else {
         toast.error(data.error || "Gagal menghapus.");
       }
     } catch {
-      toast.error("Gagal menghapus connector.");
+      toast.error("Koneksi belum dapat dihapus.");
     }
     setConnectorToDelete(null);
   }

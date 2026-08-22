@@ -22,7 +22,7 @@ interface QuickPrompt {
 const QUICK_PROMPTS: QuickPrompt[] = [
   { label: "Profit minggu ini", query: "Berapa profit minggu ini?" },
   { label: "Keuntungan bulan ini", query: "Berapa keuntungan bulan ini?" },
-  { label: "Customer terbesar", query: "Siapa customer terbesar?" },
+  { label: "Pelanggan terbesar", query: "Siapa pelanggan terbesar?" },
   { label: "Stok green bean rendah", query: "Green bean stok mau habis?" },
   { label: "Pembelian bulan ini", query: "Pembelian bulan ini" },
   { label: "Omzet hari ini", query: "Penjualan hari ini" },

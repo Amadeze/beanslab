@@ -35,7 +35,7 @@ const TAB_CONFIG = [
   { id: "katalog", label: "Katalog", icon: Store, description: "Products & Collections" },
   { id: "konten", label: "Konten", icon: FileText, description: "Text, Media, Marketing" },
   { id: "footer", label: "Footer", icon: Layers, description: "Footer & System Info" },
-  { id: "pengaturan", label: "Pengaturan", icon: Settings, description: "Animations, SEO, Integrations" },
+  { id: "pengaturan", label: "Pengaturan", icon: Settings, description: "Animasi, SEO, dan integrasi" },
 ] as const;
 
 export default function PortalCustomizerPage() {
@@ -319,7 +319,7 @@ export default function PortalCustomizerPage() {
                           className="flex items-center gap-1 text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors"
                         >
                           <ChevronLeft size={16} />
-                          <span>Back</span>
+                          <span>Kembali</span>
                         </button>
                         <span className="text-xs font-mono uppercase px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700">
                           Editing

@@ -9,7 +9,7 @@ type Channel = "EMAIL" | "WHATSAPP";
 type Event = "OVERDUE_INVOICE" | "PAYMENT_PROOF_SUBMITTED" | "PAYMENT_STATUS_UPDATED";
 
 const EVENTS: Array<{ id: Event; label: string; description: string }> = [
-  { id: "PAYMENT_PROOF_SUBMITTED", label: "Bukti bayar masuk", description: "Memberi tahu tim tenant saat pelanggan mengunggah bukti." },
+  { id: "PAYMENT_PROOF_SUBMITTED", label: "Bukti bayar masuk", description: "Memberi tahu tim saat pelanggan mengunggah bukti." },
   { id: "PAYMENT_STATUS_UPDATED", label: "Keputusan pembayaran", description: "Memberi tahu pelanggan ketika bukti disetujui atau ditolak." },
   { id: "OVERDUE_INVOICE", label: "Invoice jatuh tempo", description: "Mengingatkan pelanggan tentang tagihan yang melewati jatuh tempo." },
 ];

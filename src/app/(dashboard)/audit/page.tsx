@@ -58,7 +58,7 @@ export default async function AuditPage({
       <PageHeader
         title="Audit & Integrasi"
         eyebrow="Pengaturan"
-        description="Jejak perubahan penting dan status event integrasi tenant."
+        description="Jejak perubahan penting dan status aktivitas integrasi roastery."
       />
       <SettingsNav userRole={user.role} />
 

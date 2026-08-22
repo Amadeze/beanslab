@@ -25,7 +25,7 @@ async function doExportPdf(report: BalanceSheetReport) {
   const asetRows: BSRow[] = [
     { kat: "Kas & Bank",             jml: fmt(assets.cashAndBank),          ket: "Aset Lancar" },
     { kat: "Piutang Usaha",           jml: fmt(assets.accountsReceivable),   ket: "Aset Lancar" },
-    { kat: "Persediaan (Inventory)",  jml: fmt(assets.inventory),            ket: "Aset Lancar" },
+    { kat: "Persediaan",  jml: fmt(assets.inventory),            ket: "Aset Lancar" },
     { kat: "TOTAL ASET",             jml: fmt(assets.totalAssets),          ket: "" },
   ];
 
@@ -88,7 +88,7 @@ async function doExportExcel(report: BalanceSheetReport) {
     { kat: "=== AKTIVA ===",              jml: "",                                        ket: "" },
     { kat: "Kas & Bank",                  jml: fmt(assets.cashAndBank),                  ket: "Aset Lancar" },
     { kat: "Piutang Usaha",               jml: fmt(assets.accountsReceivable),           ket: "Aset Lancar" },
-    { kat: "Persediaan (Inventory)",      jml: fmt(assets.inventory),                    ket: "Aset Lancar" },
+    { kat: "Persediaan",      jml: fmt(assets.inventory),                    ket: "Aset Lancar" },
     { kat: "TOTAL ASET",                  jml: fmt(assets.totalAssets),                  ket: "" },
     { kat: "",                            jml: "",                                        ket: "" },
     { kat: "=== PASIVA ===",              jml: "",                                        ket: "" },
@@ -204,7 +204,7 @@ export function BalanceSheetClient({ report }: BalanceSheetClientProps) {
           <SectionTitle>Aset Lancar</SectionTitle>
           <Line label="Kas & Bank" value={fmt(assets.cashAndBank)} bold />
           <Line label="Piutang Usaha" value={fmt(assets.accountsReceivable)} />
-          <Line label="Persediaan (Inventory)" value={fmt(assets.inventory)} />
+          <Line label="Persediaan" value={fmt(assets.inventory)} />
           <div className="border-t-2 border-double border-stone-300 bg-blue-50/30">
             <Line label="Total Aset" value={fmt(assets.totalAssets)} bold positive />
           </div>

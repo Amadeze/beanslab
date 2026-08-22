@@ -742,8 +742,8 @@ export function CoffeePurchaseForm({
             </div>
             <p className="mt-0.5 text-[11px] leading-4 text-emerald-700">
               {isRoasted
-                ? "ID barang datang = kode lot · stok & ledger & jurnal (1-1210) · ditandai Beli Jadi (PURCHASED_ROASTED)"
-                : "ID barang datang = kode lot · stok & ledger · HPP & jurnal · urutan FIFO/FEFO"}
+                ? "Barang dicatat per lot, stok bertambah, dan nilai pembelian masuk ke keuangan sebagai roasted bean beli jadi."
+                : "Barang dicatat per lot, stok bertambah, HPP diperbarui, dan urutan pemakaian mengikuti FIFO/FEFO."}
             </p>
           </div>
         </div>

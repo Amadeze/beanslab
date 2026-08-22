@@ -804,7 +804,7 @@ export function InventoryClient({
         <CoffeePurchaseForm id="purchase-form" initialMode="GREEN_BEAN" suppliers={supplierOptions} gbProducts={gbProducts} rbProducts={rbProducts} coffeeSources={coffeeSources} onSuccess={() => { setGbDrawerOpen(false); finishSupplierFlow(); router.refresh(); }} onPendingChange={setIsSubmitting} onAddSupplier={() => openSupplierQuickAdd("purchase")} preferredSupplierId={supplierTarget === "purchase" ? preferredSupplierId : null} />
       </StandardDrawer>
 
-      <StandardDrawer open={rbDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setRbDrawerOpen(open); }} title="Catat Barang Datang (Roasted Bean)" description="Stok Roasted Bean beli jadi akan bertambah otomatis setelah disimpan (ditandai PURCHASED_ROASTED)." size="lg">
+      <StandardDrawer open={rbDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setRbDrawerOpen(open); }} title="Catat Barang Datang (Roasted Bean)" description="Stok roasted bean beli jadi akan bertambah otomatis setelah transaksi disimpan." size="lg">
         <CoffeePurchaseForm id="rb-purchase-form" initialMode="ROASTED_BEAN" suppliers={supplierOptions} gbProducts={gbProducts} rbProducts={rbProducts} coffeeSources={coffeeSources} onSuccess={() => { setRbDrawerOpen(false); setIsSubmitting(false); finishSupplierFlow(); router.refresh(); }} onPendingChange={setIsSubmitting} onAddSupplier={() => openSupplierQuickAdd("rb")} preferredSupplierId={supplierTarget === "rb" ? preferredSupplierId : null} />
       </StandardDrawer>
 
@@ -820,7 +820,7 @@ export function InventoryClient({
         />
       </StandardDrawer>
 
-      <StandardDrawer open={pkgDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setPkgDrawerOpen(open); }} title="Catat Kemasan Datang" description="Stok Kemasan (InventorySupplyItem PACKAGING) akan bertambah otomatis setelah disimpan." size="md"
+      <StandardDrawer open={pkgDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setPkgDrawerOpen(open); }} title="Catat Kemasan Datang" description="Stok kemasan akan bertambah otomatis setelah transaksi disimpan." size="md"
         submitButton={<Button type="submit" form="pkg-purchase-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan"}</Button>}>
         <PackagingPurchaseForm
           suppliers={supplierOptions}

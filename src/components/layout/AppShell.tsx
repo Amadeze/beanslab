@@ -197,7 +197,9 @@ export function AppShell({
   const activeItem = getActiveNavigation(pathname, visibleItems);
   const primaryHrefs = userRole === "CASHIER"
     ? ["/dashboard", "/kasir", "/penjualan"]
-    : MOBILE_PRIMARY_HREFS;
+    : userRole === "OPERATOR"
+      ? ["/dashboard", "/inventory", "/roasting", "/produksi"]
+      : MOBILE_PRIMARY_HREFS;
   const mobileItems = primaryHrefs
     .map((href) => visibleItems.find((item) => item.href === href))
     .filter((item): item is AppNavLink => Boolean(item));

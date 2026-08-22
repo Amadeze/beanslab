@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { PackageCheck } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
+import { EmptyState } from "@/components/shared";
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
 import { STOREFRONT_GRIND_LABEL } from "@/lib/storefront-grind";
+import { getSalesChannelLabel } from "@/lib/sales-channel";
 
 export const dynamic = "force-dynamic";
 
@@ -33,12 +36,12 @@ export default async function FulfillmentPage() {
   const productionUnits = invoices.flatMap((invoice) => invoice.fulfillmentTasks).reduce((sum, task) => sum + task.shortageQuantity, 0);
 
   return <div className="flex min-h-0 flex-1 flex-col">
-    <PageHeader title="Fulfillment" eyebrow="Penjualan" description={`${invoices.length} pesanan aktif · ${productionUnits} unit masih perlu diproduksi.`} />
+    <PageHeader title="Pemenuhan Pesanan" eyebrow="Penjualan" description={`${invoices.length} pesanan aktif · ${productionUnits} unit masih perlu diproduksi.`} />
     <WorkspaceNav kind="sales" />
     <div className="custom-scrollbar flex-1 overflow-auto"><div className="mx-auto max-w-6xl p-4 md:p-6 lg:p-8">
-      {invoices.length === 0 ? <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center text-sm text-stone-500">Tidak ada pesanan yang perlu ditindaklanjuti.</div> : <div className="grid gap-3">
+      {invoices.length === 0 ? <EmptyState label="Semua pesanan sudah ditindaklanjuti" description="Pesanan baru yang menunggu pembayaran, produksi, pengemasan, atau pengiriman akan muncul di sini." icon={<PackageCheck size={21} />} /> : <div className="grid gap-3">
         {invoices.map((invoice) => <article key={invoice.id} className="grid gap-4 rounded-xl border border-stone-200 bg-white p-4 md:grid-cols-[1fr_auto] md:items-center">
-          <div><div className="flex flex-wrap items-center gap-2"><strong className="text-sm text-stone-900">{invoice.code}</strong><span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-bold uppercase text-stone-600">{statusLabel[invoice.fulfillmentStatus]}</span><span className="rounded-full border border-stone-200 px-2.5 py-1 text-xs font-bold uppercase text-stone-500">{invoice.salesChannel.replaceAll("_", " ")}</span></div><p className="mt-1 text-xs text-stone-500">{invoice.customer.name} · {invoice.issuedAt.toLocaleString("id-ID")}</p>
+          <div><div className="flex flex-wrap items-center gap-2"><strong className="text-sm text-stone-900">{invoice.code}</strong><span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-bold uppercase text-stone-600">{statusLabel[invoice.fulfillmentStatus]}</span><span className="rounded-full border border-stone-200 px-2.5 py-1 text-xs font-bold uppercase text-stone-500">{getSalesChannelLabel(invoice.salesChannel)}</span></div><p className="mt-1 text-xs text-stone-500">{invoice.customer.name} · {invoice.issuedAt.toLocaleString("id-ID")}</p>
           <ul className="mt-3 grid gap-2 text-xs text-stone-600">{invoice.items.map((item) => {
             const totalKg = item.netWeightGrams ? Number(item.quantity) * Number(item.netWeightGrams) / 1000 : null;
             return <li key={item.id} className="rounded-lg bg-stone-50 px-3 py-2">

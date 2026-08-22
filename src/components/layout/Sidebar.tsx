@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Beaker,
   Boxes,
   BookOpen,
   ChartNoAxesCombined,
@@ -13,17 +12,12 @@ import {
   Coffee,
   Factory,
   Flame,
-  FileSignature,
-  FlaskConical,
   LayoutDashboard,
   LogOut,
-  PackageSearch,
   Settings2,
   ShoppingBag,
   ShoppingCart,
   Sparkles,
-  Target,
-  Warehouse,
   WalletCards,
 } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
@@ -36,6 +30,7 @@ export type AppNavLink = {
   shortLabel: string;
   href: string;
   icon: React.ElementType;
+  matchPrefixes?: string[];
   step?: string;
   tone: "system" | "inventory" | "roasting" | "sales" | "finance" | "production" | "neutral";
 };
@@ -90,8 +85,8 @@ type NavSection = {
 
 export const APP_NAV_SECTIONS: NavSection[] = [
   {
-    label: "Operasional",
-    caption: "Aktivitas Inti",
+    label: "Hari ini",
+    caption: "Prioritas kerja",
     items: [
       {
         label: "Ringkasan",
@@ -103,96 +98,38 @@ export const APP_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Inventory",
-    caption: "Stok & Gudang",
+    label: "Operasional",
+    caption: "Bahan sampai produk",
     items: [
       {
-        label: "Stok & Mutasi",
-        shortLabel: "Stok",
+        label: "Pasokan & Stok",
+        shortLabel: "Pasokan",
         href: "/inventory",
         icon: Boxes,
         tone: "inventory",
+        matchPrefixes: ["/gudang"],
       },
       {
-        label: "Supplier & PO",
-        shortLabel: "Supplier",
-        href: "/inventory/suppliers",
-        icon: Boxes,
-        tone: "inventory",
-      },
-      {
-        label: "Gudang & Lokasi",
-        shortLabel: "Gudang",
-        href: "/gudang",
-        icon: Warehouse,
-        tone: "inventory",
-      },
-      {
-        label: "Opname Fisik",
-        shortLabel: "Opname",
-        href: "/gudang/opname",
-        icon: PackageSearch,
-        tone: "inventory",
-      },
-    ],
-  },
-  {
-    label: "Roasting",
-    caption: "Proses & Kualitas",
-    items: [
-      {
-        label: "Jadwal & Riwayat",
-        shortLabel: "Roast",
+        label: "Roastery",
+        shortLabel: "Roastery",
         href: "/roasting",
         icon: Flame,
         tone: "roasting",
+        matchPrefixes: ["/cupping"],
       },
       {
-        label: "Profil Roast",
-        shortLabel: "Profil",
-        href: "/roasting/profiles",
-        icon: Target,
-        tone: "roasting",
-      },
-      {
-        label: "Cupping & QC",
-        shortLabel: "Cupping",
-        href: "/cupping",
-        icon: Beaker,
-        tone: "roasting",
-      },
-    ],
-  },
-  {
-    label: "Produksi",
-    caption: "Pabrikasi & Eksperimen",
-    items: [
-      {
-        label: "Produksi & Job",
+        label: "Produksi & Packing",
         shortLabel: "Produksi",
         href: "/produksi",
         icon: Factory,
         tone: "production",
-      },
-      {
-        label: "Penggilingan",
-        shortLabel: "Giling",
-        href: "/grinding",
-        icon: Coffee,
-        tone: "production",
-      },
-      {
-        label: "Eksperimen",
-        shortLabel: "Eksperimen",
-        href: "/eksperimen",
-        icon: FlaskConical,
-        tone: "production",
+        matchPrefixes: ["/grinding", "/eksperimen"],
       },
     ],
   },
   {
-    label: "Penjualan",
-    caption: "Pesanan & Pelanggan",
+    label: "Komersial",
+    caption: "Jual dan layani",
     items: [
       {
         label: "Buka Kasir",
@@ -202,45 +139,25 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "sales",
       },
       {
-        label: "Sales & B2B",
+        label: "Penjualan",
         shortLabel: "Penjualan",
         href: "/penjualan",
         icon: ShoppingBag,
         tone: "sales",
       },
       {
-        label: "Fulfillment",
-        shortLabel: "Fulfillment",
-        href: "/penjualan/fulfillment",
-        icon: PackageSearch,
-        tone: "sales",
-      },
-      {
-        label: "Pelanggan",
-        shortLabel: "Pelanggan",
-        href: "/penjualan/pelanggan",
-        icon: ShoppingBag,
-        tone: "sales",
-      },
-      {
-        label: "Kontrak OEM",
-        shortLabel: "Kontrak",
-        href: "/penjualan/kontrak",
-        icon: FileSignature,
-        tone: "sales",
-      },
-      {
-        label: "Katalog Storefront",
+        label: "Katalog",
         shortLabel: "Katalog",
         href: "/katalog",
-        icon: PackageSearch,
+        icon: Boxes,
         tone: "sales",
+        matchPrefixes: ["/master-data"],
       },
     ],
   },
   {
-    label: "Keuangan",
-    caption: "Uang dan Kinerja",
+    label: "Kontrol",
+    caption: "Uang dan kinerja",
     items: [
       {
         label: "Kas & Piutang",
@@ -249,12 +166,6 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         icon: WalletCards,
         tone: "finance",
       },
-    ],
-  },
-  {
-    label: "Analitik",
-    caption: "Data & Metrik",
-    items: [
       {
         label: "Laporan",
         shortLabel: "Laporan",
@@ -270,7 +181,7 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "neutral",
       },
       {
-        label: "Insight Assistant",
+        label: "Insight",
         shortLabel: "Insight",
         href: "/ai-insights",
         icon: Sparkles,
@@ -279,22 +190,16 @@ export const APP_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Sistem",
-    caption: "Pengaturan & Master Data",
+    label: "Kelola",
+    caption: "Organisasi dan akses",
     items: [
       {
-        label: "Tim & Akses",
-        shortLabel: "Tim",
-        href: "/settings/team",
-        icon: Settings2,
-        tone: "neutral",
-      },
-      {
         label: "Pengaturan",
-        shortLabel: "Setting",
+        shortLabel: "Pengaturan",
         href: "/settings",
         icon: Settings2,
         tone: "neutral",
+        matchPrefixes: ["/audit", "/billing"],
       },
     ],
   },
@@ -313,16 +218,8 @@ export function canAccessNavigation(
       "/dashboard",
       "/inventory",
       "/roasting",
-      "/roasting/profiles",
       "/produksi",
-      "/gudang",
-      "/gudang/opname",
-      "/grinding",
-      "/eksperimen",
-      "/cupping",
       "/katalog",
-      "/penjualan/fulfillment",
-      "/roasting/machines",
     ].includes(href);
   }
   if (userRole === "CASHIER") {
@@ -335,9 +232,18 @@ export function getActiveNavigation(pathname: string, items: AppNavLink[]) {
   const workspacePath = pathname.startsWith("/audit")
       ? "/settings"
       : pathname;
+
+  const matchScore = (item: AppNavLink) => {
+    const candidates = [item.href, ...(item.matchPrefixes ?? [])];
+    return candidates.reduce((score, candidate) => {
+      const matches = workspacePath === candidate || workspacePath.startsWith(`${candidate}/`);
+      return matches ? Math.max(score, candidate.length) : score;
+    }, -1);
+  };
+
   return items
-    .filter((item) => workspacePath === item.href || workspacePath.startsWith(`${item.href}/`))
-    .toSorted((a, b) => b.href.length - a.href.length)[0];
+    .filter((item) => matchScore(item) >= 0)
+    .toSorted((a, b) => matchScore(b) - matchScore(a))[0];
 }
 
 export function Sidebar({

@@ -93,7 +93,7 @@ function ExportMenu({ invoices }: { invoices: InvoiceRow[] }) {
       formatRupiah(i.grandTotal),
     ]);
     autoTable(doc, {
-      head: [["Kode Invoice", "Pelanggan", "Tanggal", "Status", "Total"]],
+      head: [["Kode Nota", "Pelanggan", "Tanggal", "Status", "Total"]],
       body: tableData,
       startY: 20,
     });
@@ -105,7 +105,7 @@ function ExportMenu({ invoices }: { invoices: InvoiceRow[] }) {
     const { default: writeXlsxFile } = await import("write-excel-file/browser");
     await writeXlsxFile(
       [
-        ["Kode Invoice", "Pelanggan", "Tanggal", "Status", "Total"],
+        ["Kode Nota", "Pelanggan", "Tanggal", "Status", "Total"],
         ...invoices.map((invoice) => [
           invoice.code,
           invoice.customerName,
@@ -269,7 +269,7 @@ export function SalesClient({
                       autoTable(doc, {
                         head: [
                           [
-                            "Kode Invoice",
+                            "Kode Nota",
                             "Pelanggan",
                             "Tanggal",
                             "Status",
@@ -296,7 +296,7 @@ export function SalesClient({
                   await writeXlsxFile(
                     [
                       [
-                        "Kode Invoice",
+                        "Kode Nota",
                         "Pelanggan",
                         "Tanggal",
                         "Status",

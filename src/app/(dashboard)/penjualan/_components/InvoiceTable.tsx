@@ -16,6 +16,7 @@ import { ReturDialog } from "./ReturDialog";
 import { Truck, ArrowLeftRight } from "lucide-react";
 import { voidInvoice, approveInvoiceForMidtrans } from "../actions";
 import type { InvoiceRow } from "../actions";
+import { getSalesChannelLabel } from "@/lib/sales-channel";
 import {
   nextOperatorFulfillmentStatuses,
   type OperatorFulfillmentStatus,
@@ -26,14 +27,6 @@ function canManageFulfillment(invoice: InvoiceRow) {
     invoice.fulfillmentStatus as OperatorFulfillmentStatus,
   ).length > 0;
 }
-
-const SALES_CHANNEL_LABELS: Record<string, string> = {
-  WALK_IN: "Walk-in",
-  WHATSAPP: "WhatsApp",
-  MARKETPLACE: "Marketplace",
-  B2B_DIRECT: "B2B langsung",
-  OTHER: "Lainnya",
-};
 
 const triggerSilentPrint = (url: string) => {
   let iframe = document.getElementById("silent-print-iframe") as HTMLIFrameElement;
@@ -168,7 +161,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                 <TableCell className="text-sm font-bold text-slate-900">
                   {inv.customerName}
                   <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    {SALES_CHANNEL_LABELS[inv.salesChannel] ?? inv.salesChannel}
+                    {getSalesChannelLabel(inv.salesChannel)}
                   </p>
                 </TableCell>
                 <TableCell  className="text-center font-mono text-sm text-slate-500">
@@ -290,7 +283,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                   <span className="text-xs text-slate-400">&middot;</span>
                   <span className="text-xs text-slate-500">{inv.itemCount} Item</span>
                   <span className="text-xs text-slate-400">&middot;</span>
-                  <span className="text-xs text-slate-500">{SALES_CHANNEL_LABELS[inv.salesChannel] ?? inv.salesChannel}</span>
+                  <span className="text-xs text-slate-500">{getSalesChannelLabel(inv.salesChannel)}</span>
                   {inv.purchaseOrderReference ? (
                     <span className="text-xs font-medium text-slate-600">PO {inv.purchaseOrderReference}</span>
                   ) : null}

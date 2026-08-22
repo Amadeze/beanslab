@@ -97,7 +97,7 @@ export default function ProductionReportClient() {
       activeTab="inventory/production"
       actions={
         <ReportExport
-          title="Production Report"
+          title="Laporan Produksi"
           filename="production-report"
           columns={[
             { header: "Batch", key: "id" },

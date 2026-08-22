@@ -15,7 +15,7 @@ export function RouteErrorState({
   error,
   unstable_retry,
   homeHref = "/",
-  homeLabel = "Kembali ke Beranda",
+  homeLabel = "Kembali ke Ringkasan",
   dark = false,
 }: RouteErrorStateProps) {
   useEffect(() => {
@@ -54,7 +54,7 @@ export function RouteErrorState({
             className="inline-flex h-10 items-center justify-center gap-2 rounded-[9px] bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <RefreshCcw size={16} aria-hidden="true" />
-            Coba Lagi
+            Muat ulang data
           </button>
           <a
             href={homeHref}

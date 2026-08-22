@@ -1,4 +1,4 @@
-# HANDOFF — Batch 8 B2B Storefront Essentials
+# HANDOFF — Final Product Coherence
 
 Last updated: 2026-08-22
 
@@ -6,33 +6,32 @@ Last updated: 2026-08-22
 
 | Field | Value |
 |---|---|
-| Implementation HEAD | `2fe5b7f` plus uncommitted Batch 8 worktree |
+| Implementation HEAD | `06bb4cc` plus uncommitted Product Coherence worktree |
 | Branch | `wip/non-kopi-commit3` |
-| Local commits ahead of origin | 2 (`c0a1f78`, `2fe5b7f`) |
+| Local commits ahead of origin | 3 (`c0a1f78`, `2fe5b7f`, `06bb4cc`) |
 | Batch 6.5 status | **COMMITTED LOCALLY — NOT PUSHED** |
 | Batch 7 status | **COMMITTED LOCALLY — NOT PUSHED** |
-| Batch 8 status | **IMPLEMENTED — READY TO COMMIT** |
+| Batch 8 status | **COMMITTED LOCALLY — NOT PUSHED** |
+| Final Product Coherence | **IMPLEMENTED — READY TO COMMIT** |
 
-## Local Commits
+## Latest Local Commit
 
-- `c0a1f78 feat(storefront): curate themes and consolidate renderer`
-- `2fe5b7f feat(storefront): improve seo performance and accessibility`
+- `06bb4cc feat(storefront): add b2b partner ordering`
 
-Neither commit has been pushed.
+No local storefront commit has been pushed.
 
-## Batch 8 Delivered
+## Product Coherence Delivered
 
-- Partner links are signed and tenant/customer-bound; a phone number alone never reveals contract pricing.
-- Each request revalidates active tenant, wholesale customer, contract dates/status, and tenant ownership.
-- Partner catalog supports tier prices, private finished-good SKUs, and contract quantity breaks.
-- Cart pricing changes at the correct quantity threshold and stays isolated from the tenant's retail cart.
-- Checkout reloads prices server-side and snapshots contract price/source into the existing Invoice/InvoiceItem lifecycle.
-- CREDIT appears only when both the contract and tenant payment configuration allow it.
-- Contract payment terms determine the B2B due date; B2B credit orders are not voided by retail storefront expiry.
-- Customer PO/reference is stored on Invoice and visible in public order status and staff sales UI.
-- Recent B2B orders can be loaded again using current catalog and contract prices.
-- B2B URLs are private/noindex and never publish negotiated structured-data offers.
-- Migration `000000000005_storefront_b2b_essentials` is additive; migrations 000–004 are untouched.
+- The primary navigation is reduced to five operator contexts instead of repeating every workspace tab in the sidebar.
+- Gudang, Cupping, Grinding, Eksperimen, sales children, audit, and billing keep their canonical parent highlighted without changing routes.
+- Role and plan visibility is preserved; operator, cashier, Basic accounting/insight, and Advanced Reports behavior have explicit regression coverage.
+- The mobile operator dock leads through Pasokan → Roastery → Produksi.
+- Settings tabs and cards now share one registry, so role visibility, labels, and destinations cannot drift independently.
+- Storefront appearance, commerce/shipping, and Artisan settings have clear entry points.
+- Sales channels have one readable mapping, including STOREFRONT and B2B_DIRECT.
+- Key fulfillment, payment-review, payment-method, and route-error states use shared actionable copy.
+- User-facing technical leaks and mixed English/Indonesian terminology were removed from the audited operational surfaces.
+- Existing visual identity, shell, workspace tabs, forms, tables, actions, redirects, and domain behavior were preserved.
 
 ## Validation
 
@@ -42,29 +41,34 @@ Neither commit has been pushed.
 | `prisma generate` | PASS |
 | `typecheck` | PASS |
 | `eslint --quiet` | PASS |
-| Focused B2B behavior tests | 51/51 PASS |
-| Portal-theme + B2B + sales regression suite | 320/320 PASS |
-| `next build --webpack` | PASS |
+| Focused Product Coherence + sales regression | 22/22 PASS |
+| Full unit suite | 1024 passed, 0 failed, 315 skipped |
+| `next build --webpack` | PASS; 68 static pages generated |
 
-The existing environment does not provide a usable local database password. DB-backed checkout/catalog tests remain skipped, and migration 005 still needs fresh disposable-database deploy/status/diff acceptance before production deployment.
+## Schema and Deployment
 
-## Deferred
+- Product Coherence introduces no schema or migration changes.
+- Migrations 000–004 remain untouched.
+- Batch 8 migration 005 still needs disposable/target database deploy, status, and diff acceptance when valid credentials are available.
+- No push was performed.
 
-- Raw green-bean wholesale/direct sale requires a separate kg-based InvoiceItem, fulfillment, inventory-ledger, and accounting design.
-- CoffeeOffering-specific contract prices require an OfferingVariant pricing relation.
-- A separate hard-MOQ policy is not inferred from the existing price-break `minOrderQty`.
-- Password/OTP customer accounts are not introduced; this batch uses signed partner links.
+## Deferred to Final QA / Production Readiness
+
+- Authenticated desktop/mobile browser walkthrough of the complete golden workflow.
+- Migration 003–005 target deployment verification.
+- Midtrans sandbox checkout and external shipping-provider verification.
+- Manual keyboard, zoom 200%, and screen-reader verification on complex dialogs/tables.
+- Raw green-bean B2B sale, OfferingVariant contract prices, and hard MOQ remain separate domain work, not Product Coherence.
 
 ## Next
 
-1. Review and commit Batch 8.
+1. Review and commit Product Coherence.
 2. Push only with explicit authorization.
-3. Run migration 005 disposable/production deployment acceptance when valid database credentials are available.
-4. Start Final Product Coherence only after explicit authorization.
+3. Start Final QA / Production Readiness only after the Product Coherence commit is accepted.
 
 ## DO NOT
 
 - Touch `information_architecture_audit.md`.
 - Modify migrations 000–004.
 - Push without explicit authorization.
-- Start Final Product Coherence implicitly.
+- Mix deferred raw-green-bean or variant-pricing domain work into this coherence commit.

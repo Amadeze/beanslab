@@ -2,29 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Building2, CircleDollarSign, Cpu, CreditCard, LayoutGrid, Monitor, ScrollText, Truck, Users, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { canAccessTenantRole } from "@/lib/roles";
-
-const items = [
-  { label: "Ringkasan", href: "/settings", icon: LayoutGrid, roles: ["OWNER", "MANAGER"] },
-  { label: "Profil & Portal", href: "/settings/organization", icon: Building2, roles: ["OWNER"] },
-  { label: "Pembayaran Portal", href: "/settings/payments", icon: CircleDollarSign, roles: ["OWNER"] },
-  { label: "Toko & Pengiriman", href: "/settings/commerce", icon: Truck, roles: ["OWNER"] },
-  { label: "Anggota Tim", href: "/settings/team", icon: Users, roles: ["OWNER"] },
-  { label: "Mesin", href: "/settings/machines", icon: Cpu, roles: ["OWNER", "MANAGER"] },
-  { label: "Roastd Studio", href: "/settings/studio", icon: Monitor, roles: ["OWNER"] },
-  { label: "Notifikasi", href: "/settings/notifications", icon: Bell, roles: ["OWNER", "MANAGER"] },
-  { label: "Aktivitas & Audit", href: "/audit", icon: ScrollText, roles: ["OWNER", "MANAGER"] },
-  { label: "Import Data Lama", href: "/settings/import", icon: Upload, roles: ["OWNER", "MANAGER"] },
-  { label: "Paket & Tagihan", href: "/billing", icon: CreditCard, roles: ["OWNER"] },
-] as const;
+import { getVisibleSettingsNavigation } from "./settings-navigation";
 
 export function SettingsNav({ userRole }: { userRole: string }) {
   const pathname = usePathname();
-  const visibleItems = items.filter((item) =>
-    canAccessTenantRole(userRole, item.roles),
-  );
+  const visibleItems = getVisibleSettingsNavigation(userRole);
 
   return (
     <nav className="overflow-x-auto border-b border-stone-200 bg-white" aria-label="Navigasi pengaturan">

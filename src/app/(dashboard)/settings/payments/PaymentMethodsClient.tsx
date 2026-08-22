@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Building2, ImagePlus, Pencil, Plus, QrCode, Trash2 } from "lucide-react";
+import { Building2, ImagePlus, Pencil, Plus, QrCode, Trash2, WalletCards } from "lucide-react";
 import { deleteTenantPaymentMethod, saveTenantPaymentMethod, setTenantPaymentMethodActive } from "./actions";
+import { EmptyState } from "@/components/shared";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -168,7 +169,7 @@ export function PaymentMethodsClient({ initialMethods }: { initialMethods: Metho
 
       <section className="space-y-3">
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs leading-5 text-emerald-900"><strong>Alur aman:</strong> pelanggan mengirim bukti → status menunggu verifikasi → tenant menyetujui → baru kas, piutang, dan status invoice diperbarui.</div>
-        {methods.length === 0 ? <div className="rounded-xl border border-dashed border-stone-300 bg-white p-8 text-center text-sm text-stone-500">Belum ada rekening atau QRIS. Checkout tetap dapat dicatat, tetapi pelanggan belum mendapat instruksi pembayaran otomatis.</div> : methods.map((method) => {
+        {methods.length === 0 ? <EmptyState label="Belum ada tujuan pembayaran" description="Tambahkan rekening atau QRIS agar pelanggan mendapat instruksi pembayaran otomatis setelah checkout." icon={<WalletCards size={21} />} /> : methods.map((method) => {
           const Icon = method.method === "QRIS" ? QrCode : Building2;
           return <article key={method.id} className="flex gap-4 rounded-xl border border-stone-200 bg-white p-4">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-700"><Icon size={18} /></span>

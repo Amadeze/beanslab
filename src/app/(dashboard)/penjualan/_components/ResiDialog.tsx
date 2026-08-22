@@ -119,7 +119,7 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
       if (res.error) {
         toastSafe.error(res.error);
       } else {
-        toast.success("Data pengiriman berhasil diupdate");
+        toast.success("Data pengiriman berhasil diperbarui.");
         onOpenChange(false);
       }
     } catch (e: any) {
@@ -138,7 +138,7 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
         toastSafe.error(res.error);
       } else {
         setTracking(res.tracking as TrackingState);
-        toast.success("Tracking berhasil diperbarui");
+        toast.success("Status pelacakan berhasil diperbarui.");
       }
     } catch (e: any) {
       toastSafe.error(e.message || "Gagal memperbarui tracking");

@@ -101,7 +101,7 @@ export default function StockReportClient() {
       activeTab="inventory/stock"
       actions={
         <ReportExport
-          title="Stock Report"
+          title="Laporan Stok"
           filename="stock-report"
           columns={columns.map((c) => ({ header: c.label, key: c.key }))}
           data={data.items}
