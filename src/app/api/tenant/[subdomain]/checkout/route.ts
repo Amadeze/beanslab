@@ -54,6 +54,12 @@ import {
 import { calculateDomesticCost } from "@/lib/shipping/providers/rajaongkir";
 import { getRajaOngkirClientConfig } from "@/lib/shipping/platform-integration";
 import { ShippingProviderError } from "@/lib/shipping/errors";
+import { verifyB2bAccessToken } from "@/lib/b2b-access";
+import {
+  addDays,
+  loadStorefrontB2bContext,
+  resolveB2bCatalogPrice,
+} from "@/lib/storefront-b2b";
 
 type CheckoutItemInput = {
   id?: string;
@@ -81,6 +87,8 @@ type InvoiceItemCreateData = {
   packageName?: string | null;
   netWeightGrams?: number | null;
   roastLevel?: string | null;
+  contractPriceId?: string | null;
+  priceSource?: "BASE" | "TIER" | "CONTRACT";
 };
 
 const CheckoutSchema = z.object({
@@ -94,6 +102,8 @@ const CheckoutSchema = z.object({
   shippingQuoteToken: z.string().optional(), // required for COURIER
   destinationToken: z.string().optional(), // required for COURIER
   paymentMethodId: z.string().min(1).optional(),
+  b2bAccessToken: z.string().max(2048).optional(),
+  purchaseOrderReference: z.string().trim().max(100).optional(),
   items: z
     .array(
       z.object({
@@ -163,9 +173,9 @@ export async function POST(
       windowSeconds: 10 * 60,
     });
     const {
-      customerName,
-      customerPhone,
-      customerEmail,
+      customerName: submittedCustomerName,
+      customerPhone: submittedCustomerPhone,
+      customerEmail: submittedCustomerEmail,
       customerAddress,
       shippingMethod,
       paymentMethodId,
@@ -198,6 +208,21 @@ export async function POST(
       return NextResponse.json({ error: "Tenant belum memiliki user admin" }, { status: 400 });
     }
 
+    let b2bContext = null;
+    if (parsedBody.data.b2bAccessToken) {
+      const access = verifyB2bAccessToken(parsedBody.data.b2bAccessToken);
+      if (!access) {
+        return NextResponse.json({ error: "Akses partner tidak valid atau kedaluwarsa." }, { status: 403 });
+      }
+      b2bContext = await loadStorefrontB2bContext(prisma, tenant.id, access, new Date(), { includeRecentOrders: false });
+      if (!b2bContext) {
+        return NextResponse.json({ error: "Customer atau kontrak partner tidak lagi aktif." }, { status: 403 });
+      }
+    }
+    const customerName = b2bContext?.customer.name ?? submittedCustomerName;
+    const customerPhone = b2bContext?.customer.phone ?? submittedCustomerPhone;
+    const customerEmail = b2bContext?.customer.email ?? submittedCustomerEmail;
+
     if (rawIdempotencyKey) {
       const existing = await prisma.invoice.findUnique({
         where: {
@@ -224,7 +249,11 @@ export async function POST(
     }
 
 const activePaymentMethods = await prisma.tenantPaymentMethod.findMany({
-      where: { tenantId: tenant.id, isActive: true, method: { not: "CREDIT" } },
+      where: {
+        tenantId: tenant.id,
+        isActive: true,
+        ...(!b2bContext?.contract.allowCredit ? { method: { not: "CREDIT" } } : {}),
+      },
       orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
     });
     const selectedPaymentMethod = paymentMethodId
@@ -236,6 +265,7 @@ const activePaymentMethods = await prisma.tenantPaymentMethod.findMany({
     if (activePaymentMethods.length > 0 && !selectedPaymentMethod) {
       return NextResponse.json({ error: "Pilih metode pembayaran." }, { status: 400 });
     }
+    const isB2bCredit = Boolean(b2bContext && selectedPaymentMethod?.method === "CREDIT");
 
     const normalizedItems = (items as CheckoutItemInput[])
       .map((item) => ({
@@ -265,12 +295,14 @@ const activePaymentMethods = await prisma.tenantPaymentMethod.findMany({
         id: { in: productIds },
         type: "FINISHED_GOODS",
         isActive: true,
-        price: { gt: 0 },
+        ...(!b2bContext ? { price: { gt: 0 } } : {}),
       },
       select: {
         id: true,
         name: true,
         price: true,
+        priceSilver: true,
+        priceGold: true,
         netWeightGrams: true,
         recipes: {
           where: { isActive: true },
@@ -359,7 +391,17 @@ const activePaymentMethods = await prisma.tenantPaymentMethod.findMany({
           { status: 400 },
         );
       }
-      const unitPrice = Number(product.price || 0);
+      const b2bPrice = b2bContext
+        ? resolveB2bCatalogPrice({
+            price: Number(product.price ?? 0),
+            priceSilver: Number(product.priceSilver ?? 0),
+            priceGold: Number(product.priceGold ?? 0),
+          }, b2bContext.customer.tier, qty, b2bContext.priceBreaksByProduct.get(product.id))
+        : null;
+      const unitPrice = b2bPrice?.unitPrice ?? Number(product.price || 0);
+      if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+        return NextResponse.json({ error: `Harga untuk ${product.name} belum tersedia.` }, { status: 400 });
+      }
       const itemSub = unitPrice * qty;
       subtotal += itemSub;
       
@@ -373,6 +415,8 @@ const activePaymentMethods = await prisma.tenantPaymentMethod.findMany({
         hpp: hppByProduct.get(product.id) || 0,
         grindSize: preparation.grindSize,
         customGrindLabel: preparation.customGrindLabel,
+        contractPriceId: b2bPrice?.contractPriceId ?? null,
+        priceSource: b2bPrice?.priceSource ?? "BASE",
       });
     }
 
@@ -425,6 +469,8 @@ const activePaymentMethods = await prisma.tenantPaymentMethod.findMany({
         packageName: variant.packageName,
         netWeightGrams,
         roastLevel: offering.roastLevel ?? null,
+        contractPriceId: null,
+        priceSource: "BASE",
       });
     }
 
@@ -458,9 +504,14 @@ let tax: number, shippingCost: number, grandTotal: number;
     let paymentUrl: string | null = null;
     let snapToken: string | null = null;
 
-    const invoiceCode = `INV-${tenant.code}-${getCurrentDate().getFullYear()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+    const checkoutAt = getCurrentDate();
+    const invoiceCode = `INV-${tenant.code}-${checkoutAt.getFullYear()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
     const orderPublicToken = crypto.randomBytes(24).toString("base64url");
-    const paymentExpiresAt = new Date(getCurrentDate().getTime() + tenant.storefrontReservationMinutes * 60 * 1000);
+    const b2bDueDate = isB2bCredit
+      ? addDays(checkoutAt, b2bContext?.contract.paymentTermsDays ?? 0)
+      : null;
+    const paymentExpiresAt = b2bDueDate
+      ?? new Date(checkoutAt.getTime() + tenant.storefrontReservationMinutes * 60 * 1000);
 
     // Derive deterministic Midtrans order ID upfront (for idempotency)
     if (hasMidtrans) {
@@ -728,11 +779,15 @@ let tax: number, shippingCost: number, grandTotal: number;
     }
     let replayed = false;
     const invoice = await withSerializableRetry(prisma, async (tx) => {
-      let customer = await tx.customer.findFirst({
-        where: { tenantId: tenant.id, phone: customerPhone }
-      });
+      let customer = b2bContext
+        ? await tx.customer.findFirst({
+            where: { id: b2bContext.customer.id, tenantId: tenant.id, isActive: true },
+          })
+        : await tx.customer.findFirst({
+            where: { tenantId: tenant.id, phone: customerPhone },
+          });
 
-      if (!customer) {
+      if (!customer && !b2bContext) {
         customer = await tx.customer.create({
           data: {
             code: `CST-${tenant.code}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`,
@@ -744,6 +799,7 @@ let tax: number, shippingCost: number, grandTotal: number;
           }
         });
       }
+      if (!customer) throw new Error("Customer partner tidak lagi aktif.");
 
       const inv = await tx.invoice.create({
         data: {
@@ -753,6 +809,7 @@ let tax: number, shippingCost: number, grandTotal: number;
           tenantId: tenant.id,
           createdById,
           status: "ISSUED",
+          dueDate: b2bDueDate,
           subtotal,
           discount: 0,
           tax,
@@ -800,7 +857,8 @@ let tax: number, shippingCost: number, grandTotal: number;
           midtransOrderId,
           paymentUrl,
           paymentMethod: selectedPaymentMethod?.method ?? null,
-          salesChannel: "STOREFRONT",
+          purchaseOrderReference: b2bContext ? parsedBody.data.purchaseOrderReference || null : null,
+          salesChannel: b2bContext ? "B2B_DIRECT" : "STOREFRONT",
           items: {
             create: invoiceItemsData
           }
@@ -829,9 +887,11 @@ let tax: number, shippingCost: number, grandTotal: number;
       });
       if (reservation.hasShortage) {
         await tx.invoice.update({ where: { id: inv.id }, data: { fulfillmentStatus: "NEEDS_PRODUCTION" } });
+      } else if (isB2bCredit) {
+        await tx.invoice.update({ where: { id: inv.id }, data: { fulfillmentStatus: "READY_TO_PACK" } });
       }
 
-      if (selectedPaymentMethod) {
+      if (selectedPaymentMethod && selectedPaymentMethod.method !== "CREDIT") {
         const publicMethod = toPublicPaymentMethod(selectedPaymentMethod);
         await tx.paymentSubmission.create({
           data: {
@@ -859,7 +919,11 @@ let tax: number, shippingCost: number, grandTotal: number;
           status: inv.status,
           grandTotal: Number(inv.grandTotal),
         },
-        metadata: { itemCount: invoiceItemsData.length },
+        metadata: {
+          itemCount: invoiceItemsData.length,
+          channel: b2bContext ? "B2B_DIRECT" : "STOREFRONT",
+          contractId: b2bContext?.contract.id ?? null,
+        },
       });
 
       return inv;

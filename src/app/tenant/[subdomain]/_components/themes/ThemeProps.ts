@@ -21,6 +21,7 @@ export interface CartStore {
   removeItem: (tenantId: string, id: string) => void;
   updateQuantity: (tenantId: string, id: string, delta: number) => void;
   clearCart: (tenantId: string) => void;
+  replaceCart: (tenantId: string, items: CartItem[]) => void;
   getTotalItems: (tenantId: string) => number;
   getTotalPrice: (tenantId: string) => number;
 }
@@ -30,6 +31,7 @@ export interface ThemeProps {
   products?: Product[];
   offerings?: StorefrontOffering[];
   cart: CartStore;
+  cartKey?: string;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
   customerName: string;
@@ -72,4 +74,11 @@ export interface ThemeProps {
   onClearRateChanged?: () => void;
   /** Tax rate from tenant storefront config */
   taxRate?: number;
+  purchaseOrderReference?: string;
+  setPurchaseOrderReference?: (value: string) => void;
+  b2bProfile?: {
+    accessToken: string;
+    customer: { id: string; name: string; phone?: string | null; tier: string };
+    contract: { contractNumber: string; allowCredit: boolean; paymentTermsDays: number | null };
+  } | null;
 }

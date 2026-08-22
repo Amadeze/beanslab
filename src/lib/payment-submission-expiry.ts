@@ -104,6 +104,7 @@ export async function expireUnpaidStorefrontOrders(client: PrismaClient, now = g
       publicOrderToken: { not: null },
       reservationExpiresAt: { lte: now },
       status: { in: ["DRAFT", "ISSUED"] },
+      NOT: { salesChannel: "B2B_DIRECT", paymentMethod: "CREDIT" },
       paidAmount: 0,
       stockReservations: { some: { status: "ACTIVE" } },
     },

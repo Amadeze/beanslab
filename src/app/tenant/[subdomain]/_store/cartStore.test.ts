@@ -114,6 +114,36 @@ describe("cart store", () => {
     expect(useCartStore.getState().getTotalPrice(TENANT_A)).toBe(170000);
   });
 
+  it("reprices a B2B line at the highest eligible quantity break", () => {
+    const store = useCartStore.getState();
+    store.addItem(TENANT_A, {
+      ...baseProduct,
+      id: "partner-price",
+      price: 90_000,
+      basePrice: 90_000,
+      priceBreaks: [
+        { id: "tier-10", minQuantity: 10, unitPrice: 85_000, tierName: "SILVER" },
+        { id: "tier-50", minQuantity: 50, unitPrice: 78_000, tierName: "SILVER" },
+      ],
+    });
+    store.replaceCart(TENANT_A, [{
+      ...useCartStore.getState().items[TENANT_A][0],
+      quantity: 60,
+    }]);
+
+    expect(useCartStore.getState().items[TENANT_A][0]).toMatchObject({ quantity: 60, price: 78_000 });
+    expect(useCartStore.getState().getTotalPrice(TENANT_A)).toBe(4_680_000);
+  });
+
+  it("keeps partner carts isolated from the same tenant retail cart", () => {
+    const store = useCartStore.getState();
+    store.addItem("tenant-a", { ...baseProduct, id: "retail" });
+    store.addItem("tenant-a:b2b:customer-a", { ...baseProduct, id: "partner", price: 75_000 });
+
+    expect(useCartStore.getState().items["tenant-a"][0].id).toBe("retail");
+    expect(useCartStore.getState().items["tenant-a:b2b:customer-a"][0].id).toBe("partner");
+  });
+
   it("isolates carts by tenant", () => {
     const store = useCartStore.getState();
     store.addItem(TENANT_A, { ...baseProduct, id: "p1:WHOLE_BEAN:" });

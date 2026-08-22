@@ -17,6 +17,8 @@ import { calculateShipmentWeightForTenant } from "@/lib/shipping/weight";
 import { createCartFingerprint } from "@/lib/shipping/fingerprint";
 import { createShippingQuoteToken } from "@/lib/shipping/quote-token";
 import { RAJAONGKIR_TARE_MAX_GRAMS } from "@/lib/shipping/types";
+import { verifyB2bAccessToken } from "@/lib/b2b-access";
+import { loadStorefrontB2bContext, resolveB2bCatalogPrice } from "@/lib/storefront-b2b";
 
 export const dynamic = "force-dynamic";
 
@@ -133,7 +135,7 @@ export async function POST(
     }
 
     // 3. Parse and validate the request body.
-    let body: { destinationToken?: unknown; items?: unknown };
+    let body: { destinationToken?: unknown; items?: unknown; b2bAccessToken?: unknown };
     try {
       body = await req.json();
     } catch {
@@ -149,6 +151,17 @@ export async function POST(
     }
     if (body.items.length > 50) {
       return NextResponse.json({ error: "Terlalu banyak item" }, { status: 400 });
+    }
+
+    let b2bContext = null;
+    if (body.b2bAccessToken !== undefined) {
+      if (typeof body.b2bAccessToken !== "string") {
+        return NextResponse.json({ error: "Akses partner tidak valid." }, { status: 403 });
+      }
+      const access = verifyB2bAccessToken(body.b2bAccessToken);
+      if (!access) return NextResponse.json({ error: "Akses partner tidak valid atau kedaluwarsa." }, { status: 403 });
+      b2bContext = await loadStorefrontB2bContext(prisma, tenant.id, access, new Date(), { includeRecentOrders: false });
+      if (!b2bContext) return NextResponse.json({ error: "Kontrak partner tidak lagi aktif." }, { status: 403 });
     }
 
     const items: QuoteItemInput[] = body.items.map((raw) => {
@@ -205,9 +218,9 @@ export async function POST(
           tenantId: tenant.id,
           type: "FINISHED_GOODS",
           isActive: true,
-          price: { gt: 0 },
+          ...(!b2bContext ? { price: { gt: 0 } } : {}),
         },
-        select: { id: true, netWeightGrams: true, price: true },
+        select: { id: true, netWeightGrams: true, price: true, priceSilver: true, priceGold: true },
       }),
       prisma.offeringVariant.findMany({
         where: {
@@ -229,6 +242,17 @@ export async function POST(
       }
       if (!item.variantId && item.productId && !productMap.has(item.productId)) {
         return NextResponse.json({ error: "Ada item keranjang yang tidak valid" }, { status: 400 });
+      }
+      if (!item.variantId && item.productId && b2bContext) {
+        const product = productMap.get(item.productId)!;
+        const price = resolveB2bCatalogPrice({
+          price: Number(product.price ?? 0),
+          priceSilver: Number(product.priceSilver ?? 0),
+          priceGold: Number(product.priceGold ?? 0),
+        }, b2bContext.customer.tier, item.quantity!, b2bContext.priceBreaksByProduct.get(item.productId));
+        if (price.unitPrice <= 0) {
+          return NextResponse.json({ error: "Harga partner untuk salah satu item belum tersedia" }, { status: 400 });
+        }
       }
     }
 

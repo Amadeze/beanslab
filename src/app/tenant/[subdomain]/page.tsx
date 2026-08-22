@@ -13,6 +13,11 @@ import {
   buildStorefrontStructuredData,
   serializeStorefrontStructuredData,
 } from "@/lib/storefront-seo";
+import { verifyB2bAccessToken } from "@/lib/b2b-access";
+import {
+  loadStorefrontB2bContext,
+  resolveB2bCatalogPrice,
+} from "@/lib/storefront-b2b";
 
 export const dynamic = "force-dynamic";
 
@@ -114,10 +119,11 @@ export async function generateMetadata({ params, searchParams }: TenantPageProps
     !planHasFeature(tenant.subscriptionTier, "STOREFRONT")
   ) return {};
   const preview = (resolvedSearchParams as Record<string, string | string[] | undefined>).preview;
+  const b2b = (resolvedSearchParams as Record<string, string | string[] | undefined>).b2b;
   return buildStorefrontMetadata({
     tenant,
     canonicalUrl: tenantStorefrontUrl(subdomain),
-    isPreview: preview === "1" || preview === "true",
+    isPreview: preview === "1" || preview === "true" || typeof b2b === "string",
   });
 }
 
@@ -126,6 +132,7 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
   const subdomain = resolvedParams.subdomain;
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const isPreviewMode = resolvedSearchParams?.preview === "1" || resolvedSearchParams?.preview === "true";
+  const b2bAccessToken = typeof resolvedSearchParams?.b2b === "string" ? resolvedSearchParams.b2b : null;
 
   const tenant = await getStorefrontTenant(subdomain);
 
@@ -140,10 +147,25 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
   // Next.js App Router Server -> Client serialization doesn't support Prisma Decimal
   // Only storefront fields are serialized; internal costs and credentials stay server-side.
 
+  let b2bContext = null;
+  if (b2bAccessToken && !isPreviewMode) {
+    try {
+      const access = verifyB2bAccessToken(b2bAccessToken);
+      if (access) b2bContext = await loadStorefrontB2bContext(prisma, tenant.id, access);
+    } catch {
+      b2bContext = null;
+    }
+  }
+
   // Canonical catalog (products + coffee offerings dengan ketersediaan kg real-time)
   // — payload yang sama dipakai customizer preview via /api/portal-theme/products.
   const [catalog, portalTheme] = await Promise.all([
-    loadStorefrontCatalog(prisma, tenant.id),
+    loadStorefrontCatalog(prisma, tenant.id, b2bContext ? {
+      b2b: {
+        customerTier: b2bContext.customer.tier,
+        priceBreaksByProduct: b2bContext.priceBreaksByProduct,
+      },
+    } : {}),
     loadPortalThemeCompat(tenant.id),
   ]);
 
@@ -189,14 +211,54 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
     storefrontFlatShippingRate: Number(tenant.storefrontFlatShippingRate),
     storefrontFreeShippingMinimum: tenant.storefrontFreeShippingMinimum === null ? null : Number(tenant.storefrontFreeShippingMinimum),
     storefrontTaxRate: Number(tenant.storefrontTaxRate),
-    paymentMethods: tenant.tenantPaymentMethods,
+    paymentMethods: tenant.tenantPaymentMethods.filter((method) => (
+      method.method !== "CREDIT" || Boolean(b2bContext?.contract.allowCredit)
+    )),
     products: catalog.products,
     offerings: catalog.offerings,
+    b2bAccessInvalid: Boolean(b2bAccessToken && !b2bContext),
+    b2bProfile: b2bContext ? {
+      accessToken: b2bAccessToken,
+      customer: b2bContext.customer,
+      contract: {
+        ...b2bContext.contract,
+        endDate: b2bContext.contract.endDate?.toISOString() ?? null,
+      },
+      recentOrders: b2bContext.recentOrders.map((order) => ({
+        id: order.id,
+        code: order.code,
+        issuedAt: order.issuedAt.toISOString(),
+        grandTotal: order.grandTotal,
+        purchaseOrderReference: order.purchaseOrderReference,
+        items: order.items.flatMap((item) => {
+          const product = catalog.products.find((candidate) => candidate.id === item.productId);
+          if (!product || !item.product.isActive) return [];
+          const resolvedPrice = resolveB2bCatalogPrice({
+            price: product.retailPrice ?? product.price ?? 0,
+            priceSilver: product.priceSilver ?? 0,
+            priceGold: product.priceGold ?? 0,
+          }, b2bContext.customer.tier, item.quantity, product.b2bPriceBreaks);
+          return [{
+            id: item.productId,
+            productId: item.productId,
+            code: item.product.code,
+            name: item.product.name,
+            imageUrl: item.product.imageUrl,
+            price: resolvedPrice.unitPrice,
+            quantity: item.quantity,
+            grindSize: item.grindSize ?? "WHOLE_BEAN",
+            customGrindLabel: item.customGrindLabel,
+            basePrice: product.price,
+            priceBreaks: product.b2bPriceBreaks ?? [],
+          }];
+        }),
+      })),
+    } : null,
   };
 
   // Type cast back to any or specific shape since Client component expects Decimal type structurally
   // (Prisma types on client actually accept numbers for Decimals usually, or we can just cast to any)
-  const structuredData = !isPreviewMode && resolvedThemeConfig.globalSettings.seo.structuredData
+  const structuredData = !isPreviewMode && !b2bContext && resolvedThemeConfig.globalSettings.seo.structuredData
     ? serializeStorefrontStructuredData(buildStorefrontStructuredData({
         tenant,
         canonicalUrl: tenantStorefrontUrl(subdomain),

@@ -23,8 +23,8 @@ Branch: `wip/non-kopi-commit3`
 | Batch 5 | Storefront UX | ✅ CLOSED + PUSHED |
 | Batch 6 | Theme / Customizer | ✅ CLOSED + PUSHED |
 | Batch 6.5 | Storefront theme architecture cleanup | ✅ COMMITTED LOCALLY (`c0a1f78`) |
-| Batch 7 | SEO / Perf / A11y | 🟢 IMPLEMENTED — READY TO COMMIT |
-| Batch 8 | B2B | ⏳ NOT STARTED |
+| Batch 7 | SEO / Perf / A11y | ✅ COMMITTED LOCALLY (`2fe5b7f`) |
+| Batch 8 | B2B | 🟢 IMPLEMENTED — READY TO COMMIT |
 
 ## Batch 3 — Delivered Scope
 
@@ -136,9 +136,32 @@ Branch: `wip/non-kopi-commit3`
 - Unknown and persisted external storefront images remain graceful
 - No schema migration and no commerce, shipping, accounting, or inventory behavior changes
 
+## Batch 8 — Delivered Scope
+
+- Tenant/customer-bound B2B partner links signed with `SESSION_SECRET`
+- Every partner request reloads the active wholesale customer and active tenant contract
+- Retail and partner carts isolated even on the same tenant storefront
+- Private finished-good SKUs can be exposed through wholesale tier or contract pricing
+- Server-authoritative tier pricing and highest eligible contract quantity break
+- Cart reprices immediately when quantity crosses a contract threshold
+- Checkout snapshots `priceSource` and `contractPriceId`; client prices remain non-authoritative
+- Contract-controlled CREDIT eligibility and structured payment terms
+- B2B CREDIT invoices use the existing `B2B_DIRECT` Invoice lifecycle and are not expired by retail payment cleanup
+- Customer PO/reference snapshot stored on Invoice and shown to customer/staff
+- Recent valid B2B orders can be loaded into the partner cart with current prices
+- Private partner pages are `noindex` and do not emit negotiated-price structured data
+- Migration 005 adds only contract credit policy and Invoice PO-reference fields
+
+### Deferred from Batch 8
+
+- Raw green-bean wholesale/direct sale: current InvoiceItem and fulfillment contracts are unit-FG oriented; safe kg sale needs a separate inventory/accounting change
+- Contract pricing for CoffeeOffering variants: current ContractPrice belongs to Product, not OfferingVariant
+- Strict order-wide MOQ: existing `minOrderQty` is a price-break threshold; no separate hard-MOQ policy exists
+- Customer password/OTP accounts: partner access intentionally uses revocable-by-contract signed links
+
 ## Migration State
 
-Active local migration chain after Batch 4:
+Active local migration chain after Batch 8:
 
 ```
 000000000000_baseline
@@ -146,9 +169,10 @@ Active local migration chain after Batch 4:
 000000000002_tenant_shipping_rajaongkir
 000000000003_storefront_shipping_checkout
 000000000004_storefront_awb_tracking
+000000000005_storefront_b2b_essentials
 ```
 
-Local acceptance evidence (2026-08-21):
+Local acceptance evidence through migration 004 (2026-08-21):
 
 - Fresh `migrate deploy`: PASS, 5/5 applied
 - `migrate status`: clean (up to date)
@@ -246,4 +270,18 @@ Production baseline recovery complete:
 - Production schema matches d23482d exactly (EMPTY diff)
 - Invariant preflight: ALL PASS
 
-Migration 003-004 pending deployment until this commit reaches production.
+Migration 003-005 deployment status must be verified against the target environment before release. Migration 005 local disposable-database acceptance is still pending because current local database credentials are unavailable.
+
+## Validation Evidence (Batch 8)
+
+| Gate | Result |
+|---|---|
+| `prisma validate` | PASS |
+| `prisma generate` | PASS |
+| `typecheck` | PASS |
+| `eslint --quiet` | PASS |
+| Focused B2B behavior tests | 51/51 PASS |
+| Portal-theme + B2B + sales regression suite | 320/320 PASS |
+| `next build --webpack` | PASS |
+| Migration 005 fresh deploy/diff | DEFERRED — local database credentials unavailable |
+| DB-backed checkout/catalog integration | SKIPPED by existing integration gate; local database credentials unavailable |

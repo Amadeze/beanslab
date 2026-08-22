@@ -291,6 +291,9 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                   <span className="text-xs text-slate-500">{inv.itemCount} Item</span>
                   <span className="text-xs text-slate-400">&middot;</span>
                   <span className="text-xs text-slate-500">{SALES_CHANNEL_LABELS[inv.salesChannel] ?? inv.salesChannel}</span>
+                  {inv.purchaseOrderReference ? (
+                    <span className="text-xs font-medium text-slate-600">PO {inv.purchaseOrderReference}</span>
+                  ) : null}
                 </div>
               </div>
               <div className="text-right">

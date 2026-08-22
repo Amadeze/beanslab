@@ -20,7 +20,7 @@ import { StorefrontImage } from "@/features/portal-theme/components/StorefrontIm
 import { useModalFocus } from "@/hooks/useModalFocus";
 
 export function UniversalTheme({
-  tenant, cart, isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
+  tenant, cart, cartKey = tenant.subdomain || "", isCartOpen, setIsCartOpen, customerName, setCustomerName, customerPhone, setCustomerPhone,
   customerAddress, setCustomerAddress, shippingMethod, setShippingMethod, handleAddToCart, handleAddOfferingToCart, handleCheckout,
   mounted,
   isCheckingOut,
@@ -28,11 +28,13 @@ export function UniversalTheme({
   courierShipping, setCourierShipping, courierShippingCartItems,
   courierRateChangedError, onClearRateChanged,
   taxRate = 0,
+  purchaseOrderReference = "", setPurchaseOrderReference,
+  b2bProfile,
 }: ThemeProps) {
 
   const products = tenant.products || [];
   const offerings: StorefrontOffering[] = tenant.offerings || [];
-  const cartItems = mounted ? (cart.items[tenant.subdomain || ""] || []) : [];
+  const cartItems = mounted ? (cart.items[cartKey] || []) : [];
 
   const [isConfirmingOrder, setIsConfirmingOrder] = useState(false);
   const closeCart = useCallback(() => setIsCartOpen(false), [setIsCartOpen]);
@@ -40,7 +42,7 @@ export function UniversalTheme({
   const cartDialogRef = useModalFocus(isCartOpen && !isConfirmingOrder, closeCart);
   const confirmationDialogRef = useModalFocus(isConfirmingOrder, closeConfirmation);
 
-  const cartSubtotal = cart.getTotalPrice(tenant.subdomain || "");
+  const cartSubtotal = cart.getTotalPrice(cartKey);
   const isCourier = shippingMethod === "COURIER";
   const isPickup = shippingMethod === "PICKUP";
 
@@ -166,7 +168,7 @@ export function UniversalTheme({
                         </p>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => cart.updateQuantity(tenant.subdomain || "", item.id, -1)}
+                            onClick={() => cart.updateQuantity(cartKey, item.id, -1)}
                             aria-label={`Kurangi ${item.name}`}
                             className="w-7 h-7 rounded-[var(--portal-radius)] flex items-center justify-center text-xs font-bold transition-colors border border-[var(--portal-border)] hover:bg-[var(--portal-bg)] text-[var(--portal-text)]"
                           >
@@ -176,7 +178,7 @@ export function UniversalTheme({
                             {item.quantity}
                           </span>
                           <button
-                            onClick={() => cart.updateQuantity(tenant.subdomain || "", item.id, 1)}
+                            onClick={() => cart.updateQuantity(cartKey, item.id, 1)}
                             aria-label={`Tambah ${item.name}`}
                             className="w-7 h-7 rounded-[var(--portal-radius)] flex items-center justify-center text-xs font-bold transition-colors border border-[var(--portal-border)] hover:bg-[var(--portal-bg)] text-[var(--portal-text)]"
                           >
@@ -189,7 +191,7 @@ export function UniversalTheme({
                           Rp {(item.price * item.quantity).toLocaleString("id-ID")}
                         </p>
                         <button
-                          onClick={() => cart.removeItem(tenant.subdomain || "", item.id)}
+                          onClick={() => cart.removeItem(cartKey, item.id)}
                           aria-label={`Hapus ${item.name} dari keranjang`}
                           className="text-xs mt-1 font-semibold text-red-500 hover:text-red-700"
                         >
@@ -212,6 +214,7 @@ export function UniversalTheme({
                       autoComplete="name"
                       value={customerName}
                       onChange={e => setCustomerName(e.target.value)}
+                      readOnly={Boolean(b2bProfile?.customer.name)}
                       placeholder="Nama Lengkap"
                       className="w-full bg-[var(--portal-bg)] text-[var(--portal-text)] border border-[var(--portal-border)] rounded-[var(--portal-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--portal-primary)] focus:ring-1 focus:ring-[var(--portal-primary)] transition-colors"
                     />
@@ -221,10 +224,23 @@ export function UniversalTheme({
                       autoComplete="tel"
                       value={customerPhone}
                       onChange={e => setCustomerPhone(e.target.value)}
+                      readOnly={Boolean(b2bProfile?.customer.phone)}
                       placeholder="Nomor WhatsApp"
                       type="tel"
                       className="w-full bg-[var(--portal-bg)] text-[var(--portal-text)] border border-[var(--portal-border)] rounded-[var(--portal-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--portal-primary)] focus:ring-1 focus:ring-[var(--portal-primary)] transition-colors"
                     />
+                    {b2bProfile && setPurchaseOrderReference ? <>
+                      <label htmlFor="storefront-po-reference" className="block text-xs font-semibold uppercase tracking-wide text-gray-500">Nomor PO / referensi pembelian</label>
+                      <input
+                        id="storefront-po-reference"
+                        value={purchaseOrderReference}
+                        onChange={(event) => setPurchaseOrderReference(event.target.value)}
+                        placeholder="Contoh: PO-CAFE-2026-081"
+                        maxLength={100}
+                        autoComplete="off"
+                        className="w-full bg-[var(--portal-bg)] text-[var(--portal-text)] border border-[var(--portal-border)] rounded-[var(--portal-radius)] px-4 py-3 text-base focus:outline-none focus:border-[var(--portal-primary)] focus:ring-1 focus:ring-[var(--portal-primary)] transition-colors"
+                      />
+                    </> : null}
                     {shippingMethod !== "PICKUP" ? <><label htmlFor="storefront-customer-address" className="sr-only">Alamat lengkap</label><textarea
                       id="storefront-customer-address"
                       autoComplete="street-address"
@@ -257,6 +273,7 @@ export function UniversalTheme({
                     {isCourier && setCourierShipping && courierShippingCartItems && (
                       <CourierShippingSearch
                         subdomain={tenant.subdomain || ""}
+                        b2bAccessToken={b2bProfile?.accessToken}
                         cartItems={courierShippingCartItems}
                         onShippingChange={setCourierShipping}
                         rateChangedError={courierRateChangedError ?? null}
@@ -277,7 +294,13 @@ export function UniversalTheme({
                               className={`w-full rounded-[var(--portal-radius)] border px-4 py-3 text-left text-sm transition-colors ${paymentMethodId === method.id ? "border-[var(--portal-primary)] bg-[var(--portal-bg)] ring-1 ring-[var(--portal-primary)]" : "border-[var(--portal-border)] bg-[var(--portal-bg)]"}`}
                             >
                               <span className="block font-bold text-[var(--portal-text)]">{method.label}</span>
-                              <span className="mt-0.5 block text-xs text-[var(--portal-text-muted)]">{method.method === "QRIS" ? "Scan QRIS setelah pesanan dibuat" : `${method.bankName} • ${method.accountNumber}`}</span>
+                              <span className="mt-0.5 block text-xs text-[var(--portal-text-muted)]">
+                                {method.method === "CREDIT"
+                                  ? `Termin ${b2bProfile?.contract.paymentTermsDays ?? 0} hari sesuai kontrak`
+                                  : method.method === "QRIS"
+                                    ? "Scan QRIS setelah pesanan dibuat"
+                                    : `${method.bankName} • ${method.accountNumber}`}
+                              </span>
                             </button>
                           ))}
                         </div>
@@ -386,6 +409,12 @@ export function UniversalTheme({
                         <span className="text-[var(--portal-text-muted)]">Penerima</span>
                         <span className="font-semibold text-right">{customerName}<br/><span className="text-xs font-normal">{customerPhone}</span></span>
                       </div>
+                      {b2bProfile && purchaseOrderReference ? (
+                        <div className="flex justify-between border-b border-[var(--portal-border)] pb-2">
+                          <span className="text-[var(--portal-text-muted)]">Referensi PO</span>
+                          <span className="max-w-[180px] truncate text-right font-semibold">{purchaseOrderReference}</span>
+                        </div>
+                      ) : null}
                       <div className="flex justify-between border-b border-[var(--portal-border)] pb-2">
                         <span className="text-[var(--portal-text-muted)]">Pengiriman</span>
                         <span className="font-semibold text-right max-w-[150px] truncate">{shippingMethod === "PICKUP" ? "Ambil Sendiri" : shippingMethod === "COURIER" ? `Ekspedisi${courierShipping?.selectedRate ? ` · ${courierShipping.selectedRate.courierName}` : ""}` : "Kirim Kurir"}</span>

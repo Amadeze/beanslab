@@ -1615,9 +1615,10 @@ model Invoice {
   tenantId           String
   tenant             Tenant              @relation(fields: [tenantId], references: [id])
 
-  midtransOrderId String? @unique
-  paymentUrl      String?
-  paymentMethod   String?
+  midtransOrderId        String? @unique
+  paymentUrl             String?
+  paymentMethod          String?
+  purchaseOrderReference String? // Referensi PO milik customer B2B (snapshot saat checkout)
 
   @@unique([tenantId, code])
   @@unique([tenantId, operationKey])
@@ -2783,16 +2784,18 @@ model Budget {
 // =============================================================================
 
 model Contract {
-  id             String    @id @default(cuid())
-  tenantId       String
-  customerId     String
-  contractNumber String
-  startDate      DateTime
-  endDate        DateTime?
-  terms          String?
-  isActive       Boolean   @default(true)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  tenantId         String
+  customerId       String
+  contractNumber   String
+  startDate        DateTime
+  endDate          DateTime?
+  terms            String?
+  allowCredit      Boolean   @default(false)
+  paymentTermsDays Int?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   tenant   Tenant          @relation(fields: [tenantId], references: [id])
   customer Customer        @relation(fields: [customerId], references: [id])

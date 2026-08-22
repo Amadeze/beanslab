@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, ChevronDown } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ import {
   deleteContractPrice,
   getContracts,
   getContractPrices,
+  createB2bPortalLink,
   type ContractRow,
   type ContractPriceRow,
   type KontrakPageData,
@@ -69,6 +70,8 @@ type ContractFormState = {
   startDate: string;
   endDate: string;
   terms: string;
+  allowCredit: boolean;
+  paymentTermsDays: string;
 };
 
 function emptyContractForm(partial?: Partial<ContractFormState>): ContractFormState {
@@ -78,6 +81,8 @@ function emptyContractForm(partial?: Partial<ContractFormState>): ContractFormSt
     startDate: partial?.startDate || "",
     endDate: partial?.endDate || "",
     terms: partial?.terms || "",
+    allowCredit: partial?.allowCredit ?? false,
+    paymentTermsDays: partial?.paymentTermsDays || "",
   };
 }
 
@@ -98,6 +103,8 @@ function ContractForm({ open, onOpenChange, initial, customers, onSuccess }: Con
       startDate: initial.startDate.slice(0, 10),
       endDate: initial.endDate ? initial.endDate.slice(0, 10) : "",
       terms: initial.terms || "",
+      allowCredit: initial.allowCredit,
+      paymentTermsDays: initial.paymentTermsDays?.toString() ?? "",
     };
   });
   const [submitting, setSubmitting] = useState(false);
@@ -111,6 +118,8 @@ function ContractForm({ open, onOpenChange, initial, customers, onSuccess }: Con
         startDate: initial.startDate.slice(0, 10),
         endDate: initial.endDate ? initial.endDate.slice(0, 10) : "",
         terms: initial.terms || "",
+        allowCredit: initial.allowCredit,
+        paymentTermsDays: initial.paymentTermsDays?.toString() ?? "",
       });
     } else {
       setForm(emptyContractForm());
@@ -126,6 +135,8 @@ function ContractForm({ open, onOpenChange, initial, customers, onSuccess }: Con
       startDate: form.startDate,
       endDate: form.endDate || undefined,
       terms: form.terms.trim() || undefined,
+      allowCredit: form.allowCredit,
+      paymentTermsDays: form.allowCredit ? Number(form.paymentTermsDays) : undefined,
     };
     const result = initial ? await updateContract(initial.id, payload) : await createContract(payload);
     setSubmitting(false);
@@ -168,6 +179,32 @@ function ContractForm({ open, onOpenChange, initial, customers, onSuccess }: Con
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="rounded-xl border border-stone-200 p-3">
+            <label className="flex items-center gap-3 text-sm font-semibold text-stone-800">
+              <input
+                type="checkbox"
+                checked={form.allowCredit}
+                onChange={(event) => setForm((current) => ({ ...current, allowCredit: event.target.checked }))}
+                className="h-4 w-4 rounded border-stone-300"
+              />
+              Izinkan pembayaran kredit di portal partner
+            </label>
+            {form.allowCredit ? (
+              <div className="mt-3 space-y-2">
+                <Label htmlFor="contract-payment-terms">Termin pembayaran (hari)</Label>
+                <Input
+                  id="contract-payment-terms"
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={form.paymentTermsDays}
+                  onChange={(event) => setForm((current) => ({ ...current, paymentTermsDays: event.target.value }))}
+                  required
+                />
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -392,6 +429,17 @@ type DetailDialogProps = {
 function ContractDetailDialog({ contract, prices, products, onClose, onRefresh }: DetailDialogProps) {
   const [addingPrice, setAddingPrice] = useState(false);
 
+  async function copyPartnerLink() {
+    const result = await createB2bPortalLink(contract.id);
+    if (!result.success) {
+      toastSafe.error(result.error);
+      return;
+    }
+    const url = new URL(result.path, window.location.origin).toString();
+    await navigator.clipboard.writeText(url);
+    toast.success(`Link partner disalin. Berlaku sampai ${new Date(result.expiresAt).toLocaleDateString("id-ID")}.`);
+  }
+
   return (
     <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent showCloseButton className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -440,6 +488,22 @@ function ContractDetailDialog({ contract, prices, products, onClose, onRefresh }
               <p className="mt-1 whitespace-pre-wrap text-xs text-stone-700">{contract.terms}</p>
             </GlassPanel>
           )}
+
+          <GlassPanel padding="sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold text-stone-700">Akses portal partner</p>
+                <p className="mt-1 text-xs text-stone-500">
+                  {contract.allowCredit
+                    ? `Harga kontrak + kredit ${contract.paymentTermsDays} hari`
+                    : "Harga kontrak · pembayaran langsung"}
+                </p>
+              </div>
+              <Button type="button" size="sm" variant="outline" className="gap-2" onClick={copyPartnerLink}>
+                <Link2 size={14} /> Salin Link Partner
+              </Button>
+            </div>
+          </GlassPanel>
 
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-stone-900">Daftar Harga Tier ({prices.length})</p>
@@ -539,6 +603,7 @@ type KontrakClientProps = {
 export function KontrakClient({ initialData }: KontrakClientProps) {
   const [data, setData] = useState<KontrakPageData>(initialData);
   const [contractOpen, setContractOpen] = useState(false);
+  const [contractToEdit, setContractToEdit] = useState<ContractRow | null>(null);
   const [detailContract, setDetailContract] = useState<ContractRow | null>(null);
   const [detailPrices, setDetailPrices] = useState<ContractPriceRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -578,7 +643,7 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
               size="default"
               variant="default"
               className="gap-2 px-5"
-              onClick={() => { setDetailContract(null); setContractOpen(true); }}
+              onClick={() => { setContractToEdit(null); setContractOpen(true); }}
             >
               <Plus size={16} />
               Kontrak Baru
@@ -670,7 +735,7 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
                             title="Edit"
                             aria-label={`Edit ${c.contractNumber}`}
                             onClick={() => {
-                              setDetailContract(null);
+                              setContractToEdit(c);
                               setContractOpen(true);
                             }}
                             className="text-stone-400 hover:text-[var(--amber-deep)]"
@@ -691,7 +756,7 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
       <ContractForm
         open={contractOpen}
         onOpenChange={setContractOpen}
-        initial={detailContract}
+        initial={contractToEdit}
         customers={data.customers}
         onSuccess={refresh}
       />

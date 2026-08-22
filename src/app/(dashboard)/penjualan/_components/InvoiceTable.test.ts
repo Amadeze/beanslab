@@ -26,6 +26,7 @@ function invoice(overrides: Partial<InvoiceRow>): InvoiceRow {
     trackingNumber: null,
     shippingCourierCode: null,
     shippingCost: 0,
+    purchaseOrderReference: null,
     ...overrides,
   };
 }

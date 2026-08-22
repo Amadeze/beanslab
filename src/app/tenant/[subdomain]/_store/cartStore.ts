@@ -11,6 +11,8 @@ export interface CartItem {
   name: string;
   imageUrl: string | null;
   price: number;
+  basePrice?: number;
+  priceBreaks?: Array<{ id: string; minQuantity: number; unitPrice: number; tierName: string }>;
   quantity: number;
   grindSize: StorefrontGrindSize;
   customGrindLabel: string | null;
@@ -26,9 +28,17 @@ interface CartState {
   addItem: (tenantId: string, product: Omit<CartItem, "quantity">) => void;
   removeItem: (tenantId: string, id: string) => void;
   updateQuantity: (tenantId: string, id: string, delta: number) => void;
+  replaceCart: (tenantId: string, items: CartItem[]) => void;
   clearCart: (tenantId: string) => void;
   getTotalItems: (tenantId: string) => number;
   getTotalPrice: (tenantId: string) => number;
+}
+
+export function resolveCartItemPrice(item: Pick<CartItem, "price" | "basePrice" | "priceBreaks">, quantity: number) {
+  const eligible = (item.priceBreaks ?? [])
+    .filter((price) => price.minQuantity <= quantity && price.unitPrice > 0)
+    .sort((left, right) => right.minQuantity - left.minQuantity)[0];
+  return eligible?.unitPrice ?? item.basePrice ?? item.price;
 }
 
 export function createCartStore(storage?: StateStorage) {
@@ -43,16 +53,28 @@ export function createCartStore(storage?: StateStorage) {
           const tenantItems = state.items[tenantId] || [];
           const existingItem = tenantItems.find((item) => item.id === product.id);
           if (existingItem) {
+            const quantity = existingItem.quantity + 1;
             return {
               items: {
                 ...state.items,
                 [tenantId]: tenantItems.map((item) =>
-                  item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+                  item.id === product.id
+                    ? { ...item, ...product, quantity, price: resolveCartItemPrice({ ...item, ...product }, quantity) }
+                    : item
                 ),
               }
             };
           }
-          return { items: { ...state.items, [tenantId]: [...tenantItems, { ...product, quantity: 1 }] } };
+          return {
+            items: {
+              ...state.items,
+              [tenantId]: [...tenantItems, {
+                ...product,
+                quantity: 1,
+                price: resolveCartItemPrice(product, 1),
+              }],
+            },
+          };
         });
       },
       removeItem: (tenantId, id) => {
@@ -70,13 +92,23 @@ export function createCartStore(storage?: StateStorage) {
             [tenantId]: (state.items[tenantId] || []).map((item) => {
               if (item.id === id) {
                 const newQty = Math.max(1, item.quantity + delta);
-                return { ...item, quantity: newQty };
+                return { ...item, quantity: newQty, price: resolveCartItemPrice(item, newQty) };
               }
               return item;
             }),
           }
         }));
       },
+      replaceCart: (tenantId, items) => set((state) => ({
+        items: {
+          ...state.items,
+          [tenantId]: items.map((item) => ({
+            ...item,
+            quantity: Math.max(1, Math.floor(item.quantity)),
+            price: resolveCartItemPrice(item, Math.max(1, Math.floor(item.quantity))),
+          })),
+        },
+      })),
       clearCart: (tenantId) => set((state) => ({ items: { ...state.items, [tenantId]: [] } })),
       getTotalItems: (tenantId) => {
         return (get().items[tenantId] || []).reduce((total, item) => total + item.quantity, 0);

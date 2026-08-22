@@ -1,4 +1,9 @@
 import type { StorefrontOffering, StorefrontGrindSize } from "./storefront-grind";
+import {
+  resolveB2bCatalogPrice,
+  type B2bPriceBreak,
+} from "./storefront-b2b";
+import type { CustomerPriceTier } from "./sale-intent";
 
 // Canonical storefront catalog: satu loader + satu lineage resolver yang
 // dipakai oleh storefront publik (tenant/[subdomain]/page.tsx), customizer
@@ -163,6 +168,9 @@ export type CatalogProduct = {
   price: number | null;
   priceSilver: number | null;
   priceGold: number | null;
+  retailPrice?: number | null;
+  priceSource?: "BASE" | "TIER" | "CONTRACT";
+  b2bPriceBreaks?: B2bPriceBreak[];
   stockKg: number | null;
   stockUnit: number | null;
   recipes: Array<{ storefrontGrindOptions: StorefrontGrindSize[] }>;
@@ -185,10 +193,28 @@ export type StorefrontCatalog = {
 export async function loadStorefrontCatalog(
   db: StorefrontDb,
   tenantId: string,
+  options: {
+    b2b?: {
+      customerTier: CustomerPriceTier;
+      priceBreaksByProduct: Map<string, B2bPriceBreak[]>;
+    };
+  } = {},
 ): Promise<StorefrontCatalog> {
+  const b2bProductIds = options.b2b ? [...options.b2b.priceBreaksByProduct.keys()] : [];
+  const productPriceFilter = options.b2b
+    ? {
+        OR: [
+          { price: { gt: 0 } },
+          options.b2b.customerTier === "WHOLESALE_GOLD"
+            ? { priceGold: { gt: 0 } }
+            : { priceSilver: { gt: 0 } },
+          ...(b2bProductIds.length > 0 ? [{ id: { in: b2bProductIds } }] : []),
+        ],
+      }
+    : { price: { gt: 0 } };
   const [productRows, offeringRows] = await Promise.all([
     db.product.findMany({
-      where: { tenantId, type: "FINISHED_GOODS", isActive: true, price: { gt: 0 } },
+      where: { tenantId, type: "FINISHED_GOODS", isActive: true, ...productPriceFilter },
       select: {
         id: true,
         code: true,
@@ -259,23 +285,43 @@ export async function loadStorefrontCatalog(
     }),
   ]);
 
-  const products: CatalogProduct[] = productRows.map((product: Record<string, unknown>) => ({
-    id: product.id as string,
-    code: product.code as string,
-    name: product.name as string,
-    type: product.type as string,
-    category: product.category as string | null,
-    origin: product.origin as string | null,
-    roastLevel: product.roastLevel as string | null,
-    description: product.description as string | null,
-    imageUrl: product.imageUrl as string | null,
-    price: num(product.price),
-    priceSilver: num(product.priceSilver),
-    priceGold: num(product.priceGold),
-    stockKg: num(product.stockKg),
-    stockUnit: num(product.stockUnit),
-    recipes: (product.recipes ?? []) as Array<{ storefrontGrindOptions: StorefrontGrindSize[] }>,
-  }));
+  const products: CatalogProduct[] = productRows.flatMap((product: Record<string, unknown>) => {
+    const retailPrice = num(product.price);
+    const priceSilver = num(product.priceSilver);
+    const priceGold = num(product.priceGold);
+    const breaks = options.b2b?.priceBreaksByProduct.get(product.id as string) ?? [];
+    const resolved = options.b2b
+      ? resolveB2bCatalogPrice({
+          price: retailPrice ?? 0,
+          priceSilver: priceSilver ?? 0,
+          priceGold: priceGold ?? 0,
+        }, options.b2b.customerTier, 1, breaks)
+      : null;
+    const price = resolved?.unitPrice ?? retailPrice;
+    if (price === null || price <= 0) return [];
+    return [{
+      id: product.id as string,
+      code: product.code as string,
+      name: product.name as string,
+      type: product.type as string,
+      category: product.category as string | null,
+      origin: product.origin as string | null,
+      roastLevel: product.roastLevel as string | null,
+      description: product.description as string | null,
+      imageUrl: product.imageUrl as string | null,
+      price,
+      priceSilver,
+      priceGold,
+      ...(options.b2b ? {
+        retailPrice,
+        priceSource: resolved?.priceSource ?? "TIER",
+        b2bPriceBreaks: breaks,
+      } : {}),
+      stockKg: num(product.stockKg),
+      stockUnit: num(product.stockUnit),
+      recipes: (product.recipes ?? []) as Array<{ storefrontGrindOptions: StorefrontGrindSize[] }>,
+    }];
+  });
 
   // Resolve lineage + ketersediaan kg per offering.
   const lineageIds: string[] = [];

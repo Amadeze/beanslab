@@ -103,6 +103,7 @@ export type InvoiceRow = {
   trackingNumber: string | null;
   shippingCourierCode: string | null;
   shippingCost: number;
+  purchaseOrderReference: string | null;
 };
 
 export type SalesPageData = {
@@ -263,6 +264,7 @@ export async function getSalesPageData(): Promise<SalesPageData> {
       trackingNumber: inv.trackingNumber,
       shippingCourierCode: inv.shippingCourierCode,
       shippingCost: Number(inv.shippingCost || 0),
+      purchaseOrderReference: inv.purchaseOrderReference,
     };
   });
 

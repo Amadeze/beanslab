@@ -206,11 +206,18 @@ export function CatalogGridSection({ settings, typography, products = [], offeri
                     {showPrices && (
                       <div>
                         <span className="text-xs block uppercase font-medium" style={{ color: "var(--portal-text-muted, #6B7280)" }}>
-                          Harga / kg
+                          {product.b2bPriceBreaks?.length ? "Harga partner" : "Harga"}
                         </span>
                         <span className="text-base font-bold" style={{ color: "var(--portal-primary, #D4A574)" }}>
                           Rp {Number(product.price || 0).toLocaleString("id-ID")}
                         </span>
+                        {product.b2bPriceBreaks?.length ? (
+                          <div className="mt-1 space-y-0.5 text-[10px]" style={{ color: "var(--portal-text-muted, #6B7280)" }}>
+                            {product.b2bPriceBreaks.slice(0, 3).map((price: any) => (
+                              <p key={price.id}>≥ {price.minQuantity} unit · Rp {Number(price.unitPrice).toLocaleString("id-ID")}</p>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     )}
                     <button

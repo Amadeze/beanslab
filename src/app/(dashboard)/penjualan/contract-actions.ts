@@ -9,6 +9,7 @@ import {
   requireTenantPrisma,
 } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { issueB2bAccessToken } from "@/lib/b2b-access";
 
 // =============================================================================
 // TYPES
@@ -23,6 +24,8 @@ export type ContractRow = {
   startDate: string;
   endDate: string | null;
   terms: string | null;
+  allowCredit: boolean;
+  paymentTermsDays: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -64,6 +67,11 @@ const CreateContractSchema = z.object({
   startDate: z.string().min(1),
   endDate: z.string().optional(),
   terms: z.string().max(10_000).optional(),
+  allowCredit: z.boolean().default(false),
+  paymentTermsDays: z.number().int().min(1).max(365).optional(),
+}).refine((value) => !value.allowCredit || value.paymentTermsDays !== undefined, {
+  message: "Termin pembayaran wajib diisi saat kredit diaktifkan.",
+  path: ["paymentTermsDays"],
 });
 
 const UpdateContractSchema = z.object({
@@ -71,6 +79,11 @@ const UpdateContractSchema = z.object({
   endDate: z.string().optional(),
   terms: z.string().max(10_000).optional(),
   isActive: z.boolean().optional(),
+  allowCredit: z.boolean().default(false),
+  paymentTermsDays: z.number().int().min(1).max(365).optional(),
+}).refine((value) => !value.allowCredit || value.paymentTermsDays !== undefined, {
+  message: "Termin pembayaran wajib diisi saat kredit diaktifkan.",
+  path: ["paymentTermsDays"],
 });
 
 const AddContractPriceSchema = z.object({
@@ -127,6 +140,8 @@ export async function getContracts(filters: { customerId?: string; isActive?: bo
     startDate: c.startDate.toISOString(),
     endDate: c.endDate ? c.endDate.toISOString() : null,
     terms: c.terms,
+    allowCredit: c.allowCredit,
+    paymentTermsDays: c.paymentTermsDays,
     isActive: c.isActive,
     createdAt: c.createdAt.toISOString(),
     updatedAt: c.updatedAt.toISOString(),
@@ -171,6 +186,8 @@ export async function createContract(input: z.infer<typeof CreateContractSchema>
           startDate: new Date(parsed.startDate),
           endDate: parsed.endDate ? new Date(parsed.endDate) : null,
           terms: parsed.terms || null,
+          allowCredit: parsed.allowCredit,
+          paymentTermsDays: parsed.allowCredit ? parsed.paymentTermsDays : null,
         },
       });
 
@@ -185,6 +202,8 @@ export async function createContract(input: z.infer<typeof CreateContractSchema>
           customerId: parsed.customerId,
           startDate: parsed.startDate,
           endDate: parsed.endDate,
+          allowCredit: parsed.allowCredit,
+          paymentTermsDays: parsed.allowCredit ? parsed.paymentTermsDays : null,
         },
       });
     });
@@ -221,6 +240,8 @@ export async function updateContract(id: string, input: z.infer<typeof UpdateCon
           endDate: parsed.endDate ? new Date(parsed.endDate) : null,
           terms: parsed.terms || null,
           isActive: parsed.isActive ?? existing.isActive,
+          allowCredit: parsed.allowCredit,
+          paymentTermsDays: parsed.allowCredit ? parsed.paymentTermsDays : null,
         },
       });
 
@@ -235,6 +256,8 @@ export async function updateContract(id: string, input: z.infer<typeof UpdateCon
           startDate: parsed.startDate,
           endDate: parsed.endDate,
           isActive: parsed.isActive ?? existing.isActive,
+          allowCredit: parsed.allowCredit,
+          paymentTermsDays: parsed.allowCredit ? parsed.paymentTermsDays : null,
         },
       });
     });
@@ -243,6 +266,49 @@ export async function updateContract(id: string, input: z.infer<typeof UpdateCon
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Gagal memperbarui kontrak." };
+  }
+}
+
+export async function createB2bPortalLink(contractId: string) {
+  try {
+    await requireRole("OWNER", "MANAGER");
+    const tenantId = await getCurrentTenantId();
+    const tp = await requireTenantPrisma();
+    const [contract, tenant] = await Promise.all([
+      tp.contract.findFirst({
+        where: {
+          id: contractId,
+          tenantId,
+          isActive: true,
+          startDate: { lte: new Date() },
+          OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
+          customer: {
+            tenantId,
+            isActive: true,
+            tier: { in: ["WHOLESALE_SILVER", "WHOLESALE_GOLD"] },
+          },
+        },
+        select: { customerId: true, endDate: true },
+      }),
+      tp.tenant.findFirst({ where: { id: tenantId }, select: { subdomain: true } }),
+    ]);
+    if (!contract || !tenant?.subdomain) {
+      return { success: false as const, error: "Kontrak partner aktif atau subdomain storefront tidak ditemukan." };
+    }
+
+    const maximumExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const expiresAt = contract.endDate && contract.endDate < maximumExpiry ? contract.endDate : maximumExpiry;
+    if (expiresAt <= new Date()) {
+      return { success: false as const, error: "Kontrak partner sudah berakhir." };
+    }
+    const token = issueB2bAccessToken({ tenantId, customerId: contract.customerId, expiresAt });
+    return {
+      success: true as const,
+      path: `/tenant/${tenant.subdomain}?b2b=${encodeURIComponent(token)}`,
+      expiresAt: expiresAt.toISOString(),
+    };
+  } catch (error: any) {
+    return { success: false as const, error: error.message || "Gagal membuat link partner." };
   }
 }
 

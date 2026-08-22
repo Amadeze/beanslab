@@ -39,6 +39,7 @@ export type CourierShippingState = {
 
 interface CourierShippingSearchProps {
   subdomain: string;
+  b2bAccessToken?: string;
   cartItems: Array<{
     productId?: string | null;
     offeringId?: string | null;
@@ -52,6 +53,7 @@ interface CourierShippingSearchProps {
 
 export function CourierShippingSearch({
   subdomain,
+  b2bAccessToken,
   cartItems,
   onShippingChange,
   rateChangedError,
@@ -143,7 +145,11 @@ export function CourierShippingSearch({
       const res = await fetch(`/api/tenant/${subdomain}/shipping/quote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ destinationToken: destination.token, items }),
+        body: JSON.stringify({
+          destinationToken: destination.token,
+          items,
+          ...(b2bAccessToken ? { b2bAccessToken } : {}),
+        }),
       });
       const data = await res.json();
 
@@ -187,7 +193,7 @@ export function CourierShippingSearch({
       fetchRates(selectedDestination);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(cartItems)]);
+  }, [b2bAccessToken, JSON.stringify(cartItems)]);
 
   const selectDestination = (dest: DestinationResult) => {
     setSelectedDestination(dest);

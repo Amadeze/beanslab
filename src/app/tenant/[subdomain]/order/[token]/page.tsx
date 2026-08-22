@@ -46,6 +46,7 @@ export default async function PublicOrderPage({ params }: { params: Promise<{ su
       subtotal: true, tax: true, shippingCost: true, grandTotal: true, paidAmount: true,
       shippingMethod: true, courierName: true, trackingNumber: true, paymentUrl: true,
       reservationExpiresAt: true,
+      dueDate: true, paymentMethod: true, salesChannel: true, purchaseOrderReference: true,
       customer: { select: { name: true } },
       tenant: { select: { name: true, subdomain: true, whatsappNumber: true } },
       items: {
@@ -113,6 +114,18 @@ export default async function PublicOrderPage({ params }: { params: Promise<{ su
               <p className="mt-1 text-sm font-black">{invoice.shippingMethod === "PICKUP" ? "Ambil di roastery" : invoice.trackingNumber ? `${invoice.courierName || "Kurir"} · ${invoice.trackingNumber}` : "Belum dikirim"}</p>
             </div>
           </section>
+
+          {invoice.salesChannel === "B2B_DIRECT" ? (
+            <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+              <p className="text-xs font-black uppercase tracking-wider text-emerald-700">Pesanan Partner B2B</p>
+              <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1">
+                {invoice.purchaseOrderReference ? <span>Referensi PO: <strong>{invoice.purchaseOrderReference}</strong></span> : null}
+                {invoice.paymentMethod === "CREDIT" && invoice.dueDate ? (
+                  <span>Jatuh tempo: <strong>{invoice.dueDate.toLocaleDateString("id-ID", { dateStyle: "long" })}</strong></span>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           {/* Fulfillment + Tracking Status */}
           <section className="rounded-xl border border-stone-200 p-4">
@@ -199,7 +212,12 @@ export default async function PublicOrderPage({ params }: { params: Promise<{ su
           </section> : invoice.paymentUrl && invoice.status !== "PAID" ? <a className="flex min-h-11 items-center justify-center rounded-lg bg-stone-900 px-5 text-sm font-black text-white" href={invoice.paymentUrl}>Lanjutkan pembayaran online</a> : null}
 
           <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-5 text-xs text-stone-500">
-            <span>Dibuat {invoice.issuedAt.toLocaleString("id-ID")}{invoice.reservationExpiresAt && invoice.status !== "PAID" ? ` · stok ditahan sampai ${invoice.reservationExpiresAt.toLocaleString("id-ID")}` : ""}</span>
+            <span>
+              Dibuat {invoice.issuedAt.toLocaleString("id-ID")}
+              {invoice.salesChannel !== "B2B_DIRECT" && invoice.reservationExpiresAt && invoice.status !== "PAID"
+                ? ` · stok ditahan sampai ${invoice.reservationExpiresAt.toLocaleString("id-ID")}`
+                : ""}
+            </span>
             {waNumber ? <a className="font-bold text-stone-800 underline" href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Halo ${invoice.tenant.name}, saya ingin menanyakan pesanan ${invoice.code}.`)}`}>Hubungi roastery</a> : null}
           </footer>
         </div>
