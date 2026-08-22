@@ -8,7 +8,7 @@ Branch: `wip/non-kopi-commit3`
 |---|---|
 | 2F Finance | ✅ CLOSED |
 | 2G Reporting & Analytics | ✅ CLOSED |
-| 2H Storefront / B2B Portal | ✅ IMPLEMENTATION COMPLETE LOCALLY |
+| 2H Storefront / B2B Portal | ✅ RELEASE CANDIDATE COMPLETE + PUSHED; TARGET NO-GO |
 
 ## 2H Storefront / B2B Portal — Batch Status
 
@@ -22,10 +22,11 @@ Branch: `wip/non-kopi-commit3`
 | Batch 4 | AWB / Tracking | ✅ CLOSED + PUSHED |
 | Batch 5 | Storefront UX | ✅ CLOSED + PUSHED |
 | Batch 6 | Theme / Customizer | ✅ CLOSED + PUSHED |
-| Batch 6.5 | Storefront theme architecture cleanup | ✅ COMMITTED LOCALLY (`c0a1f78`) |
-| Batch 7 | SEO / Perf / A11y | ✅ COMMITTED LOCALLY (`2fe5b7f`) |
-| Batch 8 | B2B | ✅ COMMITTED LOCALLY (`06bb4cc`) |
-| Final Product Coherence | Cross-app IA, terminology, states, and workflow consistency | ✅ COMMITTED LOCALLY (`fb2499e`) |
+| Batch 6.5 | Storefront theme architecture cleanup | ✅ CLOSED + PUSHED (`c0a1f78`) |
+| Batch 7 | SEO / Perf / A11y | ✅ CLOSED + PUSHED (`2fe5b7f`) |
+| Batch 8 | B2B | ✅ CLOSED + PUSHED (`06bb4cc`) |
+| Final Product Coherence | Cross-app IA, terminology, states, and workflow consistency | ✅ CLOSED + PUSHED (`fb2499e`) |
+| Final QA / Production Readiness | Full integration, production E2E, dependency and release hardening | ✅ LOCAL GATES CLOSED + PUSHED (`83bb335`); TARGET NO-GO |
 
 ## Batch 3 — Delivered Scope
 
@@ -337,10 +338,12 @@ Validation evidence:
 | Migration 000–005 fresh deploy/status/diff | PASS; 6/6; schema diff empty |
 | Tenant isolation / stock / integrity audits | PASS; no drift or violations |
 | Focused finance regression | 76/76 PASS |
-| Full integration-enabled suite | 150 files; 1,343/1,343 PASS; 0 skipped |
+| Full integration-enabled suite | 150 files; 1,345/1,345 PASS; 0 skipped |
 | Production build | PASS (68 pages generated) |
 | Full production-server Playwright | 31/31 PASS; 0 skipped |
 | Production dependency audit | 0 critical, 1 high, 0 moderate |
 | Production preflight | NO-GO: private bucket verification failed; external provider credentials absent |
 
 Application behavior is locally accepted. Production deployment remains blocked until target migration 003–005 state, private storage, backup/restore, required external-provider sandbox smoke tests, health/cron checks, and the pilot workflow are verified with valid credentials.
+
+Release-gate reliability hardening also rejects documented placeholder secrets/endpoints before network access, refuses to reuse an unrelated server during production E2E, requires a migrated/seeded local E2E owner, and removes the historical cold-import timeout flake from the AWB unit gate.

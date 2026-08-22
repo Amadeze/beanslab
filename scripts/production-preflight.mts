@@ -7,7 +7,9 @@ import {
   isEncryptedCredential,
 } from "../src/lib/credentials";
 import {
+  buildInvalidConfigurationPreflightReport,
   buildUnavailablePreflightReport,
+  findPlaceholderProductionEnvironment,
   type PrivateStorageCheck,
 } from "../src/lib/production-preflight-report";
 
@@ -62,6 +64,19 @@ if (process.env.XENDIT_ENABLED === "true" && !process.env.XENDIT_WEBHOOK_TOKEN) 
   invalidEnvironment.push("XENDIT_ENABLED=true requires XENDIT_WEBHOOK_TOKEN.");
 }
 if (process.env.XENDIT_ENABLED !== "true") warnings.push("Xendit xenPlatform checkout is disabled; tenant manual payment remains active.");
+
+const placeholderEnvironment = findPlaceholderProductionEnvironment(process.env);
+invalidEnvironment.push(...placeholderEnvironment);
+
+if (placeholderEnvironment.length > 0) {
+  console.error(JSON.stringify(buildInvalidConfigurationPreflightReport({
+    env: process.env,
+    missingEnvironment,
+    invalidEnvironment,
+    warnings,
+  }), null, 2));
+  process.exit(1);
+}
 
 const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
 if (!connectionString) {

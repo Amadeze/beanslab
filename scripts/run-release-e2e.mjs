@@ -6,6 +6,7 @@ const result = spawnSync(command, ["exec", "playwright", "test"], {
   env: {
     ...process.env,
     PLAYWRIGHT_USE_PRODUCTION_SERVER: "true",
+    PLAYWRIGHT_PORT: process.env.PLAYWRIGHT_PORT || "3100",
     ROASTD_E2E_LOCAL_STORAGE_ROOT:
       process.env.ROASTD_E2E_LOCAL_STORAGE_ROOT || path.join(process.cwd(), ".data"),
   },

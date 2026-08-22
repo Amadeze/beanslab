@@ -152,7 +152,7 @@ describe("saveInvoiceAwb", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("kurir");
-  });
+  }, 15_000);
 
   it("rejects cross-tenant invoice", async () => {
     const { prisma } = buildMockPrisma({

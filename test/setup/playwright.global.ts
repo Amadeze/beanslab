@@ -18,7 +18,11 @@ export default async function e2eDbGuard(): Promise<void> {
       orderBy: { createdAt: "asc" },
       select: { tenantId: true },
     });
-    if (!owner) return;
+    if (!owner) {
+      throw new Error(
+        "Release E2E requires a migrated and seeded local database with an active OWNER tenant.",
+      );
+    }
 
     await prisma.tenant.update({
       where: { id: owner.tenantId },

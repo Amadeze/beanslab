@@ -7,14 +7,14 @@ Last updated: 2026-08-22
 | Field | Value |
 |---|---|
 | Branch | `wip/non-kopi-commit3` |
-| Local commits ahead of origin | 6 after this handoff commit |
-| Batch 6.5 / 7 / 8 | **COMMITTED LOCALLY — NOT PUSHED** |
-| Final Product Coherence | **COMMITTED LOCALLY — NOT PUSHED** |
-| Final QA closure | **COMMITTED LOCALLY — NOT PUSHED** |
+| Local commits ahead of origin | 0 (`83bb335` is synchronized with origin) |
+| Batch 6.5 / 7 / 8 | **CLOSED + PUSHED** |
+| Final Product Coherence | **CLOSED + PUSHED** |
+| Final QA closure | **LOCAL GATES CLOSED + PUSHED** |
 | Application release candidate | **LOCAL GATES PASS** |
 | Production deployment | **NO-GO — TARGET ENVIRONMENT BLOCKERS REMAIN** |
 
-No local commit has been pushed.
+The release-candidate history through `83bb335` is pushed. The production target remains blocked by environment evidence, not by unpublished application commits.
 
 ## Final QA delivered
 
@@ -27,6 +27,9 @@ No local commit has been pushed.
 - Updated release E2E tests to use public checkout identifiers, canonical labels, current theme tokens, registry-era navigation, and self-contained tenant/superadmin fixtures.
 - Made the subscription webhook contract test self-contained with an E2E-only secret.
 - Pinned ExcelJS's compatible `uuid` dependency to patched 11.1.1 and verified real XLSX creation/parsing.
+- Production preflight rejects the documented placeholder endpoints/secrets before network access and emits only key-level diagnostics.
+- The release Playwright runner uses an isolated port, refuses unrelated-server reuse, and fails fast when its local database has not been seeded.
+- The historical AWB cold-import timeout is isolated with a test-specific timeout; behavior assertions are unchanged.
 
 ## Database and migration evidence
 
@@ -51,7 +54,7 @@ Database-backed audits on the disposable target:
 | `prisma validate` / `prisma generate` | PASS |
 | `typecheck` / `eslint --quiet` | PASS |
 | Focused finance regression | 76/76 PASS |
-| Full integration-enabled suite, serial | 150 files; 1,343/1,343 PASS; 0 skipped |
+| Full integration-enabled suite, serial | 150 files; 1,345/1,345 PASS; 0 skipped |
 | XLSX + private-storage focused regression | 12/12 PASS |
 | Production build | PASS; 68 pages |
 | Full production-server Playwright suite | 31/31 PASS; 0 skipped |
@@ -65,7 +68,7 @@ Database-backed audits on the disposable target:
 
 ## Target-environment no-go blockers
 
-- `preflight:production` reaches the disposable database and sees all migrations, but returns `ready: false` because the configured `SUPABASE_PRIVATE_STORAGE_BUCKET` cannot be verified.
+- The checked-in local `.env.local` state uses documented placeholder endpoints, so it is not target-environment evidence. `preflight:production` must be rerun from the deployment secret manager with real database and Supabase configuration.
 - `RAJAONGKIR_API_KEY`, real Midtrans sandbox keys, `RESEND_API_KEY`, `WA_API_KEY`, and Xendit credentials are absent. Internal contracts pass, but real provider smoke tests cannot be performed without those credentials.
 - Email, WhatsApp, SaaS subscription Midtrans, and Xendit are disabled. Optional channels require an explicit launch decision; private proof storage is not optional.
 - Migrations 003–005, backup/PITR, restore drill, health endpoints, scheduled jobs, and the golden pilot workflow still require verification in the intended deployment environment.

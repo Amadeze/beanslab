@@ -19,11 +19,18 @@ pnpm build
 
 Do not deploy when preflight, migrations, tenant isolation, stock integrity, tests, or build fail. Lint warnings are technical debt; lint errors are release blockers.
 
+Before approving the application release candidate, also run `pnpm test:e2e:release`
+against an explicitly local, migrated, and seeded E2E database. The release runner
+uses an isolated production server and refuses to reuse an unrelated server already
+listening on its port. Override `PLAYWRIGHT_PORT` only when the default `3100` is busy.
+
 ## Current release snapshot (2026-08-22)
 
-The application release candidate passes the complete local gate on an isolated PostgreSQL 18 target: all six migrations deploy from empty, schema diff is empty, tenant/stock/integrity audits pass, 1,343 integration-enabled tests pass, all 31 production-server Playwright tests pass, and the 68-page production build passes.
+The application release candidate passes the complete local gate on an isolated PostgreSQL 18 target: all six migrations deploy from empty, schema diff is empty, tenant/stock/integrity audits pass, 1,345 integration-enabled tests pass, all 31 production-server Playwright tests pass through the isolated release runner, and the 68-page production build passes.
 
 The branch is still **not approved for production deployment** because the intended environment has not passed preflight: the configured private Supabase bucket cannot be verified, required provider sandbox credentials are absent, and migrations 003–005 plus backup/restore evidence have not been verified on the target database. Local application readiness must not be confused with target-environment readiness.
+
+The repository-local `.env.local` currently contains the documented example endpoints rather than target credentials. Preflight rejects these placeholders before making network or database checks. Run target preflight only from the deployment environment or an approved secret-injected release job.
 
 The production dependency audit reports one high-severity transitive advisory in Prisma's trusted configuration path (`deepmerge-ts`). Prisma 7.9.1 is the latest available parent release and does not expose recursive user input to this merger in this application. Record explicit release risk acceptance and upgrade when Prisma ships the patched major. ExcelJS's `uuid` dependency is pinned to compatible patched version 11.1.1; its XLSX parser/export regression tests pass.
 

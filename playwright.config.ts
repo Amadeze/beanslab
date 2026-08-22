@@ -30,7 +30,10 @@ export default defineConfig({
   webServer: {
     command: playwrightServerCommand,
     url: `${playwrightBaseUrl}/login`,
-    reuseExistingServer: true,
+    // Release proof must never attach to an unrelated dev server that happens
+    // to own the same port. Development runs may opt into reuse explicitly.
+    reuseExistingServer: process.env.PLAYWRIGHT_USE_PRODUCTION_SERVER !== "true"
+      && process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "true",
     timeout: Number(process.env.PLAYWRIGHT_SERVER_TIMEOUT_MS ?? 240_000),
   },
   projects: [
