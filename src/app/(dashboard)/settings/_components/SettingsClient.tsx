@@ -46,6 +46,8 @@ type ExtendedTenant = Omit<Tenant, "midtransServerKey" | "artisanWebhookToken"> 
   testimonials?: any | null;
   faqs?: any | null;
   setupCompletedAt?: Date | null;
+  showOnLanding?: boolean;
+  landingDisplayName?: string | null;
 };
 
 export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
@@ -97,6 +99,10 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
   const [faqs, setFaqs] = useState<any[]>(
     Array.isArray(tenant.faqs) ? tenant.faqs : []
   );
+
+  // Landing page social proof opt-in
+  const [showOnLanding, setShowOnLanding] = useState(tenant.showOnLanding ?? false);
+  const [landingDisplayName, setLandingDisplayName] = useState(tenant.landingDisplayName || "");
 
   // Payment Gateway
   const [midtransClientKey, setMidtransClientKey] = useState(tenant.midtransClientKey || "");
@@ -244,6 +250,8 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
         features: features.filter((feature) => feature.title?.trim() && feature.desc?.trim()),
         testimonials: testimonials.filter((item) => item.name?.trim() && item.text?.trim()),
         faqs: faqs.filter((item) => item.question?.trim() && item.answer?.trim()),
+        showOnLanding,
+        landingDisplayName,
       });
       toast.success("Pengaturan berhasil disimpan.");
       setRefreshKey(prev => prev + 1);
@@ -325,6 +333,42 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
               className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
             />
             <p className="text-xs text-slate-500 mt-1">Gunakan kode negara (misal: 62) tanpa spasi atau +. Semua pesanan (checkout) tanpa payment gateway akan masuk ke nomor ini.</p>
+          </div>
+
+          {/* Landing Page Social Proof Opt-in */}
+          <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <p className="text-sm font-bold text-slate-800">Tampilkan di Landing Page roastd.id</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Logo roastery kamu akan ditampilkan di halaman utama roastd.id sebagai social proof.
+                  Default: <strong>tidak ditampilkan</strong>. Logo yang digunakan adalah logo yang sudah diupload di atas.
+                </p>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center" aria-label="Toggle tampil di landing page">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={showOnLanding}
+                  onChange={e => setShowOnLanding(e.target.checked)}
+                />
+                <div className="h-5 w-9 rounded-full bg-slate-200 peer-checked:bg-amber-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-amber-500 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-4" />
+              </label>
+            </div>
+            {showOnLanding && (
+              <div className="mt-3">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Nama tampil (opsional)</label>
+                <input
+                  type="text"
+                  value={landingDisplayName}
+                  onChange={e => setLandingDisplayName(e.target.value)}
+                  placeholder={`Default: ${tenant.name}`}
+                  maxLength={80}
+                  className="w-full rounded-xl border-slate-200 bg-white/50 px-4 py-2 text-sm focus:border-amber-500 focus:ring-amber-500"
+                />
+                <p className="mt-1 text-xs text-slate-400">Kosongkan untuk memakai nama roastery.</p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

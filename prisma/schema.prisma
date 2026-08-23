@@ -412,6 +412,11 @@ model Tenant {
   ownerCapital       Decimal            @default(0) @db.Decimal(14, 2) // Modal awal pemilik
   initialCash        Decimal            @default(0) @db.Decimal(14, 2) // Saldo kas awal
 
+  // Landing page social proof (opt-in only — never show without explicit consent)
+  showOnLanding      Boolean @default(false)
+  landingLogoUrl     String?
+  landingDisplayName String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

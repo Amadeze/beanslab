@@ -74,6 +74,9 @@ const SettingsSchema = z.object({
   features: z.array(FeatureSchema).max(12).optional(),
   testimonials: z.array(TestimonialSchema).max(12).optional(),
   faqs: z.array(FaqSchema).max(20).optional(),
+  // Landing page social proof opt-in
+  showOnLanding: z.boolean().optional(),
+  landingDisplayName: optionalText(80),
 }).strict();
 
 export type SettingsActionResult =
@@ -144,6 +147,9 @@ export async function updateTenantSettings(_tenantId: string, data: unknown): Pr
           features: parsed.features,
           testimonials: parsed.testimonials,
           faqs: parsed.faqs,
+          // Landing social proof
+          showOnLanding: parsed.showOnLanding,
+          landingDisplayName: parsed.landingDisplayName,
         },
       });
 
