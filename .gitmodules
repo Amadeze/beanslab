@@ -1,0 +1,3 @@
+[submodule "ros-app"]
+	path = ros-app
+	url = https://github.com/Amadeze/roastd.id.git
