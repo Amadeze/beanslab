@@ -132,29 +132,7 @@ export default function BillingClient({ tenant }: { tenant: BillingTenant }) {
           {tenant.subscriptionTier !== "PRO" && (
             <div className="mt-12">
               <h3 className="text-lg font-bold text-[var(--text-primary)] mb-6">Upgrade your plan</h3>
-              <div className="grid gap-6 md:grid-cols-2">
-                {tenant.subscriptionTier === "TRIAL" && (
-                  <div className="glass-card-static p-6">
-                    <h4 className="text-lg font-bold text-[var(--text-primary)] mb-2">roastd.id Basic</h4>
-                    <div className="mb-4">
-                      <span className="text-3xl font-extrabold text-[var(--text-primary)]">{formatRupiah(PLAN_CATALOG.BASIC.monthlyPrice)}</span>
-                      <span className="text-[var(--text-secondary)] text-sm">/mo</span>
-                    </div>
-                    <ul className="mb-8 mt-6 space-y-3">
-                      <li className="text-[var(--text-secondary)] text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Inventory, roasting, production, sales</li>
-                      <li className="text-[var(--text-secondary)] text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> Tenant storefront</li>
-                      <li className="text-[var(--text-secondary)] text-sm flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500"/> PDF and Excel exports</li>
-                    </ul>
-                    <button
-                      onClick={() => handleSubscribe("BASIC")}
-                      disabled={loadingTier !== null}
-                      className="w-full py-3 rounded-xl bg-[var(--amber-deep)] hover:brightness-110 text-white font-bold transition-all flex items-center justify-center gap-2 shadow-[var(--glass-shadow)]"
-                    >
-                      {loadingTier === "BASIC" ? "Processing..." : <><CreditCard size={18} /> Subscribe to Basic</>}
-                    </button>
-                  </div>
-                )}
-                
+              <div className="grid gap-6">
                 <div className="bg-[var(--amber-lighter)] rounded-2xl border border-amber-200 p-6 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
                   <div className="absolute top-0 right-0 bg-[var(--amber-deep)] text-white text-xs font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">Premium Access</div>
                   <h4 className="text-lg font-bold text-[var(--amber-warm)] mb-2">roastd.id Pro</h4>

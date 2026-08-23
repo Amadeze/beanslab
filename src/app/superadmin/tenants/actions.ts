@@ -79,7 +79,7 @@ export async function createTenant(data: {
 
     const setupToken = createPasswordResetToken();
     const hashedPassword = await bcrypt.hash(createPasswordResetToken(), 12);
-    const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    const trialEndsAt = new Date(Date.now() + 21 * 24 * 60 * 60 * 1000);
 
     // Create Tenant and Admin User
     const owner = await prisma.$transaction(async (tx) => {

@@ -95,9 +95,9 @@ export async function registerTenant(data: {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 5. Create Tenant and User in transaction
-    // Set 14 days trial
+    // Set 21 days trial
     const trialEndsAt = getCurrentDate();
-    trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+    trialEndsAt.setDate(trialEndsAt.getDate() + 21);
 
     const result = await prisma.$transaction(async (tx) => {
       const newTenant = await tx.tenant.create({
@@ -211,7 +211,7 @@ export async function registerTenantWithGoogle(data: {
     }
 
     const trialEndsAt = getCurrentDate();
-    trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+    trialEndsAt.setDate(trialEndsAt.getDate() + 21);
 
     const result = await prisma.$transaction(async (tx) => {
       const newTenant = await tx.tenant.create({

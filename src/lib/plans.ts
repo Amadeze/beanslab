@@ -19,16 +19,17 @@ export const PLAN_CATALOG = {
       "ADVANCED_REPORTS",
       "MIDTRANS",
       "ARTISAN",
+      "CUSTOM_DOMAIN",
     ],
   },
   BASIC: {
-    label: "Basic",
+    label: "Basic (Legacy)",
     monthlyPrice: 149_000,
     features: ["CORE_OPERATIONS", "STOREFRONT", "REPORT_EXPORTS"],
   },
   PRO: {
     label: "Pro",
-    monthlyPrice: 299_000,
+    monthlyPrice: 355_000,
     features: [
       "CORE_OPERATIONS",
       "STOREFRONT",
@@ -36,10 +37,11 @@ export const PLAN_CATALOG = {
       "ADVANCED_REPORTS",
       "MIDTRANS",
       "ARTISAN",
+      "CUSTOM_DOMAIN",
     ],
   },
   ENTERPRISE: {
-    label: "Enterprise",
+    label: "Enterprise (Legacy)",
     monthlyPrice: null,
     features: [
       "CORE_OPERATIONS",
