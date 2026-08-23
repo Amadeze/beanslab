@@ -33,6 +33,8 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/notifications", () => ({
   sendInvoiceEmail: vi.fn().mockResolvedValue(undefined),
   sendInvoiceWhatsApp: vi.fn().mockResolvedValue(undefined),
+  sendNewOrderNotificationEmail: vi.fn().mockResolvedValue(undefined),
+  sendNewOrderNotificationWhatsApp: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/rate-limit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/rate-limit")>();

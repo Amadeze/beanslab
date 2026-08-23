@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { withSerializableRetry } from "@/lib/transaction-retry";
 import { revalidatePath } from "next/cache";
 import midtransClient from "midtrans-client";
-import { sendInvoiceEmail, sendInvoiceWhatsApp } from "@/lib/notifications";
+import { sendInvoiceEmail, sendInvoiceWhatsApp, sendNewOrderNotificationEmail, sendNewOrderNotificationWhatsApp } from "@/lib/notifications";
 import { getTenantAccessState } from "@/lib/subscription";
 import { recordAudit } from "@/lib/audit";
 import crypto from "crypto";
@@ -1020,10 +1020,34 @@ let tax: number, shippingCost: number, grandTotal: number;
     const resolvedPublicOrderToken = invoice.publicOrderToken ?? orderPublicToken;
     const publicOrderUrl = `${appUrl}/tenant/${subdomain}/order/${resolvedPublicOrderToken}`;
     if (!replayed) {
-      await Promise.allSettled([
-        customerEmail ? sendInvoiceEmail(customerEmail, invoice.code, publicOrderUrl) : Promise.resolve(),
-        sendInvoiceWhatsApp(customerPhone, invoice.code, publicOrderUrl),
-      ]);
+      const notifications = [];
+      if (customerEmail) {
+        notifications.push(sendInvoiceEmail(customerEmail, invoice.code, publicOrderUrl));
+      }
+      notifications.push(sendInvoiceWhatsApp(customerPhone, invoice.code, publicOrderUrl));
+
+      if (tenant.contactEmail) {
+        notifications.push(sendNewOrderNotificationEmail({
+          to: tenant.contactEmail,
+          tenantName: tenant.name,
+          invoiceCode: invoice.code,
+          customerName,
+          grandTotal,
+          orderUrl: `${appUrl}/penjualan`,
+        }));
+      }
+      if (tenant.whatsappNumber) {
+        notifications.push(sendNewOrderNotificationWhatsApp({
+          phone: tenant.whatsappNumber,
+          tenantName: tenant.name,
+          invoiceCode: invoice.code,
+          customerName,
+          grandTotal,
+          orderUrl: `${appUrl}/penjualan`,
+        }));
+      }
+
+      await Promise.allSettled(notifications);
     }
 
 return NextResponse.json({

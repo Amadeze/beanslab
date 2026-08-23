@@ -322,3 +322,44 @@ export async function sendOverdueReminderWhatsApp(input: {
     "\n\nAbaikan pesan ini bila pembayaran baru saja dilakukan.";
   return sendWhatsAppMessage(input.phone, message);
 }
+
+export async function sendNewOrderNotificationEmail(input: {
+  to: string;
+  tenantName: string;
+  invoiceCode: string;
+  customerName: string;
+  grandTotal: number;
+  orderUrl: string;
+}) {
+  if (!process.env.RESEND_API_KEY) {
+    return process.env.NODE_ENV === "production"
+      ? { success: false as const, error: "RESEND_API_KEY belum dikonfigurasi." }
+      : { success: true as const, mocked: true as const };
+  }
+  const { data, error } = await getResendClient().emails.send({
+    from: process.env.EMAIL_FROM || "roastd.id <no-reply@roastd.id>",
+    to: [input.to],
+    subject: `Pesanan Baru: ${input.invoiceCode}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+        <h2>Pesanan Baru Masuk</h2>
+        <p>Halo tim ${escapeHtml(input.tenantName)}, ada pesanan baru <strong>${escapeHtml(input.invoiceCode)}</strong> dari <strong>${escapeHtml(input.customerName)}</strong> dengan total <strong>${formatRupiah(input.grandTotal)}</strong>.</p>
+        <p><a href="${escapeHtml(input.orderUrl)}">Buka Dashboard Penjualan</a></p>
+      </div>
+    `,
+  });
+  if (error) return { success: false as const, error };
+  return { success: true as const, data };
+}
+
+export async function sendNewOrderNotificationWhatsApp(input: {
+  phone: string;
+  tenantName: string;
+  invoiceCode: string;
+  customerName: string;
+  grandTotal: number;
+  orderUrl: string;
+}) {
+  const message = `*Pesanan Baru Masuk*\n\nHalo tim ${input.tenantName}, ada pesanan baru *${input.invoiceCode}* dari *${input.customerName}* dengan total *${formatRupiah(input.grandTotal)}*.\n\nBuka dashboard penjualan: ${input.orderUrl}`;
+  return sendWhatsAppMessage(input.phone, message);
+}
