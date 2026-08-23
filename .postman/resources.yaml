@@ -1,0 +1,8 @@
+# Use this workspace to collaborate
+workspace:
+  id: 45634786-ce6e-42af-8fc6-4c267eb95011
+
+localResources:
+  specs:
+    - ../roastd-studio-gpl/src/proto/artisan_roast.proto
+    - ../roastd-studio-gpl/src/proto/IkawaCmd.proto

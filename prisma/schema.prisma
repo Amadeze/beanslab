@@ -60,6 +60,14 @@ enum InvoiceStatus {
   VOID    // dibatalkan
 }
 
+enum SalesChannel {
+  WALK_IN
+  WHATSAPP
+  MARKETPLACE
+  B2B_DIRECT
+  OTHER
+}
+
 enum PaymentMethod {
   CASH
   TRANSFER
@@ -251,7 +259,7 @@ model RecipeItem {
   ratioPercent Decimal @db.Decimal(5, 2)  // % kontribusi dalam blend
   gramsPerUnit Decimal @db.Decimal(8, 3)  // gram RB per 1 unit output
 
-  recipe  Recipe  @relation(fields: [recipeId], references: [id])
+  recipe  Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
 
   // Satu jenis RB hanya boleh muncul sekali per resep
@@ -298,6 +306,11 @@ model Purchase {
   createdBy   User       @relation(fields: [createdById], references: [id])
 
   @@map("purchases")
+
+  @@index([supplierId])
+  @@index([productId])
+  @@index([packagingId])
+  @@index([status])
 }
 
 // =============================================================================
@@ -335,6 +348,10 @@ model RoastingBatch {
   createdBy     User    @relation(fields: [createdById], references: [id])
 
   @@map("roasting_batches")
+
+  @@index([inputProductId])
+  @@index([outputProductId])
+  @@index([machineId])
 }
 
 // =============================================================================
@@ -373,6 +390,11 @@ model ProductionBatch {
   createdBy     User      @relation(fields: [createdById], references: [id])
 
   @@map("production_batches")
+
+  @@index([recipeId])
+  @@index([outputProductId])
+  @@index([packagingId])
+  @@index([status])
 }
 
 // =============================================================================
@@ -394,6 +416,7 @@ model Invoice {
 
   paidAmount  Decimal       @db.Decimal(14, 2) @default(0) // diupdate server tiap Payment masuk
   status      InvoiceStatus @default(DRAFT)
+  salesChannel SalesChannel @default(WALK_IN)
 
   issuedAt    DateTime      @default(now())
   dueDate     DateTime?
@@ -411,6 +434,10 @@ model Invoice {
   payments  Payment[]
 
   @@map("invoices")
+
+  @@index([customerId])
+  @@index([createdById])
+  @@index([status])
 }
 
 // =============================================================================
@@ -431,10 +458,13 @@ model InvoiceItem {
   subtotal   Decimal @db.Decimal(14, 2) // = (unitPrice - discount) * quantity, dihitung server
   hpp        Decimal @db.Decimal(12, 2) // snapshot HPP per unit saat transaksi
 
-  invoice Invoice @relation(fields: [invoiceId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
 
   @@map("invoice_items")
+
+  @@index([invoiceId])
+  @@index([productId])
 }
 
 // =============================================================================
@@ -461,10 +491,13 @@ model Payment {
   createdById String
   createdAt   DateTime      @default(now())
 
-  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   createdBy User    @relation(fields: [createdById], references: [id])
 
   @@map("payments")
+
+  @@index([invoiceId])
+  @@index([createdById])
 }
 
 // =============================================================================
