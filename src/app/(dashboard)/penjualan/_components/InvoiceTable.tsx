@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ExternalLink, Search, Banknote, Plus } from "lucide-react";
+import { ExternalLink, Search, Plus, MoreHorizontal, Ban } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import { VoidConfirmDialog } from "@/components/VoidConfirmDialog";
 import { TerimaPaymentDialog } from "../../keuangan/_components/TerimaPaymentDialog";
 import { ResiDialog } from "./ResiDialog";
 import { ReturDialog } from "./ReturDialog";
-import { Truck, ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 import { voidInvoice, approveInvoiceForMidtrans } from "../actions";
 import type { InvoiceRow } from "../actions";
 import { getSalesChannelLabel } from "@/lib/sales-channel";
@@ -123,16 +124,11 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
       <Table>
         <TableHeader>
           <TableRow className="border-b border-stone-200 bg-stone-50">
-            <TableHead className="w-36 text-xs font-bold uppercase tracking-widest text-slate-500">No. Nota</TableHead>
+            <TableHead className="w-40 text-xs font-bold uppercase tracking-widest text-slate-500">No. Nota</TableHead>
             <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-500">Customer</TableHead>
-            <TableHead className=" text-center text-xs font-bold uppercase tracking-widest text-slate-500">Item</TableHead>
             <TableHead className="text-right text-xs font-bold uppercase tracking-widest text-slate-500">Total</TableHead>
-            <TableHead className=" text-right text-xs font-bold uppercase tracking-widest text-slate-500">Terbayar</TableHead>
-            <TableHead className=" text-right text-xs font-bold uppercase tracking-widest text-slate-500">Sisa</TableHead>
-            <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-500">Tanggal</TableHead>
-            <TableHead className="w-20 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Pembayaran</TableHead>
-            <TableHead className="w-28 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Fulfillment</TableHead>
-            <TableHead className=" text-center text-xs font-bold uppercase tracking-widest text-slate-500">Aksi</TableHead>
+            <TableHead className="w-32 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Status</TableHead>
+            <TableHead className=" w-56 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -145,116 +141,103 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
   actionLabel="Nota Baru"
   actionIcon={<Plus size={12} />}
   onAction={() => { /* navigate to create invoice */ }}
-  colSpan={10}
+  colSpan={5}
 />
           ) : (
-            filteredInvoices.map((inv) => (
+            filteredInvoices.map((inv) => {
+              const primary = inv.status === "DRAFT"
+                ? { label: isApproving === inv.id ? "Memproses..." : "Approve", onClick: () => handleApprove(inv), disabled: isApproving === inv.id }
+                : (inv.status === "ISSUED" || inv.status === "PARTIAL") && inv.balance > 0
+                  ? { label: "Bayar", onClick: () => setPayTarget(inv), disabled: false }
+                  : canManageFulfillment(inv)
+                    ? { label: "Fulfillment", onClick: () => setResiTarget(inv), disabled: false }
+                    : null;
+              const returEligible = inv.fulfillmentStatus === "DELIVERED" && inv.status !== "VOID" && inv.status !== "RETURNED";
+              const voidEligible = inv.status !== "VOID" && inv.status !== "PAID" && inv.status !== "RETURNED";
+              return (
               <TableRow key={inv.id} className="transition-colors hover:bg-stone-50">
-                <TableCell >
+                <TableCell>
                   <p className="font-mono text-xs font-semibold text-slate-600">{inv.code}</p>
-                </TableCell>
-                <TableCell className="text-sm font-bold text-slate-900">
-                  {inv.customerName}
-                  <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    {getSalesChannelLabel(inv.salesChannel)}
-                  </p>
-                </TableCell>
-                <TableCell  className="text-center font-mono text-sm text-slate-500">
-                  {inv.itemCount}
-                </TableCell>
-                <TableCell className="text-right font-mono text-sm font-black text-slate-900">
-                  {formatRupiah(inv.grandTotal)}
-                </TableCell>
-                <TableCell  className="text-right font-mono text-sm font-bold text-emerald-700">
-                  {formatRupiah(inv.paidAmount)}
-                </TableCell>
-                <TableCell
-                  className={`hidden md:table-cell text-right font-mono text-sm font-black ${
-                    inv.balance > 0 ? "text-amber-600" : "text-slate-400"
-                  }`}
-                >
-                  {inv.balance > 0 ? formatRupiah(inv.balance) : "—"}
-                </TableCell>
-                <TableCell className="text-sm font-semibold text-slate-500">
-                  <p>{formatDate(inv.issuedAt)}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{formatDate(inv.issuedAt)}</p>
                   {inv.dueDate && (
                     <p className="text-xs text-amber-600 font-bold uppercase tracking-wider mt-0.5">
                       Tempo: {formatDate(inv.dueDate)}
                     </p>
                   )}
                 </TableCell>
-                <TableCell className="text-center">
-                  <StatusBadge status={inv.status} />
+                <TableCell className="text-sm font-bold text-slate-900">
+                  {inv.customerName}
+                  <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                    {getSalesChannelLabel(inv.salesChannel)} · {inv.itemCount} item
+                  </p>
+                </TableCell>
+                <TableCell className="text-right">
+                  <p className="font-mono text-sm font-black text-slate-900">{formatRupiah(inv.grandTotal)}</p>
+                  {inv.balance > 0 && (
+                    <p className="font-mono text-xs font-bold text-amber-600 mt-0.5">Sisa {formatRupiah(inv.balance)}</p>
+                  )}
                 </TableCell>
                 <TableCell className="text-center">
-                  <StatusBadge status={inv.fulfillmentStatus} />
+                  <div className="flex flex-col items-center gap-1">
+                    <StatusBadge status={inv.status} />
+                    <StatusBadge status={inv.fulfillmentStatus} />
+                  </div>
                 </TableCell>
                 <TableCell className="text-center">
-                  <div className="flex flex-wrap items-center justify-center gap-2">
-                    {inv.status === "DRAFT" && (
+                  <div className="flex items-center justify-center gap-1.5">
+                    {primary && (
                       <Button
                         size="sm"
-                        onClick={() => handleApprove(inv)}
-                        disabled={isApproving === inv.id}
-                        className="h-7 border border-domain-sales/25 bg-domain-sales/8 px-2.5 text-[11px] font-bold uppercase tracking-wide text-domain-sales shadow-sm hover:bg-domain-sales/15"
+                        onClick={primary.onClick}
+                        disabled={primary.disabled}
+                        className={`h-7 px-2.5 text-[11px] font-bold uppercase tracking-wide shadow-sm ${
+                          primary.label === "Bayar"
+                            ? "border border-domain-finance/25 bg-domain-finance/8 text-domain-finance hover:bg-domain-finance/15"
+                            : primary.label === "Fulfillment"
+                              ? "border border-domain-production/25 bg-domain-production/8 text-domain-production hover:bg-domain-production/15"
+                              : "border border-domain-sales/25 bg-domain-sales/8 text-domain-sales hover:bg-domain-sales/15"
+                        }`}
                       >
-                        {isApproving === inv.id ? "Memproses..." : "Approve"}
+                        {primary.label}
                       </Button>
                     )}
-                    {(inv.status === "ISSUED" || inv.status === "PARTIAL") && inv.balance > 0 && (
-                      <Button
-                        size="sm"
-                        onClick={() => setPayTarget(inv)}
-                        className="h-7 gap-1 border border-domain-finance/25 bg-domain-finance/8 px-2.5 text-[11px] font-bold uppercase tracking-wide text-domain-finance shadow-sm hover:bg-domain-finance/15"
-                      >
-                        <Banknote size={12} />
-                        Bayar
-                      </Button>
-                    )}
-                    {canManageFulfillment(inv) && (
-                      <Button
-                        size="sm"
-                        onClick={() => setResiTarget(inv)}
-                        aria-label={`Fulfillment ${inv.code}`}
-                        className="h-7 gap-1 border border-domain-production/25 bg-domain-production/8 px-2.5 text-[11px] font-bold uppercase tracking-wide text-domain-production shadow-sm hover:bg-domain-production/15"
-                      >
-                        <Truck size={12} />
-                        Fulfillment
-                      </Button>
-                    )}
-                    {inv.fulfillmentStatus === "DELIVERED" && inv.status !== "VOID" && inv.status !== "RETURNED" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-label={`Retur ${inv.code}`}
-                        className="h-7 gap-1 px-2.5 text-[11px] font-bold uppercase tracking-wide text-amber-600 hover:bg-amber-50 hover:text-amber-700 rounded-lg"
-                        onClick={() => setReturTarget(inv.id)}
-                      >
-                        <ArrowLeftRight size={12} />
-                        Retur
-                      </Button>
-                    )}
-                    <button
-                      onClick={() => triggerSilentPrint(`/nota/${inv.id}?print=true`)}
-                      className="inline-flex items-center gap-1 h-7 rounded-lg border border-white/60 bg-white/40 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-900 hover:text-white hover:border-slate-800 transition-all shadow-sm"
-                    >
-                      <ExternalLink size={12} />
-                      Print
-                    </button>
-                    {inv.status !== "VOID" && inv.status !== "PAID" && inv.status !== "RETURNED" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2.5 text-[11px] font-bold uppercase tracking-wide text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg"
-                        onClick={() => setVoidTarget(inv)}
-                      >
-                        Void
-                      </Button>
-                    )}
+                    <Popover>
+                        <PopoverTrigger
+                            aria-label={`Menu lainnya untuk ${inv.code}`}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-white text-slate-500 transition-colors hover:bg-stone-100 hover:text-slate-900"
+                          >
+                            <MoreHorizontal size={14} />
+                      </PopoverTrigger>
+                        <PopoverContent align="end" className="w-40 p-1">
+                          <button
+                            onClick={() => triggerSilentPrint(`/nota/${inv.id}?print=true`)}
+                            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-stone-100"
+                          >
+                            <ExternalLink size={13} /> Print nota
+                          </button>
+                          {returEligible && (
+                            <button
+                              onClick={() => setReturTarget(inv.id)}
+                              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold text-amber-600 hover:bg-amber-50"
+                            >
+                              <ArrowLeftRight size={13} /> Retur
+                            </button>
+                          )}
+                          {voidEligible && (
+                            <button
+                              onClick={() => setVoidTarget(inv)}
+                              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold text-red-500 hover:bg-red-50"
+                            >
+                              <Ban size={13} /> Void
+                            </button>
+                          )}
+                        </PopoverContent>
+                      </Popover>
                   </div>
                 </TableCell>
               </TableRow>
-            ))
+              );
+            })
           )}
         </TableBody>
       </Table>

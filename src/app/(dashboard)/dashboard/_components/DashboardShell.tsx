@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
-  Banknote,
   Boxes,
   CircleCheck,
   Factory,
@@ -25,7 +24,7 @@ import {
   XAxis,
 } from "recharts";
 import { cn } from "@/lib/utils";
-import { formatKg, formatRupiah } from "@/lib/format";
+import { formatRupiah } from "@/lib/format";
 import {
   buildDashboardWorkItems,
   type DashboardWorkItem,
@@ -71,12 +70,14 @@ function CompactDashboardHeader({
   const signal = items[0]?.title ?? "Tidak ada hambatan operasional";
 
   const brief = data.dailyBrief;
+  // Prinsip satu sumber kebenaran: stage rail menampilkan STATUS operasional,
+  // bukan mengulang metrik yang sudah tampil di strip KPI atau kartu utama.
   const stages = [
     {
       number: "01",
       label: "Pasokan",
       status: data.lowStock.length > 0
-        ? `${data.lowStock.length} stok`
+        ? "Perlu cek"
         : data.operationalQueue.purchaseOrdersToReceive > 0
           ? `${data.operationalQueue.purchaseOrdersToReceive} datang`
           : "OK",
@@ -123,10 +124,12 @@ function CompactDashboardHeader({
     {
       number: "05",
       label: "Penjualan",
-      status: formatRupiah(data.kpi.revenueToday),
+      status: data.operationalQueue.overdueReceivables.count > 0
+        ? `${data.operationalQueue.overdueReceivables.count} jatuh tempo`
+        : "Aktif",
       href: "/penjualan",
       icon: ReceiptText,
-      attention: false,
+      attention: data.operationalQueue.overdueReceivables.count > 0,
       tone: "border-[#6F4A6A]/60 bg-[#6F4A6A]/16 text-[#C7A8C4]",
       line: "bg-[#6F4A6A]",
     },
@@ -135,7 +138,7 @@ function CompactDashboardHeader({
       label: "Kas",
       status: data.operationalQueue.paymentReviews > 0
         ? `${data.operationalQueue.paymentReviews} verifikasi`
-        : formatRupiah(data.kpi.kasToday),
+        : "OK",
       href: "/keuangan",
       icon: WalletCards,
       attention: data.operationalQueue.paymentReviews > 0 || data.operationalQueue.overdueReceivables.count > 0,
@@ -220,9 +223,9 @@ function CompactDashboardHeader({
         </div>
       </div>
 
-      {/* 6-stage pipeline */}
+      {/* 6-stage pipeline — 2×3 di ponsel, 1×6 di layar lebar */}
       <div className="border-t border-white/[0.06]">
-        <div className="mx-auto grid w-full max-w-[1600px] grid-cols-6">
+        <div className="mx-auto grid w-full max-w-[1600px] grid-cols-3 sm:grid-cols-6">
           {stages.map(({ number, label, status, href, icon: Icon, attention, tone, line }, index) => (
             <Link
               key={label}
@@ -232,7 +235,7 @@ function CompactDashboardHeader({
               {index > 0 && (
                 <span
                   className={cn(
-                    "absolute -left-px top-6 h-px w-3 -translate-x-1/2 sm:top-[30px] sm:w-5",
+                    "absolute -left-px top-6 hidden h-px w-3 -translate-x-1/2 sm:top-[30px] sm:block sm:w-5",
                     attention ? "bg-[#8C2F39]" : line,
                   )}
                   aria-hidden
@@ -626,22 +629,6 @@ export function DashboardShell({ data }: { data: DashboardData }) {
           </div>
 
           <ActivityTable items={data.activity} mounted={mounted} />
-
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-1 text-[11px] text-stone-500">
-            <span className="inline-flex items-center gap-1.5">
-              <RefreshCw size={12} />
-              Data dashboard disusun dari transaksi tenant aktif.
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Banknote size={12} />
-              Piutang aktif {formatRupiah(data.kpi.totalPiutang)} · kopi terjual {formatKg(data.kpi.totalKopiTerjual)}
-              {data.kpi.totalSoldUnitsNoWeight > 0 && (
-                <span title="Produk jadi tanpa resep — dihitung per unit, bukan kilogram.">
-                  (+{data.kpi.totalSoldUnitsNoWeight.toLocaleString("id-ID")} unit tanpa resep)
-                </span>
-              )}
-            </span>
-          </div>
         </div>
       </main>
     </div>
