@@ -64,7 +64,7 @@ export async function calculateShipmentWeightForTenant(
     }
   }
 
-  // Fetch products with netWeightGrams (tenant-scoped, active).
+  // Fetch products with netWeightGrams and name (tenant-scoped, active).
   const products = await prisma.product.findMany({
     where: {
       id: { in: Array.from(productIds) },
@@ -73,14 +73,15 @@ export async function calculateShipmentWeightForTenant(
     },
     select: {
       id: true,
+      name: true,
       netWeightGrams: true,
     },
   });
 
   const productMap = new Map(products.map((p) => [p.id, p]));
 
-  // Fetch offering variants with netWeightGrams (tenant-scoped, active).
-  const variantMap = new Map<string, { netWeightGrams: number }>();
+  // Fetch offering variants with netWeightGrams and name (tenant-scoped, active).
+  const variantMap = new Map<string, { netWeightGrams: number, name: string }>();
   if (variantIds.size > 0) {
     const variants = await prisma.offeringVariant.findMany({
       where: {
@@ -90,11 +91,12 @@ export async function calculateShipmentWeightForTenant(
       },
       select: {
         id: true,
+        name: true,
         netWeightGrams: true,
       },
     });
     for (const v of variants) {
-      variantMap.set(v.id, { netWeightGrams: Number(v.netWeightGrams) });
+      variantMap.set(v.id, { netWeightGrams: Number(v.netWeightGrams), name: v.name });
     }
   }
 
@@ -110,7 +112,7 @@ export async function calculateShipmentWeightForTenant(
 
   const tareGrams = tenant.rajaOngkirTareGrams ?? 0;
   if (!Number.isInteger(tareGrams) || tareGrams < 0) {
-    throw new Error("Tenant tare configuration is invalid");
+    throw new Error("Konfigurasi berat kemasan (tare) toko tidak valid.");
   }
 
   const lineWeights: WeightCalculationResult["lineWeights"] = [];
@@ -118,26 +120,32 @@ export async function calculateShipmentWeightForTenant(
 
   for (const line of lines) {
     let netWeightGrams: number;
+    let itemName = "";
 
     if (line.offeringVariantId) {
       const variant = variantMap.get(line.offeringVariantId);
       if (!variant) {
-        throw new Error(`Offering variant ${line.offeringVariantId} not found or inactive`);
+        throw new Error(`Varian produk tidak ditemukan atau sudah tidak aktif.`);
       }
+      itemName = variant.name;
       netWeightGrams = variant.netWeightGrams;
+      if (!netWeightGrams || netWeightGrams <= 0) {
+        throw new Error(`Varian "${itemName}" belum memiliki pengaturan berat pengiriman (gram).`);
+      }
     } else {
       const product = productMap.get(line.productId);
       if (!product) {
-        throw new Error(`Product ${line.productId} not found or inactive`);
+        throw new Error(`Produk tidak ditemukan atau sudah tidak aktif.`);
       }
+      itemName = product.name;
       if (product.netWeightGrams == null || Number(product.netWeightGrams) <= 0) {
-        throw new Error(`Product ${line.productId} has no valid net weight for shipping`);
+        throw new Error(`Produk "${itemName}" belum memiliki pengaturan berat pengiriman (gram).`);
       }
       netWeightGrams = Number(product.netWeightGrams);
     }
 
     if (!Number.isFinite(netWeightGrams) || netWeightGrams <= 0) {
-      throw new Error(`Invalid net weight for product ${line.productId}`);
+      throw new Error(`Berat bersih untuk "${itemName}" tidak valid.`);
     }
 
     const lineWeightGrams = netWeightGrams * line.quantity;
