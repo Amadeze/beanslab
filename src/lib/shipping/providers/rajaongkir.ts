@@ -41,40 +41,50 @@ function buildHeaders(apiKey: string): Record<string, string> {
 interface RawDestination {
   id?: string | number;
   province?: string;
+  province_name?: string;
   city?: string;
+  city_name?: string;
   district?: string;
+  district_name?: string;
   subdistrict?: string;
+  subdistrict_name?: string;
+  name?: string;
+  type?: string;
   postal_code?: string;
   postalCode?: string;
+  zip_code?: string;
   location_type?: string;
-}
-
-function buildDestinationLabel(d: RawDestination): string {
-  const parts = [
-    d.subdistrict,
-    d.district,
-    d.city,
-    d.province,
-    d.postal_code ?? d.postalCode,
-  ]
-    .filter(Boolean)
-    .map((s) => String(s).trim())
-    .filter(Boolean);
-  return parts.join(", ");
 }
 
 function normalizeDestination(raw: RawDestination): RajaOngkirDestination | null {
   const id = raw.id != null ? String(raw.id) : "";
   if (!id) return null;
-  const postal = raw.postal_code ?? raw.postalCode;
+  const postalCode = (raw.postal_code ?? raw.postalCode ?? raw.zip_code)?.trim();
+  const province = (raw.province ?? raw.province_name)?.trim();
+  
+  let city = (raw.city ?? raw.city_name)?.trim();
+  if (raw.type && city && !city.toLowerCase().startsWith(raw.type.toLowerCase())) {
+    city = `${raw.type} ${city}`;
+  }
+  
+  const district = (raw.district ?? raw.district_name)?.trim();
+  const subdistrict = (raw.subdistrict ?? raw.subdistrict_name ?? raw.name)?.trim();
+
+  const parts = [subdistrict, district, city, province, postalCode]
+    .filter(Boolean)
+    .map((s) => String(s).trim())
+    .filter(Boolean);
+
+  const label = parts.length > 0 ? parts.join(", ") : id;
+
   return {
     providerId: id,
-    label: buildDestinationLabel(raw) || id,
-    province: raw.province?.trim() || undefined,
-    city: raw.city?.trim() || undefined,
-    district: raw.district?.trim() || undefined,
-    subdistrict: raw.subdistrict?.trim() || undefined,
-    postalCode: postal?.trim() || undefined,
+    label,
+    province: province || undefined,
+    city: city || undefined,
+    district: district || undefined,
+    subdistrict: subdistrict || undefined,
+    postalCode: postalCode || undefined,
   };
 }
 
