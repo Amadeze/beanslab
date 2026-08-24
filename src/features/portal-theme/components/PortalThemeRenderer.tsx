@@ -304,24 +304,28 @@ interface PortalThemeRendererProps {
   cartItemCount?: number;
 }
 
+import { DEFAULT_PORTAL_THEME_CONFIG } from "../defaults/default-config";
+
 export function PortalThemeRenderer({ config, children, isPreview = false, products = [], offerings = [], onAddToCart, onAddOfferingToCart, onOpenCart, cartItemCount = 0 }: PortalThemeRendererProps) {
-  const cssVars = useMemo(() => generateCSSVariables(config), [config]);
-  const fontsUrl = useMemo(() => getGoogleFontsUrl(config), [config]);
+  // Defensive: ensure config is always valid
+  const safeConfig = config && config.globalSettings && config.sections ? config : DEFAULT_PORTAL_THEME_CONFIG;
+  
+  const cssVars = useMemo(() => generateCSSVariables(safeConfig), [safeConfig]);
+  const fontsUrl = useMemo(() => getGoogleFontsUrl(safeConfig), [safeConfig]);
 
   const sortedSections = useMemo(() => {
-    return config.sections
+    return safeConfig.sections
       .filter((s) => s.enabled)
       .filter((s) => {
         if (!s.visibility) return true;
-        // In preview, show all; on mobile, check mobile visibility, etc.
         return true;
       });
-  }, [config.sections]);
+  }, [safeConfig.sections]);
 
   return (
     <div
       className="portal-root min-h-screen overflow-x-hidden"
-      data-motion-reduced={config.globalSettings.animations.reduceMotion}
+      data-motion-reduced={safeConfig.globalSettings.animations.reduceMotion}
       style={{
         backgroundColor: "var(--portal-bg)",
         color: "var(--portal-text)",
@@ -338,7 +342,7 @@ export function PortalThemeRenderer({ config, children, isPreview = false, produ
       <link href={fontsUrl} rel="stylesheet" />
 
       {/* Per-section custom CSS */}
-      {config.sections.map((section) => {
+      {safeConfig.sections.map((section) => {
         if (!section.customCSS?.css) return null;
         const sanitized = sanitizeCSS(section.customCSS.css);
         if (!sanitized.ok) return null;
@@ -349,8 +353,8 @@ export function PortalThemeRenderer({ config, children, isPreview = false, produ
         );
       })}
 
-      <MotionConfig reducedMotion={config.globalSettings.animations.reduceMotion ? "always" : "user"}>
-      <StorefrontImageProvider settings={config.globalSettings.seo}>
+      <MotionConfig reducedMotion={safeConfig.globalSettings.animations.reduceMotion ? "always" : "user"}>
+      <StorefrontImageProvider settings={safeConfig.globalSettings.seo}>
       {/* Sections */}
       {sortedSections.map((section) => {
         const canonicalType = resolveSectionType(section.type);
