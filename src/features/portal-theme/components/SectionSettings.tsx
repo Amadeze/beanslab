@@ -130,7 +130,7 @@ export function SectionSettings() {
                             [key]: typeof val === "number" ? Number(e.target.value) : e.target.value,
                           })}
                           placeholder={key}
-                          className="w-full rounded border border-gray-200 px-2 py-1 text-[11px]"
+                          className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-[11px] text-gray-900"
                         />
                       );
                     })}
@@ -193,7 +193,7 @@ export function SectionSettings() {
                       type: "color", color: e.target.value,
                       opacity: section.background?.opacity ?? 100,
                     })}
-                    className="flex-1 rounded border border-gray-200 px-2 py-1 text-xs font-mono"
+                    className="flex-1 rounded border border-gray-200 bg-white px-2 py-1 text-xs font-mono text-gray-900"
                   />
                 </div>
               </div>
@@ -338,7 +338,7 @@ export function SectionSettings() {
                 onChange={(e) => updateSectionCustomCSS(section.id, e.target.value)}
                 placeholder={`/* Example */\npadding: 20px;\nborder-radius: 16px;\nbox-shadow: 0 4px 20px rgba(0,0,0,0.1);`}
                 rows={8}
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono text-gray-900 focus:border-blue-500 focus:outline-none"
                 spellCheck={false}
               />
             </div>
@@ -417,7 +417,7 @@ function renderContentFields(
         <>
           <Field label="Title"><TextInput value={(s.title as string) || ""} onChange={(v) => update(section.id, { title: v })} /></Field>
           <Field label="Subtitle"><TextInput value={(s.subtitle as string) || ""} onChange={(v) => update(section.id, { subtitle: v })} /></Field>
-          <Field label="Target Date"><input type="datetime-local" value={(s.targetDate as string) || ""} onChange={(e) => update(section.id, { targetDate: e.target.value })} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm" /></Field>
+          <Field label="Target Date"><input type="datetime-local" value={(s.targetDate as string) || ""} onChange={(e) => update(section.id, { targetDate: e.target.value })} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900" /></Field>
           <Field label="Expired Text"><TextInput value={(s.expiredText as string) || ""} onChange={(v) => update(section.id, { expiredText: v })} /></Field>
           <Field label="Timer Style"><SelectInput value={(s.style as string) || "boxes"} onChange={(v) => update(section.id, { style: v })} options={[{ value: "boxes", label: "Boxes" }, { value: "inline", label: "Inline" }]} /></Field>
         </>
@@ -542,24 +542,24 @@ function renderContentFields(
 // ── Tiny form primitives ────────────────────────────────────────────────────
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-1"><label className="block text-xs font-semibold text-gray-500">{label}</label>{children}</div>;
+  return <div className="space-y-1"><label className="block text-xs font-semibold text-gray-500 dark:text-gray-300">{label}</label>{children}</div>;
 }
 
 function TextInput({ value, onChange, placeholder }: { value?: string | number | null; onChange: (v: string) => void; placeholder?: string }) {
-  return <input type="text" value={value ?? ""} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs focus:border-blue-500 focus:outline-none" />;
+  return <input type="text" value={value ?? ""} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 focus:border-blue-500 focus:outline-none" />;
 }
 
 function TextArea({ value, onChange, rows = 3, placeholder }: { value?: string | number | null; onChange: (v: string) => void; rows?: number; placeholder?: string }) {
-  return <textarea value={value ?? ""} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs focus:border-blue-500 focus:outline-none" />;
+  return <textarea value={value ?? ""} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 focus:border-blue-500 focus:outline-none" />;
 }
 
 function NumberInput({ value, onChange, min = 0, max = 9999 }: { value?: number | string | null; onChange: (v: number) => void; min?: number; max?: number }) {
-  return <input type="number" value={value ?? 0} min={min} max={max} onChange={(e) => onChange(Number(e.target.value))} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs focus:border-blue-500 focus:outline-none" />;
+  return <input type="number" value={value ?? 0} min={min} max={max} onChange={(e) => onChange(Number(e.target.value))} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 focus:border-blue-500 focus:outline-none" />;
 }
 
 function SelectInput({ value, onChange, options }: { value?: string | number | null; onChange: (v: string) => void; options: Array<{ value: string; label: string }> }) {
   return (
-    <select value={value ?? ""} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs focus:border-blue-500 focus:outline-none">
+    <select value={value ?? ""} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 focus:border-blue-500 focus:outline-none">
       {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
     </select>
   );

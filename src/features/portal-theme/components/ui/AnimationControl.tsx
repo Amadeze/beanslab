@@ -105,7 +105,7 @@ export function AnimationControl({ value, onChange }: AnimationControlProps) {
         <select
           value={animation.easing}
           onChange={(e) => onChange({ ...animation, easing: e.target.value })}
-          className="w-full rounded border border-gray-200 px-2 py-1.5 text-xs"
+          className="w-full rounded border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900"
         >
           {EASINGS.map(({ value: v, label }) => (
             <option key={v} value={v}>{label}</option>

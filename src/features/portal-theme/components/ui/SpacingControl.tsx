@@ -102,7 +102,7 @@ export function SpacingControl({ value, onChange }: SpacingControlProps) {
                 min={field.startsWith("margin") ? -200 : 0}
                 max={500}
                 onChange={(e) => onChange({ ...s, [field]: Number(e.target.value) })}
-                className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-mono focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-mono text-gray-900 focus:border-blue-500 focus:outline-none"
               />
             </div>
           ))}

@@ -146,7 +146,7 @@ export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
               min={0}
               max={100}
               onChange={(e) => updateStop(i, "position", Number(e.target.value))}
-              className="w-14 rounded border border-gray-200 px-1.5 py-1 text-xs text-center font-mono"
+              className="w-14 rounded border border-gray-200 bg-white px-1.5 py-1 text-xs text-center font-mono text-gray-900"
             />
             <span className="text-[9px] text-gray-400">%</span>
             <div className="flex-1 h-1.5 rounded-full" style={{ background: `linear-gradient(to right, ${stop.color} 0%, transparent 100%)` }} />
