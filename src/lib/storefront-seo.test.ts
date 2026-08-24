@@ -70,6 +70,7 @@ describe("storefront SEO", () => {
           stockKg: null,
           stockUnit: 4,
           recipes: [],
+          latestRoastDate: null,
         },
         {
           id: "p-zero",
@@ -87,6 +88,7 @@ describe("storefront SEO", () => {
           stockKg: null,
           stockUnit: null,
           recipes: [],
+          latestRoastDate: null,
         },
       ],
       offerings: [],

@@ -12,7 +12,7 @@ import {
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatRupiah, formatDate as formatDateUtil } from "@/lib/format";
 import { getPOList } from "../po-actions";
-import { InventoryEmptyState } from "./InventoryEmptyState";
+import { EmptyState } from "@/components/shared/EmptyState";
 import type { POStatus } from "@prisma/client";
 
 type POListItem = {
@@ -95,7 +95,13 @@ export function ReceivingList({ onSelectPO, refreshKey }: ReceivingListProps) {
             ) : items.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="py-8">
-                  <InventoryEmptyState label="Tidak ada penerimaan menunggu" description="Semua PO sudah diterima atau belum ada PO dikirim." />
+                  <EmptyState.TableEmptyState
+                  label="penerimaan menunggu"
+                  isFiltered={false}
+                  filteredLabel="Tidak ada penerimaan menunggu"
+                  filteredDescription="Semua PO sudah diterima atau belum ada PO dikirim."
+                  colSpan={7}
+                />
                 </TableCell>
               </TableRow>
             ) : (
@@ -154,7 +160,9 @@ export function ReceivingList({ onSelectPO, refreshKey }: ReceivingListProps) {
             <p className="text-sm text-slate-400">Memuat data...</p>
           </div>
         ) : items.length === 0 ? (
-          <InventoryEmptyState label="Tidak ada penerimaan menunggu" />
+          <EmptyState.CardEmptyState
+                label="penerimaan menunggu"
+              />
         ) : (
           items.map((po) => (
             <div

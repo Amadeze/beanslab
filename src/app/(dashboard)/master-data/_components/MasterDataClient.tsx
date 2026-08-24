@@ -20,6 +20,7 @@ import { UserForm } from "./UserForm";
 import { SupplyItemForm } from "./SupplyItemForm";
 import { CoffeeOfferingForm } from "./CoffeeOfferingForm";
 import type { MasterPageData, SupplierRow, CustomerRow, ProductRow, UserRow, PackagingRow, SupplyItemRow, OfferingRow } from "../actions";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface MasterDataClientProps {
   data: MasterPageData;
@@ -60,20 +61,6 @@ const PROD_TYPE_COLOR: Record<ProductRow["type"], string> = {
 const PROD_TYPE_FULL: Record<ProductRow["type"], string> = {
   GREEN_BEAN: "Green Bean", ROASTED_BEAN: "Roasted Bean", FINISHED_GOODS: "Produk Jadi", PACKAGING: "Kemasan",
 };
-
-function EmptyState({ label }: { label: string }) {
-  return (
-    <div className="flex flex-col items-center gap-3 py-20 text-center glass-card">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/50 text-zinc-400 shadow-sm border border-white/60">
-        <Package size={24} />
-      </div>
-      <div>
-        <p className="text-sm font-bold text-zinc-600">Belum ada {label}</p>
-        <p className="mt-1 text-[11px] font-medium text-zinc-500 uppercase tracking-wider">Klik "Tambah" untuk membuat</p>
-      </div>
-    </div>
-  );
-}
 
 function ActiveBadge({ active }: { active: boolean }) {
   return active

@@ -92,6 +92,7 @@ export type StorefrontOffering = {
   lineageProductId?: string | null;
   availableKg?: number | null;
   unavailableReason?: string | null;
+  latestRoastDate?: string | null; // ISO date string of latest completed roast batch
   variants: Array<{
     id: string;
     packageName: string;

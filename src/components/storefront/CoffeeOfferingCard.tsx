@@ -148,6 +148,12 @@ export function CoffeeOfferingCard({ offering, onAdd, preview = false, appearanc
           {source?.tastingNotes ? (
             <p className="mt-3 text-xs leading-5 opacity-70"><span className="font-semibold">Tasting notes:</span> {source.tastingNotes}</p>
           ) : null}
+          {offering.latestRoastDate ? (
+            <p className="mt-3 text-xs leading-5 opacity-70">
+              <span className="font-semibold">Roast: </span>
+              {new Date(offering.latestRoastDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+            </p>
+          ) : null}
           {traceability.length > 0 ? (
             <details className="group/details mt-3 rounded-xl border px-3 py-2 text-xs" style={{ borderColor: "var(--portal-border-subtle, var(--t-border, #e5e7eb))" }}>
               <summary className="cursor-pointer select-none font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Detail kopi</summary>

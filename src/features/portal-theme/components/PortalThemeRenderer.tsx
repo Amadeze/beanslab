@@ -30,6 +30,9 @@ import { WholesaleRadarSection } from "./sections/WholesaleRadarSection";
 import { KineticMarqueeSection } from "./sections/KineticMarqueeSection";
 import { HeaderNavSection } from "./sections/HeaderNavSection";
 import { FooterNavSection } from "./sections/FooterNavSection";
+import { AwardsStripSection } from "./sections/AwardsStripSection";
+import { BrandTimelineSection } from "./sections/BrandTimelineSection";
+import { SustainabilitySection } from "./sections/SustainabilitySection";
 import { StorefrontImageProvider } from "./StorefrontImage";
 import { MotionConfig } from "framer-motion";
 
@@ -59,6 +62,10 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType<any>> = {
   marquee_kinetic: KineticMarqueeSection,
   header_nav: HeaderNavSection,
   footer_nav: FooterNavSection,
+  // New Roastery Storytelling Sections
+  awards_strip: AwardsStripSection,
+  brand_timeline: BrandTimelineSection,
+  sustainability: SustainabilitySection,
 };
 
 const CANONICAL_SECTION_ANCHORS: Record<string, string> = {

@@ -12,7 +12,7 @@ import {
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatRupiah, formatDate as formatDateUtil } from "@/lib/format";
 import { getPOList } from "../po-actions";
-import { InventoryEmptyState } from "./InventoryEmptyState";
+import { EmptyState } from "@/components/shared/EmptyState";
 import type { POStatus } from "@prisma/client";
 
 type POListItem = {
@@ -95,9 +95,12 @@ export function POList({ onSelectPO, refreshKey, metricFilter }: POListProps) {
             ) : items.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="py-8">
-                  <InventoryEmptyState
-                    label="Belum ada Purchase Order"
-                    description="Buat PO baru untuk memulai pengadaan."
+                  <EmptyState.TableEmptyState
+                    label="Purchase Order"
+                    isFiltered={false}
+                    filteredLabel="Belum ada Purchase Order"
+                    filteredDescription="Buat PO baru untuk memulai pengadaan."
+                    colSpan={6}
                   />
                 </TableCell>
               </TableRow>
@@ -144,7 +147,9 @@ export function POList({ onSelectPO, refreshKey, metricFilter }: POListProps) {
           </div>
         ) : items.length === 0 ? (
           <div className="py-8 text-center rounded-lg border border-slate-200/60 bg-white/50" style={{ maxWidth: 280, margin: "0 auto" }}>
-            <InventoryEmptyState label="Belum ada PO" />
+            <EmptyState.CardEmptyState
+                label="Purchase Order"
+              />
           </div>
         ) : (
           items.map((po) => (

@@ -205,6 +205,7 @@ export interface BrandKit {
   favicon?: string;
   socialImage?: string;
   brandColors: string[];
+  instagramHandle?: string;
 }
 
 // ── Global Settings ─────────────────────────────────────────────────────────
@@ -314,4 +315,8 @@ export type PortalSectionType =
   | "roast_matrix"
   | "marquee_kinetic"
   | "header_nav"
-  | "footer_nav";
+  | "footer_nav"
+  // New sections for roastery storytelling
+  | "awards_strip"
+  | "brand_timeline"
+  | "sustainability";

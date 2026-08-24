@@ -81,20 +81,20 @@ describe("Curated Theme Families", () => {
   it("curated families cover distinct visual directions", () => {
     const names = CURATED_THEME_FAMILIES.map((f) => f.name);
     expect(names).toEqual(expect.arrayContaining([
-      "Modern Catalog",
-      "Editorial Journal",
-      "Origin Field Notes",
-      "Tactile Brutalist",
-      "Reserve Microlot",
-      "Community Roastery",
+      "Roast Lab",
+      "Award Storyteller",
+      "Field Guide",
+      "Industrial Poster",
+      "Dark Luxury Gallery",
+      "Warm Neighborhood",
     ]));
   });
 });
 
 // ── Preset Compatibility ─────────────────────────────────────────────────────
 describe("Preset Compatibility Layer", () => {
-  it("THEME_PRESETS has 16 presets", () => {
-    expect(THEME_PRESETS.length).toBe(16);
+  it("THEME_PRESETS has 22 presets", () => {
+    expect(THEME_PRESETS.length).toBe(22);
   });
 
   it("all 16 preset IDs are unique", () => {
@@ -289,11 +289,14 @@ describe("Contextual Add Section Dialog", () => {
   it("Konten add dialog exposes only Konten types", () => {
     const allowed = PUBLIC_SECTION_TYPE_GROUPS.konten;
     const definitions = SECTION_REGISTRY.filter((s) => allowed.some((type) => type === s.type));
-    expect(definitions.length).toBe(9);
+    expect(definitions.length).toBe(12);
     const types = definitions.map((d) => d.type);
     expect(types).toContain("rich_text");
     expect(types).toContain("testimonials");
     expect(types).toContain("faq");
+    expect(types).toContain("awards_strip");
+    expect(types).toContain("brand_timeline");
+    expect(types).toContain("sustainability");
   });
 
   it("Footer add dialog exposes only footer_nav", () => {
@@ -306,7 +309,7 @@ describe("Contextual Add Section Dialog", () => {
   it("exposes only the curated public catalog", () => {
     const groupedTypes = Object.values(PUBLIC_SECTION_TYPE_GROUPS).flat();
     expect(new Set(groupedTypes)).toEqual(new Set(PUBLIC_SECTION_TYPES));
-    expect(PUBLIC_SECTION_REGISTRY.map((section) => section.type)).toHaveLength(19);
+    expect(PUBLIC_SECTION_REGISTRY.map((section) => section.type)).toHaveLength(22);
 
     for (const hiddenType of [
       "newsletter",
@@ -320,8 +323,8 @@ describe("Contextual Add Section Dialog", () => {
 
 // ── Section Registry ─────────────────────────────────────────────────────────
 describe("Section Registry", () => {
-  it("has all section types registered (22)", () => {
-    expect(SECTION_REGISTRY.length).toBe(22);
+  it("has all section types registered (25)", () => {
+    expect(SECTION_REGISTRY.length).toBe(25);
   });
 
   it("every section has required fields", () => {

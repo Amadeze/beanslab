@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { InventoryEmptyState } from "./InventoryEmptyState";
+import { EmptyState } from "@/components/shared/EmptyState";
 import type { LedgerHistoryRow } from "../types";
 
 const PAGE_SIZE = 25;
@@ -103,7 +103,7 @@ export function LedgerHistoryTable({
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const visibleEntries = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const hasFilters = query || direction !== "ALL" || filterType !== "ALL" || dateFrom || dateTo;
+  const hasFilters = Boolean(query || direction !== "ALL" || filterType !== "ALL" || dateFrom || dateTo);
 
   return (
     <div className="space-y-3">
@@ -181,10 +181,13 @@ export function LedgerHistoryTable({
             {visibleEntries.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="py-8">
-                  <InventoryEmptyState
-                    label="Tidak ada mutasi"
-                    description={hasFilters ? "Tidak ada mutasi yang sesuai filter." : "Belum ada riwayat mutasi stok."}
-                  />
+                  <EmptyState.TableEmptyState
+                      label="mutasi"
+                      isFiltered={hasFilters}
+                      filteredLabel="Tidak ada mutasi yang sesuai filter."
+                      filteredDescription="Coba ubah filter atau pencarian."
+                      colSpan={5}
+                    />
                 </TableCell>
               </TableRow>
             ) : (
@@ -235,8 +238,8 @@ export function LedgerHistoryTable({
       <div className="md:hidden flex flex-col gap-1.5">
         {visibleEntries.length === 0 ? (
           <div className="py-8 text-center rounded-lg border border-slate-200/60 bg-white/50">
-            <InventoryEmptyState
-              label="Tidak ada mutasi"
+            <EmptyState.CardEmptyState
+              label="mutasi"
               description={hasFilters ? "Tidak ada mutasi yang sesuai filter." : "Belum ada riwayat mutasi stok."}
             />
           </div>

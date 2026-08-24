@@ -93,28 +93,6 @@ const schema = z.object({
   reorderLookbackDays:  z.number().int().min(7).max(365),
 }).superRefine((data, ctx) => {
   if (data.type === "FINISHED_GOODS") {
-    // Required for FINISHED_GOODS
-    if (!data.description || data.description.trim().length < 50) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Deskripsi minimal 50 karakter untuk produk jadi",
-        path: ["description"],
-      });
-    }
-    if (!data.imageUrl || !data.imageUrl.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Foto produk wajib diisi untuk produk jadi",
-        path: ["imageUrl"],
-      });
-    }
-    if (!data.origin || !data.origin.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Origin/Asal wajib diisi untuk produk jadi",
-        path: ["origin"],
-      });
-    }
     // roastLevel is validated via recipe/coffeeIdentity
     if (data.type === "FINISHED_GOODS" && (!data.netWeightGrams || data.netWeightGrams <= 0)) {
       ctx.addIssue({

@@ -487,6 +487,96 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
       copyrightText: "Hak cipta roastery Anda.",
     },
   },
+  // ── Roastery Storytelling Sections ─────────────────────────────────────────
+  {
+    type: "awards_strip",
+    label: "Awards Strip",
+    description: "Horizontal strip showcasing awards, certifications, and badges with icons",
+    icon: "Award",
+    category: "marketing",
+    area: "konten",
+    status: "optional",
+    addable: true,
+    defaultSettings: {
+      title: "Penghargaan & Sertifikasi",
+      subtitle: "Diakui global, bangga lokal",
+      columns: 5,
+      showIcons: true,
+    },
+    blockTypes: [
+      {
+        type: "award",
+        label: "Award",
+        defaultSettings: {
+          title: "",
+          year: "",
+          icon: "Award",
+          description: "",
+          color: "#D4A574",
+        },
+      },
+    ],
+  },
+  {
+    type: "brand_timeline",
+    label: "Brand Timeline",
+    description: "Vertical or horizontal timeline of brand milestones with narrative steps",
+    icon: "Timeline",
+    category: "marketing",
+    area: "konten",
+    status: "optional",
+    addable: true,
+    defaultSettings: {
+      title: "Perjalanan Kami",
+      subtitle: "Dari satu mimpi ke realitas",
+      layout: "vertical",
+      showYears: true,
+    },
+    blockTypes: [
+      {
+        type: "narrative_step",
+        label: "Timeline Step",
+        defaultSettings: {
+          title: "",
+          subtitle: "",
+          content: "",
+          imageUrl: null,
+          icon: "CheckCircle2",
+          tag: "",
+          year: "",
+          location: "",
+        },
+      },
+    ],
+  },
+  {
+    type: "sustainability",
+    label: "Sustainability",
+    description: "Grid of sustainability practices with icons and metrics",
+    icon: "Leaf",
+    category: "marketing",
+    area: "konten",
+    status: "optional",
+    addable: true,
+    defaultSettings: {
+      title: "Berkelanjutan",
+      subtitle: "Praktik bertanggung jawab dari petani ke fincan",
+      layout: "grid",
+      columns: 3,
+    },
+    blockTypes: [
+      {
+        type: "stat",
+        label: "Sustainability Metric",
+        defaultSettings: {
+          value: "",
+          label: "",
+          icon: "Leaf",
+          color: "#4B6B3C",
+        },
+      },
+    ],
+  },
 ];
 
 // ── Registry Lookup ─────────────────────────────────────────────────────────

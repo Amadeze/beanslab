@@ -1,12 +1,11 @@
-"use client";
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Monitor, Tablet, Smartphone, Eye, Save, Check,
   ChevronLeft, Palette, LayoutGrid, Droplet, Type,
   Undo2, Redo2, Sparkles, RotateCcw, Loader2, ArrowLeft,
   Home, Store, FileText, Settings, Menu, Zap, Layers,
+  Shield, AlertCircle, CheckCircle2, TrendingUp,
 } from "lucide-react";
 import { useCustomizerStore } from "@/features/portal-theme/client/store";
 import { ThemePresetSelector } from "@/features/portal-theme/components/ThemePresetSelector";
@@ -38,6 +37,14 @@ const TAB_CONFIG = [
   { id: "pengaturan", label: "Pengaturan", icon: Settings, description: "Animasi, SEO, dan integrasi" },
 ] as const;
 
+interface ReadinessResult {
+  score: number;
+  checks: Array<{ id: string; label: string; passed: boolean; severity: string }>;
+  canTransact: boolean;
+  missingCritical: string[];
+  missingWarning: string[];
+}
+
 export default function PortalCustomizerPage() {
   const initialize = useCustomizerStore((s) => s.initialize);
   const previewViewport = useCustomizerStore((s) => s.previewViewport);
@@ -63,6 +70,26 @@ export default function PortalCustomizerPage() {
   const [loaded, setLoaded] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [mobilePane, setMobilePane] = useState<"editor" | "preview">("editor");
+  const [readiness, setReadiness] = useState<ReadinessResult | null>(null);
+  const [readinessLoading, setReadinessLoading] = useState(true);
+
+  const fetchReadiness = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tenant/readiness");
+      if (res.ok) {
+        const data = await res.json();
+        setReadiness(data);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setReadinessLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReadiness();
+  }, [fetchReadiness]);
 
   useEffect(() => {
     loadPortalTheme().then((res) => {
@@ -110,6 +137,27 @@ export default function PortalCustomizerPage() {
       </div>
     );
   }
+
+  const getReadinessColor = (score: number) => {
+    if (score >= 90) return "text-emerald-400 bg-emerald-500/10 border-emerald-500/30";
+    if (score >= 70) return "text-amber-400 bg-amber-500/10 border-amber-500/30";
+    if (score >= 50) return "text-orange-400 bg-orange-500/10 border-orange-500/30";
+    return "text-red-400 bg-red-500/10 border-red-500/30";
+  };
+
+  const getReadinessLabel = (score: number) => {
+    if (score >= 90) return "Siap Jual";
+    if (score >= 70) return "Hampir Siap";
+    if (score >= 50) return "Perlu Perbaikan";
+    return "Belum Siap";
+  };
+
+  const getReadinessIcon = (score: number) => {
+    if (score >= 90) return <CheckCircle2 size={14} />;
+    if (score >= 70) return <TrendingUp size={14} />;
+    if (score >= 50) return <AlertCircle size={14} />;
+    return <Shield size={14} />;
+  };
 
   const getFilteredSections = () => {
     const workingDraft = useCustomizerStore.getState().workingDraft;
@@ -212,6 +260,18 @@ export default function PortalCustomizerPage() {
               <span className="hidden sm:inline">Discard</span>
             </button>
           )}
+
+          {readiness && (
+            <div
+              className={`flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold border ${getReadinessColor(readiness.score)}`}
+              title={`${readiness.missingCritical.length} critical, ${readiness.missingWarning.length} warning`}
+            >
+              {getReadinessIcon(readiness.score)}
+              <span>{getReadinessLabel(readiness.score)}</span>
+              <span className="font-mono">{readiness.score}</span>
+            </div>
+          )}
+          {readinessLoading && <Loader2 size={14} className="animate-spin text-gray-400" />}
 
           <button
             onClick={handleSaveDraft}

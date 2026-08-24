@@ -2,7 +2,7 @@ import type { PortalSection, PortalThemeConfig } from "../types";
 import { getSectionDefinition, resolveSectionType } from "../registry";
 import { getCuratedFamilyById, getPrimaryPresetForFamily } from "./curated-families";
 
-export type ThemeApplyMode = "style" | "style-and-layout";
+export type ThemeApplyMode = "style" | "style-and-layout" | "style-and-layout-content";
 
 const PRESENTATION_SETTING_KEYS = new Set([
   "styleMode",
@@ -96,5 +96,41 @@ export function applyCuratedTheme(
   if (footerIndex === -1) arranged.push(...extras);
   else arranged.splice(footerIndex, 0, ...extras);
 
-  return { ...styled, sections: arranged };
+  const result = { ...styled, sections: arranged };
+
+  // Apply starter content if requested
+  if (mode === "style-and-layout-content" && family.starterContent) {
+    return applyStarterContent(result, family.starterContent);
+  }
+
+  return result;
+}
+
+function applyStarterContent(config: PortalThemeConfig, starterContent: any): PortalThemeConfig {
+  const sections = config.sections.map((section) => {
+    const starter = starterContent.sectionDefaults?.[section.type];
+    if (!starter) return section;
+
+    return {
+      ...section,
+      settings: {
+        ...section.settings,
+        ...starter,
+      },
+      blocks: applyStarterBlocks(section.type, starter, section.blocks),
+    };
+  });
+
+  return { ...config, sections };
+}
+
+function applyStarterBlocks(sectionType: string, starter: any, existingBlocks: any[]): any[] {
+  // If starter has blocks defined, use those instead of empty
+  if (starter.blocks && starter.blocks.length > 0) {
+    return starter.blocks.map((block: any, idx: number) => ({
+      ...block,
+      id: block.id || `${sectionType}_starter_${Date.now().toString(36)}_${idx}`,
+    }));
+  }
+  return existingBlocks;
 }

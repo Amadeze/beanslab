@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Factory } from "lucide-react";
+import { Search, Factory, Plus } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -11,36 +11,7 @@ import { formatDate, formatKg, formatRupiah } from "@/lib/format";
 import { VoidConfirmDialog } from "@/components/VoidConfirmDialog";
 import { voidProductionBatch } from "../actions";
 import type { ProductionBatchRow } from "../actions";
-
-function EmptyState({ isFiltered, onStart }: { isFiltered: boolean; onStart?: () => void }) {
-  return (
-    <TableRow>
-      <TableCell colSpan={9} className="py-12 text-center">
-        <p className="text-sm font-medium text-zinc-400">
-          {isFiltered ? "Tidak ada batch produksi yang cocok." : "Belum ada batch produksi."}
-        </p>
-        {!isFiltered && (
-          <>
-            <p className="mt-1 text-xs text-zinc-300">
-              Catat batch pertama untuk memulai produksi.
-            </p>
-            {onStart && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-3 gap-1.5 border-amber-700/40 text-amber-900 hover:bg-amber-50"
-                onClick={onStart}
-              >
-                <Factory size={14} />
-                Batch Baru
-              </Button>
-            )}
-          </>
-        )}
-      </TableCell>
-    </TableRow>
-  );
-}
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface ProductionHistoryTableProps {
   batches: ProductionBatchRow[];
@@ -104,7 +75,16 @@ export function ProductionHistoryTable({ batches, onStartProduction }: Productio
         </TableHeader>
         <TableBody>
           {filteredBatches.length === 0 ? (
-            <EmptyState isFiltered={batches.length > 0} onStart={onStartProduction} />
+            <EmptyState.TableEmptyState
+  label="batch produksi"
+  isFiltered={batches.length > 0}
+  filteredLabel="Tidak ada batch produksi yang cocok."
+  filteredDescription="Coba ubah filter atau pencarian."
+  actionLabel="Batch Baru"
+  actionIcon={<Factory size={12} />}
+  onAction={onStartProduction}
+  colSpan={9}
+/>
           ) : (
             filteredBatches.map((b) => (
               <TableRow key={b.id} className="hover:bg-white/40 transition-colors">

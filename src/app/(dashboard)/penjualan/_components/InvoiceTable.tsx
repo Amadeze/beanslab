@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ExternalLink, Search, Banknote } from "lucide-react";
+import { ExternalLink, Search, Banknote, Plus } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -21,6 +21,7 @@ import {
   nextOperatorFulfillmentStatuses,
   type OperatorFulfillmentStatus,
 } from "@/lib/fulfillment-status";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 function canManageFulfillment(invoice: InvoiceRow) {
   return nextOperatorFulfillmentStatuses(
@@ -42,21 +43,6 @@ const triggerSilentPrint = (url: string) => {
   }
   iframe.src = url;
 };
-
-function EmptyState({ isFiltered }: { isFiltered: boolean }) {
-  return (
-    <TableRow>
-      <TableCell colSpan={10} className="py-12 text-center">
-        <p className="text-sm font-medium text-zinc-400">
-          {isFiltered ? "Tidak ada nota yang cocok dengan filter." : "Belum ada nota penjualan."}
-        </p>
-        {!isFiltered && (
-          <p className="mt-1 text-xs text-zinc-300">Klik "Nota Baru" untuk mencatat transaksi pertama.</p>
-        )}
-      </TableCell>
-    </TableRow>
-  );
-}
 
 export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
   const [voidTarget, setVoidTarget] = useState<InvoiceRow | null>(null);
@@ -151,7 +137,16 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
         </TableHeader>
         <TableBody>
           {filteredInvoices.length === 0 ? (
-            <EmptyState isFiltered={invoices.length > 0} />
+            <EmptyState.TableEmptyState
+  label="nota penjualan"
+  isFiltered={invoices.length > 0}
+  filteredLabel="Tidak ada nota yang cocok dengan filter."
+  filteredDescription="Coba ubah filter atau pencarian."
+  actionLabel="Nota Baru"
+  actionIcon={<Plus size={12} />}
+  onAction={() => { /* navigate to create invoice */ }}
+  colSpan={10}
+/>
           ) : (
             filteredInvoices.map((inv) => (
               <TableRow key={inv.id} className="transition-colors hover:bg-stone-50">

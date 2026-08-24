@@ -8,12 +8,12 @@ import { applyCuratedTheme, type ThemeApplyMode } from "../defaults/theme-bluepr
 import { useCustomizerStore } from "../client/store";
 
 const LAYOUT_MARKS: Record<string, string[]> = {
-  modern_catalog: ["col-span-2 h-5", "h-5", "h-3", "h-3", "h-3"],
-  editorial_journal: ["col-span-3 h-4", "col-span-2 h-7", "h-7", "col-span-3 h-2"],
-  origin_field_notes: ["col-span-2 h-6", "h-6", "h-4", "h-4", "h-4"],
-  tactile_brutalist: ["col-span-3 h-7", "h-5", "h-5", "h-5"],
-  reserve_microlot: ["col-span-3 h-6", "col-span-2 h-8", "h-8", "col-span-3 h-2"],
-  community_roastery: ["col-span-2 h-6", "h-6", "h-3", "h-5", "h-3"],
+  modern_catalog: ["col-span-3 h-6", "h-4", "h-4", "h-4", "h-4", "h-3"],
+  editorial_journal: ["col-span-3 h-5", "h-5", "h-2", "h-3", "h-4", "h-2", "h-2", "h-3", "h-2"],
+  origin_field_notes: ["col-span-2 h-6", "h-6", "h-4", "h-4", "h-3", "h-2", "h-3", "h-2"],
+  tactile_brutalist: ["col-span-3 h-7", "h-5", "h-5", "h-5", "h-3", "h-3"],
+  reserve_microlot: ["col-span-3 h-6", "col-span-2 h-7", "h-7", "h-7", "h-2", "h-2"],
+  community_roastery: ["col-span-2 h-6", "h-6", "h-3", "h-5", "h-3", "h-3", "h-3"],
 };
 
 export function ThemePresetSelector() {
@@ -109,6 +109,13 @@ export function ThemePresetSelector() {
                         <Layers3 size={12} /> Gaya + susunan <Check size={11} />
                       </button>
                     </div>
+                    {family.starterContent && (
+                      <div className="grid grid-cols-1 gap-2 mt-2">
+                        <button type="button" onClick={() => applyFamily(family.id, "style-and-layout-content")} className="flex items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-2 py-2 text-[10px] font-bold text-white hover:bg-amber-700">
+                          <Check size={12} /> Gaya + susunan + konten <Check size={11} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : null}
               </div>

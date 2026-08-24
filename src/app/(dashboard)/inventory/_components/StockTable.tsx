@@ -20,7 +20,7 @@ import { SUPPLY_CATEGORY_LABEL } from "../types";
 import type { ReorderSummary } from "@/lib/reorder";
 import { CategoryTabs, type CategoryId } from "./CategoryTabs";
 import { InventoryStatusBadge } from "./InventoryStatusBadge";
-import { InventoryEmptyState } from "./InventoryEmptyState";
+import { EmptyState } from "@/components/shared/EmptyState";
 import {
   getDisplayStatus,
   calcInventoryValue,
@@ -476,11 +476,15 @@ export function StockTable({
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="py-8">
-                  <InventoryEmptyState
-                    label={hasActiveFilters ? "Tidak ada item yang cocok" : "Belum ada data"}
-                    description={hasActiveFilters ? "Coba ubah filter atau pencarian." : "Belum ada item di kategori ini."}
-                    action={emptyAction}
-                  />
+                  <EmptyState.TableEmptyState
+                      label="item"
+                      isFiltered={hasActiveFilters}
+                      filteredLabel="Tidak ada item yang cocok"
+                      filteredDescription="Coba ubah filter atau pencarian."
+                      actionLabel={emptyAction?.props?.children as string | undefined}
+                      onAction={emptyAction?.props?.onClick}
+                      colSpan={5}
+                    />
                 </TableCell>
               </TableRow>
             ) : (
@@ -557,12 +561,12 @@ export function StockTable({
       {/* Mobile Cards */}
       <div className="md:hidden flex flex-col gap-1.5">
         {rows.length === 0 ? (
-          <div className="py-8 text-center rounded-lg border border-slate-200/60 bg-white/50">
-            <InventoryEmptyState
-              label={hasActiveFilters ? "Tidak ada item yang cocok" : "Belum ada data"}
-              action={emptyAction}
-            />
-          </div>
+          <EmptyState.CardEmptyState
+            label={hasActiveFilters ? "Tidak ada item yang cocok" : "Belum ada data"}
+            description="Coba ubah filter atau pencarian."
+            actionLabel={emptyAction?.props?.children as string | undefined}
+            onAction={emptyAction?.props?.onClick}
+          />
         ) : (
           rows.map((row) => {
             const valueInfo = formatInventoryValue(row._stockValue, row._hpp);

@@ -174,6 +174,7 @@ export type CatalogProduct = {
   stockKg: number | null;
   stockUnit: number | null;
   recipes: Array<{ storefrontGrindOptions: StorefrontGrindSize[] }>;
+  latestRoastDate: string | null; // ISO date string of latest completed roast batch
 };
 
 // StorefrontOffering + info ketersediaan real-time (kg) untuk UI.
@@ -181,6 +182,7 @@ export type CatalogOffering = StorefrontOffering & {
   lineageProductId: string | null;
   availableKg: number | null;
   unavailableReason: string | null;
+  latestRoastDate: string | null; // ISO date string of latest completed roast batch
 };
 
 export type StorefrontCatalog = {
@@ -285,6 +287,30 @@ export async function loadStorefrontCatalog(
     }),
   ]);
 
+  // Pre-fetch latest roast dates for all products
+  const productIds = productRows.map((p: Record<string, unknown>) => p.id as string);
+  const latestRoastBatches = await db.roastingBatch.findMany({
+    where: {
+      tenantId,
+      finishedProductId: { in: productIds },
+      status: "COMPLETED",
+      completedAt: { not: null },
+    },
+    select: {
+      finishedProductId: true,
+      completedAt: true,
+    },
+    orderBy: { completedAt: "desc" },
+  });
+
+  // Map productId -> latest completedAt
+  const latestRoastByProduct: Map<string, Date> = new Map();
+  for (const batch of latestRoastBatches) {
+    if (!latestRoastByProduct.has(batch.finishedProductId)) {
+      latestRoastByProduct.set(batch.finishedProductId, batch.completedAt!);
+    }
+  }
+
   const products: CatalogProduct[] = productRows.flatMap((product: Record<string, unknown>) => {
     const retailPrice = num(product.price);
     const priceSilver = num(product.priceSilver);
@@ -299,6 +325,7 @@ export async function loadStorefrontCatalog(
       : null;
     const price = resolved?.unitPrice ?? retailPrice;
     if (price === null || price <= 0) return [];
+    const latestRoastDate = latestRoastByProduct.get(product.id as string);
     return [{
       id: product.id as string,
       code: product.code as string,
@@ -320,6 +347,7 @@ export async function loadStorefrontCatalog(
       stockKg: num(product.stockKg),
       stockUnit: num(product.stockUnit),
       recipes: (product.recipes ?? []) as Array<{ storefrontGrindOptions: StorefrontGrindSize[] }>,
+      latestRoastDate: latestRoastDate ? latestRoastDate.toISOString() : null,
     }];
   });
 
@@ -356,6 +384,7 @@ export async function loadStorefrontCatalog(
       availableKg,
       unavailableReason,
       lineageProductId,
+      latestRoastDate: lineageProductId ? (latestRoastByProduct.get(lineageProductId)?.toISOString() ?? null) : null,
     });
   }
 

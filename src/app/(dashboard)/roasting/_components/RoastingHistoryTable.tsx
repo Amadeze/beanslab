@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Target, X, Flame } from "lucide-react";
+import { Search, Target, X, Flame, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import {
@@ -31,6 +31,7 @@ import {
   type RoastingLocationOption,
 } from "../actions";
 import { RoastingDestinationField } from "./RoastingDestinationField";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 // ─────────────────────────────────────────────
 // Shrinkage badge
@@ -69,40 +70,6 @@ function CuppingBadge({ score }: { score: number | null }) {
     <Badge variant="outline" className={`ml-1.5 font-mono text-[11px] ${colorClass}`} title="Cupping Score">
       {score.toFixed(1)}
     </Badge>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Empty state
-// ─────────────────────────────────────────────
-
-function EmptyState({ isFiltered, onStart }: { isFiltered: boolean; onStart?: () => void }) {
-  return (
-    <TableRow>
-      <TableCell colSpan={10} className="py-12 text-center">
-        <p className="text-sm font-medium text-zinc-400">
-          {isFiltered ? "Tidak ada batch roasting yang cocok." : "Belum ada batch roasting."}
-        </p>
-        {!isFiltered && (
-          <>
-            <p className="mt-1 text-xs text-zinc-300">
-              Mulai batch pertama untuk mencatat hasil roasting.
-            </p>
-            {onStart && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-3 gap-1.5 border-amber-700/40 text-amber-900 hover:bg-amber-50"
-                onClick={onStart}
-              >
-                <Flame size={14} />
-                Mulai Roasting
-              </Button>
-            )}
-          </>
-        )}
-      </TableCell>
-    </TableRow>
   );
 }
 
@@ -281,7 +248,16 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
         </TableHeader>
         <TableBody>
           {filteredBatches.length === 0 ? (
-            <EmptyState isFiltered={batches.length > 0} onStart={onStartRoasting} />
+            <EmptyState.TableEmptyState
+  label="batch roasting"
+  isFiltered={batches.length > 0}
+  filteredLabel="Tidak ada batch roasting yang cocok."
+  filteredDescription="Coba ubah filter atau pencarian."
+  actionLabel="Mulai Roasting"
+  actionIcon={<Flame size={12} />}
+  onAction={onStartRoasting}
+  colSpan={10}
+/>
           ) : (
             filteredBatches.map((b) => (
               <TableRow key={b.id}>

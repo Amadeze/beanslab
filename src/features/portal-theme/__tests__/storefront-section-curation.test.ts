@@ -50,8 +50,8 @@ describe("storefront section curation", () => {
   it("derives the addable catalog and every area from registry metadata", () => {
     const groupedTypes = Object.values(PUBLIC_SECTION_TYPE_GROUPS).flat();
 
-    expect(PUBLIC_SECTION_TYPES).toHaveLength(19);
-    expect(PUBLIC_SECTION_REGISTRY).toHaveLength(19);
+    expect(PUBLIC_SECTION_TYPES).toHaveLength(22);
+    expect(PUBLIC_SECTION_REGISTRY).toHaveLength(22);
     expect(new Set(groupedTypes)).toEqual(new Set(PUBLIC_SECTION_TYPES));
     expect(PUBLIC_SECTION_REGISTRY.every((definition) =>
       isPublicSectionType(definition.type),

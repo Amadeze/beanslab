@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock } from "lucide-react";
+import { AlertTriangle, Clock, CheckCircle2, Plus } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDate, formatRupiah } from "@/lib/format";
 import type { PiutangRow } from "../actions";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 function OverdueBadge() {
   return (
@@ -14,22 +15,6 @@ function OverdueBadge() {
       <AlertTriangle size={9} />
       Lewat jatuh tempo
     </span>
-  );
-}
-
-function EmptyState() {
-  return (
-    <TableRow>
-      <TableCell colSpan={9} className="py-16 text-center">
-        <div className="flex flex-col items-center gap-2">
-          <div className="rounded-full bg-emerald-50 p-3">
-            <Clock size={20} className="text-emerald-500" />
-          </div>
-          <p className="text-sm font-medium text-zinc-500">Semua nota sudah lunas</p>
-          <p className="text-xs text-zinc-400">Tidak ada piutang yang perlu ditagih saat ini.</p>
-        </div>
-      </TableCell>
-    </TableRow>
   );
 }
 
@@ -58,7 +43,13 @@ export function PiutangTable({ rows, onTerimaPayment }: PiutangTableProps) {
         </TableHeader>
         <TableBody>
           {rows.length === 0 ? (
-            <EmptyState />
+            <EmptyState.TableEmptyState
+  label="piutang"
+  isFiltered={false}
+  filteredLabel="Semua nota sudah lunas"
+  filteredDescription="Tidak ada piutang yang perlu ditagih saat ini."
+  colSpan={9}
+/>
           ) : (
             rows.map((row) => (
               <TableRow
