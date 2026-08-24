@@ -9,6 +9,7 @@ import { validateRoastingWeights } from "@/lib/operations";
 import { getCurrentDate } from "@/lib/date-utils";
 import { Prisma } from "@prisma/client";
 import { analyzeRoastOutcome, type RoastOutcome } from "@/lib/roast-intent";
+import { deriveProfileTargetsFromRoast, isCloneableRoast } from "@/lib/roast-intelligence";
 import { roastedBeanName, type RoastLevelValue } from "@/lib/roast-product";
 import { postVoidReversal } from "@/lib/posting";
 import {
@@ -1424,6 +1425,104 @@ export async function getReusableRoastProfiles(): Promise<ReusableRoastProfileRo
 export async function getTenantRoastLevels(): Promise<TenantRoastLevelRow[]> {
   await requireRole("OWNER", "MANAGER", "OPERATOR");
   return fetchTenantRoastLevels();
+}
+
+/**
+ * AI deterministik: jadikan satu roast nyata sebagai profil referensi.
+ * Target profil (charge/drop temp, FC start/end, dev%) diturunkan langsung
+ * dari kurva roast — bukan tebakan manual operator.
+ */
+export async function createProfileFromRoast(
+  roastId: string,
+  input?: { name?: string },
+): Promise<ProfileActionResult> {
+  try {
+    await requireRole("OWNER", "MANAGER");
+    const userId = await getSystemUserId();
+    const tenantId = await getCurrentTenantId();
+    const tenantPrisma = await requireTenantPrisma();
+
+    const roast = await tenantPrisma.roast.findFirst({
+      where: { id: roastId, tenantId },
+      select: {
+        id: true,
+        title: true,
+        machineId: true,
+        chargeTemperature: true,
+        dropTemperature: true,
+        firstCrackStartTime: true,
+        firstCrackEndTime: true,
+        dropTime: true,
+        duration: true,
+      },
+    });
+    if (!roast) return { success: false, error: "Roast tidak ditemukan." };
+    if (!isCloneableRoast(roast)) {
+      return {
+        success: false,
+        error: "Roast ini belum punya suhu charge & drop — tidak bisa diturunkan menjadi profil.",
+      };
+    }
+
+    const targets = deriveProfileTargetsFromRoast(roast);
+    const baseName = input?.name?.trim() || `${roast.title ?? "Roast"} (profil hasil clone)`;
+
+    const profile = await tenantPrisma.roastProfile.create({
+      data: {
+        tenantId,
+        name: baseName,
+        machineId: roast.machineId,
+        roastLevel: "MEDIUM", // netral — operator bisa sesuaikan setelahnya
+        beanOrigin: null,
+        chargeTemp: targets.chargeTemp,
+        targetFirstCrackStart: targets.targetFirstCrackStart,
+        targetFirstCrackEnd: targets.targetFirstCrackEnd,
+        developmentTarget: targets.developmentTarget,
+        dropTemp: targets.dropTemp,
+        notes: `Diturunkan otomatis dari kurva roast ${roast.title ?? roast.id} (${targets.derivedFrom.length} target).`,
+      },
+    });
+
+    await recordAudit(tenantPrisma, {
+      tenantId,
+      userId,
+      action: "CREATE",
+      entityType: "RoastProfile",
+      entityId: profile.id,
+      after: {
+        name: profile.name,
+        derivedFromRoastId: roast.id,
+        derivedTargets: targets.derivedFrom,
+      },
+      metadata: { source: "ROAST_CLONE" },
+    });
+
+    revalidatePath("/roasting");
+    return {
+      success: true,
+      profile: {
+        id: profile.id,
+        name: profile.name,
+        machineName: null,
+        roastLevel: profile.roastLevel,
+        beanOrigin: profile.beanOrigin,
+        chargeTemp: profile.chargeTemp ? Number(profile.chargeTemp) : null,
+        targetFirstCrackStart: profile.targetFirstCrackStart != null ? Number(profile.targetFirstCrackStart) : null,
+        targetFirstCrackEnd: profile.targetFirstCrackEnd != null ? Number(profile.targetFirstCrackEnd) : null,
+        developmentTarget: profile.developmentTarget ? Number(profile.developmentTarget) : null,
+        dropTemp: profile.dropTemp ? Number(profile.dropTemp) : null,
+        notes: profile.notes,
+        isActive: profile.isActive,
+        createdAt: profile.createdAt.toISOString(),
+      } satisfies ReusableRoastProfileRow,
+    };
+  } catch (err) {
+    console.error("[createProfileFromRoast]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Gagal membuat profil dari roast.",
+    };
+  }
 }
 
 export async function createRoastProfile(

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { BatchRecapClient } from "./_components/BatchRecapClient";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { fetchDownstreamBatches } from "../../actions";
+import { computeRoastConsistency, type RoastMetricSample } from "@/lib/roast-intelligence";
 
 export default async function BatchRecapPage({
   params,
@@ -87,6 +88,46 @@ export default async function BatchRecapPage({
       quantity: d.quantity,
       createdAt: d.createdAt,
     }));
+
+  // ── Konsistensi antar-batch (AI deterministik): 12 batch COMPLETED terakhir
+  // dengan produk output yang sama → control chart mean ± 2σ per metrik.
+  const siblingBatches = await prisma.parentRoastingBatch.findMany({
+    where: {
+      tenantId: user.tenantId,
+      outputProductId: batch.outputProductId,
+      status: "COMPLETED",
+    },
+    orderBy: { completedAt: "desc" },
+    take: 12,
+    select: {
+      childBatches: {
+        where: { roastId: { not: null } },
+        select: {
+          roastId: true,
+          roast: {
+            select: {
+              duration: true,
+              lossPercent: true,
+              dropTemperature: true,
+              firstCrackStartTime: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  const siblingSamples: RoastMetricSample[] = siblingBatches.flatMap((parent) =>
+    parent.childBatches
+      .filter((child) => child.roast != null)
+      .map((child) => ({
+        roastId: child.roastId,
+        duration: child.roast?.duration ?? null,
+        lossPercent: child.roast?.lossPercent ?? null,
+        dropTemperature: child.roast?.dropTemperature ?? null,
+        firstCrackStartTime: child.roast?.firstCrackStartTime ?? null,
+      })),
+  );
+  const consistency = computeRoastConsistency(siblingSamples);
 
   // Calculate recap stats
   const totalInputKg = Number(batch.targetWeightKg);
@@ -194,6 +235,7 @@ export default async function BatchRecapPage({
         warehouseName: placement.location.warehouse.name,
       },
     })),
+    consistency,
   };
 
   return (

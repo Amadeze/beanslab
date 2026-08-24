@@ -2,15 +2,23 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   Flame, Clock, Thermometer, ArrowDown, ChevronDown, ChevronUp,
   Package, Scale, TrendingDown, CheckCircle, AlertCircle,
-  Factory, Coffee, FlaskConical,
+  Factory, Coffee, FlaskConical, CopyPlus, Activity,
 } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ReferenceLine, Legend,
 } from "recharts";
+import {
+  type MetricStats,
+  type RoastConsistencyReport,
+  isOutlier,
+} from "@/lib/roast-intelligence";
+import { createProfileFromRoast } from "../../../actions";
 
 type RoastData = {
   id: string;
@@ -100,6 +108,8 @@ type RecapData = {
   };
   downstreamBatches: DownstreamBatch[];
   outputPlacements: OutputPlacement[];
+  /** Control chart konsistensi antar-batch untuk produk output yang sama. */
+  consistency: RoastConsistencyReport;
 };
 
 function formatDuration(seconds: number | null): string {
@@ -116,8 +126,114 @@ function formatDate(iso: string | null): string {
   });
 }
 
+/** Cloneable = roast punya suhu charge & drop (syarat minimal turunkan profil). */
+function isCloneableRoastData(roast: RoastData): boolean {
+  return typeof roast.chargeTemperature === "number" && typeof roast.dropTemperature === "number";
+}
+
+const VERDICT_STYLE: Record<RoastConsistencyReport["verdict"], { label: string; className: string }> = {
+  STABLE: { label: "Konsisten", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
+  WATCH: { label: "Waspada", className: "bg-amber-500/10 text-amber-600 border-amber-500/30" },
+  VARIABLE: { label: "Bervariasi", className: "bg-red-500/10 text-red-600 border-red-500/30" },
+  NEEDS_DATA: { label: "Data Belum Cukup", className: "bg-gray-500/10 text-gray-500 border-gray-400/30" },
+};
+
+function ConsistencyPanel({
+  report,
+  batchChildren,
+}: {
+  report: RoastConsistencyReport;
+  batchChildren: Array<{ index: number; roastId: string | null; roast: RoastData | null }>;
+}) {
+  const verdict = VERDICT_STYLE[report.verdict];
+
+  // Tandai anak batch yang nilainya keluar dari batas mean ± 2σ.
+  const outlierIndexes = new Set<number>();
+  if (report.verdict !== "NEEDS_DATA") {
+    for (const child of batchChildren) {
+      const r = child.roast;
+      if (!r) continue;
+      const statsByKey = new Map(report.metrics.map((m) => [m.key, m]));
+      const flagged =
+        isOutlier(r.lossPercent, statsByKey.get("lossPercent")) ||
+        isOutlier(r.duration, statsByKey.get("duration")) ||
+        isOutlier(r.dropTemperature, statsByKey.get("dropTemperature")) ||
+        isOutlier(r.firstCrackStartTime, statsByKey.get("firstCrackStartTime"));
+      if (flagged) outlierIndexes.add(child.index);
+    }
+  }
+
+  return (
+    <div className="glass-card rounded-2xl p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--domain-roasting)]/10 text-[var(--domain-roasting)]">
+            <Activity size={15} />
+          </span>
+          <div>
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">Konsistensi Antar-Batch</h3>
+            <p className="text-xs text-[var(--text-tertiary)]">{report.note}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {outlierIndexes.size > 0 && (
+            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-600">
+              Batch #{[...outlierIndexes].sort((a, b) => a - b).join(", #")} di luar batas
+            </span>
+          )}
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${verdict.className}`}>
+            {verdict.label}
+            {report.score != null && <b className="tabular-nums">{report.score}</b>}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+        {report.metrics.map((metric) => (
+          <MetricCard key={metric.key} metric={metric} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MetricCard({ metric }: { metric: MetricStats }) {
+  const hasControl = metric.lower !== null && metric.upper !== null;
+  return (
+    <div className="rounded-xl border border-[var(--glass-border)] px-3 py-2.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+        {metric.label} · n={metric.sampleCount}
+      </p>
+      <p className="mt-1 text-base font-black tabular-nums text-[var(--text-primary)]">
+        {metric.mean}
+        <span className="text-xs font-semibold text-[var(--text-secondary)]"> ±{metric.stdDev}{metric.unit}</span>
+      </p>
+      <p className="mt-0.5 text-[11px] tabular-nums text-[var(--text-tertiary)]">
+        {hasControl ? `Batas ${metric.lower}–${metric.upper}${metric.unit}` : "Belum ada batas kontrol"}
+      </p>
+    </div>
+  );
+}
+
 export function BatchRecapClient({ data }: { data: RecapData }) {
   const [expandedChild, setExpandedChild] = useState<number | null>(null);
+  const [cloningRoastId, setCloningRoastId] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleCloneProfile = async (roastId: string) => {
+    setCloningRoastId(roastId);
+    try {
+      const result = await createProfileFromRoast(roastId);
+      if (!result.success) {
+        toast.error(result.error ?? "Gagal membuat profil.");
+        return;
+      }
+      toast.success(`Profil "${result.profile.name}" tersimpan di kurva acuan.`);
+      router.refresh();
+    } finally {
+      setCloningRoastId(null);
+    }
+  };
 
   const lossColor = data.totalLossPercent != null
     ? data.totalLossPercent < 18 ? "text-emerald-600"
@@ -154,6 +270,12 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
           sub={`${data.summary.roastCount} roasting`}
         />
       </div>
+
+      {/* Konsistensi antar-batch (control chart deterministik) */}
+      <ConsistencyPanel
+        report={data.consistency}
+        batchChildren={data.children}
+      />
 
       {/* Batch Info */}
       <div className="glass-card rounded-2xl p-5">
@@ -262,9 +384,24 @@ export function BatchRecapClient({ data }: { data: RecapData }) {
 
                     {child.matchDetails && (
                       <div className="flex flex-wrap gap-3 rounded-lg border border-[var(--glass-border)] px-3 py-2 text-xs text-[var(--text-secondary)]">
-                        <span>BT RMSE <b>{child.matchDetails.btRmse ?? "-"}Â°C</b></span>
+                        <span>BT RMSE <b>{child.matchDetails.btRmse ?? "-"}°C</b></span>
                         <span>RoR RMSE <b>{child.matchDetails.rorRmse ?? "-"}</b></span>
-                        <span>Durasi Î” <b>{child.matchDetails.durationDeltaSeconds ?? "-"} detik</b></span>
+                        <span>Durasi Δ <b>{child.matchDetails.durationDeltaSeconds ?? "-"} detik</b></span>
+                      </div>
+                    )}
+
+                    {/* AI deterministik: jadikan kurva ini profil referensi */}
+                    {isCloneableRoastData(r) && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleCloneProfile(r.id)}
+                          disabled={cloningRoastId === r.id}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--domain-roasting)]/30 bg-[var(--domain-roasting)]/10 px-3 text-xs font-bold text-[var(--domain-roasting)] transition hover:bg-[var(--domain-roasting)]/20 disabled:opacity-60"
+                        >
+                          <CopyPlus size={13} />
+                          {cloningRoastId === r.id ? "Menyimpan..." : "Jadikan profil referensi"}
+                        </button>
                       </div>
                     )}
 
