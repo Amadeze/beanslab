@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   try {
     const user = await getValidatedCurrentUser();
-    if (!user || !["OWNER", "MANAGER"].includes(user.role)) {
+    if (!user || !["SUPERADMIN", "OWNER", "MANAGER", "OPERATOR"].includes(user.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const identity = resolveClientIdentity(req.headers);
