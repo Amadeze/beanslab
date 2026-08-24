@@ -80,6 +80,7 @@ const schema = z.object({
   price:             z.number().optional(),
   priceSilver:       z.number().optional(),
   priceGold:         z.number().optional(),
+  netWeightGrams:    z.number().min(1, "Berat bersih (gram) wajib diisi untuk kalkulasi ongkir produk jadi").optional(),
   isActive:          z.boolean(),
   recipePackagingId: z.string().optional(),
   recipeOutputGrams: z.number().optional(),
@@ -90,6 +91,39 @@ const schema = z.object({
   leadTimeDays:         z.number().int().min(1).max(365),
   safetyStockQuantity:  z.number().min(0),
   reorderLookbackDays:  z.number().int().min(7).max(365),
+}).superRefine((data, ctx) => {
+  if (data.type === "FINISHED_GOODS") {
+    // Required for FINISHED_GOODS
+    if (!data.description || data.description.trim().length < 50) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Deskripsi minimal 50 karakter untuk produk jadi",
+        path: ["description"],
+      });
+    }
+    if (!data.imageUrl || !data.imageUrl.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Foto produk wajib diisi untuk produk jadi",
+        path: ["imageUrl"],
+      });
+    }
+    if (!data.origin || !data.origin.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Origin/Asal wajib diisi untuk produk jadi",
+        path: ["origin"],
+      });
+    }
+    // roastLevel is validated via recipe/coffeeIdentity
+    if (data.type === "FINISHED_GOODS" && (!data.netWeightGrams || data.netWeightGrams <= 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Berat bersih pengiriman (gram) wajib diisi untuk produk jadi",
+        path: ["netWeightGrams"],
+      });
+    }
+  }
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -151,6 +185,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           price:             initialData.price ?? 0,
           priceSilver:       initialData.priceSilver ?? 0,
           priceGold:         initialData.priceGold ?? 0,
+          netWeightGrams:    initialData.netWeightGrams ? Number(initialData.netWeightGrams) : 0,
           isActive:          initialData.isActive,
           recipePackagingId: existingRecipe?.packagingId ?? "",
           recipeOutputGrams: existingRecipe?.outputGrams ?? 0,
@@ -167,7 +202,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           name: "", type: "GREEN_BEAN", category: "", origin: "", blendType: "SINGLE",
           country: "", farm: "", varietal: "", processMethod: "", fermentationMethod: "",
           elevation: "", cropYear: "", certifications: "", tastingNotes: "",
-          description: "", imageUrl: "", price: 0, priceSilver: 0, priceGold: 0, isActive: true,
+          description: "", imageUrl: "", price: 0, priceSilver: 0, priceGold: 0, netWeightGrams: 0, isActive: true,
           recipePackagingId: "", recipeOutputGrams: 0, recipeNotes: "", recipeItems: [],
           storefrontGrindOptions: ["WHOLE_BEAN"],
           reorderAlertEnabled: false, leadTimeDays: 7, safetyStockQuantity: 0, reorderLookbackDays: 30,
@@ -190,7 +225,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
 
   const estimatedHpp = useMemo(() => {
     if (!isFG) return 0;
-    // Hitung dari recipe
     let cost = 0;
     for (const item of recipeItems) {
       if (!item.rbProductId || !item.gramsPerUnit) continue;
@@ -238,7 +272,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
     setIsSubmitting(true);
     onPendingChange?.(true);
 
-    // Validate recipe section if user partially filled it
     const hasItems = (values.recipeItems ?? []).length > 0;
     if (isFG && hasItems) {
       if (!values.recipePackagingId) {
@@ -250,7 +283,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
       const badItem = values.recipeItems!.find((i) => !i.rbProductId || (i.gramsPerUnit ?? 0) <= 0);
       if (badItem) { toast.error("Setiap bahan resep harus dipilih dan diisi gramnya."); setIsSubmitting(false); onPendingChange?.(false); return; }
 
-      // Validate BLEND mode ratio
       if (values.blendType === "BLEND") {
         const totalPct = values.recipeItems!.reduce((s, i) => s + (Number(i.ratioPercent) || 0), 0);
         if (Math.abs(totalPct - 100) > 0.5) {
@@ -267,7 +299,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
         setIsSubmitting(false); onPendingChange?.(false); return;
       }
 
-      // Validate mixing GREEN_BEAN and ROASTED_BEAN
       const typesInRecipe = new Set(values.recipeItems!.map(i => rawMaterials.find(rm => rm.id === i.rbProductId)?.type));
       if (typesInRecipe.has("GREEN_BEAN") && typesInRecipe.has("ROASTED_BEAN")) {
         toast.error("Resep tidak boleh mencampur Green Bean dan Roasted Bean."); setIsSubmitting(false); onPendingChange?.(false); return;
@@ -319,6 +350,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
             price: values.price,
             priceSilver: values.priceSilver,
             priceGold: values.priceGold,
+            netWeightGrams: values.netWeightGrams,
             isActive: values.isActive,
             recipe,
             coffeeIdentity,
@@ -338,6 +370,7 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
             price: values.price,
             priceSilver: values.priceSilver,
             priceGold: values.priceGold,
+            netWeightGrams: values.netWeightGrams,
             recipe,
             coffeeIdentity,
             reorderAlertEnabled: values.reorderAlertEnabled,
@@ -360,14 +393,12 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
 
   return (
     <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-5 relative">
-      {/* ── Nama ── */}
       <div className="space-y-1.5">
         <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Nama Produk <span className="text-red-500">*</span></Label>
         <Input placeholder="Arabica Gayo, Full Arabica 250g, dll." className={cn("h-9 font-medium", glassInput)} {...register("name")} />
         {errors.name && <p className="text-xs text-red-500 font-medium pt-0.5">{errors.name.message}</p>}
       </div>
 
-      {/* ── Tipe ── */}
       <div className="space-y-1.5">
         <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Tipe Produk <span className="text-red-500">*</span></Label>
         <Controller
@@ -395,7 +426,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
         )}
       </div>
       <div className="grid grid-cols-2 gap-4">
-        {/* ── Jenis Kopi ── */}
         <div className="space-y-1.5">
           <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Jenis Kopi</Label>
           <Controller
@@ -417,7 +447,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
             )}
           />
         </div>
-        {/* ── Kategori ── */}
         <div className="space-y-1.5">
           <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
             {isFG ? "Kategori" : "Kategori"}
@@ -446,14 +475,12 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
           )}
         </div>
 
-        {/* ── Origin ── */}
         <div className="space-y-1.5">
           <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Origin / Asal</Label>
           <Input placeholder="Gayo, Toraja, Ethiopia, dll." className={cn("h-9", glassInput)} {...register("origin")} />
         </div>
       </div>
 
-      {/* ── Identitas Kopi (GREEN_BEAN only) ── */}
       {selectedType === "GREEN_BEAN" && (
         <div className={cn(glassCard, "space-y-4")}>
           <div>
@@ -509,13 +536,11 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
         </div>
       )}
 
-      {/* ── Deskripsi ── */}
       <div className="space-y-1.5">
         <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Deskripsi (opsional)</Label>
         <Input placeholder="Tasting notes, karakteristik, dll." className={cn("h-9", glassInput)} {...register("description")} />
       </div>
 
-      {/* ── Foto Produk ── */}
       <div className="space-y-1.5">
         <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Foto Produk</Label>
         <div className="flex items-center gap-4">
@@ -545,7 +570,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
         </div>
       </div>
 
-      {/* ── Tipe Campuran (FINISHED_GOODS only) ── */}
       {isFG && (
         <div className="space-y-1.5">
           <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Tipe Kopi</Label>
@@ -560,7 +584,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
                     type="button"
                     onClick={() => {
                       field.onChange(bt.value);
-                      // If switching to SINGLE, keep only first recipe item
                       if (bt.value === "SINGLE" && recipeItems.length > 1) {
                         for (let i = recipeItems.length - 1; i > 0; i--) remove(i);
                       }
@@ -578,9 +601,6 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
               </div>
             )}
           />
-          <p className="text-xs text-slate-400">
-            {blendType === "SINGLE" ? "Satu jenis Roasted Bean, 100% murni" : "Campuran beberapa Roasted Bean dengan rasio tertentu"}
-          </p>
         </div>
       )}
 
@@ -618,19 +638,13 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
         </div>
       )}
 
-      {/* ── Harga Jual (FINISHED_GOODS only) ── */}
-      {selectedType === "FINISHED_GOODS" && (
+      {isFG && (
         <div className={cn(glassCard, "space-y-4")}>
           <div className="flex items-center justify-between">
-            <h3 className="text-xs uppercase font-bold tracking-wider text-slate-500">Harga Jual</h3>
+            <h3 className="text-xs uppercase font-bold tracking-wider text-slate-500">Harga Jual & Spesifikasi</h3>
             {estimatedHpp > 0 && (
               <span className="text-xs font-bold text-amber-800 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
                 Estimasi Resep: Rp {estimatedHpp.toLocaleString("id-ID")}
-              </span>
-            )}
-            {initialData?.lastHpp && Number(initialData.lastHpp) > 0 && (
-              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 ml-1">
-                HPP Aktual: Rp {Number(initialData.lastHpp).toLocaleString("id-ID")}
               </span>
             )}
           </div>
@@ -649,6 +663,13 @@ export function ProductForm({ id, onSuccess, onPendingChange, initialData, rawMa
               <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Harga Grosir Gold</Label>
               <Input type="number" placeholder="0" className={cn("h-9", glassInput)} {...register("priceGold", { valueAsNumber: true })} />
             </div>
+          </div>
+          
+          <div className="pt-2">
+            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Berat Pengiriman (Gram)</Label>
+            <p className="mt-1 mb-2 text-xs text-slate-400">Berat bersih yang akan diteruskan ke kurir logistik (RajaOngkir).</p>
+            <Input type="number" placeholder="Contoh: 250" className={cn("h-9 font-semibold", glassInput)} {...register("netWeightGrams", { valueAsNumber: true })} />
+            {errors.netWeightGrams && <p className="text-xs text-red-500 mt-1">{errors.netWeightGrams.message}</p>}
           </div>
         </div>
       )}

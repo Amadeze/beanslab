@@ -102,6 +102,7 @@ export type ProductRow = {
   lastHpp?: number;
   recipe: ProductRecipe | null;
   reorderAlertEnabled: boolean;
+  netWeightGrams: number | null;
   leadTimeDays: number;
   safetyStockQuantity: number;
   reorderLookbackDays: number;
@@ -245,6 +246,7 @@ export async function getMasterData(): Promise<MasterPageData> {
     price: true,
     priceSilver: true,
     priceGold: true,
+    netWeightGrams: true,
     lastHpp: true,
     avgCostPerKg: true,
     reorderAlertEnabled: true,
@@ -391,6 +393,7 @@ export async function getMasterData(): Promise<MasterPageData> {
         price: p.price ? Number(p.price) : 0,
         priceSilver: p.priceSilver ? Number(p.priceSilver) : 0,
         priceGold: p.priceGold ? Number(p.priceGold) : 0,
+        netWeightGrams: p.netWeightGrams ? Number(p.netWeightGrams) : null,
         latestHppPerKg,
         lastHpp: p.lastHpp
           ? Number(p.lastHpp)
@@ -1023,6 +1026,7 @@ export type CreateProductInput = {
   price?:       number; // Harga jual retail
   priceSilver?: number; // Harga jual Wholesale Silver
   priceGold?:   number; // Harga jual Wholesale Gold
+  netWeightGrams?: number; // Berat bersih pengiriman (fallback jika tidak ada resep)
   recipe?:      RecipeInput;
   coffeeIdentity?: CoffeeIdentityInput; // hanya untuk GREEN_BEAN — disinkronkan ke CoffeeSource
   reorderAlertEnabled?: boolean;
@@ -1120,7 +1124,7 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
               coffeeSpecies: input.coffeeSpecies?.trim() || null,
               category:    input.category?.trim()    || null,
               origin:      input.origin?.trim()      || null,
-              roastLevel:  input.type === "ROASTED_BEAN" ? (input.roastLevel ?? null) : null,
+              roastLevel:  input.type === "ROASTED_BEAN" || input.type === "FINISHED_GOODS" ? (input.roastLevel ?? null) : null,
               materialOrigin: input.type === "ROASTED_BEAN" ? (input.materialOrigin ?? "INTERNAL_ROAST") : null,
               coffeeSourceId,
               description: input.description?.trim() || null,
@@ -1128,7 +1132,7 @@ export async function createProduct(input: CreateProductInput): Promise<ActionRe
               price:       input.type === "FINISHED_GOODS" ? (input.price ?? 0) : null,
               priceSilver: input.type === "FINISHED_GOODS" ? (input.priceSilver ?? 0) : null,
               priceGold:   input.type === "FINISHED_GOODS" ? (input.priceGold ?? 0) : null,
-              netWeightGrams: input.type === "FINISHED_GOODS" && input.recipe ? input.recipe.outputGrams : null,
+              netWeightGrams: input.type === "FINISHED_GOODS" ? (input.recipe?.outputGrams || input.netWeightGrams || null) : null,
               reorderAlertEnabled:  input.reorderAlertEnabled ?? false,
               leadTimeDays:         input.leadTimeDays ?? 7,
               safetyStockQuantity:  input.safetyStockQuantity ?? 0,
@@ -1288,7 +1292,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
           coffeeSpecies: input.coffeeSpecies?.trim() || undefined,
           category:    input.category?.trim()    || null,
           origin:      input.origin?.trim()      || null,
-          roastLevel:  existing.type === "ROASTED_BEAN" ? (input.roastLevel ?? null) : null,
+          roastLevel:  existing.type === "ROASTED_BEAN" || existing.type === "FINISHED_GOODS" ? (input.roastLevel ?? null) : null,
           materialOrigin: existing.type === "ROASTED_BEAN" ? (input.materialOrigin ?? undefined) : null,
           description: input.description?.trim() || null,
           imageUrl:    input.imageUrl?.trim() || null,
@@ -1296,7 +1300,7 @@ export async function updateProduct(input: UpdateProductInput): Promise<ActionRe
           price:       existing.type === "FINISHED_GOODS" && input.price !== undefined ? input.price : undefined,
           priceSilver: existing.type === "FINISHED_GOODS" && input.priceSilver !== undefined ? input.priceSilver : undefined,
           priceGold:   existing.type === "FINISHED_GOODS" && input.priceGold !== undefined ? input.priceGold : undefined,
-          netWeightGrams: existing.type === "FINISHED_GOODS" && input.recipe ? input.recipe.outputGrams : undefined,
+          netWeightGrams: existing.type === "FINISHED_GOODS" ? (input.recipe?.outputGrams || input.netWeightGrams || undefined) : undefined,
           reorderAlertEnabled:  input.reorderAlertEnabled ?? false,
           leadTimeDays:         input.leadTimeDays ?? 7,
           safetyStockQuantity:  input.safetyStockQuantity ?? 0,
