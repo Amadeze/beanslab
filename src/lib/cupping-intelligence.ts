@@ -1,0 +1,55 @@
+// =============================================================================
+// CUPPING INTELLIGENCE — AI deterministik (gratis, tanpa LLM)
+// Komposit SCA 0–100 dari 11 kategori internal (Fragrance & Aroma digabung
+// jadi satu item 10-poin sesuai protokol SCA) + penalti defect 2 poin/defect
+// (maks 10). Grade otomatis + band bahasa Indonesia.
+// =============================================================================
+
+import type { CuppingCategory } from "@prisma/client";
+
+/** Rata-rata skor per kategori; kategori hilang dianggap 0 (protokol wajib lengkap, dijaga di action). */
+export function computeScaTotal(
+  scores: Partial<Record<CuppingCategory | string, number>>,
+  defectCount?: number | null,
+): number {
+  const avg = (a?: number | null, b?: number | null) =>
+    a == null && b == null ? 0 : ((a ?? 0) + (b ?? 0)) / 2;
+
+  const items = [
+    avg(scores.FRAGRANCE, scores.AROMA), // SCA: Fragrance/Aroma = satu item
+    scores.FLAVOR ?? 0,
+    scores.AFTERTASTE ?? 0,
+    scores.ACIDITY ?? 0,
+    scores.BODY ?? 0,
+    scores.BALANCE ?? 0,
+    scores.UNIFORMITY ?? 0,
+    scores.CLEAN_CUP ?? 0,
+    scores.SWEETNESS ?? 0,
+    scores.OVERALL ?? 0,
+  ];
+
+  const sum = items.reduce((acc, value) => acc + Math.min(10, Math.max(0, value)), 0);
+  const penalty = Math.min(10, Math.max(0, defectCount ?? 0) * 2);
+  return roundQuarter(Math.max(0, sum - penalty));
+}
+
+export type ScaGrade = "OUTSTANDING" | "EXCELLENT" | "SPECIALTY" | "BELOW_SPECIALTY";
+
+/** Ambang industri: ≥80 specialty; 80-an bagus; ≥87 kelas kompetisi. */
+export function scaGrade(total: number): ScaGrade {
+  if (total >= 87) return "OUTSTANDING";
+  if (total >= 84) return "EXCELLENT";
+  if (total >= 80) return "SPECIALTY";
+  return "BELOW_SPECIALTY";
+}
+
+export const SCA_GRADE_LABEL: Record<ScaGrade, { label: string; className: string }> = {
+  OUTSTANDING: { label: "Istimewa (≥87)", className: "bg-purple-50 text-purple-700 border-purple-200" },
+  EXCELLENT: { label: "Sangat Baik (84–86.99)", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  SPECIALTY: { label: "Specialty (80–83.99)", className: "bg-blue-50 text-blue-700 border-blue-200" },
+  BELOW_SPECIALTY: { label: "Di bawah specialty (<80)", className: "bg-zinc-50 text-zinc-600 border-zinc-200" },
+};
+
+function roundQuarter(value: number): number {
+  return Math.round(value * 4) / 4;
+}

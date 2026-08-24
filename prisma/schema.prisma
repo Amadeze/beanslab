@@ -2062,6 +2062,7 @@ model Lot {
   placements                LotPlacement[]
   transfers                 LocationTransfer[]
   opnames                   LocationOpname[]
+  cuppingSessions           CuppingSession[]
 
   @@unique([tenantId, batchCode], map: "lots_tenantId_batchCode_unique")
   @@index([tenantId])
@@ -2880,15 +2881,19 @@ model CuppingSession {
   tenantId      String
   batchId       String?
   productId     String?
+  lotId         String? // traceability: lot green bean yang dievaluasi
   date          DateTime
   location      String?
   evaluatorName String?
   notes         String?
+  defectCount   Int? // jumlah taint/fault (konvensi SCA, penalti 2 poin/defect)
+  totalScore    Float? // komposit SCA 0–100 (dihitung server saat simpan)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   batch   ParentRoastingBatch? @relation(fields: [batchId], references: [id])
   product Product?             @relation(fields: [productId], references: [id])
+  lot     Lot?                 @relation(fields: [lotId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   tenant  Tenant               @relation(fields: [tenantId], references: [id])
   scores  CuppingScore[]
 
@@ -2896,6 +2901,7 @@ model CuppingSession {
   @@index([tenantId])
   @@index([batchId])
   @@index([productId])
+  @@index([lotId])
   @@index([tenantId, date])
   @@map("cupping_sessions")
 }

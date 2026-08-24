@@ -446,12 +446,15 @@ async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
   }
 
   return batches.map((b) => {
-    // Hitung rata-rata nilai cupping dari batch ini (jika ada)
+    // Rata-rata nilai cupping batch ini, diskalakan ke 0–100 (badge memakai
+    // ambang SCA 80/85; mean mentah hanya 0–10 sehingga selalu jatuh di band
+    // terendah — bug lama).
     let cuppingScore = null;
     if (b.cuppingSessions && b.cuppingSessions.length > 0) {
       const allScores = b.cuppingSessions.flatMap(s => s.scores);
       if (allScores.length > 0) {
-        cuppingScore = allScores.reduce((sum, s) => sum + Number(s.score), 0) / allScores.length;
+        const mean = allScores.reduce((sum, s) => sum + Number(s.score), 0) / allScores.length;
+        cuppingScore = Math.round(mean * 10 * 10) / 10;
       }
     }
 

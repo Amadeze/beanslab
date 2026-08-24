@@ -10,6 +10,8 @@ import {
   Droplets,
   MapPin,
   Sparkles,
+  Sprout,
+  TriangleAlert,
   UserRound,
 } from "lucide-react";
 
@@ -32,6 +34,7 @@ import {
   getCuppingSessions,
   type CuppingSessionRow,
 } from "./actions";
+import { computeScaTotal, scaGrade, SCA_GRADE_LABEL } from "@/lib/cupping-intelligence";
 
 type ScoreDefinition = {
   key: CuppingCategory;
@@ -283,7 +286,8 @@ function HistoryCard({ session }: { session: CuppingSessionRow }) {
       <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-xs text-muted-foreground">
         <span>{session.location || "Lokasi tidak dicatat"}</span>
         <span className="inline-flex items-center gap-1 font-semibold text-foreground/70">
-          Total {session.totalScore.toFixed(1)} <ChevronRight className="h-3 w-3" />
+          {session.scaScore != null ? `SCA ${session.scaScore}` : `Total ${session.totalScore.toFixed(1)}`}
+          <ChevronRight className="h-3 w-3" />
         </span>
       </div>
     </article>
@@ -296,10 +300,12 @@ export default function CuppingPage() {
   const [sampleMode, setSampleMode] = useState<"batch" | "product">("batch");
   const [batchId, setBatchId] = useState("");
   const [productId, setProductId] = useState("");
+  const [lotId, setLotId] = useState("");
+  const [defectCount, setDefectCount] = useState("");
   const [scores, setScores] = useState<Record<CuppingCategory, number>>({ ...DEFAULT_SCORES });
   const [descriptors, setDescriptors] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
-  const [options, setOptions] = useState<Awaited<ReturnType<typeof getCuppingFormOptions>>>({ batches: [], products: [] });
+  const [options, setOptions] = useState<Awaited<ReturnType<typeof getCuppingFormOptions>>>({ batches: [], products: [], lots: [] });
   const [sessions, setSessions] = useState<CuppingSessionRow[]>([]);
 
   const totalScore = useMemo(
@@ -307,6 +313,13 @@ export default function CuppingPage() {
     [scores],
   );
   const averageScore = totalScore / SCORE_DEFINITIONS.length;
+
+  // Komposit SCA live (AI deterministik): Fragrance+Aroma digabung, defect −2/defect.
+  const parsedDefects = Number(defectCount);
+  const liveScaScore = useMemo(
+    () => computeScaTotal(scores, Number.isInteger(parsedDefects) && parsedDefects >= 0 ? parsedDefects : 0),
+    [scores, parsedDefects],
+  );
 
   async function refreshData() {
     const [nextOptions, nextSessions] = await Promise.all([
@@ -349,6 +362,8 @@ export default function CuppingPage() {
     const result = await createCuppingSession({
       batchId: selectedBatchId || undefined,
       productId: selectedProductId || undefined,
+      lotId: lotId || undefined,
+      defectCount: Number.isInteger(parsedDefects) && parsedDefects >= 0 ? parsedDefects : undefined,
       date: new Date(formData.get("date") as string),
       location: (formData.get("location") as string) || undefined,
       evaluatorName: (formData.get("evaluatorName") as string) || undefined,
@@ -362,10 +377,13 @@ export default function CuppingPage() {
 
     setSubmitting(false);
     if (result.success) {
-      setMessage({ type: "success", text: `Cupping ${result.code} tersimpan.` });
+      const gradeLabel = result.scaScore != null ? ` · SCA ${result.scaScore} (${SCA_GRADE_LABEL[scaGrade(result.scaScore)].label})` : "";
+      setMessage({ type: "success", text: `Cupping ${result.code} tersimpan${gradeLabel}.` });
       setScores({ ...DEFAULT_SCORES });
       setDescriptors([]);
       setNotes("");
+      setLotId("");
+      setDefectCount("");
       await refreshData();
     } else {
       setMessage({ type: "error", text: result.error || "Sesi cupping gagal disimpan." });
@@ -444,6 +462,32 @@ export default function CuppingPage() {
                     <Label htmlFor="location" className="mb-2 flex items-center gap-1.5 text-xs"><MapPin className="h-3.5 w-3.5 text-domain-roasting" /> Lokasi</Label>
                     <Input id="location" name="location" placeholder="Lab / cupping room" className="bg-card" />
                   </div>
+                  <div>
+                    <Label className="mb-2 flex items-center gap-1.5 text-xs"><Sprout className="h-3.5 w-3.5 text-domain-inventory" /> Lot green bean <span className="font-medium normal-case text-muted-foreground">(opsional)</span></Label>
+                    <Select value={lotId || "__none__"} onValueChange={(value) => setLotId(value === "__none__" || !value ? "" : value)}>
+                      <SelectTrigger id="lotId" className="w-full bg-card">
+                        <SelectValue>{lotId ? options.lots.find((lot) => lot.id === lotId)?.label : "Tautkan ke lot"}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Tanpa lot</SelectItem>
+                        {options.lots.map((lot) => <SelectItem key={lot.id} value={lot.id}>{lot.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="defectCount" className="mb-2 flex items-center gap-1.5 text-xs"><TriangleAlert className="h-3.5 w-3.5 text-domain-roasting" /> Defect <span className="font-medium normal-case text-muted-foreground">(−2 poin/defect)</span></Label>
+                    <Input
+                      id="defectCount"
+                      type="number"
+                      min={0}
+                      step={1}
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={defectCount}
+                      onChange={(event) => setDefectCount(event.target.value)}
+                      className="bg-card tabular-nums"
+                    />
+                  </div>
                 </section>
 
                 {SCORE_GROUPS.map((group) => (
@@ -513,12 +557,13 @@ export default function CuppingPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-xl border border-border/70 bg-card/70 p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Total mentah</p>
-                      <p className="mt-1 font-heading text-xl font-bold tracking-[-0.04em] tabular-nums">{totalScore.toFixed(2)}<span className="ml-1 text-xs font-medium text-muted-foreground">/110</span></p>
+                      <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Skor SCA</p>
+                      <p className="mt-1 font-heading text-xl font-bold tracking-[-0.04em] tabular-nums">{liveScaScore.toFixed(2)}<span className="ml-1 text-xs font-medium text-muted-foreground">/100</span></p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-domain-roasting">{SCA_GRADE_LABEL[scaGrade(liveScaScore)].label}</p>
                     </div>
                     <div className="rounded-xl border border-border/70 bg-card/70 p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Descriptors</p>
-                      <p className="mt-1 font-heading text-xl font-bold tracking-[-0.04em] tabular-nums">{descriptors.length}<span className="ml-1 text-xs font-medium text-muted-foreground">dipilih</span></p>
+                      <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Total mentah</p>
+                      <p className="mt-1 font-heading text-xl font-bold tracking-[-0.04em] tabular-nums">{totalScore.toFixed(2)}<span className="ml-1 text-xs font-medium text-muted-foreground">/110</span></p>
                     </div>
                   </div>
 

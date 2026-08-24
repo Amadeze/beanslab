@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { recordAudit } from "@/lib/audit";
 import { Prisma, CuppingCategory } from "@prisma/client";
 import { randomBytes } from "crypto";
+import { computeScaTotal, scaGrade } from "@/lib/cupping-intelligence";
 
 export type CuppingSessionRow = {
   id: string;
@@ -15,6 +16,8 @@ export type CuppingSessionRow = {
   notes: string | null;
   batchCode: string | null;
   productName: string | null;
+  /** Komposit SCA 0–100 bila tersimpan; null untuk sesi lama. */
+  scaScore: number | null;
   totalScore: number;
   maxScore: number;
   createdAt: string;
@@ -41,12 +44,14 @@ function generateCuppingCode(date: Date): string {
 export async function createCuppingSession(data: {
   batchId?: string;
   productId?: string;
+  lotId?: string;
+  defectCount?: number;
   date: Date;
   location?: string;
   evaluatorName?: string;
   notes?: string;
   scores: Array<{ category: CuppingCategory; score: number; maxScore?: number; notes?: string }>;
-}): Promise<{ success: boolean; code?: string; error?: string }> {
+}): Promise<{ success: boolean; code?: string; scaScore?: number; error?: string }> {
   try {
     const user = await requireRole("OWNER", "MANAGER", "OPERATOR");
     const tenantPrisma = await requireTenantPrisma();
@@ -67,6 +72,27 @@ export async function createCuppingSession(data: {
     if (data.scores.some((score) => !Number.isFinite(score.score) || score.score < 0 || score.score > 10)) {
       return { success: false, error: "Skor cupping harus berada antara 0 dan 10." };
     }
+    const defectCount = data.defectCount ?? null;
+    if (defectCount != null && (!Number.isInteger(defectCount) || defectCount < 0)) {
+      return { success: false, error: "Jumlah defect harus bilangan bulat ≥ 0." };
+    }
+    // Lot opsional tapi harus milik tenant.
+    const lotId: string | null = data.lotId ?? null;
+    if (lotId) {
+      const lot = await tenantPrisma.lot.findFirst({
+        where: { id: lotId, tenantId },
+        select: { id: true },
+      });
+      if (!lot) {
+        return { success: false, error: "Lot green bean tidak ditemukan di tenant Anda." };
+      }
+    }
+
+    // Komposit SCA 0–100 dihitung server agar konsisten & tak bisa dimanipulasi.
+    const scoreByCategory = Object.fromEntries(
+      data.scores.map((s) => [s.category, s.score]),
+    ) as Partial<Record<CuppingCategory, number>>;
+    const scaScore = computeScaTotal(scoreByCategory, defectCount);
 
     const code = generateCuppingCode(data.date);
 
@@ -77,6 +103,9 @@ export async function createCuppingSession(data: {
           tenantId,
           batchId: data.batchId,
           productId: data.productId,
+          lotId,
+          defectCount,
+          totalScore: scaScore,
           date: data.date,
           location: data.location,
           evaluatorName: data.evaluatorName,
@@ -104,7 +133,15 @@ export async function createCuppingSession(data: {
         action: "CREATE",
         entityType: "CuppingSession",
         entityId: created.id,
-        metadata: { code, batchId: data.batchId, productId: data.productId },
+        metadata: {
+          code,
+          batchId: data.batchId,
+          productId: data.productId,
+          lotId,
+          defectCount,
+          scaScore,
+          grade: scaGrade(scaScore),
+        },
       });
 
       return created;
@@ -112,7 +149,7 @@ export async function createCuppingSession(data: {
 
     revalidatePath("/cupping");
     revalidatePath("/dashboard");
-    return { success: true, code };
+    return { success: true, code, scaScore };
   } catch (error: any) {
     console.error("[createCuppingSession]", error);
     return { success: false, error: error.message || "Gagal menyimpan sesi cupping." };
@@ -166,6 +203,7 @@ export async function getCuppingSessions(filters?: {
         productName: session.product?.name ?? null,
         totalScore,
         maxScore,
+        scaScore: session.totalScore != null ? Number(session.totalScore) : null,
         createdAt: session.createdAt.toISOString(),
       };
     });
@@ -222,10 +260,11 @@ export async function getCuppingSession(id: string): Promise<{
 export async function getCuppingFormOptions(): Promise<{
   batches: Array<{ id: string; code: string; label: string }>;
   products: Array<{ id: string; code: string; name: string }>;
+  lots: Array<{ id: string; label: string }>;
 }> {
   await requireRole("OWNER", "MANAGER", "OPERATOR");
   const tenantPrisma = await requireTenantPrisma();
-  const [batches, products] = await Promise.all([
+  const [batches, products, lots] = await Promise.all([
     tenantPrisma.parentRoastingBatch.findMany({
       where: { status: { in: ["PENDING", "COMPLETED"] } },
       orderBy: { createdAt: "desc" },
@@ -237,6 +276,21 @@ export async function getCuppingFormOptions(): Promise<{
       orderBy: { name: "asc" },
       select: { id: true, code: true, name: true },
     }),
+    // Lot green bean aktif (belum habis) untuk traceability cupping → lot.
+    tenantPrisma.lot.findMany({
+      where: {
+        consumedAt: null,
+        product: { type: "GREEN_BEAN" },
+      },
+      orderBy: { receivedAt: "desc" },
+      take: 100,
+      select: {
+        id: true,
+        batchCode: true,
+        receivedAt: true,
+        product: { select: { name: true } },
+      },
+    }),
   ]);
   return {
     batches: batches.map((batch) => ({
@@ -245,5 +299,9 @@ export async function getCuppingFormOptions(): Promise<{
       label: `${batch.code} · ${batch.outputProduct.name}`,
     })),
     products,
+    lots: lots.map((lot) => ({
+      id: lot.id,
+      label: `${lot.product?.name ?? "Green Bean"} · ${lot.batchCode} (${new Date(lot.receivedAt).toLocaleDateString("id-ID")})`,
+    })),
   };
 }
