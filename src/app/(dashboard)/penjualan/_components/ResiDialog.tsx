@@ -195,45 +195,50 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
                 : null}
             </select>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
-              Nama Ekspedisi/Kurir
-            </label>
-            <input
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
-              placeholder="Contoh: JNE, J&T, GoSend"
-              value={courierName}
-              onChange={(e) => setCourierName(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
-              Nomor Resi / AWB
-            </label>
-            <div className="flex gap-2">
+          {invoice?.shippingMethod !== "PICKUP" && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                {isCourierOrder ? "Nama Ekspedisi" : "Nama Kurir / Driver"}
+              </label>
               <input
-                className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
-                placeholder="Masukkan nomor resi..."
-                value={trackingNumber}
-                onChange={(e) => setTrackingNumber(e.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                placeholder={isCourierOrder ? "Contoh: JNE, J&T" : "Contoh: Budi, GoSend"}
+                value={courierName}
+                onChange={(e) => setCourierName(e.target.value)}
               />
-              {isCourierOrder && trackingNumber.trim() && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefreshTracking}
-                  disabled={isTrackingLoading}
-                  className="h-10 rounded-xl px-3"
-                  title="Lacak Pengiriman"
-                >
-                  <RefreshCw
-                    className={`h-4 w-4 ${isTrackingLoading ? "animate-spin" : ""}`}
-                  />
-                </Button>
-              )}
             </div>
-          </div>
+          )}
+
+          {isCourierOrder && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                Nomor Resi / AWB
+              </label>
+              <div className="flex gap-2">
+                <input
+                  className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                  placeholder="Masukkan nomor resi..."
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                />
+                {trackingNumber.trim() && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefreshTracking}
+                    disabled={isTrackingLoading}
+                    className="h-10 rounded-xl px-3"
+                    title="Lacak Pengiriman"
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 ${isTrackingLoading ? "animate-spin" : ""}`}
+                    />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Tracking Status Display */}
           {isCourierOrder && tracking && (
