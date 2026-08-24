@@ -183,6 +183,8 @@ export type CatalogOffering = StorefrontOffering & {
   availableKg: number | null;
   unavailableReason: string | null;
   latestRoastDate: string | null; // ISO date string of latest completed roast batch
+  /** Skor SCA komposit 0-100 terbaru dari cupping roasted bean lineage (jika ada). */
+  scaScore?: number | null;
 };
 
 export type StorefrontCatalog = {
@@ -403,7 +405,7 @@ export async function loadStorefrontCatalog(
   }
 
   if (lineageIds.length > 0) {
-    const [stockRows, reservedRows] = await Promise.all([
+    const [stockRows, reservedRows, cuppingRows] = await Promise.all([
       db.product.findMany({
         where: { id: { in: lineageIds } },
         select: { id: true, stockKg: true },
@@ -418,6 +420,11 @@ export async function loadStorefrontCatalog(
         },
         _sum: { quantityKg: true },
       }),
+      db.cuppingSession.findMany({
+        where: { tenantId, productId: { in: lineageIds } },
+        orderBy: { date: "desc" },
+        select: { productId: true, totalScore: true },
+      }),
     ]);
     const stockByProduct: Map<string, number> = new Map(
       stockRows.map((row: { id: string; stockKg: unknown }) => [row.id, num(row.stockKg) ?? 0]),
@@ -428,13 +435,22 @@ export async function loadStorefrontCatalog(
         num(row._sum.quantityKg) ?? 0,
       ]),
     );
+    // Skor SCA terbaru per roasted bean lineage (entri pertama = date terbaru).
+    const scaByProduct: Map<string, number> = new Map();
+    for (const row of cuppingRows as Array<{ productId: string; totalScore: number | null }>) {
+      if (row.totalScore != null && !scaByProduct.has(row.productId)) {
+        const score = num(row.totalScore);
+        if (score != null) scaByProduct.set(row.productId, score);
+      }
+    }
     for (const offering of offerings) {
       if (offering.lineageProductId) {
         offering.availableKg = Math.max(
           0,
           (stockByProduct.get(offering.lineageProductId) ?? 0)
-            - (reservedByProduct.get(offering.lineageProductId) ?? 0),
+          - (reservedByProduct.get(offering.lineageProductId) ?? 0),
         );
+        offering.scaScore = offering.lineageProductId ? (scaByProduct.get(offering.lineageProductId) ?? null) : null;
       }
     }
   }

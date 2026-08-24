@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Coffee, ArrowRight, Check, SlidersHorizontal, ShoppingBag } from "lucide-react";
 import { StorefrontImage } from "../StorefrontImage";
@@ -10,6 +10,22 @@ const ease = [0.22, 1, 0.36, 1] as const;
 interface InteractiveFlavorProps {
   settings: Record<string, unknown>;
   blocks: any[];
+  offerings?: Array<{
+    id: string;
+    name: string;
+    roastLevel: string | null;
+    imageUrl: string | null;
+    scaScore?: number | null;
+    coffeeSource?: {
+      name?: string | null;
+      country?: string | null;
+      region?: string | null;
+      farm?: string | null;
+      processMethod?: string | null;
+      elevation?: number | null;
+      tastingNotes?: string | null;
+    } | null;
+  }>;
 }
 
 const DEFAULT_NOTES = [
@@ -84,14 +100,63 @@ const DEFAULT_COFFEES = [
   },
 ];
 
-export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavorProps) {
+export function InteractiveFlavorSection({ settings, blocks, offerings = [] }: InteractiveFlavorProps) {
   const title = (settings.title as string) || "Penjelajah Rasa Sensorik";
   const subtitle = (settings.subtitle as string) || "Filter katalog biji kopi hijau & sangrai grosir kami berdasarkan profil rasa sensorik. Pemetaan sensorik interaktif untuk pembeli B2B.";
   const [activeNote, setActiveNote] = useState("all");
 
-  const filteredCoffees = activeNote === "all"
-    ? DEFAULT_COFFEES
-    : DEFAULT_COFFEES.filter((c) => c.notes.includes(activeNote));
+  // Mode data asli: gunakan penawaran storefront yang punya lineage roasted bean
+  // (skor SCA dihitung dari cupping terbaru). Fallback ke mock bila kosong.
+  type FlavorItem = {
+    id: string;
+    name: string;
+    origin: string;
+    process: string;
+    roastLevel: string;
+    tastingNotes: string;
+    score: number | null;
+    country: string;
+    image: string;
+  };
+  const realCoffees: FlavorItem[] = useMemo(() => {
+    if (!offerings || offerings.length === 0) return [];
+    return offerings
+      .map((o) => {
+        const source = o.coffeeSource;
+        const origin = [source?.region, source?.country].filter(Boolean).join(", ") || source?.name || "Asal tidak dicatat";
+        const process = [source?.processMethod, source?.elevation ? `${source.elevation}m` : null].filter(Boolean).join(" • ");
+        return {
+          id: o.id,
+          name: o.name,
+          origin,
+          process,
+          roastLevel: o.roastLevel || "",
+          tastingNotes: source?.tastingNotes || "Profil rasa belum dicatat.",
+          score: o.scaScore != null ? o.scaScore : null,
+          country: source?.country || "other",
+          image: o.imageUrl || "",
+        };
+      })
+      .sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
+      .slice(0, 9);
+  }, [offerings]);
+
+  const useReal = realCoffees.length > 0;
+  const coffees: any[] = useReal ? realCoffees : DEFAULT_COFFEES;
+
+  // Filter asli berdasar negara asal; mock tetap pakai kategori rasa.
+  const realCountries = useReal
+    ? Array.from(new Set(realCoffees.map((c) => c.country)))
+    : [];
+  const notes: Array<{ id: string; label: string; color: string; icon: string }> = useReal
+    ? [{ id: "all", label: "Semua Asal", color: "#D4A574", icon: "🌍" }, ...realCountries.map((c) => ({ id: c, label: c, color: "#D4A574", icon: "🌱" }))]
+    : DEFAULT_NOTES;
+
+  const filteredCoffees: any[] = activeNote === "all"
+    ? coffees
+    : useReal
+      ? coffees.filter((c) => c.country === activeNote)
+      : coffees.filter((c) => c.notes?.includes(activeNote));
 
   return (
     <section className="w-full py-14 sm:py-20 md:py-28 relative overflow-hidden" style={{ backgroundColor: "var(--portal-bg, #0B0F19)", color: "var(--portal-text, #F8FAFC)" }}>
@@ -99,7 +164,7 @@ export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavor
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[140px] opacity-15 pointer-events-none transition-all duration-700"
         style={{
-          backgroundColor: DEFAULT_NOTES.find(n => n.id === activeNote)?.color || "#D4A574"
+          backgroundColor: notes.find(n => n.id === activeNote)?.color || "#D4A574"
         }}
       />
 
@@ -113,7 +178,7 @@ export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavor
           className="text-center max-w-3xl mx-auto mb-8 sm:mb-16"
         >
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs sm:text-xs font-bold uppercase tracking-widest bg-white/5 border border-white/10 text-[var(--portal-accent,#D4A574)] mb-3 sm:mb-4 backdrop-blur-md">
-            <SlidersHorizontal size={14} /> Mesin Alkemi Sensorik
+            <SlidersHorizontal size={14} /> {useReal ? "Skor SCA Nyata dari Lab" : "Mesin Alkemi Sensorik"}
           </div>
           <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight sm:leading-none mb-3 sm:mb-4" style={{ fontFamily: "var(--portal-font-heading)" }}>
             {title}
@@ -124,7 +189,7 @@ export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavor
 
           {/* Sensory Filter Pills */}
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 mt-6 sm:mt-10">
-            {DEFAULT_NOTES.map((note) => {
+            {notes.map((note) => {
               const isSelected = activeNote === note.id;
               return (
                 <button
@@ -159,7 +224,7 @@ export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavor
         {/* Coffee Cards Grid */}
         <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8">
           <AnimatePresence mode="popLayout">
-            {filteredCoffees.map((coffee) => (
+            {filteredCoffees.map((coffee: any) => (
               <motion.div
                 layout
                 key={coffee.id}
@@ -190,7 +255,7 @@ export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavor
                   {/* Cupping Score Badge */}
                   <div className="absolute top-4 right-4 px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 flex items-center gap-1.5 shadow-lg">
                     <span className="text-xs uppercase font-bold text-white/60">Skor SCA</span>
-                    <span className="text-sm font-black text-[var(--portal-accent,#D4A574)]">{coffee.score}</span>
+                    <span className="text-sm font-black text-[var(--portal-accent,#D4A574)]">{coffee.score != null ? coffee.score : "—"}</span>
                   </div>
 
                   {/* Origin Tag */}
@@ -224,8 +289,8 @@ export function InteractiveFlavorSection({ settings, blocks }: InteractiveFlavor
                   {/* Price & CTA */}
                   <div className="pt-4 border-t border-white/10 flex items-center justify-between gap-4">
                     <div>
-                      <span className="text-xs uppercase font-bold text-white/50 block">Harga Kontrak</span>
-                      <span className="text-sm sm:text-base font-extrabold text-white">{coffee.price}</span>
+                      <span className="text-xs uppercase font-bold text-white/50 block">{useReal ? "Ketersediaan" : "Harga Kontrak"}</span>
+                      <span className="text-sm sm:text-base font-extrabold text-white">{useReal ? (coffee.score != null ? "Tersertifikasi cupping" : "Belum dicupping") : coffee.price}</span>
                     </div>
 
                     <button className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-[var(--portal-accent,#D4A574)] hover:text-black text-white font-bold text-xs uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 shadow-md">
