@@ -182,6 +182,13 @@ export type PurchaseActionInput = {
   notes?: string;
   lotNumber?: string;
   bestBeforeDate?: string;
+  /** Intake mutu per-lot (opsional) — kondisi fisik kiriman green bean. */
+  supplierLotNumber?: string;
+  moisturePct?: number;
+  humidityPct?: number;
+  harvestDate?: string;
+  defectCount?: number;
+  qcStatus?: "PENDING" | "RELEASED" | "HOLD";
 };
 
 export type RoastedBeanPurchaseInput = {

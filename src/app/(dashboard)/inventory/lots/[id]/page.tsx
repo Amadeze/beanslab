@@ -9,7 +9,9 @@ import { getCurrentTenantId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PlacementForm } from "./_components/PlacementForm";
 import { TransferDrawer } from "./_components/TransferDrawer";
+import { LotQcPanel } from "./_components/LotQcPanel";
 import { getTransferHistory } from "@/lib/lot-transfer";
+import { assessDefectRisk, predictRoastYieldFromMoisture } from "@/lib/lot-intelligence";
 
 export default async function LotTracePage({
   params,
@@ -60,8 +62,20 @@ export default async function LotTracePage({
           <div><dt className="text-muted-foreground">Supplier</dt><dd className="font-semibold">{result.lot.supplierName ?? "-"}</dd></div>
           <div><dt className="text-muted-foreground">Diterima</dt><dd className="font-semibold">{new Date(result.lot.receivedAt).toLocaleDateString("id-ID")}</dd></div>
           <div><dt className="text-muted-foreground">Review / Best Before</dt><dd className="font-semibold">{result.lot.expiryDate ? new Date(result.lot.expiryDate).toLocaleDateString("id-ID") : "Tidak ditentukan"}</dd></div>
+          <div><dt className="text-muted-foreground">Lot supplier</dt><dd className="font-mono font-semibold">{result.lot.supplierLotNumber ?? "—"}</dd></div>
+          <div><dt className="text-muted-foreground">Kadar air / Kelembapan</dt><dd className="font-semibold tabular-nums">{result.lot.moisturePct != null || result.lot.humidityPct != null ? `${result.lot.moisturePct ?? "?"}% · ${result.lot.humidityPct ?? "?"}%` : "Belum dicatat"}</dd></div>
+          <div><dt className="text-muted-foreground">Tanggal panen</dt><dd className="font-semibold">{result.lot.harvestDate ? new Date(result.lot.harvestDate).toLocaleDateString("id-ID") : "—"}</dd></div>
+          <div><dt className="text-muted-foreground">Defect (per 300 g)</dt><dd className="font-semibold tabular-nums">{result.lot.defectCount ?? "—"}</dd></div>
         </dl>
       </GlassPanel>
+
+      <LotQcPanel
+        lotId={id}
+        qcStatus={result.lot.qcStatus ?? "RELEASED"}
+        consumed={Boolean(result.lot.consumedAt)}
+        prediction={predictRoastYieldFromMoisture(result.lot.moisturePct)}
+        defect={assessDefectRisk(result.lot.defectCount)}
+      />
       <GlassPanel padding="lg">
         <h2 className="mb-4 text-base font-bold">Timeline</h2>
         <ol className="space-y-3">

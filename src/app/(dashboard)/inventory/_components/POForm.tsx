@@ -73,6 +73,15 @@ interface POFormProps {
   isReadOnly?: boolean;
   onAddSupplier?: () => void;
   preferredSupplierId?: string | null;
+  /** Saran reorder (AI deterministik): prefill baris saat MEMBUAT PO baru. */
+  suggestedItems?: Array<{
+    productId?: string | null;
+    packagingId?: string | null;
+    supplyItemId?: string | null;
+    quantity: number;
+    reorderPoint?: number | null;
+    currentStock?: number | null;
+  }>;
 }
 
 // =============================================================================
@@ -90,9 +99,11 @@ export function POForm({
   onAddSupplier,
   preferredSupplierId,
   supplyItems = [],
+  suggestedItems,
 }: POFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditMode = !!initialData;
+  const hasSuggestions = !isEditMode && !!suggestedItems && suggestedItems.length > 0;
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -112,13 +123,29 @@ export function POForm({
             currentStock: item.currentStock ?? undefined,
           })),
         }
-      : {
-          supplierId: "",
-          expectedDate: "",
-          estimatedShippingCost: 0,
-          notes: "",
-          items: [{ productId: "", packagingId: "", supplyItemId: "", quantity: 0, unitPrice: 0 }],
-        },
+      : hasSuggestions
+        ? {
+            supplierId: "",
+            expectedDate: "",
+            estimatedShippingCost: 0,
+            notes: "Draft otomatis dari saran reorder — lengkapi supplier & harga.",
+            items: (suggestedItems ?? []).map((item) => ({
+              productId: item.productId ?? "",
+              packagingId: item.packagingId ?? "",
+              supplyItemId: item.supplyItemId ?? "",
+              quantity: item.quantity,
+              unitPrice: 0,
+              reorderPoint: item.reorderPoint ?? undefined,
+              currentStock: item.currentStock ?? undefined,
+            })),
+          }
+        : {
+            supplierId: "",
+            expectedDate: "",
+            estimatedShippingCost: 0,
+            notes: "",
+            items: [{ productId: "", packagingId: "", supplyItemId: "", quantity: 0, unitPrice: 0 }],
+          },
   });
 
   useEffect(() => {

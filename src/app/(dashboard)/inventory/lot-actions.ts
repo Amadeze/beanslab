@@ -31,6 +31,13 @@ export type LotRow = {
   placedKg: number;
   unplacedKg: number;
   isFullyPlaced: boolean;
+  /** Intake mutu per-lot (green coffee). */
+  supplierLotNumber?: string | null;
+  moisturePct?: number | null;
+  humidityPct?: number | null;
+  harvestDate?: string | null;
+  defectCount?: number | null;
+  qcStatus?: "PENDING" | "RELEASED" | "HOLD";
 };
 
 export type LotPlacementInfo = {
@@ -442,6 +449,12 @@ export async function traceLot(lotId: string): Promise<TraceResult | { success: 
       createdAt: lot.createdAt.toISOString(),
       placedKg: 0,
       unplacedKg: lotInventory.remainingKg,
+      supplierLotNumber: lot.supplierLotNumber ?? null,
+      moisturePct: lot.moisturePct != null ? Number(lot.moisturePct) : null,
+      humidityPct: lot.humidityPct != null ? Number(lot.humidityPct) : null,
+      harvestDate: lot.harvestDate?.toISOString() ?? null,
+      defectCount: lot.defectCount ?? null,
+      qcStatus: lot.qcStatus,
       isFullyPlaced: false,
     };
 
@@ -553,8 +566,7 @@ export async function traceLot(lotId: string): Promise<TraceResult | { success: 
   }
 }
 
-export async function getExpiryAlerts(daysAhead: number = 30): Promise<ExpiryAlert[]> {
-  try {
+export async function getExpiryAlerts(daysAhead: number = 30): Promise<ExpiryAlert[]> {  try {
     await requireRole("OWNER", "MANAGER", "OPERATOR");
     const tenantId = await getCurrentTenantId();
     const tp = await requireTenantPrisma();
@@ -670,5 +682,58 @@ export async function getLotPlacement(lotId: string): Promise<LotPlacementView |
   } catch (err) {
     console.error("[getLotPlacement]", err);
     return null;
+  }
+}
+
+// =============================================================================
+// QC HOLD / RELEASE — karantina per lot
+// Lot HOLD tidak dialokasikan FEFO (roast/penjualan/produksi) sampai dilepas.
+// =============================================================================
+
+export type SetLotQcResult = { success: boolean; error?: string };
+
+export async function setLotQcStatus(
+  lotId: string,
+  qcStatus: "PENDING" | "RELEASED" | "HOLD",
+): Promise<SetLotQcResult> {
+  try {
+    await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const tenantId = await getCurrentTenantId();
+    const userId = await getSystemUserId();
+    const tp = await requireTenantPrisma();
+
+    const lot = await tp.lot.findFirst({
+      where: { id: lotId, tenantId },
+      select: { id: true, batchCode: true, qcStatus: true, consumedAt: true },
+    });
+    if (!lot) return { success: false, error: "Lot tidak ditemukan." };
+
+    if (qcStatus === lot.qcStatus) return { success: true };
+    if (lot.consumedAt) {
+      return { success: false, error: "Lot sudah habis dipakai; status QC tidak dapat diubah." };
+    }
+
+    await tp.lot.update({
+      where: { id: lot.id },
+      data: { qcStatus },
+    });
+
+    await recordAudit(tp, {
+      tenantId,
+      userId,
+      action: "UPDATE",
+      entityType: "Lot",
+      entityId: lot.id,
+      before: { qcStatus: lot.qcStatus },
+      after: { qcStatus },
+      metadata: { reason: "QC_HOLD_RELEASE" },
+    });
+
+    revalidatePath(`/inventory/lots/${lot.id}`);
+    revalidatePath("/inventory");
+    return { success: true };
+  } catch (err) {
+    console.error("[setLotQcStatus]", err);
+    return { success: false, error: err instanceof Error ? err.message : "Gagal mengubah status QC." };
   }
 }

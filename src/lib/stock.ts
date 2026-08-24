@@ -496,6 +496,8 @@ export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedge
         AND l."packagingId" IS NOT DISTINCT FROM ${data.packagingId}
         AND l."supplyItemId" IS NOT DISTINCT FROM ${data.supplyItemId}
         AND l."consumedAt" IS NULL
+        -- Lot berstatus HOLD sedang dikarantina QC: jangan dialokasikan.
+        AND l."qcStatus" <> 'HOLD'
       ORDER BY l."expiryDate" ASC NULLS LAST, l."receivedAt" ASC, l."createdAt" ASC
       FOR UPDATE
     `;
@@ -510,6 +512,7 @@ export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedge
           packagingId: data.packagingId ?? undefined,
           supplyItemId: data.supplyItemId ?? undefined,
           consumedAt: null,
+          qcStatus: { not: "HOLD" },
         },
         orderBy: [
           { expiryDate: { sort: "asc", nulls: "last" } },

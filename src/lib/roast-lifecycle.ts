@@ -196,6 +196,8 @@ export async function reserveRoastMaterialsInTx(
       AND l."tenantId" = ${input.tenantId}
       AND l."productId" = ${batch.inputProductId}
       AND l."consumedAt" IS NULL
+      -- Lot berstatus HOLD sedang dikarantina QC: jangan direservasi.
+      AND l."qcStatus" <> 'HOLD'
       AND p."quantityKg" > 0
       AND loc."isActive" = true
       AND loc."isSystem" = false
@@ -213,6 +215,7 @@ export async function reserveRoastMaterialsInTx(
           tenantId: input.tenantId,
           productId: batch.inputProductId,
           consumedAt: null,
+          qcStatus: { not: "HOLD" },
         },
         location: {
           isActive: true,

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Boxes, History, ClipboardCheck, Download, FileText, FileSpreadsheet, Loader2, MoreHorizontal, Package, Plus, Settings2, Truck, ArrowDownCircle, ArrowUpCircle, AlertTriangle, XCircle, Clock, CheckCircle2, CircleDot } from "lucide-react";
+import { Boxes, History, ClipboardCheck, ClipboardList, Download, FileText, FileSpreadsheet, Loader2, MoreHorizontal, Package, Plus, Settings2, Truck, ArrowDownCircle, ArrowUpCircle, AlertTriangle, XCircle, Clock, CheckCircle2, CircleDot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { StandardDrawer } from "@/components/StandardDrawer";
@@ -38,6 +38,7 @@ import type {
   SupplyStockRow,
 } from "../types";
 import type { ReorderSummary } from "@/lib/reorder";
+import { buildReorderDraftLine } from "@/lib/lot-intelligence";
 import { calcInventoryMetrics, isReorderConfigured } from "@/lib/inventory-utils";
 import { formatRupiah } from "@/lib/format";
 
@@ -532,6 +533,40 @@ export function InventoryClient({
     return count;
   }, [gbStocks, rbStocks, fgStocks, supplyPackagingItems, supplyNonPackagingItems, productReorderSummaries, supplyReorderSummaries]);
 
+  // ── Saran PO otomatis (AI deterministik dari lib/lot-intelligence) ──
+  const poSuggestions = useMemo(() => {
+    const lines: Array<{
+      productId?: string | null;
+      packagingId?: string | null;
+      supplyItemId?: string | null;
+      quantity: number;
+      reorderPoint: number | null;
+      currentStock: number | null;
+    }> = [];
+    const summaries = [...(productReorderSummaries ?? []), ...(supplyReorderSummaries ?? [])];
+    for (const summary of summaries) {
+      if (summary.status !== "perlu_pesan" && summary.status !== "habis") continue;
+      const isSupply = summary.skuType === "PACKAGING" || summary.skuType === "SUPPLY";
+      const draft = buildReorderDraftLine({
+        subjectKind: isSupply ? "SUPPLY" : "PRODUCT",
+        subjectId: summary.skuId,
+        name: summary.skuName,
+        avgDailyUsage: summary.averageDailyUsage,
+        leadTimeDays: summary.leadTimeDays,
+        safetyStockQuantity: summary.safetyStockQuantity,
+        currentStock: summary.currentStock,
+        unitLabel: "",
+      });
+      if (!draft) continue;
+      lines.push(
+        isSupply
+          ? { supplyItemId: summary.skuId, quantity: draft.suggestedQuantity, packagingId: null, productId: null, reorderPoint: summary.reorderPoint, currentStock: summary.currentStock }
+          : { productId: summary.skuId, quantity: draft.suggestedQuantity, packagingId: null, supplyItemId: null, reorderPoint: summary.reorderPoint, currentStock: summary.currentStock },
+      );
+    }
+    return lines;
+  }, [productReorderSummaries, supplyReorderSummaries]);
+
   const poMetrics = useMemo(() => {
     if (!poSummary) return { active: 0, waiting: 0, partial: 0 };
     return {
@@ -693,6 +728,17 @@ export function InventoryClient({
               )}
               {activeView === "stock" ? (
                 <>
+                  {poSuggestions.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5 rounded-[8px] text-xs font-bold shadow-sm"
+                      onClick={() => setPoDrawerOpen(true)}
+                    >
+                      <ClipboardList size={13} />
+                      Saran PO ({poSuggestions.length})
+                    </Button>
+                  )}
                   <ActionsDropdown onStockOpname={() => setAdjDrawerOpen(true)} />
                   <BarangDatangPopup onGBDatang={() => setGbDrawerOpen(true)} onRBDatang={() => setRbDrawerOpen(true)} onKemasanDatang={() => setPkgDrawerOpen(true)} onSupplyDatang={() => setSupDrawerOpen(true)} onTerimaPO={() => router.push("/inventory?view=receiving", { scroll: false })} waitingCount={receivingMetrics.waitingToReceive} open={barangDatangOpen} onOpenChange={setBarangDatangOpen} />
                 </>
@@ -844,7 +890,9 @@ export function InventoryClient({
       </StandardDrawer>
 
       <StandardDrawer open={poDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setPoDrawerOpen(open); }} title="Buat Purchase Order" description="Buat PO baru untuk supplier." size="lg" showFooter={false}>
-        <POForm suppliers={supplierOptions.map((s) => ({ id: s.id, name: s.name }))} products={[...gbStocks, ...rbStocks.filter((p) => p.type !== "ROASTED_BEAN" || p.materialOrigin === "PURCHASED_ROASTED")].map((p) => ({ id: p.id, name: p.name, type: p.type, stockKg: p.stockKg }))} packagings={packagings.map((p) => ({ id: p.id, name: p.name, stockUnit: 0 }))} supplyItems={supplyOptions.map((s) => ({ id: s.id, name: s.name, category: s.category, baseUnit: s.baseUnit }))} onAddSupplier={() => openSupplierQuickAdd("po")} preferredSupplierId={supplierTarget === "po" ? preferredSupplierId : null} onSuccess={() => { setPoDrawerOpen(false); handlePORefresh(); finishSupplierFlow(); }} onCancel={() => { setPoDrawerOpen(false); finishSupplierFlow(); }} />
+        <POForm
+          suggestedItems={activeView === "stock" ? poSuggestions : undefined}
+          suppliers={supplierOptions.map((s) => ({ id: s.id, name: s.name }))} products={[...gbStocks, ...rbStocks.filter((p) => p.type !== "ROASTED_BEAN" || p.materialOrigin === "PURCHASED_ROASTED")].map((p) => ({ id: p.id, name: p.name, type: p.type, stockKg: p.stockKg }))} packagings={packagings.map((p) => ({ id: p.id, name: p.name, stockUnit: 0 }))} supplyItems={supplyOptions.map((s) => ({ id: s.id, name: s.name, category: s.category, baseUnit: s.baseUnit }))} onAddSupplier={() => openSupplierQuickAdd("po")} preferredSupplierId={supplierTarget === "po" ? preferredSupplierId : null} onSuccess={() => { setPoDrawerOpen(false); handlePORefresh(); finishSupplierFlow(); }} onCancel={() => { setPoDrawerOpen(false); finishSupplierFlow(); }} />
       </StandardDrawer>
 
       <StandardDrawer open={poDetailOpen} onOpenChange={setPoDetailOpen} title="Detail Purchase Order" size="lg" showFooter={false}>

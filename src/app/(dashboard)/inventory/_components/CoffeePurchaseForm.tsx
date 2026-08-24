@@ -63,6 +63,16 @@ const schema = z
     dueDate: z.string().optional(),
     notes: z.string().optional(),
     bestBeforeDate: z.string().optional(),
+    // Intake mutu lot (Green Bean, opsional).
+    // Sengaja tidak divalidasi ketat di sini: input kosong dengan valueAsNumber
+    // menghasilkan NaN, jadi dikirim sebagai unknown lalu difilter saat submit
+    // (Number.isFinite) dan divalidasi ulang di server action.
+    supplierLotNumber: z.string().optional(),
+    moisturePct: z.unknown().optional(),
+    humidityPct: z.unknown().optional(),
+    harvestDate: z.string().optional(),
+    defectCount: z.unknown().optional(),
+    qcStatus: z.enum(["PENDING", "RELEASED", "HOLD"]).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.productMode === "existing" && !data.productId) {
@@ -128,6 +138,12 @@ const glassCard = "rounded-[1.25rem] border border-white/60 bg-white/30 backdrop
 // =============================================================================
 // Field wrapper helpers
 // =============================================================================
+
+/** Input numerik opsional: kosong/NaN → undefined, angka valid → number. */
+function toOptionalNumber(value: unknown): number | undefined {
+  const n = typeof value === "string" ? Number(value) : value;
+  return typeof n === "number" && Number.isFinite(n) ? n : undefined;
+}
 
 function FieldGroup({ children }: { children: React.ReactNode }) {
   return <div className="space-y-1.5">{children}</div>;
@@ -214,6 +230,12 @@ export function CoffeePurchaseForm({
       dueDate: "",
       notes: "",
       bestBeforeDate: "",
+      supplierLotNumber: "",
+      moisturePct: undefined,
+      humidityPct: undefined,
+      harvestDate: "",
+      defectCount: undefined,
+      qcStatus: "RELEASED",
     },
   });
 
@@ -315,6 +337,12 @@ export function CoffeePurchaseForm({
             dueDate: values.dueDate,
             notes: values.notes,
             bestBeforeDate: values.bestBeforeDate || undefined,
+            supplierLotNumber: values.supplierLotNumber || undefined,
+            moisturePct: toOptionalNumber(values.moisturePct),
+            humidityPct: toOptionalNumber(values.humidityPct),
+            harvestDate: values.harvestDate || undefined,
+            defectCount: toOptionalNumber(values.defectCount),
+            qcStatus: values.qcStatus,
           });
 
       if (!result.success) {
@@ -765,6 +793,77 @@ export function CoffeePurchaseForm({
                 <FieldError message={errors.bestBeforeDate?.message} />
               </FieldGroup>
             </div>
+
+            {!isRoasted && (
+              <details className="rounded-xl border border-slate-200 bg-white/40 open:bg-white/70 transition-colors" data-testid="lot-quality-section">
+                <summary className="flex cursor-pointer select-none items-center justify-between px-3 py-2.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Detail mutu lot <span className="font-medium normal-case tracking-normal text-slate-400">(opsional)</span>
+                  </span>
+                  <ChevronDown size={14} className="text-slate-400" />
+                </summary>
+                <div className="grid grid-cols-1 gap-4 border-t border-slate-200 px-3 py-4 sm:grid-cols-2">
+                  <FieldGroup>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Lot supplier</Label>
+                    <Input placeholder="Kosongkan bila tidak ada" className={cn("h-9", glassInput)} {...register("supplierLotNumber")} />
+                  </FieldGroup>
+                  <FieldGroup>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Tanggal panen</Label>
+                    <Input type="date" className={cn("h-9", glassInput)} {...register("harvestDate")} />
+                  </FieldGroup>
+                  <FieldGroup>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                      Kadar air % <span className="font-medium normal-case tracking-normal text-slate-400">(ideal 9–13)</span>
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      placeholder="12"
+                      className={cn("h-9 tabular-nums", glassInput)}
+                      {...register("moisturePct", { valueAsNumber: true })}
+                    />
+                  </FieldGroup>
+                  <FieldGroup>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Kelembapan ruang %</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      placeholder="60"
+                      className={cn("h-9 tabular-nums", glassInput)}
+                      {...register("humidityPct", { valueAsNumber: true })}
+                    />
+                  </FieldGroup>
+                  <FieldGroup>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                      Jumlah defect <span className="font-medium normal-case tracking-normal text-slate-400">(per 300 g, standar SCA)</span>
+                    </Label>
+                    <Input
+                      type="number"
+                      step="1"
+                      min="0"
+                      placeholder="0"
+                      className={cn("h-9 tabular-nums", glassInput)}
+                      {...register("defectCount", { valueAsNumber: true })}
+                    />
+                  </FieldGroup>
+                  <FieldGroup>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Status QC awal</Label>
+                    <select
+                      className={cn("h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/30", glassInput)}
+                      {...register("qcStatus")}
+                    >
+                      <option value="RELEASED">Lolos (langsung bisa di-roast)</option>
+                      <option value="PENDING">Menunggu pemeriksaan</option>
+                      <option value="HOLD">Karantina (tidak dialokasikan FEFO)</option>
+                    </select>
+                  </FieldGroup>
+                </div>
+              </details>
+            )}
 
             <PurchasePaymentSection
               register={register}

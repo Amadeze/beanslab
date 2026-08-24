@@ -577,6 +577,25 @@ export async function createGreenBeanPurchase(
       return { success: false, error: "Ongkos kirim harus lebih kecil dari total pembelian." };
     }
 
+    // Intake mutu per-lot (opsional): validasi rentang bila diisi.
+    const moisturePct = input.moisturePct ?? undefined;
+    if (moisturePct !== undefined && (!Number.isFinite(moisturePct) || moisturePct < 0 || moisturePct > 100)) {
+      return { success: false, error: "Kadar air harus antara 0–100%." };
+    }
+    const humidityPct = input.humidityPct ?? undefined;
+    if (humidityPct !== undefined && (!Number.isFinite(humidityPct) || humidityPct < 0 || humidityPct > 100)) {
+      return { success: false, error: "Kelembapan ruang harus antara 0–100%." };
+    }
+    const defectCount = input.defectCount ?? undefined;
+    if (defectCount !== undefined && (!Number.isInteger(defectCount) || defectCount < 0)) {
+      return { success: false, error: "Jumlah defect harus bilangan bulat ≥ 0." };
+    }
+    const harvestDate = input.harvestDate ? new Date(`${input.harvestDate}T00:00:00`) : null;
+    if (harvestDate && Number.isNaN(harvestDate.getTime())) {
+      return { success: false, error: "Tanggal panen tidak valid." };
+    }
+    const qcStatus = input.qcStatus ?? "RELEASED";
+
     const tenantPrisma = await requireTenantPrisma();
     const previousAttempt = await tenantPrisma.purchase.findFirst({
       where: { operationKey: input.operationKey },
@@ -704,7 +723,14 @@ export async function createGreenBeanPurchase(
           quantityKg: input.weightKg,
           expiryDate: input.bestBeforeDate ? new Date(`${input.bestBeforeDate}T00:00:00`) : null,
           receivedAt,
-          notes: input.lotNumber ? `Lot supplier: ${input.lotNumber}` : null,
+          // Lot supplier kini kolom terstruktur; notes hanya fallback pemanggil lama.
+          supplierLotNumber: input.supplierLotNumber?.trim() || input.lotNumber || null,
+          moisturePct: moisturePct ?? null,
+          humidityPct: humidityPct ?? null,
+          harvestDate,
+          defectCount: defectCount ?? null,
+          qcStatus,
+          notes: !input.supplierLotNumber && input.lotNumber ? `Lot supplier: ${input.lotNumber}` : null,
         },
       });
 

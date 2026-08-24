@@ -2016,6 +2016,14 @@ model OnboardingSnapshot {
 // FEFO (First Expired, First Out) diimplementasikan melalui expiryDate.
 // =============================================================================
 
+// Status QC per lot. HOLD = lot dikarantina: TIDAK dialokasikan oleh FEFO
+// (roast/penjualan/produksi) sampai dilepas.
+enum LotQcStatus {
+  PENDING
+  RELEASED
+  HOLD
+}
+
 model Lot {
   id             String    @id @default(cuid())
   tenantId       String
@@ -2033,6 +2041,15 @@ model Lot {
   receivedAt     DateTime  @default(now())
   consumedAt     DateTime?
   notes          String?
+
+  // Intake mutu per-lot (green coffee). Identitas asal (origin/proses) tetap
+  // di CoffeeSource; field ini menangkap kondisi FISIK kiriman spesifik ini.
+  supplierLotNumber String?
+  moisturePct       Decimal?    @db.Decimal(5, 2)
+  humidityPct       Decimal?    @db.Decimal(5, 2)
+  harvestDate       DateTime?
+  defectCount       Int?
+  qcStatus          LotQcStatus @default(RELEASED)
 
   product                   Product?                   @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   packaging                 Packaging?                 @relation(fields: [packagingId], references: [id], onDelete: SetNull, onUpdate: NoAction)
