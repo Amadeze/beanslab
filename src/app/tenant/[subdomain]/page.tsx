@@ -159,22 +159,42 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
 
   // Canonical catalog (products + coffee offerings dengan ketersediaan kg real-time)
   // — payload yang sama dipakai customizer preview via /api/portal-theme/products.
-  const [catalog, portalTheme] = await Promise.all([
-    loadStorefrontCatalog(prisma, tenant.id, b2bContext ? {
-      b2b: {
-        customerTier: b2bContext.customer.tier,
-        priceBreaksByProduct: b2bContext.priceBreaksByProduct,
-      },
-    } : {}),
-    loadPortalThemeCompat(tenant.id),
-  ]);
+  let catalog: { products: any[]; offerings: any[] } = { products: [], offerings: [] };
+  let portalTheme: any = null;
+
+  try {
+    const [catalogResult, portalThemeResult] = await Promise.all([
+      loadStorefrontCatalog(prisma, tenant.id, b2bContext ? {
+        b2b: {
+          customerTier: b2bContext!.customer.tier,
+          priceBreaksByProduct: b2bContext!.priceBreaksByProduct,
+        },
+      } : {}),
+      loadPortalThemeCompat(tenant.id),
+    ]);
+    catalog = catalogResult;
+    portalTheme = portalThemeResult;
+  } catch (catalogError) {
+    console.error("[storefront] Failed to load catalog/theme:", catalogError);
+    // Continue with empty catalog/theme to prevent total failure
+    catalog = { products: [], offerings: [] };
+    portalTheme = null;
+  }
 
   // Resolve the active theme config (draft for preview, published for public view)
-  const resolvedThemeConfig = resolveTenantPortalTheme({
-    portalTheme,
-    legacyTenantFields: tenant as Record<string, unknown>,
-    mode: isPreviewMode ? "customizer" : "public",
-  });
+  let resolvedThemeConfig: any = null;
+  try {
+    resolvedThemeConfig = resolveTenantPortalTheme({
+      portalTheme,
+      legacyTenantFields: tenant as Record<string, unknown>,
+      mode: isPreviewMode ? "customizer" : "public",
+    });
+  } catch (themeError) {
+    console.error("[storefront] Failed to resolve theme:", themeError);
+    // Fallback to default theme
+    const { DEFAULT_PORTAL_THEME_CONFIG } = await import("@/features/portal-theme/defaults/default-config");
+    resolvedThemeConfig = structuredClone(DEFAULT_PORTAL_THEME_CONFIG);
+  }
 
   const serializedTenant = {
     name: tenant.name,
