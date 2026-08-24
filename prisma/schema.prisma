@@ -2137,6 +2137,8 @@ model InventoryLedger {
   @@index([lotId])
   // Index untuk audit trail per transaksi
   @@index([tenantId, refType, refId])
+  // Filter tenant + rentang tanggal lintas produk (riwayat mutasi, laporan periode)
+  @@index([tenantId, createdAt])
   @@map("inventory_ledger")
 }
 

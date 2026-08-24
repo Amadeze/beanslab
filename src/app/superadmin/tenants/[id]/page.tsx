@@ -35,10 +35,31 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
   const { id } = await params;
 
   const since = new Date(Date.now() - 7 * 86_400_000);
-  const [tenant, gmv, roasts30d, rajaOngkir, failedImports, failedJobs, failedWebhooks, failedNotifications] = await Promise.all([
+  // Security: explicit select so secrets (midtransServerKey, artisanWebhookToken,
+  // artisanWebhookTokenHash, xenditSubAccountId) never enter this RSC payload.
+  // Presence of the Midtrans server key is checked via a separate existence query.
+  const [tenant, midtransServerKeyConfigured, gmv, roasts30d, rajaOngkir, failedImports, failedJobs, failedWebhooks, failedNotifications] = await Promise.all([
     prisma.tenant.findFirst({
       where: { id, NOT: { id: "default" } },
-      include: {
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        subdomain: true,
+        createdAt: true,
+        isActive: true,
+        isArtisanEnabled: true,
+        subscriptionTier: true,
+        subscriptionStatus: true,
+        trialEndsAt: true,
+        nextBillingDate: true,
+        setupCompletedAt: true,
+        midtransClientKey: true,
+        midtransIsProduction: true,
+        nationalCourierEnabled: true,
+        rajaOngkirOriginId: true,
+        rajaOngkirOriginLabel: true,
+        rajaOngkirCourierCodes: true,
         users: {
           orderBy: [{ role: "asc" }, { createdAt: "asc" }],
           select: { id: true, name: true, email: true, role: true, isActive: true, lockedUntil: true, createdAt: true },
@@ -70,6 +91,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
         _count: { select: { users: true, machines: true, roasts: true, invoices: true, products: true, roastdStudios: true, tenantPaymentMethods: true } },
       },
     }),
+    prisma.tenant.findFirst({ where: { id, midtransServerKey: { not: null } }, select: { id: true } }),
     prisma.invoice.aggregate({ where: { tenantId: id, status: { in: ["ISSUED", "PARTIAL", "PAID"] } }, _sum: { grandTotal: true } }),
     prisma.roast.count({ where: { tenantId: id, createdAt: { gte: new Date(Date.now() - 30 * 86_400_000) } } }),
     getRajaOngkirIntegrationState(),
@@ -84,7 +106,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
   const owner = tenant.users.find((user) => user.role === "OWNER");
   const onlineConnectors = tenant.roastdStudios.filter((connector) => connector.status === "ONLINE").length;
   const courierCodes = Array.isArray(tenant.rajaOngkirCourierCodes) ? tenant.rajaOngkirCourierCodes : [];
-  const midtransReady = Boolean(tenant.midtransClientKey && tenant.midtransServerKey);
+  const midtransReady = Boolean(tenant.midtransClientKey && midtransServerKeyConfigured);
   const nationalShippingReady = Boolean(
     rajaOngkir.isConfigured &&
     rajaOngkir.isActive &&
@@ -165,7 +187,14 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
               Storefront <ExternalLink size={15} />
             </a>
           )}
-          <EditTenantDialog tenant={tenant} />
+          <EditTenantDialog tenant={{
+            id: tenant.id,
+            name: tenant.name,
+            code: tenant.code,
+            isActive: tenant.isActive,
+            subscriptionTier: tenant.subscriptionTier,
+            subscriptionStatus: tenant.subscriptionStatus,
+          }} />
         </div>
       </div>
 
@@ -195,7 +224,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
         ownerEmail={owner?.email ?? null}
         accessDeliveryReady={emailReady}
         midtransClientConfigured={Boolean(tenant.midtransClientKey)}
-        midtransServerConfigured={Boolean(tenant.midtransServerKey)}
+        midtransServerConfigured={Boolean(midtransServerKeyConfigured)}
         midtransIsProduction={tenant.midtransIsProduction}
         checks={supportChecks}
         incidentCount={incidentCount}

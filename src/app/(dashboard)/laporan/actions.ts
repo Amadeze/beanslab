@@ -18,7 +18,7 @@ import { computeCashMovement } from "@/lib/gl-cash-flow";
 import { computeCoffeeFlowSales } from "@/lib/coffee-flow";
 import { getRbCostPrioritizingCache, getFgHppPrioritizingCache } from "@/lib/costing";
 import { computeValuationMetrics } from "@/lib/inventory-helpers";
-import { prisma } from "@/lib/prisma";
+import { prisma, withTenant } from "@/lib/prisma";
 import { tenantQuery } from "@/lib/tenant-guard";
 
 type DailyFinancialTotalRow = {
@@ -146,9 +146,18 @@ export type InventoryValuationReport = {
   totalSampleWriteOff: number;
 };
 
-export async function getInventoryValuationReport(asOf = getCurrentDate()): Promise<InventoryValuationReport> {
-  await requireFeature("ADVANCED_REPORTS");
-  const tp = await requireTenantPrisma();
+/** Bucket timestamp ke interval 5 menit agar pemanggilan berulang (asOf "now") berbagi entri cache. */
+function bucketIsoTo5Minutes(date: Date): string {
+  const windowMs = 5 * 60 * 1000;
+  return new Date(Math.floor(date.getTime() / windowMs) * windowMs).toISOString();
+}
+
+// Laporan valuasi memindai seluruh ledger per produk — mahal pada tenant besar.
+// Core dipisah agar bisa dicache per tenant (auth/fitur tetap dicek di wrapper).
+const getInventoryValuationCore = unstable_cache(
+  async (tenantId: string, asOfIso: string): Promise<InventoryValuationReport> => {
+    const tp = withTenant(tenantId);
+    const asOf = new Date(asOfIso);
   const products = await tp.product.findMany({
     where: { isActive: true },
     include: {
@@ -469,6 +478,15 @@ items.push({
     asOf: asOf.toISOString(),
     costMethod: "WEIGHTED_AVERAGE",
   };
+  },
+  ["inventory-valuation-v1"],
+  { revalidate: 300 },
+);
+
+export async function getInventoryValuationReport(asOf = getCurrentDate()): Promise<InventoryValuationReport> {
+  await requireFeature("ADVANCED_REPORTS");
+  const tenantId = await getCurrentTenantId();
+  return getInventoryValuationCore(tenantId, bucketIsoTo5Minutes(asOf));
 }
 
 // =============================================================================
@@ -713,12 +731,13 @@ export type CoffeeFlowReport = {
   periodEnd: string;
 };
 
-export async function getCoffeeFlowReport(
-  periodStart?: Date,
-  periodEnd = getCurrentDate(),
-): Promise<CoffeeFlowReport> {
-  await requireFeature("ADVANCED_REPORTS");
-  const tp = await requireTenantPrisma();
+// Coffee-flow memuat seluruh ledger < periodEnd per produk — titik termahal
+// di laporan. Core dicache per tenant; wrapper tetap memvalidasi fitur & sesi.
+const getCoffeeFlowCore = unstable_cache(
+  async (tenantId: string, periodStartIso: string | null, periodEndIso: string): Promise<CoffeeFlowReport> => {
+    const tp = withTenant(tenantId);
+    const periodStart = periodStartIso ? new Date(periodStartIso) : undefined;
+    const periodEnd = new Date(periodEndIso);
   const products = await tp.product.findMany({
     where: { isActive: true },
     include: {
@@ -975,6 +994,22 @@ export async function getCoffeeFlowReport(
     periodStart: periodStart?.toISOString() ?? null,
     periodEnd: periodEnd.toISOString(),
   };
+  },
+  ["coffee-flow-v1"],
+  { revalidate: 300 },
+);
+
+export async function getCoffeeFlowReport(
+  periodStart?: Date,
+  periodEnd = getCurrentDate(),
+): Promise<CoffeeFlowReport> {
+  await requireFeature("ADVANCED_REPORTS");
+  const tenantId = await getCurrentTenantId();
+  return getCoffeeFlowCore(
+    tenantId,
+    periodStart ? bucketIsoTo5Minutes(periodStart) : null,
+    bucketIsoTo5Minutes(periodEnd),
+  );
 }
 
 // =============================================================================

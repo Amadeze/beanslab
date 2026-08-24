@@ -356,19 +356,29 @@ export async function loadStorefrontCatalog(
   });
 
   // Resolve lineage + ketersediaan kg per offering.
+  // Semua resolusi dijalankan paralel (murni read-only) — sequential await
+  // di sini dulu menjadi N+1 query pada halaman publik.
   const lineageIds: string[] = [];
   const offerings: CatalogOffering[] = [];
-  for (const row of offeringRows) {
-    const availableKg: number | null = null;
+  const lineageResults = await Promise.all(
+    offeringRows.map(async (row: Record<string, any>) => {
+      try {
+        return { row, resolution: await resolveOfferingLineage(db, row as OfferingForLineage), error: null as unknown };
+      } catch (error) {
+        return { row, resolution: null, error };
+      }
+    }),
+  );
+  for (const { row, resolution, error } of lineageResults) {
     let unavailableReason: string | null = null;
     let lineageProductId: string | null = null;
-    try {
-      const resolution = await resolveOfferingLineage(db, row);
+    if (resolution) {
       lineageProductId = resolution.productId;
       lineageIds.push(resolution.productId);
-    } catch (error) {
+    } else {
       unavailableReason = error instanceof Error ? error.message : "Belum tersedia.";
     }
+    const availableKg: number | null = null;
     offerings.push({
       id: row.id,
       code: row.code,

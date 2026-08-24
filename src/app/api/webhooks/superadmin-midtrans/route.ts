@@ -93,22 +93,25 @@ export async function POST(req: Request) {
       dbStatus = "PENDING";
     }
 
-    if (payment.status === "SUCCESS") {
-      await prisma.webhookEvent.update({
-        where: { id: webhookEventId! },
-        data: {
-          status: isSuccess ? "PROCESSED" : "IGNORED",
-          processedAt: getCurrentDate(),
-        },
-      });
-      return NextResponse.json({ success: true, duplicate: true });
-    }
-
     await prisma.$transaction(async (tx) => {
-      await tx.subscriptionPayment.update({
-        where: { id: payment.id },
+      // Atomic guard: claim the transition to a non-SUCCESS state in a single
+      // statement so concurrent notifications (capture + settlement race) can
+      // never both extend the billing cycle.
+      const guarded = await tx.subscriptionPayment.updateMany({
+        where: { id: payment.id, status: { not: "SUCCESS" } },
         data: { status: dbStatus },
       });
+
+      if (guarded.count === 0) {
+        await tx.webhookEvent.update({
+          where: { id: webhookEventId! },
+          data: {
+            status: isSuccess ? "PROCESSED" : "IGNORED",
+            processedAt: getCurrentDate(),
+          },
+        });
+        return;
+      }
 
       if (!isSuccess) {
         await tx.webhookEvent.update({
