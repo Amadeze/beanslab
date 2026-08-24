@@ -97,7 +97,7 @@ describe("calculateShipmentWeightForTenant", () => {
       calculateShipmentWeightForTenant(TENANT_ID, [
         { productId: "missing", quantity: 1 },
       ]),
-    ).rejects.toThrow("not found");
+    ).rejects.toThrow("Produk tidak ditemukan");
   });
 
   it("throws on missing variant", async () => {
@@ -106,7 +106,7 @@ describe("calculateShipmentWeightForTenant", () => {
       calculateShipmentWeightForTenant(TENANT_ID, [
         { productId: "", offeringVariantId: "missing-v", quantity: 1 },
       ]),
-    ).rejects.toThrow("not found");
+    ).rejects.toThrow("Varian produk tidak ditemukan");
   });
 
   it("throws on product with null netWeightGrams", async () => {
@@ -115,7 +115,7 @@ describe("calculateShipmentWeightForTenant", () => {
       calculateShipmentWeightForTenant(TENANT_ID, [
         { productId: "p1", quantity: 1 },
       ]),
-    ).rejects.toThrow("no valid net weight");
+    ).rejects.toThrow("belum memiliki pengaturan berat");
   });
 
   it("throws on product with zero netWeightGrams", async () => {

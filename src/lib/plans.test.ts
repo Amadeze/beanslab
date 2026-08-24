@@ -17,6 +17,6 @@ describe("plan entitlements", () => {
 
   it("defines stable server-side prices", () => {
     expect(PLAN_CATALOG.BASIC.monthlyPrice).toBe(149_000);
-    expect(PLAN_CATALOG.PRO.monthlyPrice).toBe(299_000);
+    expect(PLAN_CATALOG.PRO.monthlyPrice).toBe(355_000);
   });
 });

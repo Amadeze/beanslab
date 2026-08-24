@@ -287,27 +287,31 @@ export async function loadStorefrontCatalog(
     }),
   ]);
 
-  // Pre-fetch latest roast dates for all products
+  // Pre-fetch latest production dates for FINISHED_GOODS products.
+  // ProductionBatch adalah model yang menghasilkan output FG (outputProductId);
+  // roasting batch menghasilkan ROASTED_BEAN, bukan FG.
   const productIds = productRows.map((p: Record<string, unknown>) => p.id as string);
-  const latestRoastBatches = await db.roastingBatch.findMany({
-    where: {
-      tenantId,
-      finishedProductId: { in: productIds },
-      status: "COMPLETED",
-      completedAt: { not: null },
-    },
-    select: {
-      finishedProductId: true,
-      completedAt: true,
-    },
-    orderBy: { completedAt: "desc" },
-  });
+  const latestBatches = productIds.length > 0
+    ? await db.productionBatch.findMany({
+        where: {
+          tenantId,
+          outputProductId: { in: productIds },
+          status: "COMPLETED",
+          voidAt: null,
+        },
+        select: {
+          outputProductId: true,
+          producedAt: true,
+        },
+        orderBy: { producedAt: "desc" },
+      })
+    : [];
 
-  // Map productId -> latest completedAt
+  // Map productId -> latest producedAt (entri pertama per produk = terbaru)
   const latestRoastByProduct: Map<string, Date> = new Map();
-  for (const batch of latestRoastBatches) {
-    if (!latestRoastByProduct.has(batch.finishedProductId)) {
-      latestRoastByProduct.set(batch.finishedProductId, batch.completedAt!);
+  for (const batch of latestBatches) {
+    if (!latestRoastByProduct.has(batch.outputProductId)) {
+      latestRoastByProduct.set(batch.outputProductId, batch.producedAt);
     }
   }
 

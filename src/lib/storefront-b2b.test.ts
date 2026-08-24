@@ -104,7 +104,7 @@ describe("storefront B2B context", () => {
     const db = {
       product: { findMany: productFindMany },
       coffeeOffering: { findMany: vi.fn().mockResolvedValue([]) },
-      roastingBatch: { findMany: vi.fn().mockResolvedValue([]) },
+      productionBatch: { findMany: vi.fn().mockResolvedValue([]) },
     };
     const breaks = new Map([["private-product", [
       { id: "p10", minQuantity: 10, unitPrice: 85_000, tierName: "SILVER" as const },
