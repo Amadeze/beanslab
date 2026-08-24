@@ -91,12 +91,12 @@ export async function calculateShipmentWeightForTenant(
       },
       select: {
         id: true,
-        name: true,
+        packageName: true,
         netWeightGrams: true,
       },
     });
     for (const v of variants) {
-      variantMap.set(v.id, { netWeightGrams: Number(v.netWeightGrams), name: v.name });
+      variantMap.set(v.id, { netWeightGrams: Number(v.netWeightGrams), name: v.packageName });
     }
   }
 
