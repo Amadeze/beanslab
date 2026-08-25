@@ -14,7 +14,6 @@ import {
   Flame,
   LayoutDashboard,
   LogOut,
-  Radar,
   Settings2,
   ShoppingBag,
   ShoppingCart,
@@ -42,9 +41,9 @@ export const NAV_TONE_STYLES: Record<AppNavLink["tone"], {
   inactiveIcon: string;
 }> = {
   system: {
-    active: "bg-[#00C8DF] text-[#041116] shadow-[0_10px_30px_-18px_rgba(0,200,223,.9)]",
-    activeIcon: "border-black/10 bg-[#041116]/10 text-[#041116]",
-    inactiveIcon: "text-[#69E8F3]",
+    active: "bg-[#B65331] text-white shadow-[0_10px_30px_-18px_rgba(182,83,49,.9)]",
+    activeIcon: "border-white/10 bg-white/10 text-white",
+    inactiveIcon: "text-[#E9A17F]",
   },
   inventory: {
     active: "bg-[#2B7567] text-white shadow-[0_10px_30px_-18px_rgba(43,117,103,.9)]",
@@ -86,21 +85,14 @@ type NavSection = {
 
 export const APP_NAV_SECTIONS: NavSection[] = [
   {
-    label: "Hari ini",
-    caption: "Prioritas kerja",
+    label: "Beranda",
+    caption: "Prioritas hari ini",
     items: [
       {
-        label: "Ringkasan",
+        label: "Hari ini",
         shortLabel: "Hari ini",
         href: "/dashboard",
         icon: LayoutDashboard,
-        tone: "system",
-      },
-      {
-        label: "Control Tower",
-        shortLabel: "Control",
-        href: "/control-tower",
-        icon: Radar,
         tone: "system",
       },
     ],
@@ -306,7 +298,7 @@ export function Sidebar({
         "relative z-10 flex h-[72px] shrink-0 items-center border-b border-white/[0.08]",
         isCollapsed ? "justify-center px-3" : "gap-3 px-5",
       )}>
-        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-[#00C8DF] text-[#041116] shadow-[0_0_34px_rgba(0,200,223,.2)]">
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-[#B65331] text-white shadow-[0_0_34px_rgba(182,83,49,.25)]">
           <Coffee size={18} strokeWidth={2.2} />
           <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#05090D] bg-white" />
         </div>
@@ -323,7 +315,7 @@ export function Sidebar({
               <button
                 type="button"
                 onClick={() => setCollapsed(true)}
-                className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-white/10 text-white/35 transition hover:border-[#00C8DF]/35 hover:bg-[#00C8DF]/10 hover:text-[#8EF3FC]"
+                className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-white/10 text-white/35 transition hover:border-[#B65331]/35 hover:bg-[#B65331]/10 hover:text-[#F0B590]"
                 aria-label="Ciutkan navigasi"
               >
                 <ChevronLeft size={14} />
@@ -348,7 +340,7 @@ export function Sidebar({
             <span className="font-mono text-[8px] uppercase tracking-[0.17em] text-white/35">
               Workspace
             </span>
-            <span className="h-1.5 w-1.5 rounded-full bg-[#00C8DF] shadow-[0_0_12px_#00C8DF]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#B65331] shadow-[0_0_12px_#B65331]" />
           </div>
           <div className="mt-2 flex items-end justify-between gap-3">
             <div>
@@ -357,9 +349,9 @@ export function Sidebar({
               </p>
               <p className="mt-0.5 text-[9px] text-white/32">akses operasional aktif</p>
             </div>
-            <span className="rounded-[6px] border border-[#00C8DF]/25 bg-[#00C8DF]/10 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[#bff7ff]">
-              {PLAN_CATALOG[subscriptionTier].label}
-            </span>
+              <span className="rounded-[6px] border border-[#B65331]/30 bg-[#B65331]/12 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[#F3DCD1]">
+                {PLAN_CATALOG[subscriptionTier].label}
+              </span>
           </div>
         </div>
       ) : null}
@@ -396,8 +388,8 @@ export function Sidebar({
                     href={item.href}
                     title={isCollapsed ? item.label : undefined}
                     aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "group relative flex items-center transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C8DF]",
+                     className={cn(
+                       "group relative flex items-center transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B65331]",
                       isCollapsed
                         ? "mx-auto h-11 w-11 justify-center rounded-[11px]"
                         : "min-h-11 gap-3 rounded-[10px] px-3 py-2",
@@ -452,8 +444,8 @@ export function Sidebar({
         <form action={logoutAction}>
           <button
             type="submit"
-            className={cn(
-              "group flex w-full items-center rounded-[10px] text-white/38 transition hover:bg-[#00C8DF]/10 hover:text-[#9ff4ff]",
+              className={cn(
+                "group flex w-full items-center rounded-[10px] text-white/38 transition hover:bg-[#B65331]/10 hover:text-[#F0B590]",
               isCollapsed
                 ? "mx-auto h-11 w-11 justify-center"
                 : "gap-3 px-3 py-2.5 text-xs font-medium",

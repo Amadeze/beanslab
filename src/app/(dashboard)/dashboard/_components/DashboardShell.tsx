@@ -31,6 +31,8 @@ import {
 } from "@/lib/dashboard-work-queue";
 import type { ActivityItem, DashboardData, LowStockItem } from "../actions";
 import { RoasteryCopilot } from "./RoasteryCopilot";
+import { ControlTowerView } from "../../control-tower/_components/ControlTowerView";
+import type { getControlTowerData } from "../../control-tower/actions";
 
 function formatTimeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -601,7 +603,15 @@ function StockWatchlist({ items }: { items: LowStockItem[] }) {
   );
 }
 
-export function DashboardShell({ data, insights }: { data: DashboardData; insights?: import("@/lib/roastery-intelligence").CopilotInsight[] }) {
+export function DashboardShell({
+  data,
+  insights,
+  controlTower,
+}: {
+  data: DashboardData;
+  insights?: import("@/lib/roastery-intelligence").CopilotInsight[];
+  controlTower?: Awaited<ReturnType<typeof getControlTowerData>>;
+}) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const workItems = useMemo(() => buildDashboardWorkItems({
@@ -630,6 +640,8 @@ export function DashboardShell({ data, insights }: { data: DashboardData; insigh
           </div>
 
           <RoasteryCopilot insights={insights ?? []} />
+
+          {controlTower ? <ControlTowerView data={controlTower} /> : null}
 
           <ActivityTable items={data.activity} mounted={mounted} />
         </div>

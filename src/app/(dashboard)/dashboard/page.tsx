@@ -1,4 +1,5 @@
 import { getDashboardData, getTodayData } from "./actions";
+import { getControlTowerData } from "../control-tower/actions";
 import { requireCurrentUser } from "@/lib/auth";
 import { DashboardShell } from "./_components/DashboardShell";
 import { TodayShell } from "./_components/TodayShell";
@@ -15,9 +16,10 @@ export default async function DashboardPage() {
     return <TodayShell data={data} />;
   }
 
-  const [data, insights] = await Promise.all([
+  const [data, insights, controlTower] = await Promise.all([
     getDashboardData(),
     getCopilotInsights(),
+    getControlTowerData(),
   ]);
-  return <DashboardShell data={data} insights={insights} />;
+  return <DashboardShell data={data} insights={insights} controlTower={controlTower} />;
 }
