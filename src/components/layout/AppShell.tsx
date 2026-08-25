@@ -306,7 +306,7 @@ export function AppShell({
         />
       </main>
 
-      <CommandPalette />
+      <CommandPalette userRole={userRole} subscriptionTier={subscriptionTier} />
     </div>
   );
 }

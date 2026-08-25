@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, CornerDownLeft, Warehouse, Radar, FlaskConical, Beaker, Database, ScrollText, Receipt } from "lucide-react";
-import { APP_NAV_SECTIONS } from "./Sidebar";
+import { APP_NAV_SECTIONS, canAccessNavigation } from "./Sidebar";
+import type { PlanTier } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 
 type RouteEntry = { label: string; href: string; group: string; Icon: React.ElementType };
@@ -18,7 +19,13 @@ const HIDDEN_ROUTES: RouteEntry[] = [
   { label: "Tagihan & Langganan", href: "/billing", group: "Kelola", Icon: Receipt },
 ];
 
-export function CommandPalette() {
+export function CommandPalette({
+  userRole,
+  subscriptionTier,
+}: {
+  userRole: string;
+  subscriptionTier: PlanTier;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -27,17 +34,21 @@ export function CommandPalette() {
 
   const routes = useMemo<RouteEntry[]>(() => {
     const fromNav = APP_NAV_SECTIONS.flatMap((section) =>
-      section.items.map((item) => ({
-        label: item.label,
-        href: item.href,
-        group: section.label,
-        Icon: item.icon,
-      })),
+      section.items
+        .filter((item) => canAccessNavigation(item.href, userRole, subscriptionTier))
+        .map((item) => ({
+          label: item.label,
+          href: item.href,
+          group: section.label,
+          Icon: item.icon,
+        })),
     );
     const hrefs = new Set(fromNav.map((r) => r.href));
-    const extra = HIDDEN_ROUTES.filter((r) => !hrefs.has(r.href));
+    const extra = HIDDEN_ROUTES.filter(
+      (r) => !hrefs.has(r.href) && canAccessNavigation(r.href, userRole, subscriptionTier),
+    );
     return [...fromNav, ...extra];
-  }, []);
+  }, [userRole, subscriptionTier]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
