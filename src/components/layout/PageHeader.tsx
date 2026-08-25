@@ -8,6 +8,11 @@ import {
   type OperatingStage,
 } from "@/components/layout/operating-stages";
 
+interface PageHeaderBreadcrumb {
+  label: string;
+  href?: string;
+}
+
 interface PageHeaderProps {
   title: string;
   description?: string;
@@ -15,6 +20,7 @@ interface PageHeaderProps {
   mobileActions?: React.ReactNode;
   stage?: OperatingStage;
   eyebrow?: string;
+  breadcrumbs?: PageHeaderBreadcrumb[];
 }
 
 export function PageHeader({
@@ -24,6 +30,7 @@ export function PageHeader({
   mobileActions,
   stage,
   eyebrow,
+  breadcrumbs,
 }: PageHeaderProps) {
   const activeStage = stage ?? titleStages[title];
   const activeIndex = operatingStages.findIndex(
@@ -36,6 +43,42 @@ export function PageHeader({
       data-testid="page-header"
       className="instrument-grid-dark relative z-20 shrink-0 border-b border-white/10 bg-[#05090D] text-white"
     >
+      {breadcrumbs && breadcrumbs.length > 0 && (
+        <nav
+          aria-label="Breadcrumb"
+          className="border-b border-white/[0.06] bg-[#0B141B]/40"
+        >
+          <div className="mx-auto flex w-full max-w-[1600px] items-center gap-1.5 px-4 py-1.5 text-[10px] font-semibold text-white/40 sm:px-6 lg:px-8">
+            {breadcrumbs.map((crumb, index) => {
+              const isLast = index === breadcrumbs.length - 1;
+              return (
+                <span key={crumb.label} className="flex items-center gap-1.5">
+                  {crumb.href && !isLast ? (
+                    <Link
+                      href={crumb.href}
+                      className="transition-colors hover:text-white/80"
+                    >
+                      {crumb.label}
+                    </Link>
+                  ) : (
+                    <span
+                      className={isLast ? "text-white/75" : undefined}
+                      aria-current={isLast ? "page" : undefined}
+                    >
+                      {crumb.label}
+                    </span>
+                  )}
+                  {!isLast && (
+                    <span aria-hidden className="text-white/20">
+                      /
+                    </span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        </nav>
+      )}
       <div
         className={cn(
           "mx-auto grid min-h-[56px] w-full max-w-[1600px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2 sm:px-6 lg:px-8",
