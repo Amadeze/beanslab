@@ -49,6 +49,7 @@ export default async function LotTracePage({
       <CompactHeader
         title={`Jejak Lot ${result.lot.batchCode}`}
         description="Asal barang dan mutasi inventory yang telah terhubung ke lot ini."
+        stage="warehouse"
         actions={(
           <div className="flex gap-2">
             <Button variant="outline" render={<Link href={`/inventory/lots/${id}/label`} />}><Printer size={14} /> Label</Button>
