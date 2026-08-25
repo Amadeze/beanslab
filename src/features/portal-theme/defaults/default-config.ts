@@ -113,6 +113,16 @@ export const DEFAULT_PORTAL_THEME_CONFIG: PortalThemeConfig = {
       blocks: [],
     },
     {
+      id: "sec_cupping_archive_default",
+      type: "cupping_archive",
+      enabled: true,
+      settings: {
+        title: "Arsip Cupping & Skor Kualitas",
+        subtitle: "Setiap batch disensori oleh tim QC. Skor SCA & catatan defect kami tampilkan terbuka.",
+      },
+      blocks: [],
+    },
+    {
       id: "sec_footer_default",
       type: "footer_nav",
       enabled: true,

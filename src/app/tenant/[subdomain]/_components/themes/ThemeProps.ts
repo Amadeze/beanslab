@@ -27,9 +27,10 @@ export interface CartStore {
 }
 
 export interface ThemeProps {
-  tenant: ExtendedTenant & { products: Product[]; offerings?: StorefrontOffering[] };
+  tenant: ExtendedTenant & { products: Product[]; offerings?: StorefrontOffering[]; cuppingSessions?: any[] };
   products?: Product[];
   offerings?: StorefrontOffering[];
+  cuppingSessions?: any[];
   cart: CartStore;
   cartKey?: string;
   isCartOpen: boolean;

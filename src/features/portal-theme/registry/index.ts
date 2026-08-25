@@ -367,6 +367,20 @@ export const SECTION_REGISTRY: PortalSectionDefinition[] = [
     },
   },
   {
+    type: "cupping_archive",
+    label: "Arsip Cupping & Skor Kualitas",
+    description: "Public, read-only archive of cupping results (SCA score, defect, linked lot) for buyer transparency",
+    icon: "Coffee",
+    category: "commerce",
+    area: "katalog",
+    status: "optional",
+    addable: true,
+    defaultSettings: {
+      title: "Arsip Cupping & Skor Kualitas",
+      subtitle: "",
+    },
+  },
+  {
     type: "sticky_narrative",
     label: "Sticky Narrative Split",
     description: "Editorial split-screen storytelling with sticky pinned visual column",

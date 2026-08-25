@@ -458,6 +458,46 @@ export async function loadStorefrontCatalog(
   return { products, offerings };
 }
 
+// ─── Public cupping archive (storefront transparency) ───────────────────────
+
+export type PublicCuppingSession = {
+  code: string;
+  date: string; // ISO
+  scaScore: number | null;
+  defectCount: number | null;
+  lotLabel: string | null;
+};
+
+/**
+ * Ambil hasil cupping terbaru untuk ditampilkan publik di storefront.
+ * Hanya field non-internal (skor, defect, lot) — tanpa evaluator/notes.
+ */
+export async function loadPublicCuppingSessions(
+  db: StorefrontDb,
+  tenantId: string,
+  limit = 12,
+): Promise<PublicCuppingSession[]> {
+  const rows = await db.cuppingSession.findMany({
+    where: { tenantId },
+    orderBy: { date: "desc" },
+    take: limit,
+    select: {
+      code: true,
+      date: true,
+      totalScore: true,
+      defectCount: true,
+      lot: { select: { batchCode: true } },
+    },
+  });
+  return rows.map((r: { code: string; date: Date; totalScore: number | null; defectCount: number | null; lot: { batchCode: string } | null }) => ({
+    code: r.code,
+    date: r.date.toISOString(),
+    scaScore: r.totalScore != null ? num(r.totalScore) : null,
+    defectCount: r.defectCount,
+    lotLabel: r.lot?.batchCode ?? null,
+  }));
+}
+
 function num(value: unknown): number | null {
   if (value == null) return null;
   const parsed = Number(value);

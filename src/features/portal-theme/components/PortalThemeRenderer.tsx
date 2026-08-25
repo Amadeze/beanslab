@@ -25,6 +25,7 @@ import { ProductHighlightSection } from "./sections/ProductHighlightSection";
 import { SocialProofSection } from "./sections/SocialProofSection";
 import { BentoShowcaseSection } from "./sections/BentoShowcaseSection";
 import { InteractiveFlavorSection } from "./sections/InteractiveFlavorSection";
+import { CuppingArchiveSection } from "./sections/CuppingArchiveSection";
 import { StickyNarrativeSection } from "./sections/StickyNarrativeSection";
 import { WholesaleRadarSection } from "./sections/WholesaleRadarSection";
 import { KineticMarqueeSection } from "./sections/KineticMarqueeSection";
@@ -57,6 +58,7 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType<any>> = {
   // Unlimited Creation Sections
   bento_showcase: BentoShowcaseSection,
   interactive_flavor: InteractiveFlavorSection,
+  cupping_archive: CuppingArchiveSection,
   sticky_narrative: StickyNarrativeSection,
   roast_matrix: WholesaleRadarSection,
   marquee_kinetic: KineticMarqueeSection,
@@ -298,6 +300,7 @@ interface PortalThemeRendererProps {
   isPreview?: boolean;
   products?: any[];
   offerings?: any[];
+  cuppingSessions?: any[];
   onAddToCart?: (product: any) => void;
   onAddOfferingToCart?: (...args: any[]) => void;
   onOpenCart?: () => void;
@@ -306,7 +309,7 @@ interface PortalThemeRendererProps {
 
 import { DEFAULT_PORTAL_THEME_CONFIG } from "../defaults/default-config";
 
-export function PortalThemeRenderer({ config, children, isPreview = false, products = [], offerings = [], onAddToCart, onAddOfferingToCart, onOpenCart, cartItemCount = 0 }: PortalThemeRendererProps) {
+export function PortalThemeRenderer({ config, children, isPreview = false, products = [], offerings = [], cuppingSessions = [], onAddToCart, onAddOfferingToCart, onOpenCart, cartItemCount = 0 }: PortalThemeRendererProps) {
   // Defensive: ensure config is always valid
   const safeConfig = config && config.globalSettings && config.sections ? config : DEFAULT_PORTAL_THEME_CONFIG;
   
@@ -397,6 +400,7 @@ export function PortalThemeRenderer({ config, children, isPreview = false, produ
                 isPreview={isPreview}
                 products={products}
                 offerings={offerings}
+                cuppingSessions={cuppingSessions}
                 onAddToCart={onAddToCart}
                 onAddOfferingToCart={onAddOfferingToCart}
                 onOpenCart={onOpenCart}

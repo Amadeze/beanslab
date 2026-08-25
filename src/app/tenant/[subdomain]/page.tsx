@@ -7,7 +7,7 @@ import { getTenantAccessState } from "@/lib/subscription";
 import { planHasFeature } from "@/lib/plans";
 import { resolveTenantPortalTheme } from "@/features/portal-theme/resolver";
 import { tenantStorefrontUrl } from "@/lib/tenant-host";
-import { loadStorefrontCatalog } from "@/lib/storefront-catalog";
+import { loadStorefrontCatalog, loadPublicCuppingSessions } from "@/lib/storefront-catalog";
 import {
   buildStorefrontMetadata,
   buildStorefrontStructuredData,
@@ -161,9 +161,10 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
   // — payload yang sama dipakai customizer preview via /api/portal-theme/products.
   let catalog: { products: any[]; offerings: any[] } = { products: [], offerings: [] };
   let portalTheme: any = null;
+  let cuppingResult: any[] = [];
 
   try {
-    const [catalogResult, portalThemeResult] = await Promise.all([
+    const [catalogResult, portalThemeResult, cuppingResult] = await Promise.all([
       loadStorefrontCatalog(prisma, tenant.id, b2bContext ? {
         b2b: {
           customerTier: b2bContext!.customer.tier,
@@ -171,6 +172,7 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
         },
       } : {}),
       loadPortalThemeCompat(tenant.id),
+      loadPublicCuppingSessions(prisma, tenant.id),
     ]);
     catalog = catalogResult;
     portalTheme = portalThemeResult;
@@ -179,6 +181,7 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
     // Continue with empty catalog/theme to prevent total failure
     catalog = { products: [], offerings: [] };
     portalTheme = null;
+    cuppingResult = [];
   }
 
   // Resolve the active theme config (draft for preview, published for public view)
@@ -236,6 +239,7 @@ export default async function TenantB2BPortal({ params, searchParams }: TenantPa
     )),
     products: catalog.products,
     offerings: catalog.offerings,
+    cuppingSessions: cuppingResult,
     b2bAccessInvalid: Boolean(b2bAccessToken && !b2bContext),
     b2bProfile: b2bContext ? {
       accessToken: b2bAccessToken,

@@ -34,6 +34,7 @@ export function UniversalTheme({
 
   const products = tenant.products || [];
   const offerings: StorefrontOffering[] = tenant.offerings || [];
+  const cuppingSessions: any[] = tenant.cuppingSessions || [];
   const cartItems = mounted ? (cart.items[cartKey] || []) : [];
 
   const [isConfirmingOrder, setIsConfirmingOrder] = useState(false);
@@ -65,6 +66,7 @@ export function UniversalTheme({
       config={tenant.portalThemeConfig}
       products={products}
       offerings={offerings}
+      cuppingSessions={cuppingSessions}
       onAddToCart={handleAddToCart}
       onAddOfferingToCart={handleAddOfferingToCart}
       onOpenCart={() => setIsCartOpen(true)}

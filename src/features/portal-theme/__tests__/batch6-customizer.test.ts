@@ -278,9 +278,10 @@ describe("Contextual Add Section Dialog", () => {
   it("Katalog add dialog exposes only Katalog types", () => {
     const allowed = PUBLIC_SECTION_TYPE_GROUPS.katalog;
     const definitions = SECTION_REGISTRY.filter((s) => allowed.some((type) => type === s.type));
-    expect(definitions.length).toBe(3);
+    expect(definitions.length).toBe(4);
     expect(definitions.map((d) => d.type).sort()).toEqual([
       "catalog_grid",
+      "cupping_archive",
       "featured_collection",
       "product_highlight",
     ]);
@@ -309,7 +310,7 @@ describe("Contextual Add Section Dialog", () => {
   it("exposes only the curated public catalog", () => {
     const groupedTypes = Object.values(PUBLIC_SECTION_TYPE_GROUPS).flat();
     expect(new Set(groupedTypes)).toEqual(new Set(PUBLIC_SECTION_TYPES));
-    expect(PUBLIC_SECTION_REGISTRY.map((section) => section.type)).toHaveLength(22);
+    expect(PUBLIC_SECTION_REGISTRY.map((section) => section.type)).toHaveLength(23);
 
     for (const hiddenType of [
       "newsletter",
@@ -323,8 +324,8 @@ describe("Contextual Add Section Dialog", () => {
 
 // ── Section Registry ─────────────────────────────────────────────────────────
 describe("Section Registry", () => {
-  it("has all section types registered (25)", () => {
-    expect(SECTION_REGISTRY.length).toBe(25);
+  it("has all section types registered (26)", () => {
+    expect(SECTION_REGISTRY.length).toBe(26);
   });
 
   it("every section has required fields", () => {
