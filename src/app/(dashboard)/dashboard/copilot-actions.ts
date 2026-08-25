@@ -1,9 +1,10 @@
 "use server";
 
 import { requireTenantPrisma, requireRole } from "@/lib/auth";
+import { buildReorderDraftLine } from "@/lib/lot-intelligence";
+import { getBatchReorderSummaries } from "@/lib/reorder";
 import {
   buildRoasteryInsights,
-  draftReorderFromProduct,
   summarizeInsights,
   type CopilotInsight,
 } from "@/lib/roastery-intelligence";
@@ -16,7 +17,7 @@ export async function getCopilotInsights(): Promise<CopilotInsight[]> {
   const tenantPrisma = await requireTenantPrisma();
   await requireRole("OWNER", "MANAGER", "OPERATOR");
 
-  const [lots, cupping, greenProducts] = await Promise.all([
+  const [lots, cupping, reorderData] = await Promise.all([
     tenantPrisma.lot.findMany({
       where: { consumedAt: null, product: { type: "GREEN_BEAN" } },
       orderBy: { receivedAt: "desc" },
@@ -41,22 +42,37 @@ export async function getCopilotInsights(): Promise<CopilotInsight[]> {
         lotId: true,
       },
     }),
-    tenantPrisma.product.findMany({
-      where: { type: "GREEN_BEAN", reorderAlertEnabled: true },
-      select: { id: true, name: true, stockKg: true, safetyStockQuantity: true },
-    }),
+    getBatchReorderSummaries(tenantPrisma),
   ]);
 
-  const reorder = greenProducts
+  // Reorder hijau: pakai ringkasan reorder riil (avgDailyUsage & leadTimeDays)
+  // supaya saran kuantitas menutup kebutuhan lead time, bukan sekadar safety top-up.
+  const reorder = reorderData.productSummaries
+    .filter(
+      (p) =>
+        p.skuType === "GREEN_BEAN" &&
+        (p.status === "perlu_pesan" || p.status === "habis"),
+    )
     .map((p) =>
-      draftReorderFromProduct({
-        id: p.id,
-        name: p.name,
-        stockKg: Number(p.stockKg ?? 0),
-        safetyStockQuantity: Number(p.safetyStockQuantity ?? 0),
+      buildReorderDraftLine({
+        subjectKind: "PRODUCT",
+        subjectId: p.skuId,
+        name: p.skuName,
+        avgDailyUsage: p.averageDailyUsage,
+        leadTimeDays: p.leadTimeDays,
+        safetyStockQuantity: p.safetyStockQuantity,
+        currentStock: p.currentStock,
+        unitLabel: "kg",
       }),
     )
-    .filter((x): x is NonNullable<typeof x> => x !== null);
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .map((d) => ({
+      subjectKind: d.subjectKind,
+      subjectId: d.subjectId,
+      name: d.name,
+      suggestedQuantity: d.suggestedQuantity,
+      unitLabel: d.unitLabel,
+    }));
 
   return buildRoasteryInsights({
     lots: lots.map((l) => ({

@@ -555,7 +555,12 @@ export function InventoryClient({
         leadTimeDays: summary.leadTimeDays,
         safetyStockQuantity: summary.safetyStockQuantity,
         currentStock: summary.currentStock,
-        unitLabel: "",
+        unitLabel:
+          summary.skuType === "GREEN_BEAN" || summary.skuType === "ROASTED_BEAN"
+            ? "kg"
+            : summary.skuType === "FINISHED_GOODS"
+              ? "pcs"
+              : "unit",
       });
       if (!draft) continue;
       lines.push(

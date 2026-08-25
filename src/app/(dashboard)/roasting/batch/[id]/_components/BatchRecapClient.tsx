@@ -113,7 +113,7 @@ type RecapData = {
 };
 
 function formatDuration(seconds: number | null): string {
-  if (!seconds) return "-";
+  if (seconds == null) return "-";
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
@@ -606,10 +606,10 @@ function TemperatureChart({
 
   const eventColors: Record<string, string> = {
     CHARGE: "#3b82f6",
-    FCs: "#4C0302",
-    FCe: "#4C0302",
+    FCs: "#F0913F",
+    FCe: "#F0913F",
     SCs: "#ef4444",
-    DROP: "#00C8DF",
+    DROP: "#15B8C6",
   };
 
   return (

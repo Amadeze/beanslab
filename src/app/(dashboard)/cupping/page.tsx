@@ -259,7 +259,7 @@ function ScoreDial({ average }: { average: number }) {
 }
 
 function HistoryCard({ session }: { session: CuppingSessionRow }) {
-  const average = session.maxScore > 0 ? (session.totalScore / session.maxScore) * 10 : 0;
+  const average = session.rawMax > 0 ? (session.rawScore / session.rawMax) * 10 : 0;
   const band = qualityBand(average);
   return (
     <article className="group rounded-xl border border-border/75 bg-card/70 p-4 transition-all hover:-translate-y-0.5 hover:border-domain-roasting/30 hover:shadow-sm motion-reduce:transform-none">
@@ -286,7 +286,7 @@ function HistoryCard({ session }: { session: CuppingSessionRow }) {
       <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-xs text-muted-foreground">
         <span>{session.location || "Lokasi tidak dicatat"}</span>
         <span className="inline-flex items-center gap-1 font-semibold text-foreground/70">
-          {session.scaScore != null ? `SCA ${session.scaScore}` : `Total ${session.totalScore.toFixed(1)}`}
+          {session.scaScore != null ? `SCA ${session.scaScore}` : `Total ${session.rawScore.toFixed(1)}`}
           <ChevronRight className="h-3 w-3" />
         </span>
       </div>
@@ -307,6 +307,10 @@ export default function CuppingPage() {
   const [notes, setNotes] = useState("");
   const [options, setOptions] = useState<Awaited<ReturnType<typeof getCuppingFormOptions>>>({ batches: [], products: [], lots: [] });
   const [sessions, setSessions] = useState<CuppingSessionRow[]>([]);
+  const [cuppingDate, setCuppingDate] = useState("");
+  useEffect(() => {
+    setCuppingDate(new Date().toISOString().slice(0, 10));
+  }, []);
 
   const totalScore = useMemo(
     () => SCORE_DEFINITIONS.reduce((sum, definition) => sum + scores[definition.key], 0),
@@ -452,7 +456,7 @@ export default function CuppingPage() {
                   </div>
                   <div>
                     <Label htmlFor="date" className="mb-2 flex items-center gap-1.5 text-xs"><CalendarDays className="h-3.5 w-3.5 text-domain-roasting" /> Tanggal</Label>
-                    <Input id="date" name="date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} className="bg-card" />
+                    <Input id="date" name="date" type="date" required value={cuppingDate} onChange={(e) => setCuppingDate(e.target.value)} className="bg-card" />
                   </div>
                   <div>
                     <Label htmlFor="evaluatorName" className="mb-2 flex items-center gap-1.5 text-xs"><UserRound className="h-3.5 w-3.5 text-domain-roasting" /> Evaluator</Label>

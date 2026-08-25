@@ -12,8 +12,13 @@ export function computeScaTotal(
   scores: Partial<Record<CuppingCategory | string, number>>,
   defectCount?: number | null,
 ): number {
-  const avg = (a?: number | null, b?: number | null) =>
-    a == null && b == null ? 0 : ((a ?? 0) + (b ?? 0)) / 2;
+  // Fragrance & Aroma digabung jadi satu item 10-poin. Bila hanya satu yang diisi,
+  // gunakan nilai tersebut (bukan (nilai+0)/2 yang memotong skor menjadi setengah).
+  const avg = (a?: number | null, b?: number | null) => {
+    const vals = [a, b].filter((v): v is number => v != null);
+    if (vals.length === 0) return 0;
+    return vals.reduce((acc, v) => acc + v, 0) / vals.length;
+  };
 
   const items = [
     avg(scores.FRAGRANCE, scores.AROMA), // SCA: Fragrance/Aroma = satu item

@@ -16,9 +16,14 @@ export type CuppingSessionRow = {
   notes: string | null;
   batchCode: string | null;
   productName: string | null;
-  /** Komposit SCA 0–100 bila tersimpan; null untuk sesi lama. */
+  /** Komposit SCA 0–100 (sama dengan totalScore; disimpan di DB sebagai cuppingSession.totalScore). */
   scaScore: number | null;
+  /** Selalu SCA 0–100. */
   totalScore: number;
+  /** Raw sum 11 kategori (0–110) untuk tampilan dial rata-rata. */
+  rawScore: number;
+  /** Raw max (110). */
+  rawMax: number;
   maxScore: number;
   createdAt: string;
 };
@@ -190,8 +195,9 @@ export async function getCuppingSessions(filters?: {
     });
 
     return sessions.map((session) => {
-      const totalScore = session.scores.reduce((sum, s) => sum + Number(s.score), 0);
-      const maxScore = session.scores.reduce((sum, s) => sum + Number(s.maxScore), 0);
+      const rawScore = session.scores.reduce((sum, s) => sum + Number(s.score), 0);
+      const rawMax = session.scores.reduce((sum, s) => sum + Number(s.maxScore), 0);
+      const sca = session.totalScore != null ? Number(session.totalScore) : null;
       return {
         id: session.id,
         code: session.code,
@@ -201,9 +207,11 @@ export async function getCuppingSessions(filters?: {
         notes: session.notes,
         batchCode: session.batch?.code ?? null,
         productName: session.product?.name ?? null,
-        totalScore,
-        maxScore,
-        scaScore: session.totalScore != null ? Number(session.totalScore) : null,
+        totalScore: sca ?? rawScore,
+        rawScore,
+        rawMax,
+        maxScore: rawMax,
+        scaScore: sca,
         createdAt: session.createdAt.toISOString(),
       };
     });
