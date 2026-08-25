@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Coffee, Menu, MoreHorizontal, X } from "lucide-react";
+import { Coffee, Menu, MoreHorizontal, Search, X } from "lucide-react";
 import {
   APP_NAV_SECTIONS,
   Sidebar,
@@ -12,6 +12,7 @@ import {
   type AppNavLink,
 } from "@/components/layout/Sidebar";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
+import { CommandPalette } from "@/components/layout/CommandPalette";
 import { cn } from "@/lib/utils";
 import type { PlanTier } from "@/lib/plans";
 
@@ -249,8 +250,18 @@ export function AppShell({
         </div>
       </div>
 
-      <div className="hidden h-full md:flex">
+      <div className="relative hidden h-full md:flex">
         <Sidebar userRole={userRole} subscriptionTier={subscriptionTier} pendingPaymentReviews={pendingPaymentReviews} lowStockCount={lowStockCount} unfulfilledOrders={unfulfilledOrders} />
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+          className="absolute bottom-20 left-3 right-3 z-10 flex h-9 items-center gap-2 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-white/55 transition hover:border-[#B65331]/35 hover:bg-[#B65331]/10 hover:text-[#F0B590]"
+          aria-label="Buka perintah cepat"
+        >
+          <Search size={13} />
+          <span className="flex-1 text-left">Cari halaman…</span>
+          <kbd className="rounded-[5px] border border-white/12 bg-white/[0.05] px-1.5 py-0.5 font-mono text-[10px] text-white/40">⌘K</kbd>
+        </button>
       </div>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background md:my-2 md:mr-2 md:rounded-[18px] md:border md:border-white/10 md:shadow-[0_24px_90px_rgba(0,0,0,.48)]">
@@ -294,6 +305,8 @@ export function AppShell({
           pendingPaymentReviews={pendingPaymentReviews}
         />
       </main>
+
+      <CommandPalette />
     </div>
   );
 }

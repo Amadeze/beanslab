@@ -88,10 +88,10 @@ export function PageHeader({
       >
         <div className="min-w-0">
           <p
-            className={cn(
-              "mb-1.5 flex items-center gap-2 font-mono text-[8px] font-bold uppercase tracking-[0.2em]",
-              headerTone?.eyebrow ?? "text-[#71D2DA]",
-            )}
+              className={cn(
+                "mb-1.5 flex items-center gap-2 font-mono text-[8px] font-bold uppercase tracking-[0.2em]",
+                headerTone?.eyebrow ?? "text-[#E9A17F]",
+              )}
           >
             <span
               className={cn(
