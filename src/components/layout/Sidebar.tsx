@@ -85,7 +85,7 @@ type NavSection = {
 
 export const APP_NAV_SECTIONS: NavSection[] = [
   {
-    label: "Beranda",
+    label: "Hari ini",
     caption: "Prioritas hari ini",
     items: [
       {

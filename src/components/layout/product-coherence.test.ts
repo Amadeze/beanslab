@@ -24,7 +24,6 @@ describe("product coherence navigation", () => {
     ]);
     expect(primaryItems.map((item) => item.href)).toEqual([
       "/dashboard",
-      "/control-tower",
       "/inventory",
       "/roasting",
       "/produksi",
