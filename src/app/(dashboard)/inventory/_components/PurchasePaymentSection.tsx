@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 
-const glassInput = "bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 focus:border-white/80";
+const glassInput = "bg-card/40 border-white/60 backdrop-blur-md transition-all focus:bg-card/60 focus:border-white/80";
 
 interface PurchasePaymentSectionProps {
   register: UseFormRegister<any>;
@@ -33,11 +33,11 @@ export function PurchasePaymentSection({
 
   return (
     <>
-      <Separator className="bg-white/50" />
+      <Separator className="bg-card/50" />
 
       <div className="space-y-3">
         <div className="space-y-2">
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
             Pembayaran
           </Label>
           <input type="hidden" {...register("paymentStatus")} />
@@ -51,7 +51,7 @@ export function PurchasePaymentSection({
                   "min-h-10 rounded-xl border px-2 text-xs font-semibold transition-colors",
                   paymentStatus === option.value
                     ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                    : "border-white/60 bg-white/40 text-slate-600 hover:bg-white/70"
+                    : "border-white/60 bg-card/40 text-ink hover:bg-card/70"
                 )}
               >
                 {option.label}
@@ -62,7 +62,7 @@ export function PurchasePaymentSection({
 
         {paymentStatus !== "UNPAID" && (
           <div className="space-y-1.5">
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
             Metode Pembayaran
           </Label>
           <select
@@ -82,7 +82,7 @@ export function PurchasePaymentSection({
 
       {paymentStatus === "PARTIAL" && (
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
             Jumlah yang dibayar sekarang
           </Label>
           <Input
@@ -93,7 +93,7 @@ export function PurchasePaymentSection({
             {...register("initialPaidAmount", { valueAsNumber: true })}
           />
           {errors.initialPaidAmount && (
-            <p className="text-xs text-red-500">
+            <p className="text-xs text-[var(--status-danger)]">
               {typeof errors.initialPaidAmount.message === "string"
                 ? errors.initialPaidAmount.message
                 : ""}
@@ -104,8 +104,8 @@ export function PurchasePaymentSection({
 
       {paymentStatus !== "PAID" && (
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-            Jatuh tempo <span className="normal-case font-medium tracking-normal text-slate-400">(otomatis 14 hari)</span>
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+            Jatuh tempo <span className="normal-case font-medium tracking-normal text-ink-tertiary">(otomatis 14 hari)</span>
           </Label>
           <Input
             type="date"
@@ -113,7 +113,7 @@ export function PurchasePaymentSection({
             {...register("dueDate")}
           />
           {errors.dueDate && (
-            <p className="text-xs text-red-500">
+            <p className="text-xs text-[var(--status-danger)]">
               {typeof errors.dueDate.message === "string"
                 ? errors.dueDate.message
                 : ""}
@@ -125,7 +125,7 @@ export function PurchasePaymentSection({
       <button
         type="button"
         onClick={() => setShowNotes((current) => !current)}
-        className="flex w-full items-center justify-between rounded-lg px-1 py-1 text-xs font-semibold text-slate-500 hover:text-slate-700"
+        className="flex w-full items-center justify-between rounded-lg px-1 py-1 text-xs font-semibold text-ink-tertiary hover:text-ink"
       >
         Tambah catatan (opsional)
         <ChevronDown size={14} className={cn("transition-transform", showNotes && "rotate-180")} />

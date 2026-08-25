@@ -95,30 +95,30 @@ export function StockAdjustmentDrawer({
     }
   }
 
-  const glassInput = "bg-white/40 border-white/60 focus-visible:ring-slate-400 focus-visible:border-transparent backdrop-blur-md";
-  const glassCard = "rounded-[1rem] border border-white/60 bg-white/30 backdrop-blur-xl p-5 shadow-sm";
+  const glassInput = "bg-card/40 border-white/60 focus-visible:ring-ink focus-visible:border-transparent backdrop-blur-md";
+  const glassCard = "rounded-[1rem] border border-white/60 bg-card/30 backdrop-blur-xl p-5 shadow-sm";
 
   return (
     <div className={glassCard}>
       <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Type */}
         <div className="space-y-2">
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Jenis Penyesuaian</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Jenis Penyesuaian</Label>
           <select
-            className={`w-full h-11 rounded-lg border px-3 text-sm transition-all appearance-none outline-none ${glassInput} ${errors.type ? "border-red-400 ring-red-400" : ""}`}
+            className={`w-full h-11 rounded-lg border px-3 text-sm transition-all appearance-none outline-none ${glassInput} ${errors.type ? "border-[var(--status-danger)]/30 ring-red-400" : ""}`}
             {...register("type")}
           >
             <option value="IN">+ Tambah Stok (IN)</option>
             <option value="OUT">- Kurangi Stok (OUT)</option>
           </select>
-          {errors.type && <p className="text-sm text-red-500">{errors.type.message}</p>}
+          {errors.type && <p className="text-sm text-[var(--status-danger)]">{errors.type.message}</p>}
         </div>
 
         {/* Target Item */}
         <div className="space-y-2">
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Barang</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Barang</Label>
           <select
-            className={`w-full h-11 rounded-lg border px-3 text-sm transition-all appearance-none outline-none ${glassInput} ${errors.targetId ? "border-red-400 ring-red-400" : ""}`}
+            className={`w-full h-11 rounded-lg border px-3 text-sm transition-all appearance-none outline-none ${glassInput} ${errors.targetId ? "border-[var(--status-danger)]/30 ring-red-400" : ""}`}
             {...register("targetId")}
           >
             <option value="">-- Pilih barang... --</option>
@@ -128,12 +128,12 @@ export function StockAdjustmentDrawer({
               </option>
             ))}
           </select>
-          {errors.targetId && <p className="text-sm text-red-500">{errors.targetId.message}</p>}
+          {errors.targetId && <p className="text-sm text-[var(--status-danger)]">{errors.targetId.message}</p>}
         </div>
 
         {/* Quantity */}
         <div className="space-y-2">
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Kuantitas ({unitSuffix})</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Kuantitas ({unitSuffix})</Label>
           <Input 
             type="number" 
             step="any" 
@@ -142,18 +142,18 @@ export function StockAdjustmentDrawer({
             placeholder="0" 
             {...register("quantity", { valueAsNumber: true })} 
           />
-          {errors.quantity && <p className="text-sm text-red-500">{errors.quantity.message}</p>}
+          {errors.quantity && <p className="text-sm text-[var(--status-danger)]">{errors.quantity.message}</p>}
         </div>
 
         {/* Notes */}
         <div className="space-y-2">
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Alasan (Catatan)</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Alasan (Catatan)</Label>
           <Textarea 
             placeholder="Misal: Tumpah saat ditimbang, rusak, atau salah input sebelumnya..." 
             className={`resize-none ${glassInput}`}
             {...register("notes")} 
           />
-          {errors.notes && <p className="text-sm text-red-500">{errors.notes.message}</p>}
+          {errors.notes && <p className="text-sm text-[var(--status-danger)]">{errors.notes.message}</p>}
         </div>
       </form>
     </div>

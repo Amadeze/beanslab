@@ -60,11 +60,11 @@ export function QuickReceivePO({ initialPoId, refreshKey, onSuccess, onCancel }:
   return (
     <div className="space-y-5">
       <div className="space-y-1.5">
-        <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+        <Label className="text-xs font-bold uppercase tracking-wider text-ink-tertiary">
           Ambil dari Purchase Order
         </Label>
         <Select value={selectedPoId} onValueChange={(value) => setSelectedPoId(value ?? "")}>
-          <SelectTrigger className="h-10 border-white/60 bg-white/50">
+          <SelectTrigger className="h-10 border-white/60 bg-card/50">
             <SelectValue placeholder={loading ? "Memuat PO..." : "Pilih PO yang akan diterima"}>
               {selectedOption
                 ? `${selectedOption.code} · ${selectedOption.supplierName}`
@@ -81,36 +81,36 @@ export function QuickReceivePO({ initialPoId, refreshKey, onSuccess, onCancel }:
             ))}
           </SelectContent>
         </Select>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-ink-tertiary">
           Supplier, item, sisa quantity, harga, dan estimasi ongkir ditarik otomatis dari PO.
         </p>
       </div>
 
       {loading && selectedPoId && (
-        <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500">
+        <div className="flex items-center justify-center gap-2 py-10 text-sm text-ink-tertiary">
           <Loader2 size={16} className="animate-spin" /> Menarik data PO...
         </div>
       )}
 
       {!loading && options.length === 0 && (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white/30 px-4 py-10 text-center">
-          <PackageCheck className="mx-auto mb-2 text-emerald-600" size={28} />
-          <p className="text-sm font-bold text-slate-700">Tidak ada PO menunggu</p>
-          <p className="mt-1 text-xs text-slate-500">Kirim PO terlebih dahulu sebelum mencatat penerimaan.</p>
+        <div className="rounded-xl border border-dashed border-border bg-card/30 px-4 py-10 text-center">
+          <PackageCheck className="mx-auto mb-2 text-[var(--status-success)]" size={28} />
+          <p className="text-sm font-bold text-ink">Tidak ada PO menunggu</p>
+          <p className="mt-1 text-xs text-ink-tertiary">Kirim PO terlebih dahulu sebelum mencatat penerimaan.</p>
         </div>
       )}
 
       {!loading && detail && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2.5">
+          <div className="rounded-xl border border-[var(--status-warning)]/30 bg-[var(--status-warning)]/10/70 px-3 py-2.5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-black text-slate-900">{detail.code}</p>
-                <p className="text-[11px] text-slate-600">{detail.supplierName}</p>
+                <p className="text-xs font-black text-ink">{detail.code}</p>
+                <p className="text-[11px] text-ink">{detail.supplierName}</p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-slate-500">Estimasi PO</p>
-                <p className="text-sm font-black text-slate-900">{formatRupiah(detail.totalEstimate)}</p>
+                <p className="text-xs text-ink-tertiary">Estimasi PO</p>
+                <p className="text-sm font-black text-ink">{formatRupiah(detail.totalEstimate)}</p>
               </div>
             </div>
           </div>

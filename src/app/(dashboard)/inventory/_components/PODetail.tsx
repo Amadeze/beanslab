@@ -138,7 +138,7 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <p className="text-sm text-slate-400">Memuat detail PO...</p>
+        <p className="text-sm text-ink-tertiary">Memuat detail PO...</p>
       </div>
     );
   }
@@ -146,7 +146,7 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
   if (!detail) {
     return (
       <div className="flex items-center justify-center py-12">
-        <p className="text-sm text-slate-400">PO tidak ditemukan.</p>
+        <p className="text-sm text-ink-tertiary">PO tidak ditemukan.</p>
       </div>
     );
   }
@@ -160,8 +160,8 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-slate-900">{detail.code}</h3>
-          <p className="text-xs text-slate-500">Supplier: {detail.supplierName}</p>
+          <h3 className="text-lg font-bold text-ink">{detail.code}</h3>
+          <p className="text-xs text-ink-tertiary">Supplier: {detail.supplierName}</p>
         </div>
         <StatusBadge status={detail.status} />
       </div>
@@ -169,22 +169,22 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
       {/* Info */}
       <div className="grid grid-cols-2 gap-3 text-xs">
         <div>
-          <span className="text-slate-500">Tanggal Dibuat:</span>
+          <span className="text-ink-tertiary">Tanggal Dibuat:</span>
           <span className="ml-2 font-medium">{formatDate(detail.createdAt)}</span>
         </div>
         <div>
-          <span className="text-slate-500">Perkiraan Datang:</span>
+          <span className="text-ink-tertiary">Perkiraan Datang:</span>
           <span className="ml-2 font-medium">{formatDate(detail.expectedDate)}</span>
         </div>
         {detail.sentAt && (
           <div>
-            <span className="text-slate-500">Dikirim:</span>
+            <span className="text-ink-tertiary">Dikirim:</span>
             <span className="ml-2 font-medium">{formatDate(detail.sentAt)}</span>
           </div>
         )}
         {detail.receivedAt && (
           <div>
-            <span className="text-slate-500">Diterima:</span>
+            <span className="text-ink-tertiary">Diterima:</span>
             <span className="ml-2 font-medium">{formatDate(detail.receivedAt)}</span>
           </div>
         )}
@@ -192,16 +192,16 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
 
       {detail.notes && (
         <div className="text-xs">
-          <span className="text-slate-500">Catatan:</span>
+          <span className="text-ink-tertiary">Catatan:</span>
           <span className="ml-2">{detail.notes}</span>
         </div>
       )}
 
       {/* Items Table */}
-      <div className="overflow-hidden rounded-xl border border-white/60 bg-white/30">
+      <div className="overflow-hidden rounded-xl border border-white/60 bg-card/30">
         <Table>
           <TableHeader>
-            <TableRow className="bg-white/40">
+            <TableRow className="bg-card/40">
               <TableHead className="text-xs font-bold uppercase">Item</TableHead>
               <TableHead className="text-xs font-bold uppercase text-right">Qty</TableHead>
               <TableHead className="text-xs font-bold uppercase text-right">Harga</TableHead>
@@ -225,23 +225,23 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
 
       {/* Total */}
       <div className="space-y-0.5 text-right">
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-ink-tertiary">
           Termasuk estimasi ongkir {formatRupiah(detail.estimatedShippingCost)}
         </p>
         <div className="flex items-center justify-end gap-2">
-          <span className="text-xs font-bold text-slate-500">Total Estimasi:</span>
-          <span className="text-lg font-black text-slate-900">{formatRupiah(detail.totalEstimate)}</span>
+          <span className="text-xs font-bold text-ink-tertiary">Total Estimasi:</span>
+          <span className="text-lg font-black text-ink">{formatRupiah(detail.totalEstimate)}</span>
         </div>
       </div>
 
       {/* Purchase History */}
       {detail.purchases.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-xs font-bold text-slate-700">Riwayat Penerimaan</h4>
-          <div className="overflow-hidden rounded-xl border border-white/60 bg-white/30">
+          <h4 className="text-xs font-bold text-ink">Riwayat Penerimaan</h4>
+          <div className="overflow-hidden rounded-xl border border-white/60 bg-card/30">
             <Table>
               <TableHeader>
-                <TableRow className="bg-white/40">
+                <TableRow className="bg-card/40">
                   <TableHead className="text-xs font-bold uppercase">Kode</TableHead>
                   <TableHead className="text-xs font-bold uppercase">Tanggal</TableHead>
                   <TableHead className="text-xs font-bold uppercase text-right">Ongkir</TableHead>
@@ -267,18 +267,18 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
       <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
         <Link
           href="/keuangan?tab=pembelian"
-          className="mr-auto text-xs font-semibold text-slate-600 transition hover:text-slate-900 hover:underline"
+          className="mr-auto text-xs font-semibold text-ink transition hover:text-ink hover:underline"
         >
           Bayar ke supplier (hutang) →
         </Link>
-        <Button variant="outline" onClick={onClose} className="bg-white/40 border-white/60">
+        <Button variant="outline" onClick={onClose} className="bg-card/40 border-white/60">
           Tutup
         </Button>
         {canCancel && (
           <>
             <Button 
               variant="outline" 
-              className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+              className="text-[var(--status-danger)] border-[var(--status-danger)]/30 hover:bg-[var(--status-danger)]/10 hover:text-[var(--status-danger)]"
               onClick={() => setIsCancelDialogOpen(true)}
               disabled={actionPending}
             >
@@ -323,7 +323,7 @@ export function PODetail({ poId, onClose, onUpdate }: PODetailProps) {
       {/* Receive Form Modal */}
       {showReceiveForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+          <div className="bg-card rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
             <h3 className="text-lg font-bold mb-4">Form Penerimaan Barang</h3>
             <ReceivePOForm
               poId={poId}

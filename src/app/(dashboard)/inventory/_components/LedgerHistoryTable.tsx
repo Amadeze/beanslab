@@ -110,12 +110,12 @@ export function LedgerHistoryTable({
       {/* Toolbar */}
       <div className="flex flex-col gap-2 md:flex-row md:items-center">
         <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-tertiary" size={14} />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Cari item, referensi, atau operator..."
-            className="h-8 pl-8 text-xs bg-white/60 border-slate-200"
+            className="h-8 pl-8 text-xs bg-card/60 border-border"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -123,19 +123,19 @@ export function LedgerHistoryTable({
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="h-8 text-xs bg-white/60 border-slate-200 w-[130px]"
+            className="h-8 text-xs bg-card/60 border-border w-[130px]"
             aria-label="Dari tanggal"
           />
-          <span className="text-xs text-slate-400">—</span>
+          <span className="text-xs text-ink-tertiary">—</span>
           <Input
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="h-8 text-xs bg-white/60 border-slate-200 w-[130px]"
+            className="h-8 text-xs bg-card/60 border-border w-[130px]"
             aria-label="Sampai tanggal"
           />
         </div>
-        <div className="inline-flex rounded-lg border border-slate-200/60 bg-white/50 p-0.5">
+        <div className="inline-flex rounded-lg border border-border/60 bg-card/50 p-0.5">
           {(["ALL", "IN", "OUT"] as const).map((value) => (
             <Button
               key={value}
@@ -149,7 +149,7 @@ export function LedgerHistoryTable({
             </Button>
           ))}
         </div>
-        <div className="inline-flex rounded-lg border border-slate-200/60 bg-white/50 p-0.5">
+        <div className="inline-flex rounded-lg border border-border/60 bg-card/50 p-0.5">
           {(["ALL", "SAMPLE", "OTHER"] as const).map((value) => (
             <Button
               key={value}
@@ -166,15 +166,15 @@ export function LedgerHistoryTable({
       </div>
 
       {/* Desktop Table */}
-      <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-200/60 bg-white/50">
+      <div className="hidden md:block overflow-x-auto rounded-lg border border-border/60 bg-card/50">
         <Table>
           <TableHeader>
-            <TableRow className="border-b border-slate-100">
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Waktu</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Item</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Aktivitas</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Operator</TableHead>
-              <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">Jumlah</TableHead>
+            <TableRow className="border-b border-border">
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">Waktu</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">Item</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">Aktivitas</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">Operator</TableHead>
+              <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">Jumlah</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -192,13 +192,13 @@ export function LedgerHistoryTable({
               </TableRow>
             ) : (
               visibleEntries.map((entry) => (
-                <TableRow key={entry.id} className="hover:bg-slate-50/50 transition-colors">
-                  <TableCell className="whitespace-nowrap text-xs text-slate-500 tabular-nums">
+                <TableRow key={entry.id} className="hover:bg-surface-sunken/50 transition-colors">
+                  <TableCell className="whitespace-nowrap text-xs text-ink-tertiary tabular-nums">
                     {new Date(entry.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm font-medium text-slate-800">{entry.itemName}</div>
-                    <div className="text-xs text-slate-400">{entry.itemCode}</div>
+                    <div className="text-sm font-medium text-ink">{entry.itemName}</div>
+                    <div className="text-xs text-ink-tertiary">{entry.itemCode}</div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
@@ -208,22 +208,22 @@ export function LedgerHistoryTable({
                           SAMPLE_REF_TYPES.has(entry.refType)
                             ? "border-violet-200 bg-violet-50 text-violet-700"
                             : entry.entryType === "IN"
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-red-200 bg-red-50 text-red-600"
+                              ? "border-[var(--status-success)]/30 bg-[var(--status-success)]/10 text-[var(--status-success)]"
+                              : "border-[var(--status-danger)]/30 bg-[var(--status-danger)]/10 text-[var(--status-danger)]"
                         }`}
                       >
                         {REF_TYPE_LABELS[entry.refType] ?? entry.refType}
                       </Badge>
                     </div>
                     {entry.notes && (
-                      <div className="max-w-48 truncate text-xs text-slate-400 mt-0.5" title={entry.notes}>
+                      <div className="max-w-48 truncate text-xs text-ink-tertiary mt-0.5" title={entry.notes}>
                         {entry.notes}
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-xs text-slate-600">{entry.createdByName}</TableCell>
+                  <TableCell className="text-xs text-ink">{entry.createdByName}</TableCell>
                   <TableCell className="text-right">
-                    <span className={`text-sm font-semibold tabular-nums ${entry.entryType === "IN" ? "text-emerald-700" : "text-red-600"}`}>
+                    <span className={`text-sm font-semibold tabular-nums ${entry.entryType === "IN" ? "text-[var(--status-success)]" : "text-[var(--status-danger)]"}`}>
                       {entry.entryType === "IN" ? "+" : "-"}{entry.quantity.toLocaleString("id-ID")} {entry.unit}
                     </span>
                   </TableCell>
@@ -237,7 +237,7 @@ export function LedgerHistoryTable({
       {/* Mobile Activity List */}
       <div className="md:hidden flex flex-col gap-1.5">
         {visibleEntries.length === 0 ? (
-          <div className="py-8 text-center rounded-lg border border-slate-200/60 bg-white/50">
+          <div className="py-8 text-center rounded-lg border border-border/60 bg-card/50">
             <EmptyState.CardEmptyState
               label="mutasi"
               description={hasFilters ? "Tidak ada mutasi yang sesuai filter." : "Belum ada riwayat mutasi stok."}
@@ -247,18 +247,18 @@ export function LedgerHistoryTable({
           visibleEntries.map((entry) => (
             <div
               key={entry.id}
-              className="flex items-start gap-3 rounded-lg border border-slate-200/60 bg-white/50 px-3 py-2.5"
+              className="flex items-start gap-3 rounded-lg border border-border/60 bg-card/50 px-3 py-2.5"
             >
               {/* Direction indicator */}
-              <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${entry.entryType === "IN" ? "bg-emerald-500" : "bg-red-500"}`} />
+              <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${entry.entryType === "IN" ? "bg-[var(--status-success)]/100" : "bg-[var(--status-danger)]/100"}`} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-800 truncate">{entry.itemName}</span>
-                  <span className={`text-xs font-semibold tabular-nums shrink-0 ${entry.entryType === "IN" ? "text-emerald-700" : "text-red-600"}`}>
+                  <span className="text-sm font-medium text-ink truncate">{entry.itemName}</span>
+                  <span className={`text-xs font-semibold tabular-nums shrink-0 ${entry.entryType === "IN" ? "text-[var(--status-success)]" : "text-[var(--status-danger)]"}`}>
                     {entry.entryType === "IN" ? "+" : "-"}{entry.quantity.toLocaleString("id-ID")} {entry.unit}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                <div className="flex items-center gap-2 mt-0.5 text-xs text-ink-tertiary">
                   <span>{REF_TYPE_LABELS[entry.refType] ?? entry.refType}</span>
                   <span>·</span>
                   <span>{entry.createdByName}</span>
@@ -272,7 +272,7 @@ export function LedgerHistoryTable({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between text-xs text-slate-500">
+      <div className="flex items-center justify-between text-xs text-ink-tertiary">
         <span className="tabular-nums">{filtered.length} mutasi</span>
         <div className="flex items-center gap-2">
           <Button

@@ -132,8 +132,8 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-const glassInput = "bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 focus:border-white/80";
-const glassCard = "rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl p-4 shadow-sm";
+const glassInput = "bg-card/40 border-white/60 backdrop-blur-md transition-all focus:bg-card/60 focus:border-white/80";
+const glassCard = "rounded-[1.25rem] border border-white/60 bg-card/30 backdrop-blur-xl p-4 shadow-sm";
 
 // =============================================================================
 // Field wrapper helpers
@@ -151,7 +151,7 @@ function FieldGroup({ children }: { children: React.ReactNode }) {
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="text-xs text-red-500">{message}</p>;
+  return <p className="text-xs text-[var(--status-danger)]">{message}</p>;
 }
 
 // =============================================================================
@@ -422,11 +422,11 @@ export function CoffeePurchaseForm({
           <div key={s} className="flex-1">
             <div className={cn(
               "h-1.5 rounded-full transition-colors",
-              step >= s ? "bg-amber-600" : "bg-white/40"
+              step >= s ? "bg-amber-600" : "bg-card/40"
             )} />
             <p className={cn(
               "text-[10px] uppercase font-bold mt-1.5 tracking-wider transition-colors",
-              step >= s ? "text-amber-800" : "text-slate-400"
+              step >= s ? "text-[var(--status-warning)]" : "text-ink-tertiary"
             )}>
               {s === 1 ? "Supplier" : s === 2 ? "Produk" : "Pembayaran"}
             </p>
@@ -439,11 +439,11 @@ export function CoffeePurchaseForm({
           {/* ── Supplier ── */}
           <FieldGroup>
             <div className="flex items-center justify-between gap-3">
-              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-                Supplier <span className="text-red-500">*</span>
+              <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+                Supplier <span className="text-[var(--status-danger)]">*</span>
               </Label>
               {onAddSupplier && (
-                <button type="button" onClick={onAddSupplier} className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-800">
+                <button type="button" onClick={onAddSupplier} className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--status-warning)] hover:text-[var(--status-warning)]">
                   <Plus size={12} /> Supplier baru
                 </button>
               )}
@@ -452,7 +452,7 @@ export function CoffeePurchaseForm({
               className={cn(
                 "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
                 glassInput,
-                errors.supplierId ? "border-red-500 ring-2 ring-red-500/20" : ""
+                errors.supplierId ? "border-[var(--status-danger)]/30 ring-2 ring-red-500/20" : ""
               )}
               {...register("supplierId")}
             >
@@ -472,8 +472,8 @@ export function CoffeePurchaseForm({
 
           {/* ── Tanggal ── */}
           <FieldGroup>
-            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-              Tanggal Terima <span className="text-red-500">*</span>
+            <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+              Tanggal Terima <span className="text-[var(--status-danger)]">*</span>
             </Label>
             <Input
               type="date"
@@ -497,8 +497,8 @@ export function CoffeePurchaseForm({
                 className={cn(
                   "rounded-xl border px-3 py-2.5 text-sm font-bold transition-all",
                   coffeeType === type
-                    ? "border-amber-600 bg-amber-600 text-white shadow-sm"
-                    : "border-white/60 bg-white/30 text-slate-600 hover:bg-white/50"
+                    ? "border-[var(--status-warning)]/30 bg-amber-600 text-white shadow-sm"
+                    : "border-white/60 bg-card/30 text-ink hover:bg-card/50"
                 )}
               >
                 {type === "GREEN_BEAN" ? "Green Bean" : "Roasted Bean (Beli Jadi)"}
@@ -508,13 +508,13 @@ export function CoffeePurchaseForm({
 
           {/* ── Produk ── */}
           <div className="flex items-center justify-between gap-3">
-            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-              {isRoasted ? "Roasted Bean" : "Green Bean"} <span className="text-red-500">*</span>
+            <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+              {isRoasted ? "Roasted Bean" : "Green Bean"} <span className="text-[var(--status-danger)]">*</span>
             </Label>
             <button
               type="button"
               onClick={() => setValue("productMode", productMode === "existing" ? "new" : "existing", { shouldDirty: true })}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-900"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--status-warning)] hover:text-[var(--status-warning)]"
             >
               <Plus size={12} /> {productMode === "existing" ? "Produk baru" : "Pilih produk lama"}
             </button>
@@ -523,14 +523,14 @@ export function CoffeePurchaseForm({
           {/* ── Pilih existing ── */}
           {productMode === "existing" && (
             <FieldGroup>
-              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+              <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
                 Pilih {isRoasted ? "Roasted Bean" : "Green Bean"}
               </Label>
               <select
                 className={cn(
                   "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
                   glassInput,
-                  errors.productId ? "border-red-500 ring-2 ring-red-500/20" : ""
+                  errors.productId ? "border-[var(--status-danger)]/30 ring-2 ring-red-500/20" : ""
                 )}
                 {...register("productId")}
               >
@@ -563,8 +563,8 @@ export function CoffeePurchaseForm({
           {productMode === "new" && (
             <div className={cn(glassCard, "space-y-4")}>
               <FieldGroup>
-                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-                  Nama {isRoasted ? "Roasted Bean" : "Green Bean"} <span className="text-red-500">*</span>
+                <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+                  Nama {isRoasted ? "Roasted Bean" : "Green Bean"} <span className="text-[var(--status-danger)]">*</span>
                 </Label>
                 <Input
                   placeholder={isRoasted ? "e.g. Gayo Beli Jadi Medium, Ethiopia Yirgacheffe Dark" : "e.g. Gayo Natural, Ethiopia Yirgacheffe"}
@@ -574,7 +574,7 @@ export function CoffeePurchaseForm({
                 <FieldError message={errors.productName?.message} />
               </FieldGroup>
               <FieldGroup>
-                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Asal / Origin</Label>
+                <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Asal / Origin</Label>
                 <Input
                   placeholder="e.g. Aceh, Ethiopia, Flores"
                   className={cn("h-9", glassInput)}
@@ -586,8 +586,8 @@ export function CoffeePurchaseForm({
                 <>
                   {/* ── Sumber kopi ── */}
                   <FieldGroup>
-                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-                      Sumber Kopi <span className="text-red-500">*</span>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+                      Sumber Kopi <span className="text-[var(--status-danger)]">*</span>
                     </Label>
                     <select
                       className={cn(
@@ -608,7 +608,7 @@ export function CoffeePurchaseForm({
                         className={cn(
                           "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
                           glassInput,
-                          errors.sourceName ? "border-red-500 ring-2 ring-red-500/20" : ""
+                          errors.sourceName ? "border-[var(--status-danger)]/30 ring-2 ring-red-500/20" : ""
                         )}
                         {...register("coffeeSourceId")}
                       >
@@ -630,8 +630,8 @@ export function CoffeePurchaseForm({
                   {sourceMode === "new" && (
                     <div className="space-y-4">
                       <FieldGroup>
-                        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-                          Nama Sumber Kopi <span className="text-red-500">*</span>
+                        <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+                          Nama Sumber Kopi <span className="text-[var(--status-danger)]">*</span>
                         </Label>
                         <Input
                           placeholder="e.g. Gayo Atu Lintang, Kopi Sumber Alam"
@@ -645,7 +645,7 @@ export function CoffeePurchaseForm({
                       <button
                         type="button"
                         onClick={() => setShowIdentityDetails((v) => !v)}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-900"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--status-warning)] hover:text-[var(--status-warning)]"
                       >
                         <ChevronDown size={13} className={cn("transition-transform", showIdentityDetails && "rotate-180")} />
                         {showIdentityDetails ? "Sembunyikan detail" : "Detail identitas kopi (opsional)"}
@@ -654,23 +654,23 @@ export function CoffeePurchaseForm({
                       {showIdentityDetails && (
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 animate-in fade-in duration-200">
                           <FieldGroup>
-                            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Wilayah / Region</Label>
+                            <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Wilayah / Region</Label>
                             <Input className={cn("h-9", glassInput)} placeholder="e.g. Kabupaten Gayo Lues" {...register("sourceRegion")} />
                           </FieldGroup>
                           <FieldGroup>
-                            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Negara</Label>
+                            <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Negara</Label>
                             <Input className={cn("h-9", glassInput)} placeholder="e.g. Indonesia" {...register("sourceCountry")} />
                           </FieldGroup>
                           <FieldGroup>
-                            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Species</Label>
+                            <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Species</Label>
                             <Input className={cn("h-9", glassInput)} placeholder="e.g. Arabica, Robusta" {...register("sourceSpecies")} />
                           </FieldGroup>
                           <FieldGroup>
-                            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Varietal</Label>
+                            <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Varietal</Label>
                             <Input className={cn("h-9", glassInput)} placeholder="e.g. Tim Tim, Bourbon" {...register("sourceVarietal")} />
                           </FieldGroup>
                           <FieldGroup>
-                            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Proses</Label>
+                            <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Proses</Label>
                             <Input className={cn("h-9", glassInput)} placeholder="e.g. Natural, Washed" {...register("sourceProcessMethod")} />
                           </FieldGroup>
                         </div>
@@ -679,8 +679,8 @@ export function CoffeePurchaseForm({
                   )}
 
                   <FieldGroup>
-                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-                      Tingkat Sangrai <span className="text-red-500">*</span>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+                      Tingkat Sangrai <span className="text-[var(--status-danger)]">*</span>
                     </Label>
                     <select
                       className={cn(
@@ -706,7 +706,7 @@ export function CoffeePurchaseForm({
               type="button"
               onClick={handlePrepare}
               disabled={isPreparing || isSubmitting}
-              className="w-full rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-2.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-all disabled:opacity-50"
+              className="w-full rounded-xl border border-[var(--status-warning)]/30 bg-[var(--status-warning)]/10/80 px-4 py-2.5 text-xs font-bold text-[var(--status-warning)] hover:bg-[var(--status-warning)]/15 transition-all disabled:opacity-50"
             >
               {isPreparing ? "Menyiapkan..." : "Siapkan produk untuk PO (tanpa pembelian)"}
             </button>
@@ -715,8 +715,8 @@ export function CoffeePurchaseForm({
           {/* ── Berat & Harga ── */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <FieldGroup>
-              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-                Berat (kg) <span className="text-red-500">*</span>
+              <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+                Berat (kg) <span className="text-[var(--status-danger)]">*</span>
               </Label>
               <Input
                 type="number"
@@ -730,8 +730,8 @@ export function CoffeePurchaseForm({
             </FieldGroup>
 
             <FieldGroup>
-              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-                Total Pembelian <span className="text-red-500">*</span>
+              <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+                Total Pembelian <span className="text-[var(--status-danger)]">*</span>
               </Label>
               <Input
                 type="number"
@@ -745,8 +745,8 @@ export function CoffeePurchaseForm({
             </FieldGroup>
 
             <FieldGroup>
-              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-                Ongkir <span className="font-medium normal-case tracking-normal text-slate-400">(opsional)</span>
+              <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+                Ongkir <span className="font-medium normal-case tracking-normal text-ink-tertiary">(opsional)</span>
               </Label>
               <Input
                 type="number"
@@ -756,19 +756,19 @@ export function CoffeePurchaseForm({
                 className={cn("h-9 tabular-nums font-semibold", glassInput)}
                 {...register("shippingCost", { valueAsNumber: true })}
               />
-              <p className="text-xs leading-4 text-slate-500">Bagian dari total pembelian</p>
+              <p className="text-xs leading-4 text-ink-tertiary">Bagian dari total pembelian</p>
               <FieldError message={errors.shippingCost?.message} />
             </FieldGroup>
           </div>
 
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5">
+          <div className="rounded-xl border border-[var(--status-success)]/30 bg-[var(--status-success)]/10/80 px-3 py-2.5">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-bold text-emerald-900">Serba otomatis setelah disimpan</p>
-              <p className="whitespace-nowrap text-xs font-bold tabular-nums text-emerald-800">
+              <p className="text-xs font-bold text-[var(--status-success)]">Serba otomatis setelah disimpan</p>
+              <p className="whitespace-nowrap text-xs font-bold tabular-nums text-[var(--status-success)]">
                 {hppPerKg > 0 ? `${formatRupiah(hppPerKg)}/kg` : "HPP otomatis"}
               </p>
             </div>
-            <p className="mt-0.5 text-[11px] leading-4 text-emerald-700">
+            <p className="mt-0.5 text-[11px] leading-4 text-[var(--status-success)]">
               {isRoasted
                 ? "Barang dicatat per lot, stok bertambah, dan nilai pembelian masuk ke keuangan sebagai roasted bean beli jadi."
                 : "Barang dicatat per lot, stok bertambah, HPP diperbarui, dan urutan pemakaian mengikuti FIFO/FEFO."}
@@ -782,7 +782,7 @@ export function CoffeePurchaseForm({
           <div className={cn(glassCard, "space-y-4")}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FieldGroup>
-                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
                   Best Before / Review Mutu
                 </Label>
                 <Input
@@ -795,25 +795,25 @@ export function CoffeePurchaseForm({
             </div>
 
             {!isRoasted && (
-              <details className="rounded-xl border border-slate-200 bg-white/40 open:bg-white/70 transition-colors" data-testid="lot-quality-section">
+              <details className="rounded-xl border border-border bg-card/40 open:bg-card/70 transition-colors" data-testid="lot-quality-section">
                 <summary className="flex cursor-pointer select-none items-center justify-between px-3 py-2.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Detail mutu lot <span className="font-medium normal-case tracking-normal text-slate-400">(opsional)</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-ink">
+                    Detail mutu lot <span className="font-medium normal-case tracking-normal text-ink-tertiary">(opsional)</span>
                   </span>
-                  <ChevronDown size={14} className="text-slate-400" />
+                  <ChevronDown size={14} className="text-ink-tertiary" />
                 </summary>
-                <div className="grid grid-cols-1 gap-4 border-t border-slate-200 px-3 py-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 border-t border-border px-3 py-4 sm:grid-cols-2">
                   <FieldGroup>
-                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Lot supplier</Label>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Lot supplier</Label>
                     <Input placeholder="Kosongkan bila tidak ada" className={cn("h-9", glassInput)} {...register("supplierLotNumber")} />
                   </FieldGroup>
                   <FieldGroup>
-                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Tanggal panen</Label>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Tanggal panen</Label>
                     <Input type="date" className={cn("h-9", glassInput)} {...register("harvestDate")} />
                   </FieldGroup>
                   <FieldGroup>
-                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-                      Kadar air % <span className="font-medium normal-case tracking-normal text-slate-400">(ideal 9–13)</span>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+                      Kadar air % <span className="font-medium normal-case tracking-normal text-ink-tertiary">(ideal 9–13)</span>
                     </Label>
                     <Input
                       type="number"
@@ -826,7 +826,7 @@ export function CoffeePurchaseForm({
                     />
                   </FieldGroup>
                   <FieldGroup>
-                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Kelembapan ruang %</Label>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Kelembapan ruang %</Label>
                     <Input
                       type="number"
                       step="0.1"
@@ -838,8 +838,8 @@ export function CoffeePurchaseForm({
                     />
                   </FieldGroup>
                   <FieldGroup>
-                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-                      Jumlah defect <span className="font-medium normal-case tracking-normal text-slate-400">(per 300 g, standar SCA)</span>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+                      Jumlah defect <span className="font-medium normal-case tracking-normal text-ink-tertiary">(per 300 g, standar SCA)</span>
                     </Label>
                     <Input
                       type="number"
@@ -851,9 +851,9 @@ export function CoffeePurchaseForm({
                     />
                   </FieldGroup>
                   <FieldGroup>
-                    <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Status QC awal</Label>
+                    <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Status QC awal</Label>
                     <select
-                      className={cn("h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/30", glassInput)}
+                      className={cn("h-9 rounded-lg border border-border bg-card px-2 text-sm font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/30", glassInput)}
                       {...register("qcStatus")}
                     >
                       <option value="RELEASED">Lolos (langsung bisa di-roast)</option>
@@ -881,7 +881,7 @@ export function CoffeePurchaseForm({
           <button
             type="button"
             onClick={() => setStep(step - 1)}
-            className="rounded-xl border border-white/60 bg-white/30 px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-white/50 transition-all"
+            className="rounded-xl border border-white/60 bg-card/30 px-5 py-2 text-sm font-semibold text-ink hover:bg-card/50 transition-all"
           >
             Kembali
           </button>

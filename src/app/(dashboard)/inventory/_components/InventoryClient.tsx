@@ -236,16 +236,16 @@ function ExportMenu({ onExportPDF, onExportExcel }: { onExportPDF: () => void; o
 
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen((p) => !p)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200/60 bg-white/50 text-slate-600 hover:bg-white/70 transition-colors" aria-label="Export">
+      <button onClick={() => setOpen((p) => !p)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-card/50 text-ink hover:bg-card/70 transition-colors" aria-label="Export">
         <Download size={14} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-36 rounded-lg border border-slate-200 bg-white shadow-lg py-0.5">
-          <button onClick={() => { onExportPDF(); setOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-            <FileText size={12} className="text-slate-400" /> PDF
+        <div className="absolute right-0 top-full mt-1 z-50 w-36 rounded-lg border border-border bg-card shadow-lg py-0.5">
+          <button onClick={() => { onExportPDF(); setOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-ink hover:bg-surface-sunken transition-colors">
+            <FileText size={12} className="text-ink-tertiary" /> PDF
           </button>
-          <button onClick={() => { onExportExcel(); setOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-            <FileSpreadsheet size={12} className="text-slate-400" /> Excel
+          <button onClick={() => { onExportExcel(); setOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-ink hover:bg-surface-sunken transition-colors">
+            <FileSpreadsheet size={12} className="text-ink-tertiary" /> Excel
           </button>
         </div>
       )}
@@ -270,24 +270,24 @@ function ActionsDropdown({ onStockOpname }: { onStockOpname: () => void }) {
 
   return (
     <div ref={ref} className="relative z-50">
-      <button onClick={() => setOpen((p) => !p)} className="flex h-8 items-center gap-1 rounded-lg border border-slate-200/60 bg-white/50 px-2.5 text-xs font-medium text-slate-600 hover:bg-white/70 transition-colors" aria-label="Aksi lainnya">
+      <button onClick={() => setOpen((p) => !p)} className="flex h-8 items-center gap-1 rounded-lg border border-border/60 bg-card/50 px-2.5 text-xs font-medium text-ink hover:bg-card/70 transition-colors" aria-label="Aksi lainnya">
         <Settings2 size={14} />
         <span className="hidden sm:inline">Penyesuaian</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-72 rounded-xl border border-slate-200 bg-white shadow-xl py-1 overflow-hidden animate-in slide-in-from-top-1 fade-in">
-          <button onClick={() => { onStockOpname(); setOpen(false); }} className="flex w-full items-start gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors text-left">
-            <Settings2 size={14} className="mt-0.5 shrink-0 text-slate-400" />
+        <div className="absolute right-0 top-full mt-1 w-72 rounded-xl border border-border bg-card shadow-xl py-1 overflow-hidden animate-in slide-in-from-top-1 fade-in">
+          <button onClick={() => { onStockOpname(); setOpen(false); }} className="flex w-full items-start gap-2.5 px-3 py-2.5 hover:bg-surface-sunken transition-colors text-left">
+            <Settings2 size={14} className="mt-0.5 shrink-0 text-ink-tertiary" />
             <span className="flex flex-col gap-0.5">
-              <span className="text-xs font-semibold text-slate-700">Penyesuaian Stok</span>
-              <span className="text-[11px] leading-4 text-slate-400">Koreksi cepat stok sistem — tidak per lokasi.</span>
+              <span className="text-xs font-semibold text-ink">Penyesuaian Stok</span>
+              <span className="text-[11px] leading-4 text-ink-tertiary">Koreksi cepat stok sistem — tidak per lokasi.</span>
             </span>
           </button>
-          <Link href="/gudang/opname" className="flex w-full items-start gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors text-left">
-            <ClipboardCheck size={14} className="mt-0.5 shrink-0 text-slate-400" />
+          <Link href="/gudang/opname" className="flex w-full items-start gap-2.5 px-3 py-2.5 hover:bg-surface-sunken transition-colors text-left">
+            <ClipboardCheck size={14} className="mt-0.5 shrink-0 text-ink-tertiary" />
             <span className="flex flex-col gap-0.5">
-              <span className="text-xs font-semibold text-slate-700">Opname Lokasi →</span>
-              <span className="text-[11px] leading-4 text-slate-400">Hitung fisik stok per lot pada lokasi gudang.</span>
+              <span className="text-xs font-semibold text-ink">Opname Lokasi →</span>
+              <span className="text-[11px] leading-4 text-ink-tertiary">Hitung fisik stok per lot pada lokasi gudang.</span>
             </span>
           </Link>
         </div>
@@ -310,93 +310,93 @@ function BarangDatangPopup({ onGBDatang, onRBDatang, onKemasanDatang, onSupplyDa
         <Plus size={14} />
         <span>Barang Datang</span>
       </button>
-      <DialogContent className="sm:max-w-md border border-[var(--glass-border)] bg-white/95 shadow-2xl p-6 rounded-2xl">
+      <DialogContent className="sm:max-w-md border border-border bg-card/95 shadow-2xl p-6 rounded-2xl">
         <DialogHeader className="mb-4">
-          <DialogTitle className="text-xl font-bold text-slate-800">Barang apa yang datang?</DialogTitle>
-          <DialogDescription className="text-sm text-slate-500">Pilih cara penerimaan, lalu jenis persediaan bila membeli langsung.</DialogDescription>
+          <DialogTitle className="text-xl font-bold text-ink">Barang apa yang datang?</DialogTitle>
+          <DialogDescription className="text-sm text-ink-tertiary">Pilih cara penerimaan, lalu jenis persediaan bila membeli langsung.</DialogDescription>
         </DialogHeader>
 
         <div className="mb-5 grid grid-cols-2 gap-3">
           <button
             type="button"
-            className="flex flex-col items-start gap-1 rounded-xl border-2 border-amber-500 bg-amber-50 p-3.5 text-left transition-all"
+            className="flex flex-col items-start gap-1 rounded-xl border-2 border-[var(--status-warning)]/30 bg-[var(--status-warning)]/10 p-3.5 text-left transition-all"
           >
-            <span className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
-              <Plus size={15} className="text-amber-600" />
+            <span className="flex items-center gap-1.5 text-sm font-bold text-ink">
+              <Plus size={15} className="text-[var(--status-warning)]" />
               Beli langsung
             </span>
-            <span className="text-[11px] leading-4 text-slate-500">
+            <span className="text-[11px] leading-4 text-ink-tertiary">
               Catat pembelian & terima stok sekaligus, tanpa PO.
             </span>
           </button>
           <button
             type="button"
             onClick={() => { setOpen(false); onTerimaPO(); }}
-            className="flex flex-col items-start gap-1 rounded-xl border-2 border-slate-100 bg-white p-3.5 text-left transition-all hover:border-emerald-400 hover:bg-emerald-50"
+            className="flex flex-col items-start gap-1 rounded-xl border-2 border-border bg-card p-3.5 text-left transition-all hover:border-[var(--status-success)]/30 hover:bg-[var(--status-success)]/10"
           >
-            <span className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
-              <Truck size={15} className="text-emerald-600" />
+            <span className="flex items-center gap-1.5 text-sm font-bold text-ink">
+              <Truck size={15} className="text-[var(--status-success)]" />
               Terima dari PO ({waitingCount})
             </span>
-            <span className="text-[11px] leading-4 text-slate-500">
+            <span className="text-[11px] leading-4 text-ink-tertiary">
               Pesanan yang sudah dikirim supplier. {waitingCount > 0 ? `${waitingCount} PO menunggu.` : "Tidak ada PO aktif."}
             </span>
           </button>
         </div>
 
-        <DialogDescription className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+        <DialogDescription className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-tertiary">
           {waitingCount > 0 ? "Atau beli langsung:" : "Jenis pembelian langsung:"}
         </DialogDescription>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button 
             onClick={() => { setOpen(false); onGBDatang(); }} 
-            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-slate-100 bg-white hover:border-amber-500 hover:bg-amber-50 hover:shadow-md transition-all group"
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-border bg-card hover:border-[var(--status-warning)]/30 hover:bg-[var(--status-warning)]/10 hover:shadow-md transition-all group"
           >
-            <div className="p-3 rounded-full bg-amber-100 text-amber-600 group-hover:scale-110 transition-transform">
+            <div className="p-3 rounded-full bg-[var(--status-warning)]/15 text-[var(--status-warning)] group-hover:scale-110 transition-transform">
               <Boxes size={28} />
             </div>
             <div className="text-center">
-              <div className="font-bold text-slate-800">Green Bean (GB)</div>
-              <div className="text-xs text-slate-500 mt-1">Bahan baku mentah</div>
+              <div className="font-bold text-ink">Green Bean (GB)</div>
+              <div className="text-xs text-ink-tertiary mt-1">Bahan baku mentah</div>
             </div>
           </button>
 
           <button
             onClick={() => { setOpen(false); onRBDatang(); }}
-            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-slate-100 bg-white hover:border-amber-500 hover:bg-amber-50 hover:shadow-md transition-all group"
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-border bg-card hover:border-[var(--status-warning)]/30 hover:bg-[var(--status-warning)]/10 hover:shadow-md transition-all group"
           >
-            <div className="p-3 rounded-full bg-amber-100 text-amber-600 group-hover:scale-110 transition-transform">
+            <div className="p-3 rounded-full bg-[var(--status-warning)]/15 text-[var(--status-warning)] group-hover:scale-110 transition-transform">
               <CircleDot size={28} />
             </div>
             <div className="text-center">
-              <div className="font-bold text-slate-800">Roasted Bean (RB)</div>
-              <div className="text-xs text-slate-500 mt-1">Biji kopi sangrai jadi (beli jadi)</div>
+              <div className="font-bold text-ink">Roasted Bean (RB)</div>
+              <div className="text-xs text-ink-tertiary mt-1">Biji kopi sangrai jadi (beli jadi)</div>
             </div>
           </button>
 
           <button
             onClick={() => { setOpen(false); onKemasanDatang(); }}
-            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-slate-100 bg-white hover:border-orange-500 hover:bg-orange-50 hover:shadow-md transition-all group"
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-border bg-card hover:border-orange-500 hover:bg-orange-50 hover:shadow-md transition-all group"
           >
             <div className="p-3 rounded-full bg-orange-100 text-orange-600 group-hover:scale-110 transition-transform">
               <Package size={28} />
             </div>
             <div className="text-center">
-              <div className="font-bold text-slate-800">Kemasan Kosong</div>
-              <div className="text-xs text-slate-500 mt-1">Gelas, box, plastik, dll</div>
+              <div className="font-bold text-ink">Kemasan Kosong</div>
+              <div className="text-xs text-ink-tertiary mt-1">Gelas, box, plastik, dll</div>
             </div>
           </button>
 
           <button
             onClick={() => { setOpen(false); onSupplyDatang(); }}
-            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-slate-100 bg-white hover:border-emerald-500 hover:bg-emerald-50 hover:shadow-md transition-all group"
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-border bg-card hover:border-[var(--status-success)]/30 hover:bg-[var(--status-success)]/10 hover:shadow-md transition-all group"
           >
-            <div className="p-3 rounded-full bg-emerald-100 text-emerald-600 group-hover:scale-110 transition-transform">
+            <div className="p-3 rounded-full bg-[var(--status-success)]/15 text-[var(--status-success)] group-hover:scale-110 transition-transform">
               <Boxes size={28} className="rotate-90" />
             </div>
             <div className="text-center">
-              <div className="font-bold text-slate-800">Persediaan Non-Kopi</div>
-              <div className="text-xs text-slate-500 mt-1">Bahan baku non-kopi, alat habis pakai, merchandise, suku cadang, dll</div>
+              <div className="font-bold text-ink">Persediaan Non-Kopi</div>
+              <div className="text-xs text-ink-tertiary mt-1">Bahan baku non-kopi, alat habis pakai, merchandise, suku cadang, dll</div>
             </div>
           </button>
         </div>
@@ -833,15 +833,15 @@ export function InventoryClient({
                     {sampleConsumption.sampleCount} Transaksi
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[var(--text-secondary)]">
-                  {sampleConsumption.rbConsumedKg > 0 && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-violet-400" />RB: <strong className="text-[var(--text-primary)]">{sampleConsumption.rbConsumedKg.toLocaleString("id-ID", { maximumFractionDigits: 2 })} kg</strong></span>}
-                  {sampleConsumption.fgConsumedUnits > 0 && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-purple-400" />FG: <strong className="text-[var(--text-primary)]">{sampleConsumption.fgConsumedUnits.toLocaleString("id-ID")} unit</strong></span>}
-                  {sampleConsumption.pkgConsumedUnits > 0 && <span className="flex items-center gap-1.5"><div className="size-1.5 rounded-full bg-domain-sales" />PKG: <strong className="text-[var(--text-primary)]">{sampleConsumption.pkgConsumedUnits.toLocaleString("id-ID")} pcs</strong></span>}
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-secondary">
+                  {sampleConsumption.rbConsumedKg > 0 && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-violet-400" />RB: <strong className="text-ink">{sampleConsumption.rbConsumedKg.toLocaleString("id-ID", { maximumFractionDigits: 2 })} kg</strong></span>}
+                  {sampleConsumption.fgConsumedUnits > 0 && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-purple-400" />FG: <strong className="text-ink">{sampleConsumption.fgConsumedUnits.toLocaleString("id-ID")} unit</strong></span>}
+                  {sampleConsumption.pkgConsumedUnits > 0 && <span className="flex items-center gap-1.5"><div className="size-1.5 rounded-full bg-domain-sales" />PKG: <strong className="text-ink">{sampleConsumption.pkgConsumedUnits.toLocaleString("id-ID")} pcs</strong></span>}
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-0.5">Total Biaya Sample</p>
-                <p className="text-xl font-black text-[var(--text-primary)] tabular-nums tracking-tight">{formatRupiah(sampleConsumption.totalCost)}</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-ink-tertiary mb-0.5">Total Biaya Sample</p>
+                <p className="text-xl font-black text-ink tabular-nums tracking-tight">{formatRupiah(sampleConsumption.totalCost)}</p>
               </div>
             </div>
           </div>
@@ -887,7 +887,7 @@ export function InventoryClient({
         submitButton={<Button type="submit" form="adjustment-form" size="sm" disabled={isSubmitting} className="gap-1.5 rounded-[8px] font-semibold disabled:opacity-60">{isSubmitting && <Loader2 size={13} className="animate-spin" />}{isSubmitting ? "Menyimpan..." : "Simpan Penyesuaian"}</Button>}>
         <StockAdjustmentDrawer id="adjustment-form" items={adjustmentItems} onSuccess={() => setAdjDrawerOpen(false)} onPendingChange={setIsSubmitting} />
         <div className="mt-3 flex justify-end">
-          <Link href="/gudang/opname" className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 transition hover:text-slate-900 hover:underline">
+          <Link href="/gudang/opname" className="inline-flex items-center gap-1 text-xs font-semibold text-ink-tertiary transition hover:text-ink hover:underline">
             <ClipboardCheck size={13} />
             Butuh opname per lokasi? Buka Opname Lokasi →
           </Link>

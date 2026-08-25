@@ -6,19 +6,19 @@ export type { DisplayStatus };
 const STATUS_CONFIG: Record<DisplayStatus, { label: string; className: string }> = {
   aman: {
     label: "Aman",
-    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    className: "bg-[var(--status-success)]/10 text-[var(--status-success)] border-[var(--status-success)]/30",
   },
   rendah: {
     label: "Menipis",
-    className: "bg-amber-50 text-amber-700 border-amber-200",
+    className: "bg-[var(--status-warning)]/10 text-[var(--status-warning)] border-[var(--status-warning)]/30",
   },
   habis: {
     label: "Habis",
-    className: "bg-red-50 text-red-600 border-red-200",
+    className: "bg-[var(--status-danger)]/10 text-[var(--status-danger)] border-[var(--status-danger)]/30",
   },
   belum_dikonfigurasi: {
     label: "Belum Diatur",
-    className: "bg-slate-50 text-slate-500 border-slate-200",
+    className: "bg-surface-sunken text-ink-tertiary border-border",
   },
 };
 

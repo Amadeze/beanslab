@@ -72,10 +72,10 @@ interface StockTableProps {
 }
 
 const LOT_STATUS_META: Record<LotOperationalStatus, { label: string; className: string }> = {
-  ok: { label: "Aktif", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  expiring_soon: { label: "Segera Kadaluarsa", className: "bg-amber-50 text-amber-700 border-amber-200" },
-  expired: { label: "Kadaluarsa", className: "bg-red-50 text-red-700 border-red-200" },
-  consumed: { label: "Habis", className: "bg-slate-100 text-slate-500 border-slate-200" },
+  ok: { label: "Aktif", className: "bg-[var(--status-success)]/10 text-[var(--status-success)] border-[var(--status-success)]/30" },
+  expiring_soon: { label: "Segera Kadaluarsa", className: "bg-[var(--status-warning)]/10 text-[var(--status-warning)] border-[var(--status-warning)]/30" },
+  expired: { label: "Kadaluarsa", className: "bg-[var(--status-danger)]/10 text-[var(--status-danger)] border-[var(--status-danger)]/30" },
+  consumed: { label: "Habis", className: "bg-surface-sunken text-ink-tertiary border-border" },
 };
 
 type LotPlacementDisplay = {

@@ -14,7 +14,7 @@ import { receivePOAction } from "../po-actions";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/format";
 
-const glassInput = "bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 focus:border-white/80";
+const glassInput = "bg-card/40 border-white/60 backdrop-blur-md transition-all focus:bg-card/60 focus:border-white/80";
 
 function addDaysDateString(value: string, days: number): string {
   const date = new Date(`${value}T00:00:00`);
@@ -153,7 +153,7 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
             Tanggal Penerimaan *
           </Label>
           <Input
@@ -162,12 +162,12 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
             {...register("receivedAt")}
           />
           {errors.receivedAt && (
-            <p className="text-xs text-red-500">{errors.receivedAt.message}</p>
+            <p className="text-xs text-[var(--status-danger)]">{errors.receivedAt.message}</p>
           )}
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-            Ongkir Aktual <span className="font-medium normal-case tracking-normal text-slate-400">(opsional)</span>
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
+            Ongkir Aktual <span className="font-medium normal-case tracking-normal text-ink-tertiary">(opsional)</span>
           </Label>
           <Input
             type="number"
@@ -177,23 +177,23 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
             className={cn("h-9 tabular-nums", glassInput)}
             {...register("shippingCost", { valueAsNumber: true })}
           />
-          <p className="text-xs text-slate-400">Terisi dari estimasi PO, boleh dikoreksi.</p>
+          <p className="text-xs text-ink-tertiary">Terisi dari estimasi PO, boleh dikoreksi.</p>
           {errors.shippingCost && (
-            <p className="text-xs text-red-500">{errors.shippingCost.message}</p>
+            <p className="text-xs text-[var(--status-danger)]">{errors.shippingCost.message}</p>
           )}
         </div>
       </div>
 
       {/* Items */}
       <div className="space-y-2">
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
           Quantity Diterima
         </Label>
         {items.map((item, index) => (
-          excludedItemIds.has(item.id) ? null : <div key={item.id} className="flex items-center gap-2 rounded-lg border border-white/60 bg-white/40 p-2">
+          excludedItemIds.has(item.id) ? null : <div key={item.id} className="flex items-center gap-2 rounded-lg border border-white/60 bg-card/40 p-2">
             <div className="flex-1">
               <p className="text-xs font-medium">{item.productName || item.packagingName}</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-ink-tertiary">
                 Dipesan {item.quantity} · sudah {item.receivedQuantity} · sisa {item.remainingQuantity}
               </p>
             </div>
@@ -212,7 +212,7 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
             <button
               type="button"
               onClick={() => excludeItem(item.id, index)}
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-tertiary transition-colors hover:bg-[var(--status-danger)]/10 hover:text-[var(--status-danger)]"
               aria-label={`Tidak terima ${item.productName || item.packagingName}`}
               title="Tidak diterima sekarang"
             >
@@ -223,8 +223,8 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
       </div>
 
       {excludedItemIds.size > 0 && (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-3 py-2.5">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+        <div className="rounded-xl border border-dashed border-border bg-surface-sunken/70 px-3 py-2.5">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-tertiary">
             Tidak diterima sekarang
           </p>
           <div className="flex flex-wrap gap-2">
@@ -233,7 +233,7 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
                 key={item.id}
                 type="button"
                 onClick={() => restoreItem(item.id, index)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-semibold text-ink hover:border-[var(--status-success)]/30 hover:text-[var(--status-success)]"
               >
                 <RotateCcw size={12} /> {item.productName || item.packagingName}
               </button>
@@ -243,7 +243,7 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
       )}
 
       <div className="space-y-2">
-        <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+        <Label className="text-xs font-bold uppercase tracking-wider text-ink-tertiary">
           Pembayaran
         </Label>
         <input type="hidden" {...register("paymentMethod")} />
@@ -263,7 +263,7 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
                   "flex min-h-12 items-center justify-center gap-2 rounded-xl border px-2 text-xs font-bold transition-colors",
                   paymentMethod === option.value
                     ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                    : "border-white/60 bg-white/40 text-slate-600 hover:bg-white/70",
+                    : "border-white/60 bg-card/40 text-ink hover:bg-card/70",
                 )}
               >
                 <Icon size={15} /> {option.label}
@@ -273,14 +273,14 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
         </div>
         {paymentMethod === "CREDIT" && (
           <div className="space-y-1.5 pt-1">
-            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            <Label className="text-xs font-bold uppercase tracking-wider text-ink-tertiary">
               Jatuh Tempo
             </Label>
             <Input type="date" className={cn("h-9", glassInput)} {...register("dueDate")} />
-            {errors.dueDate && <p className="text-xs text-red-500">{errors.dueDate.message}</p>}
+            {errors.dueDate && <p className="text-xs text-[var(--status-danger)]">{errors.dueDate.message}</p>}
           </div>
         )}
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-ink-tertiary">
           {paymentMethod === "CREDIT"
             ? "Dicatat sebagai utang supplier sampai dibayar."
             : `Dicatat lunas melalui ${paymentMethod === "CASH" ? "kas" : "transfer bank"}.`}
@@ -288,22 +288,22 @@ export function ReceivePOForm({ poId, items, estimatedShippingCost = 0, onSucces
       </div>
 
       {/* Info */}
-      <p className="text-xs text-slate-500 italic">
+      <p className="text-xs text-ink-tertiary italic">
         Quantity diterima bisa kurang dari yang dipesan. Sisa akan menjadi status Partial.
       </p>
 
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5 text-right">
-        <p className="text-xs text-emerald-700">
+      <div className="rounded-xl border border-[var(--status-success)]/30 bg-[var(--status-success)]/10/80 px-3 py-2.5 text-right">
+        <p className="text-xs text-[var(--status-success)]">
           Barang {formatRupiah(itemTotal)} + ongkir {formatRupiah(shippingCost)}
         </p>
-        <p className="text-sm font-black text-emerald-900">
+        <p className="text-sm font-black text-[var(--status-success)]">
           Total diterima {formatRupiah(itemTotal + shippingCost)}
         </p>
       </div>
 
       {/* Actions */}
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel} className="bg-white/40 border-white/60">
+        <Button type="button" variant="outline" onClick={onCancel} className="bg-card/40 border-white/60">
           Batal
         </Button>
         <Button type="submit" disabled={isSubmitting}>

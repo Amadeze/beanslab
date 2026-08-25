@@ -15,8 +15,8 @@ import { createPO, updatePO, sendPOAction } from "../po-actions";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/format";
 
-const glassInput = "bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 focus:border-white/80";
-const glassCard = "rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl p-4 shadow-sm";
+const glassInput = "bg-card/40 border-white/60 backdrop-blur-md transition-all focus:bg-card/60 focus:border-white/80";
+const glassCard = "rounded-[1.25rem] border border-white/60 bg-card/30 backdrop-blur-xl p-4 shadow-sm";
 
 // =============================================================================
 // Schema
@@ -237,14 +237,14 @@ export function POForm({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {/* Supplier */}
       <div className={cn(glassCard, "space-y-3")}>
-        <h3 className="text-sm font-semibold text-slate-700">Informasi PO</h3>
+        <h3 className="text-sm font-semibold text-ink">Informasi PO</h3>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-3">
-              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Supplier *</Label>
+              <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Supplier *</Label>
               {!isReadOnly && onAddSupplier && (
-                <button type="button" onClick={onAddSupplier} className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-800">
+                <button type="button" onClick={onAddSupplier} className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--status-warning)] hover:text-[var(--status-warning)]">
                   <Plus size={12} /> Supplier baru
                 </button>
               )}
@@ -268,12 +268,12 @@ export function POForm({
               )}
             />
             {errors.supplierId && (
-              <p className="text-xs text-red-500">{errors.supplierId.message}</p>
+              <p className="text-xs text-[var(--status-danger)]">{errors.supplierId.message}</p>
             )}
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+            <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
               Tanggal Perkiraan Datang
             </Label>
             <Input
@@ -286,7 +286,7 @@ export function POForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
             Catatan
           </Label>
           <Input
@@ -301,7 +301,7 @@ export function POForm({
       {/* Items */}
       <div className={cn(glassCard, "space-y-3")}>
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-700">Item PO</h3>
+          <h3 className="text-sm font-semibold text-ink">Item PO</h3>
           {!isReadOnly && (
             <button
               type="button"
@@ -315,12 +315,12 @@ export function POForm({
 
         <div className="space-y-2">
           {fields.map((field, index) => (
-            <div key={field.id} className="relative flex flex-wrap sm:flex-nowrap items-start gap-2 rounded-xl border border-white/60 bg-white/40 p-3">
+            <div key={field.id} className="relative flex flex-wrap sm:flex-nowrap items-start gap-2 rounded-xl border border-white/60 bg-card/40 p-3">
               {!isReadOnly && (
                 <button
                   type="button"
                   onClick={() => remove(index)}
-                  className="absolute -top-2 -right-2 bg-white text-red-500 border border-white/60 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 shadow-sm"
+                  className="absolute -top-2 -right-2 bg-card text-[var(--status-danger)] border border-white/60 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--status-danger)]/10 shadow-sm"
                 >
                   <Trash2 size={12} />
                 </button>
@@ -328,7 +328,7 @@ export function POForm({
 
               {/* Produk/Kemasan */}
               <div className="flex-1 min-w-[150px] space-y-1">
-                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
                   Produk/Kemasan
                 </Label>
                 <Controller
@@ -379,7 +379,7 @@ export function POForm({
 
               {/* Quantity */}
               <div className="w-24 space-y-1">
-                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
                   Qty
                 </Label>
                 <Input
@@ -394,7 +394,7 @@ export function POForm({
 
               {/* Harga */}
               <div className="w-28 space-y-1">
-                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
                   Harga/Unit
                 </Label>
                 <Input
@@ -409,10 +409,10 @@ export function POForm({
 
               {/* Subtotal */}
               <div className="w-28 space-y-1">
-                <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+                <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
                   Subtotal
                 </Label>
-                <div className="h-9 flex items-center text-xs font-bold text-slate-700">
+                <div className="h-9 flex items-center text-xs font-bold text-ink">
                   {formatRupiah((items[index]?.quantity || 0) * (items[index]?.unitPrice || 0))}
                 </div>
               </div>
@@ -421,8 +421,8 @@ export function POForm({
         </div>
 
         <div className="ml-auto w-full max-w-xs space-y-1.5 border-t border-white/50 pt-3">
-          <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Estimasi Ongkir <span className="font-medium normal-case tracking-normal text-slate-400">(opsional)</span>
+          <Label className="text-xs font-bold uppercase tracking-wider text-ink-tertiary">
+            Estimasi Ongkir <span className="font-medium normal-case tracking-normal text-ink-tertiary">(opsional)</span>
           </Label>
           <Input
             type="number"
@@ -434,18 +434,18 @@ export function POForm({
             disabled={isReadOnly}
           />
           {errors.estimatedShippingCost && (
-            <p className="text-xs text-red-500">{errors.estimatedShippingCost.message}</p>
+            <p className="text-xs text-[var(--status-danger)]">{errors.estimatedShippingCost.message}</p>
           )}
         </div>
 
         {/* Total */}
         <div className="space-y-1 border-t border-white/50 pt-2 text-right">
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-ink-tertiary">
             Item {formatRupiah(itemEstimate)} + ongkir {formatRupiah(estimatedShippingCost)}
           </p>
           <div className="flex items-center justify-end gap-2">
-            <span className="text-xs font-bold text-slate-500">Total Estimasi:</span>
-            <span className="text-lg font-black text-slate-900">{formatRupiah(totalEstimate)}</span>
+            <span className="text-xs font-bold text-ink-tertiary">Total Estimasi:</span>
+            <span className="text-lg font-black text-ink">{formatRupiah(totalEstimate)}</span>
           </div>
         </div>
       </div>
@@ -457,7 +457,7 @@ export function POForm({
             type="button"
             variant="outline"
             onClick={onCancel}
-            className="bg-white/40 border-white/60"
+            className="bg-card/40 border-white/60"
           >
             Batal
           </Button>

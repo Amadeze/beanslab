@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { GlassPanel } from "@/components/ui/glass-panel";
+import { Card } from "@/components/ui/card";
 import { StandardPageLayout } from "@/components/StandardPageLayout";
 import { EmptyState } from "@/components/ui/state";
 import { Search, AlertTriangle, Package, ArrowRight, Printer, User } from "lucide-react";
@@ -16,11 +16,11 @@ export const dynamic = "force-dynamic";
 function ExpiryBadge({ status }: { status: LotOperationalStatus }) {
   switch (status) {
     case "consumed":
-      return <Badge variant="outline" className="border-slate-300 text-slate-500">Habis</Badge>;
+      return <Badge variant="outline" className="border-border text-ink-tertiary">Habis</Badge>;
     case "expired":
       return <Badge variant="destructive">Perlu Review</Badge>;
     case "expiring_soon":
-      return <Badge variant="outline" className="border-amber-500 text-amber-700">Review Segera</Badge>;
+      return <Badge variant="outline" className="border-[var(--status-warning)]/30 text-[var(--status-warning)]">Review Segera</Badge>;
     case "ok":
       return <Badge variant="secondary">OK</Badge>;
   }
@@ -29,18 +29,18 @@ function ExpiryBadge({ status }: { status: LotOperationalStatus }) {
 function LotsTable({ lots }: { lots: LotRow[] }) {
   if (lots.length === 0) {
     return (
-      <GlassPanel padding="lg">
+      <Card className="p-8">
         <EmptyState
           icon={<Package size={18} />}
           title="Tidak ada lot"
           description="Belum ada lot yang tercatat. Lot terbentuk saat penerimaan barang masuk."
         />
-      </GlassPanel>
+      </Card>
     );
   }
 
   return (
-    <div className="rounded-md border glass-card overflow-hidden">
+    <div className="rounded-md border border-border bg-card overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow>
@@ -107,8 +107,8 @@ function ExpiryAlertsSection({ alerts }: { alerts: { id: string; batchCode: stri
   }
 
   return (
-    <GlassPanel className="border-amber-200 bg-amber-50/50">
-      <div className="flex items-center gap-2 text-amber-800 mb-3">
+    <Card className="border-[var(--status-warning)]/30 bg-[var(--status-warning)]/10">
+      <div className="flex items-center gap-2 text-[var(--status-warning)] mb-3">
         <AlertTriangle className="h-4 w-4" />
         <span className="font-bold text-sm">Jadwal Review Mutu ({alerts.length})</span>
       </div>
@@ -116,7 +116,7 @@ function ExpiryAlertsSection({ alerts }: { alerts: { id: string; batchCode: stri
          {alerts.map((alert) => (
            <div key={alert.id} className="flex items-center justify-between rounded-card bg-card p-3 text-sm">
              <div className="flex items-center gap-3">
-               <Package className="h-4 w-4 text-amber-600" />
+               <Package className="h-4 w-4 text-[var(--status-warning)]" />
               <div>
                 <div className="font-medium">{alert.batchCode}</div>
                 <div className="text-xs text-muted-foreground">
@@ -133,7 +133,7 @@ function ExpiryAlertsSection({ alerts }: { alerts: { id: string; batchCode: stri
           </div>
         ))}
       </div>
-    </GlassPanel>
+    </Card>
   );
 }
 
@@ -176,7 +176,7 @@ export default async function LotsPage({
       <div className="space-y-4">
       <ExpiryAlertsSection alerts={alerts} />
 
-      <GlassPanel>
+      <Card>
         <div className="text-sm font-bold mb-4">Daftar lot</div>
         <form className="mb-4 flex flex-wrap gap-3" action="/inventory/lots" method="get">
           <div className="relative flex-1 min-w-[200px]">
@@ -209,7 +209,7 @@ export default async function LotsPage({
         <div className="mt-3 text-xs text-muted-foreground text-right">
           Total: {lotsResult.total} lot
         </div>
-      </GlassPanel>
+      </Card>
       </div>
     </StandardPageLayout>
   );

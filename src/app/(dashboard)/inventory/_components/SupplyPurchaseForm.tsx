@@ -65,8 +65,8 @@ interface SupplyPurchaseFormProps {
   preferredSupplierId?: string | null;
 }
 
-const glassInput = "h-9 bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 text-sm";
-const glassCard = "rounded-[1rem] border border-white/60 bg-white/30 backdrop-blur-xl p-4 shadow-sm";
+const glassInput = "h-9 bg-card/40 border-white/60 backdrop-blur-md transition-all focus:bg-card/60 text-sm";
+const glassCard = "rounded-[1rem] border border-white/60 bg-card/30 backdrop-blur-xl p-4 shadow-sm";
 
 export function SupplyPurchaseForm({
   suppliers, supplies, onSuccess, onPendingChange, onAddSupplier, preferredSupplierId,
@@ -154,9 +154,9 @@ export function SupplyPurchaseForm({
       {/* Supplier */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-3">
-          <Label className="text-xs font-semibold text-slate-700">Supplier <span className="text-red-500">*</span></Label>
+          <Label className="text-xs font-semibold text-ink">Supplier <span className="text-[var(--status-danger)]">*</span></Label>
           {onAddSupplier && (
-            <button type="button" onClick={onAddSupplier} className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-800">
+            <button type="button" onClick={onAddSupplier} className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--status-warning)] hover:text-[var(--status-warning)]">
               <Plus size={12} /> Supplier baru
             </button>
           )}
@@ -165,7 +165,7 @@ export function SupplyPurchaseForm({
           className={cn(
             "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
             glassInput,
-            errors.supplierId ? "border-red-500 ring-2 ring-red-500/20" : ""
+            errors.supplierId ? "border-[var(--status-danger)]/30 ring-2 ring-red-500/20" : ""
           )}
           {...register("supplierId")}
         >
@@ -174,23 +174,23 @@ export function SupplyPurchaseForm({
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
-        {errors.supplierId && <p className="text-xs text-red-500 font-medium">{errors.supplierId.message}</p>}
+        {errors.supplierId && <p className="text-xs text-[var(--status-danger)] font-medium">{errors.supplierId.message}</p>}
       </div>
 
       {/* Tanggal */}
       <div className="space-y-1.5">
-        <Label className="text-xs font-semibold text-slate-700">Tanggal Terima <span className="text-red-500">*</span></Label>
+        <Label className="text-xs font-semibold text-ink">Tanggal Terima <span className="text-[var(--status-danger)]">*</span></Label>
         <Input type="date" className={glassInput} {...register("receivedAt")} />
       </div>
 
       {/* Item */}
       <div className="space-y-1.5">
-        <Label className="text-xs font-semibold text-slate-700">Persediaan Non-Kopi <span className="text-red-500">*</span></Label>
+        <Label className="text-xs font-semibold text-ink">Persediaan Non-Kopi <span className="text-[var(--status-danger)]">*</span></Label>
         <select
           className={cn(
             "w-full h-9 rounded-lg border px-3 text-sm transition-all appearance-none outline-none",
             glassInput,
-            errors.supplyItemId ? "border-red-500 ring-2 ring-red-500/20" : ""
+            errors.supplyItemId ? "border-[var(--status-danger)]/30 ring-2 ring-red-500/20" : ""
           )}
           {...register("supplyItemId")}
         >
@@ -199,31 +199,31 @@ export function SupplyPurchaseForm({
             <option key={s.id} value={s.id}>{s.name} ({s.baseUnit})</option>
           ))}
         </select>
-        {errors.supplyItemId && <p className="text-xs text-red-500 font-medium">{errors.supplyItemId.message}</p>}
+        {errors.supplyItemId && <p className="text-xs text-[var(--status-danger)] font-medium">{errors.supplyItemId.message}</p>}
       </div>
 
       {/* Qty & Harga */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label className="text-xs font-semibold text-slate-700">Qty ({selectedUnit}) <span className="text-red-500">*</span></Label>
+          <Label className="text-xs font-semibold text-ink">Qty ({selectedUnit}) <span className="text-[var(--status-danger)]">*</span></Label>
           <Input type="number" step="any" min="0.01" className={cn(glassInput, "text-right tabular-nums")} {...register("quantity", { valueAsNumber: true })} />
-          {errors.quantity && <p className="text-xs text-red-500 font-medium">{errors.quantity.message}</p>}
+          {errors.quantity && <p className="text-xs text-[var(--status-danger)] font-medium">{errors.quantity.message}</p>}
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs font-semibold text-slate-700">Total Pembelian (Rp) <span className="text-red-500">*</span></Label>
+          <Label className="text-xs font-semibold text-ink">Total Pembelian (Rp) <span className="text-[var(--status-danger)]">*</span></Label>
           <Input type="number" step="1" min="0" className={cn(glassInput, "text-right tabular-nums")} {...register("totalCost", { valueAsNumber: true })} />
-          {errors.totalCost && <p className="text-xs text-red-500 font-medium">{errors.totalCost.message}</p>}
+          {errors.totalCost && <p className="text-xs text-[var(--status-danger)] font-medium">{errors.totalCost.message}</p>}
         </div>
       </div>
 
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5">
+      <div className="rounded-xl border border-[var(--status-success)]/30 bg-[var(--status-success)]/10/80 px-3 py-2.5">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-bold text-emerald-900">Serba otomatis setelah disimpan</p>
-          <p className="whitespace-nowrap text-xs font-bold tabular-nums text-emerald-800">
+          <p className="text-xs font-bold text-[var(--status-success)]">Serba otomatis setelah disimpan</p>
+          <p className="whitespace-nowrap text-xs font-bold tabular-nums text-[var(--status-success)]">
             {hppPerUnit > 0 ? `${Math.round(hppPerUnit).toLocaleString("id-ID")}/${selectedUnit}` : "HPP otomatis"}
           </p>
         </div>
-        <p className="mt-0.5 text-[11px] leading-4 text-emerald-700">
+        <p className="mt-0.5 text-[11px] leading-4 text-[var(--status-success)]">
           Stok & ledger · HPP rata-rata & jurnal · lot & kedaluwarsa (bila item melacak lot)
         </p>
       </div>
@@ -232,7 +232,7 @@ export function SupplyPurchaseForm({
       <button
         type="button"
         onClick={() => setShowOptionalDetails((current) => !current)}
-        className="flex w-full items-center justify-between rounded-xl border border-white/60 bg-white/30 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-white/50"
+        className="flex w-full items-center justify-between rounded-xl border border-white/60 bg-card/30 px-3 py-2.5 text-xs font-semibold text-ink hover:bg-card/50"
         aria-expanded={showOptionalDetails}
       >
         Detail opsional
@@ -242,20 +242,20 @@ export function SupplyPurchaseForm({
         <div className={cn(glassCard, "space-y-4")}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">No. Lot Supplier</Label>
+              <Label className="text-xs font-semibold text-ink">No. Lot Supplier</Label>
               <Input placeholder="Kosongkan bila tidak ada" className={glassInput} {...register("lotNumber")} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Best Before</Label>
+              <Label className="text-xs font-semibold text-ink">Best Before</Label>
               <Input type="date" className={glassInput} {...register("bestBeforeDate")} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Ongkir dalam total (Rp)</Label>
+              <Label className="text-xs font-semibold text-ink">Ongkir dalam total (Rp)</Label>
               <Input type="number" step="1" min="0" placeholder="0" className={cn(glassInput, "text-right tabular-nums")} {...register("shippingCost", { valueAsNumber: true })} />
-              {errors.shippingCost && <p className="text-xs font-medium text-red-500">{errors.shippingCost.message}</p>}
+              {errors.shippingCost && <p className="text-xs font-medium text-[var(--status-danger)]">{errors.shippingCost.message}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Catatan</Label>
+              <Label className="text-xs font-semibold text-ink">Catatan</Label>
               <Input placeholder="Opsional" className={glassInput} {...register("notes")} />
             </div>
           </div>
