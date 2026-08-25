@@ -65,15 +65,15 @@ type FormValues = z.infer<typeof schema>;
 // =============================================================================
 // Styling
 // =============================================================================
-const glassInput = "bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 focus:border-white/80";
-const glassCard = "rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl p-4 shadow-sm";
+const glassInput = "bg-card/40 border-white/60 backdrop-blur-md transition-all focus:bg-card/60 focus:border-white/80";
+const glassCard = "rounded-[1.25rem] border border-white/60 bg-card/30 backdrop-blur-xl p-4 shadow-sm";
 
 // =============================================================================
 // Helper Components
 // =============================================================================
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="mt-1 text-xs text-red-500">{message}</p>;
+  return <p className="mt-1 text-xs text-[var(--status-danger)]">{message}</p>;
 }
 
 const PAYMENT_METHODS = [
@@ -97,8 +97,8 @@ function PaymentMethodGroup({ value, onChange }: { value: string; onChange: (val
             className={cn(
               "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
               active
-                ? "border-white/80 bg-white/90 text-slate-900 shadow-sm"
-                : "border-white/40 bg-white/30 text-slate-700 hover:bg-white/50"
+                ? "border-white/80 bg-card/90 text-ink shadow-sm"
+                : "border-white/40 bg-card/30 text-ink hover:bg-card/50"
             )}
           >
             <Icon size={14} />
@@ -115,18 +115,18 @@ function TotalsSummary({ subtotal, invoiceDiscount, tax, grandTotal, taxType }: 
   return (
     <div className={cn(glassCard, "p-5")}>
       <div className="space-y-2 text-sm">
-        <div className="flex justify-between text-slate-600 font-medium">
+        <div className="flex justify-between text-ink font-medium">
           <span>Subtotal</span>
           <span className="font-mono">{formatRupiah(subtotal)}</span>
         </div>
         {invoiceDiscount > 0 && (
-          <div className="flex justify-between text-red-500 font-medium">
+          <div className="flex justify-between text-[var(--status-danger)] font-medium">
             <span>Diskon Nota</span>
             <span className="font-mono">- {formatRupiah(invoiceDiscount)}</span>
           </div>
         )}
         {tax > 0 && (
-          <div className="flex justify-between text-slate-600 font-medium">
+          <div className="flex justify-between text-ink font-medium">
             <span>{taxLabel}</span>
             <span className="font-mono">{formatRupiah(tax)}</span>
           </div>
@@ -134,7 +134,7 @@ function TotalsSummary({ subtotal, invoiceDiscount, tax, grandTotal, taxType }: 
       </div>
       
       <div className="mt-5 pt-4 border-t border-white/40">
-        <div className="flex justify-between items-end text-slate-800">
+        <div className="flex justify-between items-end text-ink">
           <span className="text-sm font-bold tracking-wide uppercase">Grand Total</span>
           <span className="font-mono text-2xl font-black drop-shadow-sm">{formatRupiah(grandTotal)}</span>
         </div>
@@ -312,11 +312,11 @@ export function InvoiceForm({
           <div key={s} className="flex-1">
             <div className={cn(
               "h-1.5 rounded-full transition-colors",
-              step >= s ? "bg-cyan-500" : "bg-white/40"
+              step >= s ? "bg-[var(--instrument)]" : "bg-card/40"
             )} />
             <p className={cn(
               "text-[10px] uppercase font-bold mt-1.5 tracking-wider transition-colors",
-              step >= s ? "text-cyan-800" : "text-slate-400"
+              step >= s ? "text-[var(--instrument)]" : "text-ink-secondary"
             )}>
               {s === 1 ? "Keranjang" : s === 2 ? "Pembayaran" : "Opsi Lanjut & Ringkasan"}
             </p>
@@ -329,14 +329,14 @@ export function InvoiceForm({
           {/* Customer Selection */}
           <div className="space-y-1.5">
             <div className="flex justify-between items-center">
-              <Label className="text-xs uppercase font-bold text-slate-500 tracking-wider">
-                Pelanggan <span className="text-red-500">*</span>
+              <Label className="text-xs uppercase font-bold text-ink-secondary tracking-wider">
+                Pelanggan <span className="text-[var(--status-danger)]">*</span>
               </Label>
               {onAddCustomer && (
                 <button
                   type="button"
                   onClick={onAddCustomer}
-                  className="flex items-center gap-1 text-xs text-cyan-600 hover:text-cyan-700 font-medium bg-cyan-50/80 px-2 py-0.5 rounded-md transition-colors border border-cyan-100"
+                  className="flex items-center gap-1 text-xs text-[var(--instrument)] hover:text-[var(--instrument)] font-medium bg-[var(--instrument)]/80 px-2 py-0.5 rounded-md transition-colors border border-[var(--instrument)]/30"
                 >
                   <Plus size={12} /> Pelanggan Baru
                 </button>
@@ -354,20 +354,20 @@ export function InvoiceForm({
                       className={cn(
                         "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
                         glassInput,
-                        !field.value && "text-slate-500"
+                        !field.value && "text-ink-secondary"
                       )}
                     >
                       {selectedCustomer ? (
                         <span>
                           {selectedCustomer.name}
-                          {selectedCustomer.phone && <span className="text-slate-400 ml-1">· {selectedCustomer.phone}</span>}
+                          {selectedCustomer.phone && <span className="text-ink-secondary ml-1">· {selectedCustomer.phone}</span>}
                         </span>
                       ) : (
                         "Cari dan pilih customer..."
                       )}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white/95 backdrop-blur-xl border-white/60">
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-card/95 backdrop-blur-xl border-white/60">
                       <Command>
                         <CommandInput placeholder="Ketik nama atau nomor telepon..." />
                         <CommandList>
@@ -388,7 +388,7 @@ export function InvoiceForm({
                                   )}
                                 />
                                 {c.name}
-                                {c.phone && <span className="text-slate-400 ml-1">· {c.phone}</span>}
+                                {c.phone && <span className="text-ink-secondary ml-1">· {c.phone}</span>}
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -402,18 +402,18 @@ export function InvoiceForm({
             <FieldError message={errors.customerId?.message} />
           </div>
 
-          <Separator className="bg-white/50" />
+          <Separator className="bg-card/50" />
 
           {/* Items */}
           <div className="space-y-3">
             <div className="flex justify-between items-center mb-1">
-              <Label className="text-xs font-semibold text-slate-700">
-                Item Penjualan <span className="text-red-500">*</span>
+              <Label className="text-xs font-semibold text-ink">
+                Item Penjualan <span className="text-[var(--status-danger)]">*</span>
               </Label>
               <button
                 type="button"
                 onClick={() => append({ productId: "", quantity: 1, discount: 0 })}
-                className="flex items-center gap-1 rounded-lg border border-white/60 bg-white/30 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-white/50 transition-colors shadow-sm"
+                className="flex items-center gap-1 rounded-lg border border-white/60 bg-card/30 px-3 py-1 text-xs font-medium text-ink hover:bg-card/50 transition-colors shadow-sm"
               >
                 <Plus size={14} /> Tambah Item
               </button>
@@ -437,14 +437,14 @@ export function InvoiceForm({
                 const isOverStock = selectedProduct ? qty > selectedProduct.stockUnit : false;
 
                 return (
-                  <div key={field.id} className="relative rounded-xl border border-white/60 bg-white/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group">
+                  <div key={field.id} className="relative rounded-xl border border-white/60 bg-card/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group">
                     
                     {/* Delete button (absolute top right) */}
                     {fields.length > 1 && (
                       <button
                         type="button"
                         onClick={() => remove(index)}
-                        className="absolute -top-3 -right-2 bg-white text-red-500 border border-white/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 shadow-sm"
+                        className="absolute -top-3 -right-2 bg-card text-[var(--status-danger)] border border-white/60 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--status-danger)]/10 shadow-sm"
                         title="Hapus Item"
                       >
                         <Trash2 size={14} />
@@ -453,7 +453,7 @@ export function InvoiceForm({
 
                     {/* Row 1: Product Selection */}
                     <div className="mb-4">
-                      <Label className="text-xs uppercase font-bold text-slate-500 mb-1 block tracking-wider">Produk</Label>
+                      <Label className="text-xs uppercase font-bold text-ink-secondary mb-1 block tracking-wider">Produk</Label>
                       <Controller
                         control={control}
                         name={`items.${index}.productId`}
@@ -462,12 +462,12 @@ export function InvoiceForm({
                             <PopoverTrigger
                               role="combobox"
                               className={cn(
-                                "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-white/50 px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 transition-colors hover:bg-white/80",
-                                !f.value && "text-slate-500"
+                                "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-card/50 px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 transition-colors hover:bg-card/80",
+                                !f.value && "text-ink-secondary"
                               )}
                             >
                               {f.value ? (
-                                <span className="truncate text-left font-medium text-slate-800">
+                                <span className="truncate text-left font-medium text-ink">
                                   {fgOptions.find((p) => p.id === f.value)?.name}
                                 </span>
                               ) : (
@@ -475,7 +475,7 @@ export function InvoiceForm({
                               )}
                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white/95 backdrop-blur-xl border-white/60">
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-card/95 backdrop-blur-xl border-white/60">
                               <Command>
                                 <CommandInput placeholder="Cari produk..." />
                                 <CommandList>
@@ -500,7 +500,7 @@ export function InvoiceForm({
                                           )}
                                         />
                                         <span className="truncate">{fg.name}</span>
-                                        <span className="ml-1 text-slate-400 shrink-0">({fg.stockUnit})</span>
+                                        <span className="ml-1 text-ink-secondary shrink-0">({fg.stockUnit})</span>
                                       </CommandItem>
                                     ))}
                                   </CommandGroup>
@@ -515,7 +515,7 @@ export function InvoiceForm({
                     {/* Row 2: Details */}
                     <div className="flex flex-wrap items-end gap-3">
                       <div className="w-20">
-                        <Label className="text-xs uppercase font-bold text-slate-500 mb-1 block tracking-wider">Qty</Label>
+                        <Label className="text-xs uppercase font-bold text-ink-secondary mb-1 block tracking-wider">Qty</Label>
                         <Input
                           type="number"
                           min={1}
@@ -525,22 +525,22 @@ export function InvoiceForm({
                         />
                       </div>
                       <div className="flex-1 min-w-[100px]">
-                        <Label className="text-xs uppercase font-bold text-slate-500 mb-1 block tracking-wider">
+                        <Label className="text-xs uppercase font-bold text-ink-secondary mb-1 block tracking-wider">
                           {priceResolution?.priceSource === "CONTRACT" ? "Harga kontrak" : "Harga otomatis"}
                         </Label>
-                        <div className="flex h-9 items-center justify-end rounded-md border border-white/40 bg-white/50 px-3 font-mono text-sm font-semibold text-slate-700">
+                        <div className="flex h-9 items-center justify-end rounded-md border border-white/40 bg-card/50 px-3 font-mono text-sm font-semibold text-ink">
                           {formatRupiah(price)}
                         </div>
                       </div>
                       <div className="flex-[1.2] min-w-[120px]">
-                        <Label className="text-xs uppercase font-bold text-slate-500 mb-1 block tracking-wider text-right">Subtotal</Label>
-                        <div className="h-9 flex items-center justify-end font-mono text-sm font-bold text-slate-800 bg-white/50 rounded-md px-3 border border-white/40 shadow-inner">
+                        <Label className="text-xs uppercase font-bold text-ink-secondary mb-1 block tracking-wider text-right">Subtotal</Label>
+                        <div className="h-9 flex items-center justify-end font-mono text-sm font-bold text-ink bg-card/50 rounded-md px-3 border border-white/40 shadow-inner">
                           {formatRupiah(rowSubtotal)}
                         </div>
                       </div>
                     </div>
                     {isOverStock && (
-                      <p className="mt-2 text-xs font-semibold text-red-600" role="alert">
+                      <p className="mt-2 text-xs font-semibold text-[var(--status-danger)]" role="alert">
                         Stok tidak cukup. Tersedia {selectedProduct?.stockUnit ?? 0} unit.
                       </p>
                     )}
@@ -559,8 +559,8 @@ export function InvoiceForm({
             <div className="space-y-5">
               {/* Status */}
               <div>
-                <Label className="text-xs uppercase font-bold text-slate-500 mb-2 block tracking-wider">
-                  Status Pembayaran <span className="text-red-500">*</span>
+                <Label className="text-xs uppercase font-bold text-ink-secondary mb-2 block tracking-wider">
+                  Status Pembayaran <span className="text-[var(--status-danger)]">*</span>
                 </Label>
                 <Controller
                   control={control}
@@ -586,9 +586,9 @@ export function InvoiceForm({
                             "flex-1 py-3 rounded-xl border font-bold transition-all shadow-sm",
                             field.value === s
                               ? s === "PAID"
-                                ? "border-emerald-400 bg-emerald-50/90 text-emerald-700 ring-2 ring-emerald-500/20 ring-offset-1"
-                                : "border-amber-400 bg-amber-50/90 text-amber-700 ring-2 ring-amber-500/20 ring-offset-1"
-                              : "border-white/60 bg-white/40 hover:bg-white/60 text-slate-500"
+                                ? "border-[var(--status-success)]/30 bg-[var(--status-success)]/10 text-[var(--status-success)] ring-2 ring-[var(--status-success)]/20 ring-offset-1"
+                                : "border-[var(--status-warning)]/30 bg-[var(--status-warning)]/10/90 text-[var(--status-warning)] ring-2 ring-amber-500/20 ring-offset-1"
+                              : "border-white/60 bg-card/40 hover:bg-card/60 text-ink-secondary"
                           )}
                         >
                           {s === "PAID" ? "✓ LUNAS" : "⏱ TEMPO"}
@@ -603,8 +603,8 @@ export function InvoiceForm({
               {/* Payment Method */}
               {status === "PAID" && (
                 <div>
-                  <Label className="text-xs uppercase font-bold text-slate-500 mb-2 block tracking-wider">
-                    Metode Pembayaran <span className="text-red-500">*</span>
+                  <Label className="text-xs uppercase font-bold text-ink-secondary mb-2 block tracking-wider">
+                    Metode Pembayaran <span className="text-[var(--status-danger)]">*</span>
                   </Label>
                   <Controller
                     control={control}
@@ -622,8 +622,8 @@ export function InvoiceForm({
               {/* Due Date */}
               {status === "ISSUED" && (
                 <div>
-                  <Label className="text-xs uppercase font-bold text-slate-500 mb-2 block tracking-wider">
-                    Jatuh Tempo <span className="text-red-500">*</span>
+                  <Label className="text-xs uppercase font-bold text-ink-secondary mb-2 block tracking-wider">
+                    Jatuh Tempo <span className="text-[var(--status-danger)]">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -645,8 +645,8 @@ export function InvoiceForm({
             <div className="space-y-5">
               {/* Sales Channel */}
               <div>
-                <Label className="text-xs uppercase font-bold text-slate-500 mb-2 block tracking-wider">
-                  Sales Channel <span className="text-red-500">*</span>
+                <Label className="text-xs uppercase font-bold text-ink-secondary mb-2 block tracking-wider">
+                  Sales Channel <span className="text-[var(--status-danger)]">*</span>
                 </Label>
                 <Controller
                   control={control}
@@ -670,7 +670,7 @@ export function InvoiceForm({
 
               {/* Notes */}
               <div>
-                <Label className="text-xs uppercase font-bold text-slate-500 mb-2 block tracking-wider">Catatan</Label>
+                <Label className="text-xs uppercase font-bold text-ink-secondary mb-2 block tracking-wider">Catatan</Label>
                 <Textarea
                   placeholder="Catatan pengiriman, kesepakatan khusus, dll..."
                   className={cn(glassInput, "resize-none")}
@@ -684,10 +684,10 @@ export function InvoiceForm({
             <div className="space-y-4">
               <div className={cn(glassCard, "p-4 space-y-4")}>
                 <div className="flex items-center justify-between gap-4">
-                  <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Diskon Nota (Rp)</Label>
+                  <Label className="text-xs font-semibold text-ink whitespace-nowrap">Diskon Nota (Rp)</Label>
                   <Input
                     type="number"
-                    className={cn(glassInput, "w-32 text-right font-medium text-red-600")}
+                    className={cn(glassInput, "w-32 text-right font-medium text-[var(--status-danger)]")}
                     {...register("invoiceDiscount", { valueAsNumber: true })}
                   />
                 </div>
@@ -698,13 +698,13 @@ export function InvoiceForm({
                   const product = fgOptions.find((option) => option.id === item?.productId);
                   if (!product) return null;
                   return (
-                    <div key={`disc-${field.id}`} className="flex items-center justify-between gap-4 border-t border-slate-200/50 pt-2 mt-2">
-                      <Label className="text-xs font-semibold text-slate-600 truncate max-w-[150px]">
+                    <div key={`disc-${field.id}`} className="flex items-center justify-between gap-4 border-t border-border/50 pt-2 mt-2">
+                      <Label className="text-xs font-semibold text-ink truncate max-w-[150px]">
                         Disc. {product.name} (Rp)
                       </Label>
                       <Input
                         type="number"
-                        className={cn(glassInput, "w-32 text-right font-medium text-red-600 h-8")}
+                        className={cn(glassInput, "w-32 text-right font-medium text-[var(--status-danger)] h-8")}
                         {...register(`items.${index}.discount`, { valueAsNumber: true })}
                       />
                     </div>
@@ -712,16 +712,16 @@ export function InvoiceForm({
                 })}
 
                 {taxConfig && !taxConfig.enabled ? (
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
-                    <Label className="text-xs font-semibold text-amber-800">Pajak Penjualan</Label>
-                    <p className="text-[11px] text-amber-700">
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--status-warning)]/30 bg-[var(--status-warning)]/10/60 px-3 py-2">
+                    <Label className="text-xs font-semibold text-[var(--status-warning)]">Pajak Penjualan</Label>
+                    <p className="text-[11px] text-[var(--status-warning)]">
                       Nonaktif — aktifkan di Pengaturan &gt; Profil &amp; Portal
                     </p>
                   </div>
                 ) : (
                 <>
-                <div className="flex items-center justify-between gap-2 border-t border-slate-200/50 pt-4 mt-2">
-                  <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Jenis Pajak</Label>
+                <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-4 mt-2">
+                  <Label className="text-xs font-semibold text-ink whitespace-nowrap">Jenis Pajak</Label>
                   <Select
                     value={taxType}
                     onValueChange={(v) => setValue("taxType", v as "PPN" | "PPH_21" | "PPH_23" | "PPH_4_2" | "NONE" | undefined)}
@@ -740,7 +740,7 @@ export function InvoiceForm({
                 </div>
                 {taxType && taxType !== "NONE" && (
                   <div className="flex items-center justify-between gap-2">
-                    <Label className="text-xs font-semibold text-slate-700">Rate (%)</Label>
+                    <Label className="text-xs font-semibold text-ink">Rate (%)</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -750,7 +750,7 @@ export function InvoiceForm({
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-4">
-                  <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Pajak Manual (Rp)</Label>
+                  <Label className="text-xs font-semibold text-ink whitespace-nowrap">Pajak Manual (Rp)</Label>
                   <Input
                     type="number"
                     className={cn(glassInput, "w-32 text-right font-medium")}
@@ -782,7 +782,7 @@ export function InvoiceForm({
           <button
             type="button"
             onClick={() => setStep(step - 1)}
-            className="rounded-xl border border-slate-200 bg-white/50 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-white/80 transition-all shadow-sm"
+            className="rounded-xl border border-border bg-card/50 px-5 py-2.5 text-sm font-semibold text-ink hover:bg-card/80 transition-all shadow-sm"
           >
             Kembali
           </button>
@@ -806,7 +806,7 @@ export function InvoiceForm({
               }
               setStep(step + 1);
             }}
-            className="rounded-xl bg-cyan-600 px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-cyan-700 transition-all"
+            className="rounded-xl bg-[var(--instrument)] px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-[var(--instrument)] transition-all"
           >
             Lanjut
           </button>
@@ -815,7 +815,7 @@ export function InvoiceForm({
             type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting}
-            className="rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-emerald-700 transition-all disabled:opacity-50"
+            className="rounded-xl bg-[var(--status-success)] px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-[var(--status-success)] transition-all disabled:opacity-50"
           >
             {isSubmitting ? "Menyimpan..." : "Buat Pesanan"}
           </button>

@@ -6,7 +6,7 @@ export default function PenjualanLoading() {
       <PageHeaderSkeleton stage />
       <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
         <div className="mx-auto max-w-[1600px] space-y-4">
-          <div className="h-64 animate-pulse rounded-[1.25rem] bg-[var(--glass-bg)]" />
+          <div className="h-64 animate-pulse rounded-[1.25rem] bg-surface-sunken" />
         </div>
       </div>
     </div>

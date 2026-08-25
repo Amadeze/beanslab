@@ -233,7 +233,7 @@ export function SalesClient({
             <>
               <Link
                 href="/kasir"
-                className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold transition hover:bg-slate-100"
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-border px-4 text-sm font-semibold transition hover:bg-surface-sunken"
               >
                 <ShoppingCart size={16} />
                 Buka Kasir
@@ -663,9 +663,9 @@ export function SalesClient({
           <div className="flex flex-col gap-4 py-4 items-center justify-center">
             <ReceiptText
               size={48}
-              className="text-emerald-500 mb-2 opacity-80"
+              className="text-[var(--status-success)] mb-2 opacity-80"
             />
-            <p className="text-sm font-medium text-slate-700 text-center">
+            <p className="text-sm font-medium text-ink text-center">
               Apakah Anda ingin mencetak nota ini sekarang?
             </p>
           </div>

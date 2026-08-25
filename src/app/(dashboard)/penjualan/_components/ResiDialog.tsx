@@ -151,38 +151,38 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] rounded-[1.25rem] p-6 border-white/60 bg-white/70 backdrop-blur-xl shadow-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px] rounded-[1.25rem] p-6 border-white/60 bg-card/70 backdrop-blur-xl shadow-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-slate-800">
-            <Truck className="h-5 w-5 text-amber-600" />
+          <DialogTitle className="flex items-center gap-2 text-ink">
+            <Truck className="h-5 w-5 text-[var(--status-warning)]" />
             Update Pengiriman
           </DialogTitle>
-          <DialogDescription className="text-slate-500">
+          <DialogDescription className="text-ink-secondary">
             Perbarui tahap penyerahan, kurir, atau nomor resi untuk pesanan{" "}
-            <strong className="text-slate-800">{invoice?.code}</strong>
+            <strong className="text-ink">{invoice?.code}</strong>
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           {invoice?.shippingMethod && (
-            <div className="text-xs font-semibold bg-amber-50 text-amber-700 px-3 py-2 rounded-lg border border-amber-200">
+            <div className="text-xs font-semibold bg-[var(--status-warning)]/10 text-[var(--status-warning)] px-3 py-2 rounded-lg border border-[var(--status-warning)]/30">
               Metode: {invoice.shippingMethod}
             </div>
           )}
           {invoice?.shippingAddress && (
-            <div className="text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <div className="text-xs text-ink bg-surface-sunken p-3 rounded-lg border border-border">
               <span className="font-bold block mb-1">Alamat Tujuan:</span>
               {invoice.shippingAddress}
             </div>
           )}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+            <label className="text-xs font-bold text-ink uppercase tracking-wide">
               Status Operasional
             </label>
             <select
               value={fulfillmentStatus}
               onChange={(event) => setFulfillmentStatus(event.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
             >
               {invoice
                 ? nextOperatorFulfillmentStatuses(
@@ -197,11 +197,11 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
           </div>
           {invoice?.shippingMethod !== "PICKUP" && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+              <label className="text-xs font-bold text-ink uppercase tracking-wide">
                 {isCourierOrder ? "Nama Ekspedisi" : "Nama Kurir / Driver"}
               </label>
               <input
-                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                 placeholder={isCourierOrder ? "Contoh: JNE, J&T" : "Contoh: Budi, GoSend"}
                 value={courierName}
                 onChange={(e) => setCourierName(e.target.value)}
@@ -211,12 +211,12 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
 
           {isCourierOrder && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+              <label className="text-xs font-bold text-ink uppercase tracking-wide">
                 Nomor Resi / AWB
               </label>
               <div className="flex gap-2">
                 <input
-                  className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                  className="h-10 flex-1 rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                   placeholder="Masukkan nomor resi..."
                   value={trackingNumber}
                   onChange={(e) => setTrackingNumber(e.target.value)}
@@ -242,18 +242,18 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
 
           {/* Tracking Status Display */}
           {isCourierOrder && tracking && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+            <div className="rounded-xl border border-border bg-surface-sunken p-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-ink">
                 <Package className="h-3.5 w-3.5" />
                 Status Pengiriman
               </div>
               {tracking.providerStatus && (
-                <div className="text-sm font-semibold text-slate-800">
+                <div className="text-sm font-semibold text-ink">
                   {tracking.providerStatus}
                 </div>
               )}
               {tracking.lastRefreshedAt && (
-                <div className="text-xs text-slate-400">
+                <div className="text-xs text-ink-secondary">
                   Terakhir diperbarui:{" "}
                   {new Date(tracking.lastRefreshedAt).toLocaleString("id-ID")}
                 </div>
@@ -263,10 +263,10 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
                   {tracking.events.slice(0, 10).map((event, idx) => (
                     <div
                       key={idx}
-                      className="text-xs border-l-2 border-amber-300 pl-2 py-0.5"
+                      className="text-xs border-l-2 border-[var(--status-warning)]/30 pl-2 py-0.5"
                     >
-                      <div className="text-slate-700">{event.description}</div>
-                      <div className="text-slate-400 flex gap-2">
+                      <div className="text-ink">{event.description}</div>
+                      <div className="text-ink-secondary flex gap-2">
                         {event.timestamp && <span>{event.timestamp}</span>}
                         {event.location && <span>- {event.location}</span>}
                       </div>
@@ -278,17 +278,17 @@ export function ResiDialog({ invoice, open, onOpenChange }: ResiDialogProps) {
           )}
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+            <label className="text-xs font-bold text-ink uppercase tracking-wide">
               Ongkos Kirim (Rp)
             </label>
             <input
               type="number"
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+              className="h-10 w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
               placeholder="0"
               value={shippingCost}
               onChange={(e) => setShippingCost(e.target.value)}
             />
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-ink-secondary">
               Ongkir akan ditambahkan ke total tagihan pesanan.
             </p>
           </div>

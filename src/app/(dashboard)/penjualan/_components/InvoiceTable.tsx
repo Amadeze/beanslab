@@ -158,24 +158,24 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
               return (
               <TableRow key={inv.id} className="transition-colors hover:bg-surface-sunken">
                 <TableCell>
-                  <p className="font-mono text-xs font-semibold text-slate-600">{inv.code}</p>
-                  <p className="mt-0.5 text-[11px] text-slate-400">{formatDate(inv.issuedAt)}</p>
+                  <p className="font-mono text-xs font-semibold text-ink">{inv.code}</p>
+                  <p className="mt-0.5 text-[11px] text-ink-secondary">{formatDate(inv.issuedAt)}</p>
                   {inv.dueDate && (
-                    <p className="text-xs text-amber-600 font-bold uppercase tracking-wider mt-0.5">
+                    <p className="text-xs text-[var(--status-warning)] font-bold uppercase tracking-wider mt-0.5">
                       Tempo: {formatDate(inv.dueDate)}
                     </p>
                   )}
                 </TableCell>
-                <TableCell className="text-sm font-bold text-slate-900">
+                <TableCell className="text-sm font-bold text-ink">
                   {inv.customerName}
-                  <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                  <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-secondary">
                     {getSalesChannelLabel(inv.salesChannel)} · {inv.itemCount} item
                   </p>
                 </TableCell>
                 <TableCell className="text-right">
-                  <p className="font-mono text-sm font-black text-slate-900">{formatRupiah(inv.grandTotal)}</p>
+                  <p className="font-mono text-sm font-black text-ink">{formatRupiah(inv.grandTotal)}</p>
                   {inv.balance > 0 && (
-                    <p className="font-mono text-xs font-bold text-amber-600 mt-0.5">Sisa {formatRupiah(inv.balance)}</p>
+                    <p className="font-mono text-xs font-bold text-[var(--status-warning)] mt-0.5">Sisa {formatRupiah(inv.balance)}</p>
                   )}
                 </TableCell>
                 <TableCell className="text-center">
@@ -205,21 +205,21 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                     <Popover>
                         <PopoverTrigger
                             aria-label={`Menu lainnya untuk ${inv.code}`}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-white text-slate-500 transition-colors hover:bg-stone-100 hover:text-slate-900"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink"
                           >
                             <MoreHorizontal size={14} />
                       </PopoverTrigger>
                         <PopoverContent align="end" className="w-40 p-1">
                           <button
                             onClick={() => triggerSilentPrint(`/nota/${inv.id}?print=true`)}
-                            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-stone-100"
+                            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold text-ink hover:bg-surface-sunken"
                           >
                             <ExternalLink size={13} /> Print nota
                           </button>
                           {returEligible && (
                             <button
                               onClick={() => setReturTarget(inv.id)}
-                              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold text-amber-600 hover:bg-amber-50"
+                              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold text-[var(--status-warning)] hover:bg-[var(--status-warning)]/10"
                             >
                               <ArrowLeftRight size={13} /> Retur
                             </button>
@@ -227,7 +227,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                           {voidEligible && (
                             <button
                               onClick={() => setVoidTarget(inv)}
-                              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold text-red-500 hover:bg-red-50"
+                              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold text-[var(--status-danger)] hover:bg-[var(--status-danger)]/10"
                             >
                               <Ban size={13} /> Void
                             </button>
@@ -246,43 +246,43 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
 
         <div className="md:hidden flex flex-col gap-3">
       {filteredInvoices.length === 0 ? (
-        <div className="rounded-xl border border-stone-200 bg-white py-12 text-center">
-           <p className="text-sm font-medium text-zinc-400">
+        <div className="rounded-xl border border-border bg-card py-12 text-center">
+           <p className="text-sm font-medium text-ink-secondary">
              {invoices.length > 0 ? "Tidak ada nota yang cocok." : "Belum ada nota."}
            </p>
         </div>
       ) : (
         filteredInvoices.map((inv) => (
-          <div key={inv.id} className="flex flex-col gap-2 rounded-xl border border-stone-200 bg-white p-4">
+          <div key={inv.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4">
             <div className="flex justify-between items-start">
               <div>
-                <p className="font-bold text-slate-900">{inv.customerName}</p>
+                <p className="font-bold text-ink">{inv.customerName}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="font-mono text-xs font-semibold text-slate-600">{inv.code}</span>
-                  <span className="text-xs text-slate-400">&middot;</span>
-                  <span className="text-xs text-slate-500">{inv.itemCount} Item</span>
-                  <span className="text-xs text-slate-400">&middot;</span>
-                  <span className="text-xs text-slate-500">{getSalesChannelLabel(inv.salesChannel)}</span>
+                  <span className="font-mono text-xs font-semibold text-ink">{inv.code}</span>
+                  <span className="text-xs text-ink-secondary">&middot;</span>
+                  <span className="text-xs text-ink-secondary">{inv.itemCount} Item</span>
+                  <span className="text-xs text-ink-secondary">&middot;</span>
+                  <span className="text-xs text-ink-secondary">{getSalesChannelLabel(inv.salesChannel)}</span>
                   {inv.purchaseOrderReference ? (
-                    <span className="text-xs font-medium text-slate-600">PO {inv.purchaseOrderReference}</span>
+                    <span className="text-xs font-medium text-ink">PO {inv.purchaseOrderReference}</span>
                   ) : null}
                 </div>
               </div>
               <div className="text-right">
-                <p className="font-mono text-sm font-black text-slate-900">{formatRupiah(inv.grandTotal)}</p>
+                <p className="font-mono text-sm font-black text-ink">{formatRupiah(inv.grandTotal)}</p>
                 {inv.balance > 0 && (
-                  <p className="font-mono text-xs font-bold text-amber-600 mt-0.5">Sisa: {formatRupiah(inv.balance)}</p>
+                  <p className="font-mono text-xs font-bold text-[var(--status-warning)] mt-0.5">Sisa: {formatRupiah(inv.balance)}</p>
                 )}
               </div>
             </div>
             
-            <div className="mt-2 flex items-end justify-between border-t border-stone-200 pt-2">
+            <div className="mt-2 flex items-end justify-between border-t border-border pt-2">
               <div className="flex flex-col gap-1.5">
                 <div className="flex flex-wrap gap-1">
                   <StatusBadge status={inv.status} />
                   <StatusBadge status={inv.fulfillmentStatus} />
                 </div>
-                <span className="text-xs font-semibold text-slate-500">{formatDate(inv.issuedAt)}</span>
+                <span className="text-xs font-semibold text-ink-secondary">{formatDate(inv.issuedAt)}</span>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-1.5">
                 {inv.status === "DRAFT" && (
@@ -309,15 +309,15 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
                   </Button>
                 )}
                 {inv.fulfillmentStatus === "DELIVERED" && inv.status !== "VOID" && inv.status !== "RETURNED" && (
-                  <Button size="sm" variant="ghost" aria-label={`Retur ${inv.code}`} onClick={() => setReturTarget(inv.id)} className="h-9 px-2 text-[11px] font-bold uppercase text-amber-600 hover:bg-amber-50">
+                  <Button size="sm" variant="ghost" aria-label={`Retur ${inv.code}`} onClick={() => setReturTarget(inv.id)} className="h-9 px-2 text-[11px] font-bold uppercase text-[var(--status-warning)] hover:bg-[var(--status-warning)]/10">
                     Retur
                   </Button>
                 )}
-                <button onClick={() => triggerSilentPrint(`/nota/${inv.id}?print=true`)} className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white/40 px-2.5 text-[11px] font-bold uppercase text-slate-600 shadow-sm hover:bg-slate-900 hover:text-white">
+                <button onClick={() => triggerSilentPrint(`/nota/${inv.id}?print=true`)} className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-card/40 px-2.5 text-[11px] font-bold uppercase text-ink shadow-sm hover:bg-ink hover:text-white">
                   Print
                 </button>
                 {inv.status !== "VOID" && inv.status !== "PAID" && inv.status !== "RETURNED" && (
-                  <Button size="sm" variant="ghost" onClick={() => setVoidTarget(inv)} className="h-9 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600">
+                  <Button size="sm" variant="ghost" onClick={() => setVoidTarget(inv)} className="h-9 px-2.5 text-[11px] font-bold uppercase text-[var(--status-danger)] hover:bg-[var(--status-danger)]/10 hover:text-[var(--status-danger)]">
                     Void
                   </Button>
                 )}

@@ -107,7 +107,7 @@ export function ReturDialog({
         </DialogHeader>
 
         {loading && (
-          <div className="py-8 text-center text-sm text-stone-400">Memuat...</div>
+          <div className="py-8 text-center text-sm text-ink-secondary">Memuat...</div>
         )}
 
         {data && (
@@ -119,8 +119,8 @@ export function ReturDialog({
                 return (
                   <div key={item.productId} className="flex items-center gap-3">
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-stone-800">{item.productName}</p>
-                      <p className="text-xs text-stone-400">
+                      <p className="text-sm font-medium text-ink">{item.productName}</p>
+                      <p className="text-xs text-ink-secondary">
                         Terjual {item.quantity} · Sudah diretur {item.returnedQuantity} ·
                         Harga {formatRupiah(Number(item.unitPrice) - Number(item.unitDiscount))}
                       </p>
@@ -154,9 +154,9 @@ export function ReturDialog({
               />
             </div>
 
-            <div className="flex items-center justify-between rounded-lg bg-stone-50 px-4 py-3">
-              <span className="text-sm font-medium text-stone-600">Total Retur</span>
-              <span className="font-mono text-lg font-bold text-stone-800">
+            <div className="flex items-center justify-between rounded-lg bg-surface-sunken px-4 py-3">
+              <span className="text-sm font-medium text-ink">Total Retur</span>
+              <span className="font-mono text-lg font-bold text-ink">
                 {formatRupiah(totalReturn)}
               </span>
             </div>

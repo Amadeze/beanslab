@@ -191,8 +191,8 @@ export function CashierClient({
       <Dialog open={!!completedSale} onOpenChange={(open) => !open && setCompletedSale(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader className="text-center sm:text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 mb-4">
-              <CheckCircle2 size={32} className="text-emerald-600" />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--status-success)]/15 mb-4">
+              <CheckCircle2 size={32} className="text-[var(--status-success)]" />
             </div>
             <DialogTitle className="text-xl">Pembayaran Berhasil</DialogTitle>
             <DialogDescription className="text-base mt-2">
@@ -212,7 +212,7 @@ export function CashierClient({
             </Link>
             <button
               onClick={() => setCompletedSale(null)}
-              className="flex w-full min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 transition"
+              className="flex w-full min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-bold text-ink hover:bg-surface-sunken transition"
             >
               Lanjut Transaksi Baru
             </button>
@@ -225,13 +225,13 @@ export function CashierClient({
           <div className="mx-auto max-w-[1300px]">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row">
               <label className="relative min-w-0 flex-1">
-                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-secondary" />
                 <span className="sr-only">Cari produk</span>
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Cari nama atau kode produk…"
-                  className="h-11 w-full rounded-lg border border-stone-200 bg-white pl-10 pr-3 text-sm outline-none transition focus:border-stone-400 focus:ring-2 focus:ring-stone-900/10"
+                  className="h-11 w-full rounded-lg border border-border bg-card pl-10 pr-3 text-sm outline-none transition focus:border-border focus:ring-2 focus:ring-ink/10"
                 />
               </label>
               <div className="flex flex-1 gap-2 min-w-[240px]">
@@ -242,8 +242,8 @@ export function CashierClient({
                       role="combobox"
                       aria-expanded={customerPopoverOpen}
                       className={cn(
-                        "flex h-11 w-full items-center justify-between rounded-lg border border-stone-200 bg-white px-3 text-sm outline-none transition focus:border-stone-400 focus:ring-2 focus:ring-stone-900/10",
-                        !customerId && "text-slate-500"
+                        "flex h-11 w-full items-center justify-between rounded-lg border border-border bg-card px-3 text-sm outline-none transition focus:border-border focus:ring-2 focus:ring-ink/10",
+                        !customerId && "text-ink-secondary"
                       )}
                     >
                       {customerId ? (
@@ -255,7 +255,7 @@ export function CashierClient({
                       )}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white shadow-xl rounded-xl border border-stone-200">
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-card shadow-xl rounded-xl border border-border">
                       <Command>
                         <CommandInput placeholder="Ketik nama atau telepon..." />
                         <CommandList>
@@ -277,7 +277,7 @@ export function CashierClient({
                                   )}
                                 />
                                 {c.name}
-                                {c.phone && <span className="text-stone-400 ml-1">· {c.phone}</span>}
+                                {c.phone && <span className="text-ink-secondary ml-1">· {c.phone}</span>}
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -314,14 +314,14 @@ export function CashierClient({
                       toast.error("Terjadi kesalahan sistem", { id: toastId });
                     }
                   }}
-                  className="inline-flex h-11 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-xs font-bold text-stone-700 hover:bg-stone-50"
+                  className="inline-flex h-11 items-center justify-center rounded-lg border border-border bg-card px-3 text-xs font-bold text-ink hover:bg-surface-sunken"
                 >
                   Walk-in
                 </button>
                 <button
                   type="button"
                   onClick={() => setCustomerDrawerOpen(true)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-stone-900 text-white hover:bg-stone-800"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-ink text-white hover:bg-ink"
                   title="Tambah Pelanggan Baru"
                 >
                   <Plus size={16} />
@@ -329,7 +329,7 @@ export function CashierClient({
                 <button
                   type="button"
                   onClick={() => setStockDrawerOpen(true)}
-                  className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 text-xs font-bold text-stone-700 hover:bg-stone-50"
+                  className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-bold text-ink hover:bg-surface-sunken"
                 >
                   <Package size={14} />
                   <span className="hidden sm:inline">Cek Stok</span>
@@ -338,10 +338,10 @@ export function CashierClient({
             </div>
 
             {customers.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center">
-                <p className="text-sm font-semibold text-stone-900">Kasir membutuhkan minimal satu pelanggan</p>
-                <p className="mt-1 text-xs text-stone-500">Tambahkan “Pelanggan Umum” untuk transaksi walk-in.</p>
-                <Link href="/penjualan/pelanggan" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-stone-900 px-4 text-xs font-semibold text-white">
+              <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center">
+                <p className="text-sm font-semibold text-ink">Kasir membutuhkan minimal satu pelanggan</p>
+                <p className="mt-1 text-xs text-ink-secondary">Tambahkan “Pelanggan Umum” untuk transaksi walk-in.</p>
+                <Link href="/penjualan/pelanggan" className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-ink px-4 text-xs font-semibold text-white">
                   Tambah pelanggan
                 </Link>
               </div>
@@ -360,38 +360,38 @@ export function CashierClient({
                   const price = priceResolution.unitPrice;
                   const unavailable = product.stockUnit <= 0;
                   return (
-                    <article key={product.id} className="relative flex min-h-[154px] flex-col rounded-xl border border-stone-200 bg-white p-3.5">
+                    <article key={product.id} className="relative flex min-h-[154px] flex-col rounded-xl border border-border bg-card p-3.5">
                       {quantity > 0 ? (
-                        <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white shadow-sm ring-2 ring-white">
+                        <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--status-danger)]/100 text-xs font-bold text-white shadow-sm ring-2 ring-white">
                           {quantity}
                         </div>
                       ) : null}
                       <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold uppercase tracking-wide text-stone-400">{product.code}</p>
-                        <h2 className="mt-1 line-clamp-2 text-sm font-bold leading-5 text-stone-900">{product.name}</h2>
-                        <p className={cn("mt-1 text-[11px] font-medium", unavailable ? "text-red-600" : "text-stone-500")}>
+                        <p className="truncate text-xs font-semibold uppercase tracking-wide text-ink-secondary">{product.code}</p>
+                        <h2 className="mt-1 line-clamp-2 text-sm font-bold leading-5 text-ink">{product.name}</h2>
+                        <p className={cn("mt-1 text-[11px] font-medium", unavailable ? "text-[var(--status-danger)]" : "text-ink-secondary")}>
                           {unavailable ? "Stok habis" : `${product.stockUnit} pcs tersedia`}
                         </p>
                       </div>
                       <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-                        <span className="text-xs font-bold tabular-nums text-stone-900">
+                        <span className="text-xs font-bold tabular-nums text-ink">
                           {formatRupiah(price)}
                           {priceResolution.priceSource === "CONTRACT" ? (
-                            <span className="ml-1 text-[9px] font-semibold uppercase text-emerald-700">Kontrak</span>
+                            <span className="ml-1 text-[9px] font-semibold uppercase text-[var(--status-success)]">Kontrak</span>
                           ) : null}
                         </span>
                         {quantity > 0 ? (
-                          <div className="flex items-center rounded-lg border border-stone-200">
-                            <button type="button" onClick={() => changeQuantity(product, -1)} className="flex h-9 w-9 items-center justify-center text-stone-600 hover:bg-stone-100" aria-label={`Kurangi ${product.name}`}>
+                          <div className="flex items-center rounded-lg border border-border">
+                            <button type="button" onClick={() => changeQuantity(product, -1)} className="flex h-9 w-9 items-center justify-center text-ink hover:bg-surface-sunken" aria-label={`Kurangi ${product.name}`}>
                               <Minus size={14} />
                             </button>
                             <span className="w-7 text-center text-xs font-bold tabular-nums">{quantity}</span>
-                            <button type="button" onClick={() => changeQuantity(product, 1)} disabled={quantity >= product.stockUnit} className="flex h-9 w-9 items-center justify-center text-stone-600 hover:bg-stone-100 disabled:opacity-30" aria-label={`Tambah ${product.name}`}>
+                            <button type="button" onClick={() => changeQuantity(product, 1)} disabled={quantity >= product.stockUnit} className="flex h-9 w-9 items-center justify-center text-ink hover:bg-surface-sunken disabled:opacity-30" aria-label={`Tambah ${product.name}`}>
                               <Plus size={14} />
                             </button>
                           </div>
                         ) : (
-                          <button type="button" onClick={() => changeQuantity(product, 1)} disabled={unavailable} className="flex h-9 w-9 items-center justify-center rounded-lg bg-stone-900 text-white hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400" aria-label={`Tambah ${product.name}`}>
+                          <button type="button" onClick={() => changeQuantity(product, 1)} disabled={unavailable} className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink text-white hover:bg-ink disabled:bg-surface-sunken disabled:text-ink-secondary" aria-label={`Tambah ${product.name}`}>
                             <Plus size={15} />
                           </button>
                         )}
@@ -404,39 +404,39 @@ export function CashierClient({
           </div>
         </section>
 
-        <aside className="custom-scrollbar hidden min-h-0 border-t border-stone-200 bg-white lg:block lg:overflow-y-auto lg:border-l lg:border-t-0" aria-label="Keranjang kasir">
-          <div className="flex min-h-14 items-center justify-between border-b border-stone-200 px-4">
+        <aside className="custom-scrollbar hidden min-h-0 border-t border-border bg-card lg:block lg:overflow-y-auto lg:border-l lg:border-t-0" aria-label="Keranjang kasir">
+          <div className="flex min-h-14 items-center justify-between border-b border-border px-4">
             <div>
-              <h2 className="text-sm font-bold text-stone-900">Keranjang</h2>
-              <p className="text-[11px] text-stone-500">{selectedCustomer?.name ?? "Belum memilih pelanggan"}</p>
+              <h2 className="text-sm font-bold text-ink">Keranjang</h2>
+              <p className="text-[11px] text-ink-secondary">{selectedCustomer?.name ?? "Belum memilih pelanggan"}</p>
             </div>
             {cartRows.length > 0 ? (
-              <button type="button" onClick={() => setCart({})} className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-red-600 hover:bg-red-50">
+              <button type="button" onClick={() => setCart({})} className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-[var(--status-danger)] hover:bg-[var(--status-danger)]/10">
                 <Trash2 size={13} /> Kosongkan
               </button>
             ) : null}
           </div>
 
-          <div className="min-h-[190px] divide-y divide-stone-100">
+          <div className="min-h-[190px] divide-y divide-border">
             {cartRows.length === 0 ? (
-              <div className="flex min-h-[190px] flex-col items-center justify-center px-6 text-center text-stone-400">
+              <div className="flex min-h-[190px] flex-col items-center justify-center px-6 text-center text-ink-secondary">
                 <ShoppingCart size={28} />
                 <p className="mt-2 text-xs font-medium">Pilih produk untuk mulai transaksi.</p>
               </div>
             ) : cartRows.map((row) => (
               <div key={row.product.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-semibold text-stone-900">{row.product.name}</p>
-                  <p className="mt-0.5 text-xs text-stone-500">{row.quantity} × {formatRupiah(row.unitPrice)}</p>
+                  <p className="truncate text-xs font-semibold text-ink">{row.product.name}</p>
+                  <p className="mt-0.5 text-xs text-ink-secondary">{row.quantity} × {formatRupiah(row.unitPrice)}</p>
                 </div>
-                <p className="text-xs font-bold tabular-nums text-stone-900">{formatRupiah(row.subtotal)}</p>
+                <p className="text-xs font-bold tabular-nums text-ink">{formatRupiah(row.subtotal)}</p>
               </div>
             ))}
           </div>
 
-          <div className="border-t border-stone-200 p-4">
+          <div className="border-t border-border p-4">
             <fieldset>
-              <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-500">Metode pembayaran</legend>
+              <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-secondary">Metode pembayaran</legend>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: "CASH", label: "Tunai", icon: Banknote },
@@ -452,7 +452,7 @@ export function CashierClient({
                       onClick={() => setPaymentMethod(method.id as PaymentMethod)}
                       className={cn(
                         "flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg border text-xs font-semibold",
-                        active ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 text-stone-600 hover:bg-stone-50",
+                        active ? "border-border bg-ink text-white" : "border-border text-ink hover:bg-surface-sunken",
                       )}
                     >
                       <Icon size={15} />
@@ -463,10 +463,10 @@ export function CashierClient({
               </div>
             </fieldset>
 
-            <dl className="mt-4 border-t border-stone-200 pt-4">
+            <dl className="mt-4 border-t border-border pt-4">
               <div className="flex items-center justify-between">
-                <dt className="text-sm font-semibold text-stone-700">Total</dt>
-                <dd className="text-xl font-bold tabular-nums tracking-tight text-stone-950">{formatRupiah(total)}</dd>
+                <dt className="text-sm font-semibold text-ink">Total</dt>
+                <dd className="text-xl font-bold tabular-nums tracking-tight text-ink-secondary">{formatRupiah(total)}</dd>
               </div>
             </dl>
 
@@ -474,7 +474,7 @@ export function CashierClient({
               type="button"
               onClick={checkout}
               disabled={submitting || cartRows.length === 0 || !customerId}
-              className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-stone-900 px-4 text-sm font-bold text-white hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-500"
+              className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-bold text-white hover:bg-ink disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-ink-secondary"
             >
               {submitting ? <Loader2 size={17} className="animate-spin" /> : <Banknote size={17} />}
               {submitting ? "Memproses…" : `Bayar ${formatRupiah(total)}`}
@@ -484,22 +484,22 @@ export function CashierClient({
       </div>
 
       {/* Mobile Persistent Total Bar */}
-      <div className="fixed bottom-[calc(78px+env(safe-area-inset-bottom,0px))] left-4 right-4 z-30 flex min-h-14 items-center justify-between overflow-hidden rounded-xl bg-stone-900 shadow-2xl lg:hidden">
+      <div className="fixed bottom-[calc(78px+env(safe-area-inset-bottom,0px))] left-4 right-4 z-30 flex min-h-14 items-center justify-between overflow-hidden rounded-xl bg-ink shadow-2xl lg:hidden">
         <button
           type="button"
           onClick={() => setMobileCartOpen(true)}
-          className="flex flex-1 items-center gap-3 px-4 py-3 text-left hover:bg-stone-800 transition-colors"
+          className="flex flex-1 items-center gap-3 px-4 py-3 text-left hover:bg-ink transition-colors"
         >
-          <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
+          <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card/10 text-white">
             <ShoppingCart size={15} />
             {totalUnits > 0 ? (
-              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--status-danger)]/100 text-[9px] font-bold text-white">
                 {totalUnits}
               </span>
             ) : null}
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[10px] font-medium text-stone-400">Total belanja</span>
+            <span className="text-[10px] font-medium text-ink-secondary">Total belanja</span>
             <span className="truncate text-sm font-bold tracking-tight text-white">{formatRupiah(total)}</span>
           </div>
         </button>
@@ -507,7 +507,7 @@ export function CashierClient({
           type="button"
           onClick={checkout}
           disabled={submitting || cartRows.length === 0 || !customerId}
-          className="flex h-full min-h-14 items-center justify-center gap-1.5 bg-emerald-600 px-5 text-sm font-bold text-white hover:bg-emerald-500 disabled:bg-stone-800 disabled:text-stone-500 transition-colors"
+          className="flex h-full min-h-14 items-center justify-center gap-1.5 bg-[var(--status-success)] px-5 text-sm font-bold text-white hover:bg-[var(--status-success)]/100 disabled:bg-ink disabled:text-ink-secondary transition-colors"
         >
           {submitting ? <Loader2 size={16} className="animate-spin" /> : null}
           {submitting ? "Proses..." : "Bayar"}
@@ -525,7 +525,7 @@ export function CashierClient({
             type="button"
             onClick={checkout}
             disabled={submitting || cartRows.length === 0 || !customerId}
-            className="inline-flex min-h-10 items-center justify-center gap-2 bg-stone-900 px-4 text-xs font-bold text-white disabled:bg-stone-200 disabled:text-stone-500"
+            className="inline-flex min-h-10 items-center justify-center gap-2 bg-ink px-4 text-xs font-bold text-white disabled:bg-surface-sunken disabled:text-ink-secondary"
           >
             {submitting ? <Loader2 size={15} className="animate-spin" /> : <Banknote size={15} />}
             {submitting ? "Memproses…" : `Bayar ${formatRupiah(total)}`}
@@ -534,17 +534,17 @@ export function CashierClient({
       >
         <div className="space-y-5">
           {cartRows.length === 0 ? (
-            <div className="flex min-h-36 flex-col items-center justify-center rounded-lg border border-dashed border-stone-300 text-center text-stone-400">
+            <div className="flex min-h-36 flex-col items-center justify-center rounded-lg border border-dashed border-border text-center text-ink-secondary">
               <ShoppingCart size={26} />
               <p className="mt-2 text-xs font-medium">Keranjang masih kosong.</p>
             </div>
           ) : (
-            <div className="divide-y divide-stone-100 rounded-lg border border-stone-200">
+            <div className="divide-y divide-border rounded-lg border border-border">
               {cartRows.map((row) => (
                 <div key={row.product.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 p-3">
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold text-stone-900">{row.product.name}</p>
-                    <div className="mt-2 flex w-fit items-center rounded-lg border border-stone-200">
+                    <p className="truncate text-xs font-semibold text-ink">{row.product.name}</p>
+                    <div className="mt-2 flex w-fit items-center rounded-lg border border-border">
                       <button type="button" onClick={() => changeQuantity(row.product, -1)} className="flex h-9 w-9 items-center justify-center" aria-label={`Kurangi ${row.product.name}`}>
                         <Minus size={13} />
                       </button>
@@ -554,14 +554,14 @@ export function CashierClient({
                       </button>
                     </div>
                   </div>
-                  <p className="text-xs font-bold tabular-nums text-stone-900">{formatRupiah(row.subtotal)}</p>
+                  <p className="text-xs font-bold tabular-nums text-ink">{formatRupiah(row.subtotal)}</p>
                 </div>
               ))}
             </div>
           )}
 
           <fieldset>
-            <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-500">Metode pembayaran</legend>
+            <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-secondary">Metode pembayaran</legend>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: "CASH", label: "Tunai", icon: Banknote },
@@ -577,7 +577,7 @@ export function CashierClient({
                     onClick={() => setPaymentMethod(method.id as PaymentMethod)}
                     className={cn(
                       "flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg border text-xs font-semibold",
-                      active ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 text-stone-600",
+                      active ? "border-border bg-ink text-white" : "border-border text-ink",
                     )}
                   >
                     <Icon size={15} />
@@ -588,9 +588,9 @@ export function CashierClient({
             </div>
           </fieldset>
 
-          <div className="flex items-center justify-between border-t border-stone-200 pt-4">
-            <span className="text-sm font-semibold text-stone-700">Total</span>
-            <span className="text-xl font-bold tabular-nums text-stone-950">{formatRupiah(total)}</span>
+          <div className="flex items-center justify-between border-t border-border pt-4">
+            <span className="text-sm font-semibold text-ink">Total</span>
+            <span className="text-xl font-bold tabular-nums text-ink-secondary">{formatRupiah(total)}</span>
           </div>
         </div>
       </StandardDrawer>
@@ -605,7 +605,7 @@ export function CashierClient({
             type="submit"
             form="new-customer-form"
             disabled={isCustomerSubmitting}
-            className="inline-flex min-h-10 items-center justify-center gap-2 bg-stone-900 px-4 text-xs font-bold text-white disabled:bg-stone-200 disabled:text-stone-500"
+            className="inline-flex min-h-10 items-center justify-center gap-2 bg-ink px-4 text-xs font-bold text-white disabled:bg-surface-sunken disabled:text-ink-secondary"
           >
             {isCustomerSubmitting ? <Loader2 size={15} className="animate-spin" /> : null}
             {isCustomerSubmitting ? "Menyimpan..." : "Simpan Pelanggan"}
@@ -636,27 +636,27 @@ export function CashierClient({
         description="Cek ketersediaan stok produk jadi."
       >
         <div className="space-y-4">
-          <div className="rounded-xl border border-stone-200 bg-white">
+          <div className="rounded-xl border border-border bg-card">
             <div className="max-h-[60vh] overflow-y-auto">
               <table className="w-full text-left text-sm">
-                <thead className="sticky top-0 bg-stone-100 text-stone-600">
+                <thead className="sticky top-0 bg-surface-sunken text-ink">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Produk</th>
                     <th className="px-4 py-3 text-right font-semibold">Stok (Pcs)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="divide-y divide-border">
                   {products.map((p) => (
-                    <tr key={p.id} className="hover:bg-stone-50">
+                    <tr key={p.id} className="hover:bg-surface-sunken">
                       <td className="px-4 py-3">
-                        <div className="font-medium text-stone-900">{p.name}</div>
-                        <div className="text-xs text-stone-500">{p.code}</div>
+                        <div className="font-medium text-ink">{p.name}</div>
+                        <div className="text-xs text-ink-secondary">{p.code}</div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className={cn(
                           "font-bold",
-                          p.stockUnit > 10 ? "text-stone-900" : 
-                          p.stockUnit > 0 ? "text-amber-600" : "text-red-600"
+                          p.stockUnit > 10 ? "text-ink" : 
+                          p.stockUnit > 0 ? "text-[var(--status-warning)]" : "text-[var(--status-danger)]"
                         )}>
                           {p.stockUnit}
                         </span>

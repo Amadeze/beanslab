@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { GlassPanel } from "@/components/ui/glass-panel";
+import { Card } from "@/components/ui/card";
 import { CompactHeader } from "@/components/layout/CompactHeader";
 import { formatRupiah } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -50,8 +50,8 @@ type TierBadgeProps = { tier: string };
 function TierBadge({ tier }: TierBadgeProps) {
   const tones: Record<string, string> = {
     BRONZE: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
-    SILVER: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-    GOLD: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    SILVER: "bg-surface-sunken text-ink dark:bg-ink dark:text-ink-secondary",
+    GOLD: "bg-[var(--status-warning)]/15 text-[var(--status-warning)] dark:bg-amber-900/40 dark:text-[var(--status-warning)]",
   };
   return (
     <span className={cn("rounded-md px-2 py-1 text-xs font-bold", tones[tier] || "bg-gray-100 text-gray-700")}>
@@ -181,13 +181,13 @@ function ContractForm({ open, onOpenChange, initial, customers, onSuccess }: Con
             </Select>
           </div>
 
-          <div className="rounded-xl border border-stone-200 p-3">
-            <label className="flex items-center gap-3 text-sm font-semibold text-stone-800">
+          <div className="rounded-xl border border-border p-3">
+            <label className="flex items-center gap-3 text-sm font-semibold text-ink">
               <input
                 type="checkbox"
                 checked={form.allowCredit}
                 onChange={(event) => setForm((current) => ({ ...current, allowCredit: event.target.checked }))}
-                className="h-4 w-4 rounded border-stone-300"
+                className="h-4 w-4 rounded border-border"
               />
               Izinkan pembayaran kredit di portal partner
             </label>
@@ -455,7 +455,7 @@ function ContractDetailDialog({ contract, prices, products, onClose, onRefresh }
               className={cn(
                 "rounded-md px-2 py-1 text-xs font-bold",
                 contract.isActive
-                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  ? "bg-[var(--status-success)]/15 text-[var(--status-success)] dark:bg-emerald-900/40 dark:text-[var(--status-success)]"
                   : "bg-gray-100 text-gray-500",
               )}
             >
@@ -467,13 +467,13 @@ function ContractDetailDialog({ contract, prices, products, onClose, onRefresh }
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <p className="text-xs text-stone-500">Mulai</p>
+              <p className="text-xs text-ink-secondary">Mulai</p>
               <p className="font-mono font-semibold">
                 {new Date(contract.startDate).toLocaleDateString("id-ID", { dateStyle: "medium" })}
               </p>
             </div>
             <div>
-              <p className="text-xs text-stone-500">Selesai</p>
+              <p className="text-xs text-ink-secondary">Selesai</p>
               <p className="font-mono font-semibold">
                 {contract.endDate
                   ? new Date(contract.endDate).toLocaleDateString("id-ID", { dateStyle: "medium" })
@@ -483,17 +483,17 @@ function ContractDetailDialog({ contract, prices, products, onClose, onRefresh }
           </div>
 
           {contract.terms && (
-            <GlassPanel padding="sm">
-              <p className="text-xs font-semibold text-stone-600">Ketentuan</p>
-              <p className="mt-1 whitespace-pre-wrap text-xs text-stone-700">{contract.terms}</p>
-            </GlassPanel>
+            <Card className="p-3">
+              <p className="text-xs font-semibold text-ink">Ketentuan</p>
+              <p className="mt-1 whitespace-pre-wrap text-xs text-ink">{contract.terms}</p>
+            </Card>
           )}
 
-          <GlassPanel padding="sm">
+          <Card className="p-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs font-semibold text-stone-700">Akses portal partner</p>
-                <p className="mt-1 text-xs text-stone-500">
+                <p className="text-xs font-semibold text-ink">Akses portal partner</p>
+                <p className="mt-1 text-xs text-ink-secondary">
                   {contract.allowCredit
                     ? `Harga kontrak + kredit ${contract.paymentTermsDays} hari`
                     : "Harga kontrak · pembayaran langsung"}
@@ -503,10 +503,10 @@ function ContractDetailDialog({ contract, prices, products, onClose, onRefresh }
                 <Link2 size={14} /> Salin Link Partner
               </Button>
             </div>
-          </GlassPanel>
+          </Card>
 
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-stone-900">Daftar Harga Tier ({prices.length})</p>
+            <p className="text-sm font-semibold text-ink">Daftar Harga Tier ({prices.length})</p>
             <Button
               type="button"
               size="sm"
@@ -519,11 +519,11 @@ function ContractDetailDialog({ contract, prices, products, onClose, onRefresh }
           </div>
 
           {prices.length === 0 ? (
-            <p className="text-xs text-stone-500">Belum ada harga tier untuk kontrak ini.</p>
+            <p className="text-xs text-ink-secondary">Belum ada harga tier untuk kontrak ini.</p>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
               <Table>
-                <TableHeader className="bg-stone-50">
+                <TableHeader className="bg-surface-sunken">
                   <TableRow>
                     <TableHead>Produk</TableHead>
                     <TableHead>Tier</TableHead>
@@ -537,8 +537,8 @@ function ContractDetailDialog({ contract, prices, products, onClose, onRefresh }
                   {prices.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell>
-                        <p className="text-sm font-semibold text-stone-900">{p.productName}</p>
-                        <p className="font-mono text-[11px] text-stone-500">{p.productCode}</p>
+                        <p className="text-sm font-semibold text-ink">{p.productName}</p>
+                        <p className="font-mono text-[11px] text-ink-secondary">{p.productCode}</p>
                       </TableCell>
                       <TableCell>
                         <TierBadge tier={p.tierName} />
@@ -558,7 +558,7 @@ function ContractDetailDialog({ contract, prices, products, onClose, onRefresh }
                           size="icon"
                           variant="ghost"
                           aria-label="Hapus harga tier"
-                          className="text-stone-400 hover:text-red-600"
+                          className="text-ink-secondary hover:text-[var(--status-danger)]"
                           onClick={async () => {
                             const res = await deleteContractPrice(p.id);
                             if (res.success) {
@@ -653,10 +653,10 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
       />
       <div className="custom-scrollbar flex-1 overflow-auto">
         <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">
-          <GlassPanel padding="md" className="mt-4">
-            <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+          <Card className="p-5 mt-4">
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
               <Table>
-                <TableHeader className="bg-stone-50">
+                <TableHeader className="bg-surface-sunken">
                   <TableRow>
                     <TableHead>Nomor</TableHead>
                     <TableHead>Pelanggan</TableHead>
@@ -672,7 +672,7 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
                 <TableBody>
                   {data.contracts.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={9} className="h-28 text-center text-sm text-stone-500">
+                      <TableCell colSpan={9} className="h-28 text-center text-sm text-ink-secondary">
                         Belum ada kontrak.
                       </TableCell>
                     </TableRow>
@@ -680,14 +680,14 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
                   {data.contracts.map((c: ContractRow) => (
                     <TableRow key={c.id} className={!c.isActive ? "opacity-60" : ""}>
                       <TableCell>
-                        <p className="text-sm font-semibold text-stone-900">{c.contractNumber}</p>
+                        <p className="text-sm font-semibold text-ink">{c.contractNumber}</p>
                       </TableCell>
                       <TableCell>
-                        <p className="text-sm font-semibold text-stone-900">{c.customerName}</p>
-                        <p className="font-mono text-[11px] text-stone-500">{c.customerId}</p>
+                        <p className="text-sm font-semibold text-ink">{c.customerName}</p>
+                        <p className="font-mono text-[11px] text-ink-secondary">{c.customerId}</p>
                       </TableCell>
                       <TableCell>
-                        <span className="text-xs font-medium text-stone-600">{c.customerTier.toLowerCase().replace(/_/g, " ")}</span>
+                        <span className="text-xs font-medium text-ink">{c.customerTier.toLowerCase().replace(/_/g, " ")}</span>
                       </TableCell>
                       <TableCell className="text-sm">
                         {new Date(c.startDate).toLocaleDateString("id-ID", { dateStyle: "medium" })}
@@ -698,17 +698,17 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
                           : "—"}
                       </TableCell>
                       <TableCell>
-                        <span className="text-xs font-medium text-stone-600">{c.customerTier}</span>
+                        <span className="text-xs font-medium text-ink">{c.customerTier}</span>
                       </TableCell>
                       <TableCell>
-                        <span className="text-xs font-medium text-stone-600">{c.priceCount} SKU</span>
+                        <span className="text-xs font-medium text-ink">{c.priceCount} SKU</span>
                       </TableCell>
                       <TableCell>
                         <span
                           className={cn(
                             "rounded-md px-2 py-1 text-xs font-bold",
                             c.isActive
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                              ? "bg-[var(--status-success)]/15 text-[var(--status-success)] dark:bg-emerald-900/40 dark:text-[var(--status-success)]"
                               : "bg-gray-100 text-gray-500",
                           )}
                         >
@@ -724,7 +724,7 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
                             title="Detail"
                             aria-label={`Detail ${c.contractNumber}`}
                             onClick={() => openDetail(c)}
-                            className="text-stone-400 hover:text-[var(--amber-deep)]"
+                            className="text-ink-secondary hover:text-[var(--amber-deep)]"
                           >
                             <ChevronDown size={15} />
                           </Button>
@@ -738,7 +738,7 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
                               setContractToEdit(c);
                               setContractOpen(true);
                             }}
-                            className="text-stone-400 hover:text-[var(--amber-deep)]"
+                            className="text-ink-secondary hover:text-[var(--amber-deep)]"
                           >
                             <Pencil size={15} />
                           </Button>
@@ -749,7 +749,7 @@ export function KontrakClient({ initialData }: KontrakClientProps) {
                 </TableBody>
               </Table>
             </div>
-          </GlassPanel>
+          </Card>
         </div>
       </div>
 

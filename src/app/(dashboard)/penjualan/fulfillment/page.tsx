@@ -89,7 +89,7 @@ export default async function FulfillmentPage() {
               shortageUnits: task.shortageQuantity,
               missingKg: Math.max(0, requiredKg - reservedKg),
             });
-            return <Link key={task.id} href={action.href} className="inline-flex min-h-9 items-center rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white hover:bg-amber-800">{action.label}</Link>;
+            return <Link key={task.id} href={action.href} className="inline-flex min-h-9 items-center rounded-lg bg-[var(--status-warning)] px-3 py-2 text-xs font-bold text-white hover:bg-[var(--status-warning)]">{action.label}</Link>;
           }) : null}<Link href="/penjualan" className="inline-flex min-h-9 items-center rounded-lg border border-border px-3 py-2 text-xs font-bold hover:bg-surface-sunken">Buka pesanan</Link></div>
         </article>)}
       </div>}
