@@ -7,6 +7,13 @@ import { SCA_GRADE_LABEL, scaGrade } from "@/lib/cupping-intelligence";
 interface CuppingArchiveProps {
   settings: Record<string, unknown>;
   blocks?: any[];
+  cuppingSessions?: Array<{
+    code: string;
+    date: string;
+    scaScore: number | null;
+    defectCount: number | null;
+    lotLabel?: string | null;
+  }>;
   cupping?: Array<{
     code: string;
     date: string;
@@ -16,14 +23,15 @@ interface CuppingArchiveProps {
   }>;
 }
 
-export function CuppingArchiveSection({ settings, blocks, cupping = [] }: CuppingArchiveProps) {
+export function CuppingArchiveSection({ settings, blocks, cuppingSessions, cupping = [] }: CuppingArchiveProps) {
   const title = (settings.title as string) || "Arsip Cupping & Skor Kualitas";
   const subtitle =
     (settings.subtitle as string) ||
     "Setiap batch disensori oleh tim QC. Skor SCA dan catatan defect kami tampilkan terbuka sebagai janji kualitas.";
 
-  // Data asli dari cuppingSession tenant; fallback ke blocks bila diisi manual.
-  const items = (cupping && cupping.length > 0 ? cupping : (blocks ?? [])).slice(0, 12);
+  // Data asli dari cuppingSession tenant (cuppingSessions); fallback ke alias cupping lalu blocks bila diisi manual.
+  const source = cuppingSessions && cuppingSessions.length > 0 ? cuppingSessions : cupping && cupping.length > 0 ? cupping : (blocks ?? []);
+  const items = source.slice(0, 12);
 
   return (
     <section className="w-full py-14 sm:py-20 md:py-28" style={{ backgroundColor: "var(--portal-bg, #0B0F19)", color: "var(--portal-text, #F8FAFC)" }}>
