@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Bot, Loader2, Send, User } from "lucide-react";
 import { StandardPageLayout } from "@/components/StandardPageLayout";
 import { Button } from "@/components/ui/button";
-import { GlassPanel } from "@/components/ui/glass-panel";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 interface Message {
@@ -102,7 +102,7 @@ export default function AiInsightsPage() {
       title="Tanya Roastd"
       description="Tanyakan angka operasional dengan bahasa sehari-hari. Jawaban berasal dari laporan workspace Anda."
     >
-      <GlassPanel padding="none" className="mx-auto flex h-[calc(100dvh-165px)] min-h-[560px] w-full max-w-4xl flex-col overflow-hidden">
+      <Card className="mx-auto flex h-[calc(100dvh-165px)] min-h-[560px] w-full max-w-4xl flex-col overflow-hidden">
         <header className="flex items-center gap-3 border-b border-border/80 px-5 py-4">
           <div className="flex size-9 items-center justify-center rounded-[10px] border border-primary/20 bg-primary/10">
             <Bot className="size-4 text-primary" />
@@ -186,7 +186,7 @@ export default function AiInsightsPage() {
           <Input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Contoh: berapa profit minggu ini?" disabled={loading} className="h-11 flex-1" aria-label="Pertanyaan laporan" />
           <Button type="submit" size="icon" className="size-11 shrink-0" disabled={loading || !input.trim()} aria-label="Kirim pertanyaan"><Send className="size-4" /></Button>
         </form>
-      </GlassPanel>
+      </Card>
     </StandardPageLayout>
   );
 }

@@ -18,7 +18,7 @@ import {
 
 import { StandardPageLayout } from "@/components/StandardPageLayout";
 import { Button } from "@/components/ui/button";
-import { GlassPanel } from "@/components/ui/glass-panel";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -118,11 +118,11 @@ const RADAR_KEYS: CuppingCategory[] = [
 ];
 
 function qualityBand(average: number) {
-  if (average >= 8.5) return { label: "Istimewa", tone: "text-emerald-700", surface: "bg-emerald-500" };
-  if (average >= 8) return { label: "Menonjol", tone: "text-teal-700", surface: "bg-teal-500" };
+  if (average >= 8.5) return { label: "Istimewa", tone: "text-[var(--status-success)]", surface: "bg-[var(--status-success)]" };
+  if (average >= 8) return { label: "Menonjol", tone: "text-[var(--status-success)]", surface: "bg-[var(--status-success)]" };
   if (average >= 7) return { label: "Solid", tone: "text-domain-roasting", surface: "bg-domain-roasting" };
-  if (average >= 6) return { label: "Perlu perhatian", tone: "text-amber-700", surface: "bg-amber-500" };
-  return { label: "Evaluasi ulang", tone: "text-destructive", surface: "bg-destructive" };
+  if (average >= 6) return { label: "Perlu perhatian", tone: "text-[var(--status-warning)]", surface: "bg-[var(--status-warning)]" };
+  return { label: "Evaluasi ulang", tone: "text-[var(--status-danger)]", surface: "bg-[var(--status-danger)]" };
 }
 
 function scoreCopy(score: number) {
@@ -436,7 +436,7 @@ export default function CuppingPage() {
     >
       <div className="space-y-5">
         <form action={handleSubmit}>
-          <GlassPanel padding="none" className="overflow-hidden border-t-2 border-t-domain-roasting">
+          <Card className="overflow-hidden border-t-2 border-t-domain-roasting">
             <div className="border-b border-border bg-[linear-gradient(110deg,color-mix(in_srgb,var(--domain-roasting)_10%,transparent),transparent_55%)] px-5 py-5 sm:px-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-xl">
@@ -606,7 +606,7 @@ export default function CuppingPage() {
                   </div>
 
                   {message && (
-                    <div role="status" className={`rounded-xl border px-4 py-3 text-sm ${message.type === "success" ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-destructive/25 bg-destructive/5 text-destructive"}`}>
+                    <div role="status"                     className={`rounded-xl border px-4 py-3 text-sm ${message.type === "success" ? "border-[var(--status-success)]/30 bg-[var(--status-success)]/10 text-[var(--status-success)]" : "border-destructive/25 bg-destructive/5 text-destructive"}`}>
                       {message.text}
                     </div>
                   )}
@@ -619,10 +619,10 @@ export default function CuppingPage() {
                 </div>
               </aside>
             </div>
-          </GlassPanel>
+          </Card>
         </form>
 
-        <GlassPanel padding="lg">
+        <Card className="p-8">
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-domain-roasting">Sensory archive</p>
@@ -642,7 +642,7 @@ export default function CuppingPage() {
               {sessions.map((session) => <HistoryCard key={session.id} session={session} />)}
             </div>
           )}
-        </GlassPanel>
+        </Card>
       </div>
     </StandardPageLayout>
   );

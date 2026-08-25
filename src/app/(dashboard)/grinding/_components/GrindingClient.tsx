@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Coffee, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { GlassPanel } from "@/components/ui/glass-panel";
+import { Card } from "@/components/ui/card";
 import { StandardDrawer } from "@/components/StandardDrawer";
 import { GrindingHistoryTable } from "./GrindingHistoryTable";
 import { GrindingForm } from "./GrindingForm";
@@ -104,9 +104,9 @@ export function GrindingClient({
           <WorkspaceNav kind="roastery" />
 
           <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8">
-            <GlassPanel padding="md">
+            <Card className="p-5">
               <GrindingHistoryTable batches={batches} />
-            </GlassPanel>
+            </Card>
           </div>
         </div>
       </div>
