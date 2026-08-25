@@ -56,8 +56,8 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const glassInput = "bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 focus:border-white/80";
-const glassCard = "rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl p-4 shadow-sm";
+const glassInput = "bg-card/40 border-white/60 backdrop-blur-md transition-all focus:bg-card/60 focus:border-white/80";
+const glassCard = "rounded-[1.25rem] border border-white/60 bg-card/30 backdrop-blur-xl p-4 shadow-sm";
 
 // =============================================================================
 // Field helpers
@@ -69,7 +69,7 @@ function FieldGroup({ children }: { children: React.ReactNode }) {
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="text-xs text-red-500">{message}</p>;
+  return <p className="text-xs text-[var(--status-danger)]">{message}</p>;
 }
 
 // =============================================================================
@@ -185,8 +185,8 @@ export function ExperimentalForm({
     <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-5 relative">
 
       <FieldGroup>
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-          Nama Eksperimen <span className="text-red-500">*</span>
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">
+          Nama Eksperimen <span className="text-[var(--status-danger)]">*</span>
         </Label>
         <Input
           placeholder="e.g. Blend Trial #04, Competition Espresso Test"
@@ -196,17 +196,17 @@ export function ExperimentalForm({
         <FieldError message={errors.name?.message} />
       </FieldGroup>
 
-      <Separator className="bg-white/50" />
+      <Separator className="bg-card/50" />
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-            Komponen <span className="text-red-500">*</span>
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-ink-secondary">
+            Komponen <span className="text-[var(--status-danger)]">*</span>
           </Label>
           <button
             type="button"
             onClick={() => append({ componentType: "ROASTED_BEAN", productId: "", quantity: 0, notes: "" })}
-            className="flex items-center gap-1 rounded-lg border border-white/60 bg-white/30 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-white/50 transition-colors shadow-sm"
+            className="flex items-center gap-1 rounded-lg border border-white/60 bg-card/30 px-3 py-1 text-xs font-medium text-ink hover:bg-card/50 transition-colors shadow-sm"
           >
             <Plus size={14} /> Tambah
           </button>
@@ -230,13 +230,13 @@ export function ExperimentalForm({
             return (
               <div
                 key={field.id}
-                className="relative flex flex-wrap sm:flex-nowrap items-start gap-4 rounded-xl border border-white/60 bg-white/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group"
+                className="relative flex flex-wrap sm:flex-nowrap items-start gap-4 rounded-xl border border-white/60 bg-card/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group"
               >
                 {fields.length > 1 && (
                   <button
                     type="button"
                     onClick={() => remove(index)}
-                    className="absolute -right-2 -top-3 z-10 flex min-h-9 min-w-9 items-center justify-center rounded-full border border-white/60 bg-white p-2 text-red-500 opacity-100 shadow-sm transition-opacity hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                    className="absolute -right-2 -top-3 z-10 flex min-h-9 min-w-9 items-center justify-center rounded-full border border-white/60 bg-card p-2 text-[var(--status-danger)] opacity-100 shadow-sm transition-opacity hover:bg-[var(--status-danger)]/10 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                     title="Hapus Komponen"
                     aria-label={`Hapus komponen eksperimen ${index + 1}`}
                   >
@@ -245,7 +245,7 @@ export function ExperimentalForm({
                 )}
 
                 <div className="flex-1 min-w-[200px] space-y-1">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">Tipe Bahan</Label>
+                  <Label className="text-[10px] uppercase font-bold text-ink-secondary mb-1 block tracking-wider">Tipe Bahan</Label>
                   <Controller
                     control={control}
                     name={`components.${index}.componentType`}
@@ -273,7 +273,7 @@ export function ExperimentalForm({
                 </div>
 
                 <div className="flex-1 min-w-[200px] space-y-1">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">
+                  <Label className="text-[10px] uppercase font-bold text-ink-secondary mb-1 block tracking-wider">
                     {isBean ? "Produk" : "Item Non-Kopi"}
                   </Label>
                   <Controller
@@ -295,7 +295,7 @@ export function ExperimentalForm({
                               <SelectItem key={item.id} value={item.id}>
                                 {item.name}
                                 {" "}
-                                <span className="text-slate-400 font-normal">
+                                <span className="text-ink-secondary font-normal">
                                   ({isBean ? formatKg((item as RBStockOption).stockKg) : `${(item as SupplyOption).stockQuantity} ${(item as SupplyOption).baseUnit}`})
                                 </span>
                               </SelectItem>
@@ -306,7 +306,7 @@ export function ExperimentalForm({
                     )}
                   />
                   {selectedItem && (
-                    <p className={`text-[10px] font-medium pt-1 ${isOverStock ? "text-red-500" : "text-slate-500"}`}>
+                    <p className={`text-[10px] font-medium pt-1 ${isOverStock ? "text-[var(--status-danger)]" : "text-ink-secondary"}`}>
                       Stok: {isBean ? formatKg((selectedItem as RBStockOption).stockKg) : `${(selectedItem as SupplyOption).stockQuantity} ${(selectedItem as SupplyOption).baseUnit}`}
                       {isOverStock && " — ⚠ melebihi stok"}
                     </p>
@@ -314,17 +314,17 @@ export function ExperimentalForm({
                 </div>
 
                 <div className="w-36 shrink-0 space-y-1">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">Qty (kg/unit)</Label>
+                  <Label className="text-[10px] uppercase font-bold text-ink-secondary mb-1 block tracking-wider">Qty (kg/unit)</Label>
                   <div className="relative">
                     <Input
                       type="number"
                       step="0.001"
                       min="0"
                       placeholder="0.000"
-                      className={cn("h-9 tabular-nums font-semibold pr-8 text-slate-900", glassInput)}
+                      className={cn("h-9 tabular-nums font-semibold pr-8 text-ink", glassInput)}
                       {...register(`components.${index}.quantity`, { valueAsNumber: true })}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-ink-secondary">
                       {isBean ? "kg" : (supplyOptions.find((s) => s.id === comp?.supplyItemId)?.baseUnit ?? "unit")}
                     </span>
                   </div>
@@ -336,12 +336,12 @@ export function ExperimentalForm({
         </div>
       </div>
 
-      <Separator className="bg-white/50" />
+      <Separator className="bg-card/50" />
 
       <div className="grid grid-cols-2 gap-4">
         <FieldGroup>
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-            Berat Hasil (kg) <span className="text-red-500">*</span>
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">
+            Berat Hasil (kg) <span className="text-[var(--status-danger)]">*</span>
           </Label>
           <Input
             type="number"
@@ -355,7 +355,7 @@ export function ExperimentalForm({
         </FieldGroup>
 
         <FieldGroup>
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">
             Biaya Operasional (opsional)
           </Label>
           <Input
@@ -366,7 +366,7 @@ export function ExperimentalForm({
             className={cn("h-9 tabular-nums font-semibold", glassInput)}
             {...register("grindingCost", { valueAsNumber: true })}
           />
-          <p className="text-[10px] text-slate-400">Listrik, gas, tenaga kerja</p>
+          <p className="text-[10px] text-ink-secondary">Listrik, gas, tenaga kerja</p>
         </FieldGroup>
       </div>
 
@@ -387,7 +387,7 @@ export function ExperimentalForm({
       </FieldGroup>
 
       <FieldGroup>
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Catatan (opsional)</Label>
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">Catatan (opsional)</Label>
         <Textarea
           placeholder="Catatan batch, variasi blend, target rasa, dll."
           rows={3}

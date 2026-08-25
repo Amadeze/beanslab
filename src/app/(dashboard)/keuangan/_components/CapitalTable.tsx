@@ -20,24 +20,24 @@ interface CapitalTableProps {
 export function CapitalTable({ rows }: CapitalTableProps) {
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-stone-200 bg-white p-12 text-center">
-        <PiggyBank size={40} className="mx-auto mb-3 text-stone-300" />
-        <p className="text-sm font-medium text-stone-500">Belum ada mutasi modal</p>
-        <p className="text-xs text-stone-400 mt-1">Catat setoran modal awal atau prive pemilik</p>
+      <div className="rounded-xl border border-border bg-card p-12 text-center">
+        <PiggyBank size={40} className="mx-auto mb-3 text-ink-secondary" />
+        <p className="text-sm font-medium text-ink-secondary">Belum ada mutasi modal</p>
+        <p className="text-xs text-ink-secondary mt-1">Catat setoran modal awal atau prive pemilik</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow className="bg-stone-50">
-            <TableHead className="text-xs uppercase tracking-widest text-stone-500 font-bold">Tipe</TableHead>
-            <TableHead className="text-xs uppercase tracking-widest text-stone-500 font-bold">Tanggal</TableHead>
-            <TableHead className="text-xs uppercase tracking-widest text-stone-500 font-bold">Keterangan</TableHead>
-            <TableHead className="text-right text-xs uppercase tracking-widest text-stone-500 font-bold">Nominal</TableHead>
-            <TableHead className="text-right text-xs uppercase tracking-widest text-stone-500 font-bold">Dicatat oleh</TableHead>
+          <TableRow className="bg-surface-sunken">
+            <TableHead className="text-xs uppercase tracking-widest text-ink-secondary font-bold">Tipe</TableHead>
+            <TableHead className="text-xs uppercase tracking-widest text-ink-secondary font-bold">Tanggal</TableHead>
+            <TableHead className="text-xs uppercase tracking-widest text-ink-secondary font-bold">Keterangan</TableHead>
+            <TableHead className="text-right text-xs uppercase tracking-widest text-ink-secondary font-bold">Nominal</TableHead>
+            <TableHead className="text-right text-xs uppercase tracking-widest text-ink-secondary font-bold">Dicatat oleh</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -53,16 +53,16 @@ export function CapitalTable({ rows }: CapitalTableProps) {
                     {config.label}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm text-stone-600">
+                <TableCell className="text-sm text-ink">
                   {formatDate(row.transactionDate)}
                 </TableCell>
-                <TableCell className="text-sm text-stone-600 max-w-[200px] truncate">
+                <TableCell className="text-sm text-ink max-w-[200px] truncate">
                   {row.description || "-"}
                 </TableCell>
-                <TableCell className={`text-right font-mono text-sm font-bold tabular-nums ${isOutgoing ? "text-red-500" : "text-emerald-600"}`}>
+                <TableCell className={`text-right font-mono text-sm font-bold tabular-nums ${isOutgoing ? "text-[var(--status-danger)]" : "text-[var(--status-success)]"}`}>
                   {isOutgoing ? "-" : "+"}{formatRupiah(row.amount)}
                 </TableCell>
-                <TableCell className="text-right text-sm text-stone-500">
+                <TableCell className="text-right text-sm text-ink-secondary">
                   {row.createdByName}
                 </TableCell>
               </TableRow>

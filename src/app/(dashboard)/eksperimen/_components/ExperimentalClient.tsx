@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FlaskConical, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { GlassPanel } from "@/components/ui/glass-panel";
+import { Card } from "@/components/ui/card";
 import { StandardDrawer } from "@/components/StandardDrawer";
 import { ExperimentalHistoryTable } from "./ExperimentalHistoryTable";
 import { ExperimentalForm } from "./ExperimentalForm";
@@ -102,12 +102,12 @@ export function ExperimentalClient({
           <WorkspaceNav kind="roastery" />
 
           <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8">
-            <GlassPanel padding="md">
+            <Card className="p-5">
               <ExperimentalHistoryTable
                 batches={batches}
                 onPromote={(batch) => setPromoteBatch(batch)}
               />
-            </GlassPanel>
+            </Card>
           </div>
         </div>
       </div>
@@ -134,12 +134,12 @@ export function ExperimentalClient({
         }
       >
         {!canProduce ? (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-200 py-12 text-center">
-            <FlaskConical size={24} className="text-zinc-300" />
-            <p className="text-sm font-medium text-zinc-500">
+          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border py-12 text-center">
+            <FlaskConical size={24} className="text-ink-secondary" />
+            <p className="text-sm font-medium text-ink-secondary">
               Bahan belum tersedia
             </p>
-            <p className="text-xs text-zinc-400 max-w-xs">
+            <p className="text-xs text-ink-secondary max-w-xs">
               Tambahkan Roasted Bean, Green Bean, atau Persediaan Non-Kopi terlebih dahulu.
             </p>
           </div>

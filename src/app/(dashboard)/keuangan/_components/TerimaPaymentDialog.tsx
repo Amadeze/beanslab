@@ -65,17 +65,17 @@ interface TerimaPaymentDialogProps {
 export function TerimaPaymentSummary({ invoice }: { invoice: PiutangRow }) {
   const balance = invoice.balance ?? 0;
   return (
-    <div className="grid grid-cols-2 divide-x divide-white/20 border-b border-white/20 bg-white/20 backdrop-blur-sm sm:grid-cols-4">
+    <div className="grid grid-cols-2 divide-x divide-white/20 border-b border-white/20 bg-card/20 backdrop-blur-sm sm:grid-cols-4">
       <div className="px-4 py-3 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+        <p className="text-xs font-semibold uppercase tracking-widest text-ink-secondary">
           Total Nota
         </p>
-        <p className="mt-0.5 font-mono text-sm font-bold text-slate-800">
+        <p className="mt-0.5 font-mono text-sm font-bold text-ink">
           {formatRupiah(invoice.grandTotal)}
         </p>
       </div>
       <div className="px-4 py-3 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+        <p className="text-xs font-semibold uppercase tracking-widest text-ink-secondary">
           Retur
         </p>
         <p className="mt-0.5 font-mono text-sm font-bold text-rose-600">
@@ -83,18 +83,18 @@ export function TerimaPaymentSummary({ invoice }: { invoice: PiutangRow }) {
         </p>
       </div>
       <div className="px-4 py-3 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+        <p className="text-xs font-semibold uppercase tracking-widest text-ink-secondary">
           Terbayar
         </p>
-        <p className="mt-0.5 font-mono text-sm font-bold text-emerald-700">
+        <p className="mt-0.5 font-mono text-sm font-bold text-[var(--status-success)]">
           {formatRupiah(invoice.paidAmount)}
         </p>
       </div>
       <div className="px-4 py-3 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+        <p className="text-xs font-semibold uppercase tracking-widest text-ink-secondary">
           Sisa Tagihan
         </p>
-        <p className="mt-0.5 font-mono text-sm font-bold text-amber-700">
+        <p className="mt-0.5 font-mono text-sm font-bold text-[var(--status-warning)]">
           {formatRupiah(balance)}
         </p>
       </div>
@@ -211,21 +211,21 @@ export function TerimaPaymentDialog({
           {/* Nominal */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium text-zinc-700">
-                Nominal Diterima <span className="text-red-500">*</span>
+              <Label className="text-xs font-medium text-ink">
+                Nominal Diterima <span className="text-[var(--status-danger)]">*</span>
               </Label>
               {balance > 0 && (
                 <button
                   type="button"
                   onClick={() => setValue("amount", balance, { shouldValidate: true })}
-                  className="text-[11px] font-medium text-zinc-400 underline-offset-2 hover:text-zinc-600 hover:underline"
+                  className="text-[11px] font-medium text-ink-secondary underline-offset-2 hover:text-ink hover:underline"
                 >
                   Lunaskan semua ({formatRupiah(balance)})
                 </button>
               )}
             </div>
             <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-zinc-400">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-ink-secondary">
                 Rp
               </span>
               <Input
@@ -233,16 +233,16 @@ export function TerimaPaymentDialog({
                 step="1"
                 min="1"
                 placeholder={String(balance)}
-                className="h-10 pl-8 text-right tabular-nums font-semibold text-sm bg-white/40 border-white/60 focus:bg-white/60 backdrop-blur-md"
+                className="h-10 pl-8 text-right tabular-nums font-semibold text-sm bg-card/40 border-white/60 focus:bg-card/60 backdrop-blur-md"
                 {...register("amount", { valueAsNumber: true })}
               />
             </div>
             {errors.amount && (
-              <p className="text-xs text-red-500">{errors.amount.message}</p>
+              <p className="text-xs text-[var(--status-danger)]">{errors.amount.message}</p>
             )}
             {/* Preview: will this pay off the invoice? */}
             {Number(amount) > 0 && (
-              <p className={`text-[11px] font-medium ${isFullPayment ? "text-emerald-600" : "text-amber-800"}`}>
+              <p className={`text-[11px] font-medium ${isFullPayment ? "text-[var(--status-success)]" : "text-[var(--status-warning)]"}`}>
                 {isFullPayment
                   ? "✔ Nota akan berstatus LUNAS setelah pembayaran ini"
                   : `Sisa tagihan setelah ini: ${formatRupiah(balance - Number(amount))}`}
@@ -252,17 +252,17 @@ export function TerimaPaymentDialog({
 
           {/* Tanggal */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-zinc-700">
-              Tanggal Diterima <span className="text-red-500">*</span>
+            <Label className="text-xs font-medium text-ink">
+              Tanggal Diterima <span className="text-[var(--status-danger)]">*</span>
             </Label>
-            <Input type="date" max={today} className="h-9 bg-white/40 border-white/60 focus:bg-white/60 backdrop-blur-md" {...register("paidAt")} />
-            {errors.paidAt && <p className="text-xs text-red-500">{errors.paidAt.message}</p>}
+            <Input type="date" max={today} className="h-9 bg-card/40 border-white/60 focus:bg-card/60 backdrop-blur-md" {...register("paidAt")} />
+            {errors.paidAt && <p className="text-xs text-[var(--status-danger)]">{errors.paidAt.message}</p>}
           </div>
 
           {/* Metode */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-zinc-700">
-              Metode Pembayaran <span className="text-red-500">*</span>
+            <Label className="text-xs font-medium text-ink">
+              Metode Pembayaran <span className="text-[var(--status-danger)]">*</span>
             </Label>
             <Controller
               control={control}
@@ -281,7 +281,7 @@ export function TerimaPaymentDialog({
                           "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
                           active
                             ? "border-primary bg-primary text-primary-foreground"
-                            : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50",
+                            : "border-border bg-card text-ink hover:border-border hover:bg-surface-sunken",
                         ].join(" ")}
                       >
                         <Icon size={11} />
@@ -296,20 +296,20 @@ export function TerimaPaymentDialog({
 
           {/* Bank Penerima + Referensi (only for TRANSFER) */}
           {method === "TRANSFER" && (
-            <div className="space-y-3 rounded-lg border border-zinc-100 bg-zinc-50 p-3">
+            <div className="space-y-3 rounded-lg border border-border bg-surface-sunken p-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-zinc-700">Bank Penerima</Label>
+                <Label className="text-xs font-medium text-ink">Bank Penerima</Label>
                 <Input
                   placeholder="BCA, Mandiri, BNI, dll."
-                  className="h-8 bg-white text-sm"
+                  className="h-8 bg-card text-sm"
                   {...register("bankName")}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-zinc-700">No. Referensi / Nama Pengirim</Label>
+                <Label className="text-xs font-medium text-ink">No. Referensi / Nama Pengirim</Label>
                 <Input
                   placeholder="Nomor TRX atau nama pengirim"
-                  className="h-8 bg-white text-sm"
+                  className="h-8 bg-card text-sm"
                   {...register("reference")}
                 />
               </div>
@@ -319,7 +319,7 @@ export function TerimaPaymentDialog({
           {/* Referensi for QRIS */}
           {method === "QRIS" && (
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-zinc-700">No. Referensi QRIS (opsional)</Label>
+              <Label className="text-xs font-medium text-ink">No. Referensi QRIS (opsional)</Label>
               <Input
                 placeholder="Kode transaksi QRIS"
                 className="h-8 text-sm"
@@ -330,7 +330,7 @@ export function TerimaPaymentDialog({
 
           {/* Notes */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-zinc-700">Catatan (opsional)</Label>
+            <Label className="text-xs font-medium text-ink">Catatan (opsional)</Label>
             <Input
               placeholder="Catatan tambahan..."
               className="h-8 text-sm"
@@ -346,7 +346,7 @@ export function TerimaPaymentDialog({
             render={
               <Button
                 variant="outline"
-                className="border-zinc-200 text-zinc-700 hover:bg-zinc-100"
+                className="border-border text-ink hover:bg-surface-sunken"
                 disabled={isSubmitting}
               />
             }

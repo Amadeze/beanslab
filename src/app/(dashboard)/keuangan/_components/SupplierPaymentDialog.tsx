@@ -116,25 +116,25 @@ export function SupplierPaymentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-3 border-y border-white/50 bg-white/20 px-5 py-3 text-center sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 border-y border-white/50 bg-card/20 px-5 py-3 text-center sm:grid-cols-4">
           <div>
-            <p className="text-xs uppercase text-slate-400">Total Pembelian</p>
+            <p className="text-xs uppercase text-ink-secondary">Total Pembelian</p>
             <p className="font-mono text-sm font-bold">{formatRupiah(purchase.totalCost)}</p>
           </div>
           <div>
-            <p className="text-xs uppercase text-slate-400">Pembayaran Awal</p>
-            <p className="font-mono text-sm font-bold text-slate-600">{formatRupiah(purchase.initialPaidAmount)}</p>
+            <p className="text-xs uppercase text-ink-secondary">Pembayaran Awal</p>
+            <p className="font-mono text-sm font-bold text-ink">{formatRupiah(purchase.initialPaidAmount)}</p>
           </div>
           <div>
-            <p className="text-xs uppercase text-slate-400">Pembayaran Berikutnya</p>
-            <p className="font-mono text-sm font-bold text-emerald-700">{formatRupiah(purchase.paidAmount - purchase.initialPaidAmount)}</p>
+            <p className="text-xs uppercase text-ink-secondary">Pembayaran Berikutnya</p>
+            <p className="font-mono text-sm font-bold text-[var(--status-success)]">{formatRupiah(purchase.paidAmount - purchase.initialPaidAmount)}</p>
           </div>
           <div>
-            <p className="text-xs uppercase text-slate-400">Sisa Hutang</p>
-            <p className="font-mono text-sm font-bold text-amber-700">{formatRupiah(purchase.balance)}</p>
+            <p className="text-xs uppercase text-ink-secondary">Sisa Hutang</p>
+            <p className="font-mono text-sm font-bold text-[var(--status-warning)]">{formatRupiah(purchase.balance)}</p>
           </div>
         </div>
-        <p className="px-5 pb-1 text-[11px] text-slate-400">
+        <p className="px-5 pb-1 text-[11px] text-ink-secondary">
           Pembayaran Awal = uang dibayar saat penerimaan barang (dibukukan oleh jurnal pembelian).
         </p>
 
@@ -144,16 +144,16 @@ export function SupplierPaymentDialog({
               <Label>Nominal</Label>
               <button
                 type="button"
-                className="text-xs text-amber-800 hover:underline"
+                className="text-xs text-[var(--status-warning)] hover:underline"
                 onClick={() => setValue("amount", purchase.balance, { shouldValidate: true })}
               >
                 Lunaskan
               </button>
             </div>
             <Input type="number" min="1" step="1" {...register("amount", { valueAsNumber: true })} />
-            {errors.amount && <p className="text-xs text-red-500">{errors.amount.message}</p>}
+            {errors.amount && <p className="text-xs text-[var(--status-danger)]">{errors.amount.message}</p>}
             {amount > 0 && amount < purchase.balance && (
-              <p className="text-xs text-amber-700">Sisa setelah pembayaran: {formatRupiah(purchase.balance - amount)}</p>
+              <p className="text-xs text-[var(--status-warning)]">Sisa setelah pembayaran: {formatRupiah(purchase.balance - amount)}</p>
             )}
           </div>
 
@@ -164,7 +164,7 @@ export function SupplierPaymentDialog({
             </div>
             <div className="space-y-1.5">
               <Label>Metode</Label>
-              <select className="h-9 w-full rounded-md border border-white/60 bg-white/40 px-3 text-sm" {...register("method")}>
+              <select className="h-9 w-full rounded-md border border-white/60 bg-card/40 px-3 text-sm" {...register("method")}>
                 <option value="TRANSFER">Transfer</option>
                 <option value="CASH">Tunai</option>
                 <option value="QRIS">QRIS</option>

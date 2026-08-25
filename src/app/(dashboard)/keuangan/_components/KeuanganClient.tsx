@@ -159,7 +159,7 @@ export function KeuanganClient({
             <>
               <Link
                 href="/penjualan/pembayaran"
-                className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-slate-300 bg-white/60 px-3 text-xs font-semibold text-slate-700 transition hover:bg-white"
+                className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-border bg-card/60 px-3 text-xs font-semibold text-ink transition hover:bg-card"
               >
                 Review Bukti Bayar →
               </Link>
@@ -192,16 +192,16 @@ export function KeuanganClient({
             {/* Command center: ringkasan kas, piutang, hutang, arus kas */}
             <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
               {[
-                { label: "Kas & Bank", value: formatRupiah(kpi.kasAndBank), tone: "text-slate-800" },
-                { label: "Piutang", value: formatRupiah(kpi.totalPiutang), tone: kpi.totalPiutang > 0 ? "text-amber-700" : "text-slate-800" },
-                { label: "Hutang Supplier", value: formatRupiah(kpi.hutangSupplier), tone: kpi.hutangSupplier > 0 ? "text-rose-700" : "text-slate-800" },
-                { label: "Arus Kas Bulan Ini", value: formatRupiah(kpi.arusKasBulanIni), tone: kpi.arusKasBulanIni < 0 ? "text-rose-700" : "text-emerald-700" },
+                { label: "Kas & Bank", value: formatRupiah(kpi.kasAndBank), tone: "text-ink" },
+                { label: "Piutang", value: formatRupiah(kpi.totalPiutang), tone: kpi.totalPiutang > 0 ? "text-[var(--status-warning)]" : "text-ink" },
+                { label: "Hutang Supplier", value: formatRupiah(kpi.hutangSupplier), tone: kpi.hutangSupplier > 0 ? "text-rose-700" : "text-ink" },
+                { label: "Arus Kas Bulan Ini", value: formatRupiah(kpi.arusKasBulanIni), tone: kpi.arusKasBulanIni < 0 ? "text-rose-700" : "text-[var(--status-success)]" },
               ].map((card) => (
                 <div
                   key={card.label}
-                  className="rounded-xl border border-slate-200 bg-white/70 p-4 shadow-sm"
+                  className="rounded-xl border border-border bg-card/70 p-4 shadow-sm"
                 >
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  <p className="text-xs font-bold uppercase tracking-wider text-ink-secondary">
                     {card.label}
                   </p>
                   <p className="mt-1 text-base font-bold sm:text-lg ${card.tone}">
@@ -218,7 +218,7 @@ export function KeuanganClient({
                   <Link
                     key={link.label}
                     href={link.href}
-                    className="inline-flex h-8 items-center rounded-[8px] border border-slate-300 bg-white/60 px-3 text-xs font-semibold text-slate-700 transition hover:bg-white"
+                    className="inline-flex h-8 items-center rounded-[8px] border border-border bg-card/60 px-3 text-xs font-semibold text-ink transition hover:bg-card"
                   >
                     {link.label} →
                   </Link>
@@ -227,7 +227,7 @@ export function KeuanganClient({
                     key={link.label}
                     type="button"
                     onClick={() => link.tab && setTab(link.tab)}
-                    className="inline-flex h-8 items-center rounded-[8px] border border-slate-300 bg-white/60 px-3 text-xs font-semibold text-slate-700 transition hover:bg-white"
+                    className="inline-flex h-8 items-center rounded-[8px] border border-border bg-card/60 px-3 text-xs font-semibold text-ink transition hover:bg-card"
                   >
                     {link.label} →
                   </button>
@@ -277,7 +277,7 @@ export function KeuanganClient({
                           "relative flex items-center gap-2.5 rounded-t-[8px] px-4 py-3 text-sm font-semibold transition-all data-[state=active]:bg-transparent data-[state=active]:shadow-none",
                           isActive
                             ? "text-[var(--amber-deep)] dark:text-[var(--amber-warm)]"
-                            : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)]",
+                            : "text-ink-tertiary hover:text-ink hover:bg-surface-sunken",
                         )}
                       >
                         {tab.label}
@@ -304,7 +304,7 @@ export function KeuanganClient({
                             "inline-flex h-7 items-center rounded-full border px-3 text-xs font-semibold transition",
                             isActive
                               ? "border-[var(--amber-deep)] bg-[var(--amber-deep)]/10 text-[var(--amber-deep)]"
-                              : "border-slate-300 bg-white/60 text-slate-600 hover:bg-white",
+                              : "border-border bg-card/60 text-ink hover:bg-card",
                           )}
                         >
                           {option.label}
@@ -369,22 +369,22 @@ export function KeuanganClient({
                   <div className="space-y-4">
                     {/* Summary Cards */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
-                        <p className="text-xs uppercase tracking-wider font-bold text-emerald-700">Modal Disetor</p>
-                        <p className="text-lg font-bold text-emerald-800 mt-1">{formatRupiah(capitalSummary.totalInitial + capitalSummary.totalInjections)}</p>
-                        {capitalSummary.totalInjections > 0 && <p className="text-xs text-emerald-600 mt-0.5">+{formatRupiah(capitalSummary.totalInjections)} tambahan</p>}
+                      <div className="rounded-xl border border-[var(--status-success)]/30 bg-[var(--status-success)]/10/50 p-4">
+                        <p className="text-xs uppercase tracking-wider font-bold text-[var(--status-success)]">Modal Disetor</p>
+                        <p className="text-lg font-bold text-[var(--status-success)] mt-1">{formatRupiah(capitalSummary.totalInitial + capitalSummary.totalInjections)}</p>
+                        {capitalSummary.totalInjections > 0 && <p className="text-xs text-[var(--status-success)] mt-0.5">+{formatRupiah(capitalSummary.totalInjections)} tambahan</p>}
                       </div>
-                      <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-                        <p className="text-xs uppercase tracking-wider font-bold text-amber-700">Prive & Bagi Hasil</p>
-                        <p className="text-lg font-bold text-amber-800 mt-1">{formatRupiah(capitalSummary.totalWithdrawals + capitalSummary.totalDividends)}</p>
+                      <div className="rounded-xl border border-[var(--status-warning)]/30 bg-[var(--status-warning)]/10/50 p-4">
+                        <p className="text-xs uppercase tracking-wider font-bold text-[var(--status-warning)]">Prive & Bagi Hasil</p>
+                        <p className="text-lg font-bold text-[var(--status-warning)] mt-1">{formatRupiah(capitalSummary.totalWithdrawals + capitalSummary.totalDividends)}</p>
                       </div>
-                      <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-                        <p className="text-xs uppercase tracking-wider font-bold text-blue-700">Modal Bersih</p>
-                        <p className="text-lg font-bold text-blue-800 mt-1">{formatRupiah(capitalSummary.netCapital)}</p>
+                      <div className="rounded-xl border border-[var(--status-info)]/30 bg-[var(--status-info)]/10/50 p-4">
+                        <p className="text-xs uppercase tracking-wider font-bold text-[var(--status-info)]">Modal Bersih</p>
+                        <p className="text-lg font-bold text-[var(--status-info)] mt-1">{formatRupiah(capitalSummary.netCapital)}</p>
                       </div>
-                      <div className="rounded-xl border border-stone-200 bg-stone-50/50 p-4">
-                        <p className="text-xs uppercase tracking-wider font-bold text-stone-700">Total Transaksi</p>
-                        <p className="text-lg font-bold text-stone-800 mt-1">{capitalSummary.count} mutasi</p>
+                      <div className="rounded-xl border border-border bg-surface-sunken/50 p-4">
+                        <p className="text-xs uppercase tracking-wider font-bold text-ink">Total Transaksi</p>
+                        <p className="text-lg font-bold text-ink mt-1">{capitalSummary.count} mutasi</p>
                       </div>
                     </div>
 

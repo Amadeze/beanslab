@@ -8,18 +8,18 @@ export default function KeuanganLoading() {
         <div className="mx-auto max-w-[1600px] space-y-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="glass-card p-4 space-y-3">
-                <div className="h-2.5 w-20 animate-pulse rounded bg-[var(--glass-bg)]" />
-                <div className="h-6 w-28 animate-pulse rounded bg-[var(--glass-bg)]" />
+              <div key={i} className="border-border bg-card p-4 space-y-3">
+                <div className="h-2.5 w-20 animate-pulse rounded bg-surface-sunken" />
+                <div className="h-6 w-28 animate-pulse rounded bg-surface-sunken" />
               </div>
             ))}
           </div>
-          <div className="flex gap-6 border-b border-[var(--glass-border)] pb-4">
+          <div className="flex gap-6 border-b border-border pb-4">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-4 w-28 animate-pulse rounded bg-[var(--glass-bg)]" />
+              <div key={i} className="h-4 w-28 animate-pulse rounded bg-surface-sunken" />
             ))}
           </div>
-          <div className="h-80 animate-pulse rounded-[1.25rem] bg-[var(--glass-bg)]" />
+          <div className="h-80 animate-pulse rounded-[1.25rem] bg-surface-sunken" />
         </div>
       </div>
     </div>

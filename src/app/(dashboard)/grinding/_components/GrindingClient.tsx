@@ -133,12 +133,12 @@ export function GrindingClient({
         }
       >
         {!canGrind ? (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-200 py-12 text-center">
-            <Coffee size={24} className="text-zinc-300" />
-            <p className="text-sm font-medium text-zinc-500">
+          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border py-12 text-center">
+            <Coffee size={24} className="text-ink-secondary" />
+            <p className="text-sm font-medium text-ink-secondary">
               Bahan belum tersedia
             </p>
-            <p className="text-xs text-zinc-400 max-w-xs">
+            <p className="text-xs text-ink-secondary max-w-xs">
               {rbOptions.length === 0 && "Roasted Bean stok kosong. "}
               {groundCoffeeOptions.length === 0 && "Belum ada SKU kopi giling (kg). "}
               Tambahkan SKU Roasted Bean khusus untuk kopi giling di Master Data.

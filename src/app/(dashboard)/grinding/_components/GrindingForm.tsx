@@ -86,8 +86,8 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const glassInput = "bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 focus:border-white/80";
-const glassCard = "rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl p-4 shadow-sm";
+const glassInput = "bg-card/40 border-white/60 backdrop-blur-md transition-all focus:bg-card/60 focus:border-white/80";
+const glassCard = "rounded-[1.25rem] border border-white/60 bg-card/30 backdrop-blur-xl p-4 shadow-sm";
 
 // =============================================================================
 // Field helpers
@@ -99,7 +99,7 @@ function FieldGroup({ children }: { children: React.ReactNode }) {
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="text-xs text-red-500">{message}</p>;
+  return <p className="text-xs text-[var(--status-danger)]">{message}</p>;
 }
 
 // =============================================================================
@@ -225,8 +225,8 @@ export function GrindingForm({
     <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-5 relative">
 
       <FieldGroup>
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-          Roasted Bean Sumber <span className="text-red-500">*</span>
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">
+          Roasted Bean Sumber <span className="text-[var(--status-danger)]">*</span>
         </Label>
         <Controller
           control={control}
@@ -252,7 +252,7 @@ export function GrindingForm({
                       {r.name}
                       {r.roastLevel ? ` — ${r.roastLevel.replace("_", " ")}` : ""}
                       {" "}
-                      <span className="text-slate-400 font-normal">({formatKg(r.stockKg)})</span>
+                      <span className="text-ink-secondary font-normal">({formatKg(r.stockKg)})</span>
                     </SelectItem>
                   ))
                 )}
@@ -261,17 +261,17 @@ export function GrindingForm({
           )}
         />
         {selectedRB && (
-          <p className="text-xs font-medium text-slate-500 pt-1">
-            Stok: <span className="font-bold text-slate-800">{formatKg(selectedRB.stockKg)}</span>
-            {" "}· HPP: <span className="font-bold text-slate-800">{formatRupiah(selectedRB.avgCostPerKg)}/kg</span>
+          <p className="text-xs font-medium text-ink-secondary pt-1">
+            Stok: <span className="font-bold text-ink">{formatKg(selectedRB.stockKg)}</span>
+            {" "}· HPP: <span className="font-bold text-ink">{formatRupiah(selectedRB.avgCostPerKg)}/kg</span>
           </p>
         )}
         <FieldError message={errors.sourceProductId?.message} />
       </FieldGroup>
 
       <FieldGroup>
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-          SKU Kopi Giling (kg) <span className="text-red-500">*</span>
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">
+          SKU Kopi Giling (kg) <span className="text-[var(--status-danger)]">*</span>
         </Label>
         <Controller
           control={control}
@@ -305,12 +305,12 @@ export function GrindingForm({
         <FieldError message={errors.outputProductId?.message} />
       </FieldGroup>
 
-      <Separator className="bg-white/50" />
+      <Separator className="bg-card/50" />
 
       <div className="grid grid-cols-2 gap-4">
         <FieldGroup>
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-            Berat Masuk (kg) <span className="text-red-500">*</span>
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">
+            Berat Masuk (kg) <span className="text-[var(--status-danger)]">*</span>
           </Label>
           <Input
             type="number"
@@ -321,7 +321,7 @@ export function GrindingForm({
             {...register("inputKg", { valueAsNumber: true })}
           />
           {selectedRB && Number(inputKg) > selectedRB.stockKg && (
-            <p className="text-xs font-medium text-red-500">
+            <p className="text-xs font-medium text-[var(--status-danger)]">
               Melebihi stok tersedia ({formatKg(selectedRB.stockKg)})
             </p>
           )}
@@ -329,8 +329,8 @@ export function GrindingForm({
         </FieldGroup>
 
         <FieldGroup>
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-            Berat Hasil (kg) <span className="text-red-500">*</span>
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">
+            Berat Hasil (kg) <span className="text-[var(--status-danger)]">*</span>
           </Label>
           <Input
             type="number"
@@ -358,8 +358,8 @@ export function GrindingForm({
       )}
 
       <FieldGroup>
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-          Ukuran Giling <span className="text-red-500">*</span>
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">
+          Ukuran Giling <span className="text-[var(--status-danger)]">*</span>
         </Label>
         <Controller
           control={control}
@@ -384,8 +384,8 @@ export function GrindingForm({
         {grindSize === "CUSTOM" && (
           <div className="mt-2">
             <FieldGroup>
-              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
-                Label Custom <span className="text-red-500">*</span>
+              <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">
+                Label Custom <span className="text-[var(--status-danger)]">*</span>
               </Label>
               <Input
                 placeholder="e.g. Turkish, Moka Pot Special"
@@ -400,7 +400,7 @@ export function GrindingForm({
       </FieldGroup>
 
       <FieldGroup>
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">
           Mesin Giling (Opsional)
         </Label>
         <Controller
@@ -430,11 +430,11 @@ export function GrindingForm({
         <FieldError message={errors.grinderId?.message} />
       </FieldGroup>
 
-      <Separator className="bg-white/50" />
+      <Separator className="bg-card/50" />
 
       <div className="grid grid-cols-2 gap-4">
         <FieldGroup>
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">
             Biaya Grinding (opsional)
           </Label>
           <Input
@@ -445,11 +445,11 @@ export function GrindingForm({
             className={cn("h-9 tabular-nums font-semibold", glassInput)}
             {...register("grindingCost", { valueAsNumber: true })}
           />
-          <p className="text-[10px] text-slate-400">Tenaga/operasional grinding</p>
+          <p className="text-[10px] text-ink-secondary">Tenaga/operasional grinding</p>
         </FieldGroup>
 
         <FieldGroup>
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">
             Referensi Batch (opsional)
           </Label>
           <Input
@@ -461,18 +461,18 @@ export function GrindingForm({
       </div>
 
       <div className={cn(glassCard, "p-4 space-y-2")}>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-ink-secondary">
           Ringkasan HPP
         </p>
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm font-medium">
-          <span className="text-slate-600">Biaya RB</span>
-          <span className="font-semibold text-slate-900 text-right">{formatRupiah(totalRbCost)}</span>
-          <span className="text-slate-600">Biaya Grinding</span>
-          <span className="font-semibold text-slate-900 text-right">{formatRupiah(grindingCost)}</span>
-          <span className="text-slate-600 mt-1 pt-2 border-t border-slate-200/50">Total Biaya</span>
-          <span className="font-semibold text-slate-900 text-right mt-1 pt-2 border-t border-slate-200/50">{formatRupiah(totalCost)}</span>
-          <span className="text-slate-600">HPP/kg Output</span>
-          <span className="font-semibold text-slate-900 text-right">{formatRupiah(hppPerKg)}</span>
+          <span className="text-ink">Biaya RB</span>
+          <span className="font-semibold text-ink text-right">{formatRupiah(totalRbCost)}</span>
+          <span className="text-ink">Biaya Grinding</span>
+          <span className="font-semibold text-ink text-right">{formatRupiah(grindingCost)}</span>
+          <span className="text-ink mt-1 pt-2 border-t border-border/50">Total Biaya</span>
+          <span className="font-semibold text-ink text-right mt-1 pt-2 border-t border-border/50">{formatRupiah(totalCost)}</span>
+          <span className="text-ink">HPP/kg Output</span>
+          <span className="font-semibold text-ink text-right">{formatRupiah(hppPerKg)}</span>
         </div>
       </div>
 
@@ -493,7 +493,7 @@ export function GrindingForm({
       </FieldGroup>
 
       <FieldGroup>
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Catatan (opsional)</Label>
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">Catatan (opsional)</Label>
         <Textarea
           placeholder="Catatan batch, kondisi mesin, dll."
           rows={2}

@@ -18,10 +18,10 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 const CATEGORY_COLOR: Record<string, string> = {
-  GAJI:        "bg-blue-50 text-blue-800 border-blue-200",
-  UTILITAS:    "bg-amber-50 text-amber-700 border-amber-200",
-  OPERASIONAL: "bg-violet-50 text-violet-700 border-violet-200",
-  LAINNYA:     "bg-zinc-100 text-zinc-600 border-zinc-200",
+  GAJI:        "bg-[var(--status-info)]/10 text-[var(--status-info)] border-[var(--status-info)]/30",
+  UTILITAS:    "bg-[var(--status-warning)]/10 text-[var(--status-warning)] border-[var(--status-warning)]/30",
+  OPERASIONAL: "bg-[var(--instrument)] text-[var(--instrument)] border-[var(--instrument)]/30",
+  LAINNYA:     "bg-surface-sunken text-ink border-border",
 };
 
 interface ExpenseTableProps {
@@ -34,12 +34,12 @@ export function ExpenseTable({ rows, onVoid, view = "ACTIVE" }: ExpenseTableProp
   if (rows.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-16 text-center">
-        <p className="text-sm font-medium text-zinc-400">
+        <p className="text-sm font-medium text-ink-secondary">
           {view === "VOIDED"
             ? "Tidak ada pengeluaran yang dibatalkan."
             : "Belum ada pengeluaran tercatat."}
         </p>
-        <p className="text-xs text-zinc-300">
+        <p className="text-xs text-ink-secondary">
           {view === "ACTIVE"
             ? "Klik \"Catat Pengeluaran\" untuk mencatat OPEX."
             : "Riwayat pembatalan pengeluaran akan tampil di sini."}
@@ -53,42 +53,42 @@ export function ExpenseTable({ rows, onVoid, view = "ACTIVE" }: ExpenseTableProp
   return (
     <div className="space-y-3">
       {/* Summary */}
-      <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/30 backdrop-blur-xl px-4 py-2.5 shadow-sm">
-        <p className="text-xs text-zinc-500">{rows.length} pengeluaran tercatat</p>
-        <p className="font-mono text-sm font-bold text-red-600">
+      <div className="flex items-center justify-between rounded-xl border border-white/60 bg-card/30 backdrop-blur-xl px-4 py-2.5 shadow-sm">
+        <p className="text-xs text-ink-secondary">{rows.length} pengeluaran tercatat</p>
+        <p className="font-mono text-sm font-bold text-[var(--status-danger)]">
           Total: {formatRupiah(total)}
         </p>
       </div>
 
-      <div className="hidden md:block overflow-hidden rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl shadow-lg shadow-slate-200/30">
+      <div className="hidden md:block overflow-hidden rounded-[1.25rem] border border-white/60 bg-card/30 backdrop-blur-xl shadow-lg shadow-border/30">
         <Table>
           <TableHeader>
-            <TableRow className="bg-white/40 border-b border-white/50 backdrop-blur-md hover:bg-white/40">
-              <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-500">Tanggal</TableHead>
-              <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-500">Kategori</TableHead>
-              <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-500">Keterangan</TableHead>
-              <TableHead className="text-right text-xs font-bold uppercase tracking-widest text-slate-500">Nominal</TableHead>
+            <TableRow className="bg-card/40 border-b border-white/50 backdrop-blur-md hover:bg-card/40">
+              <TableHead className="text-xs font-bold uppercase tracking-widest text-ink-secondary">Tanggal</TableHead>
+              <TableHead className="text-xs font-bold uppercase tracking-widest text-ink-secondary">Kategori</TableHead>
+              <TableHead className="text-xs font-bold uppercase tracking-widest text-ink-secondary">Keterangan</TableHead>
+              <TableHead className="text-right text-xs font-bold uppercase tracking-widest text-ink-secondary">Nominal</TableHead>
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((row) => (
-              <TableRow key={row.id} className={cn("transition-colors", row.voidedAt ? "bg-red-50/40 hover:bg-red-50/70" : "hover:bg-white/40")}>
-                <TableCell className="text-sm text-zinc-600">
+              <TableRow key={row.id} className={cn("transition-colors", row.voidedAt ? "bg-[var(--status-danger)]/10/40 hover:bg-[var(--status-danger)]/10/70" : "hover:bg-card/40")}>
+                <TableCell className="text-sm text-ink">
                   {formatDate(row.date)}
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Badge
                       variant="outline"
-                      className={`text-[11px] font-medium ${CATEGORY_COLOR[row.category] ?? "bg-zinc-100 text-zinc-500"}`}
+                      className={`text-[11px] font-medium ${CATEGORY_COLOR[row.category] ?? "bg-surface-sunken text-ink-secondary"}`}
                     >
                       {CATEGORY_LABEL[row.category] ?? row.category}
                     </Badge>
                     {row.voidedAt && (
                       <Badge
                         variant="outline"
-                        className="border-red-200 bg-red-50 text-red-600"
+                        className="border-[var(--status-danger)]/30 bg-[var(--status-danger)]/10 text-[var(--status-danger)]"
                       >
                         <Ban size={10} className="mr-1" />
                         Dibatalkan
@@ -96,18 +96,18 @@ export function ExpenseTable({ rows, onVoid, view = "ACTIVE" }: ExpenseTableProp
                     )}
                   </div>
                 </TableCell>
-                <TableCell className="text-sm text-zinc-500">
+                <TableCell className="text-sm text-ink-secondary">
                   <span className={cn(row.voidedAt && "line-through opacity-60")}>
-                    {row.description ?? <span className="italic text-zinc-300">—</span>}
+                    {row.description ?? <span className="italic text-ink-secondary">—</span>}
                   </span>
                   {row.voidedAt && (
-                    <p className="mt-0.5 text-xs text-red-500">
+                    <p className="mt-0.5 text-xs text-[var(--status-danger)]">
                       {row.voidReason ?? "Tanpa alasan"} · {formatDate(row.voidedAt)}
                       {row.voidedByName ? ` oleh ${row.voidedByName}` : ""}
                     </p>
                   )}
                 </TableCell>
-                <TableCell className={cn("text-right font-mono text-sm font-semibold", row.voidedAt ? "text-red-400 line-through" : "text-red-600")}>
+                <TableCell className={cn("text-right font-mono text-sm font-semibold", row.voidedAt ? "text-[var(--status-danger)] line-through" : "text-[var(--status-danger)]")}>
                   {formatRupiah(row.amount)}
                 </TableCell>
                 <TableCell>
@@ -118,7 +118,7 @@ export function ExpenseTable({ rows, onVoid, view = "ACTIVE" }: ExpenseTableProp
                       variant="ghost"
                       title="Void pengeluaran"
                       aria-label={`Void pengeluaran ${row.id}`}
-                      className="text-slate-400 hover:bg-red-50 hover:text-red-600"
+                      className="text-ink-secondary hover:bg-[var(--status-danger)]/10 hover:text-[var(--status-danger)]"
                       onClick={() => onVoid(row)}
                     >
                       <Trash2 size={14} />
@@ -134,35 +134,35 @@ export function ExpenseTable({ rows, onVoid, view = "ACTIVE" }: ExpenseTableProp
       {/* MOBILE VIEW */}
       <div className="md:hidden flex flex-col gap-3">
         {rows.map((row) => (
-          <div key={row.id} className={cn("p-4 rounded-xl border bg-white/30 backdrop-blur-md shadow-sm", row.voidedAt ? "border-red-200" : "border-white/60")}>
+          <div key={row.id} className={cn("p-4 rounded-xl border bg-card/30 backdrop-blur-md shadow-sm", row.voidedAt ? "border-[var(--status-danger)]/30" : "border-white/60")}>
             <div className="flex justify-between items-start mb-2">
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge
                   variant="outline"
-                  className={`text-xs font-bold ${CATEGORY_COLOR[row.category] ?? "bg-zinc-100 text-zinc-500"}`}
+                  className={`text-xs font-bold ${CATEGORY_COLOR[row.category] ?? "bg-surface-sunken text-ink-secondary"}`}
                 >
                   {CATEGORY_LABEL[row.category] ?? row.category}
                 </Badge>
                 {row.voidedAt && (
-                  <Badge variant="outline" className="border-red-200 bg-red-50 text-red-600">
+                  <Badge variant="outline" className="border-[var(--status-danger)]/30 bg-[var(--status-danger)]/10 text-[var(--status-danger)]">
                     <Ban size={10} className="mr-1" />
                     Dibatalkan
                   </Badge>
                 )}
               </div>
-              <span className="text-xs font-semibold text-slate-500">{formatDate(row.date)}</span>
+              <span className="text-xs font-semibold text-ink-secondary">{formatDate(row.date)}</span>
             </div>
-            <div className={cn("text-sm font-medium text-slate-800 mb-1", row.voidedAt && "line-through opacity-60")}>
-              {row.description ?? <span className="italic text-zinc-400">Tanpa keterangan</span>}
+            <div className={cn("text-sm font-medium text-ink mb-1", row.voidedAt && "line-through opacity-60")}>
+              {row.description ?? <span className="italic text-ink-secondary">Tanpa keterangan</span>}
             </div>
             {row.voidedAt && (
-              <p className="mb-1 text-xs text-red-500">
+              <p className="mb-1 text-xs text-[var(--status-danger)]">
                 {row.voidReason ?? "Tanpa alasan"} · {formatDate(row.voidedAt)}
                 {row.voidedByName ? ` oleh ${row.voidedByName}` : ""}
               </p>
             )}
             <div className="text-right">
-              <span className={cn("font-mono text-base font-bold", row.voidedAt ? "text-red-400 line-through" : "text-red-600")}>
+              <span className={cn("font-mono text-base font-bold", row.voidedAt ? "text-[var(--status-danger)] line-through" : "text-[var(--status-danger)]")}>
                 {formatRupiah(row.amount)}
               </span>
             </div>
@@ -171,7 +171,7 @@ export function ExpenseTable({ rows, onVoid, view = "ACTIVE" }: ExpenseTableProp
                 type="button"
                 size="sm"
                 variant="outline"
-                className="mt-3 w-full gap-2 border-red-200 text-red-600"
+                className="mt-3 w-full gap-2 border-[var(--status-danger)]/30 text-[var(--status-danger)]"
                 onClick={() => onVoid(row)}
               >
                 <Trash2 size={14} />

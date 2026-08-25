@@ -63,8 +63,8 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const glassInput = "bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 focus:border-white/80";
-const glassCard = "rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl p-4 shadow-sm";
+const glassInput = "bg-card/40 border-white/60 backdrop-blur-md transition-all focus:bg-card/60 focus:border-white/80";
+const glassCard = "rounded-[1.25rem] border border-white/60 bg-card/30 backdrop-blur-xl p-4 shadow-sm";
 
 // =============================================================================
 // Field helpers
@@ -76,7 +76,7 @@ function FieldGroup({ children }: { children: React.ReactNode }) {
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="text-xs text-red-500">{message}</p>;
+  return <p className="text-xs text-[var(--status-danger)]">{message}</p>;
 }
 
 // =============================================================================
@@ -135,54 +135,54 @@ function HppSummary({
 
   return (
     <div className={cn(glassCard, "p-4 space-y-3 mt-4")}>
-      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-ink-secondary">
         Ringkasan Produksi
       </p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm font-medium">
-        <span className="text-slate-600">Unit diproduksi</span>
-        <span className="font-semibold text-slate-900 text-right">{formatUnit(unitsProduced)}</span>
-        <span className="text-slate-600">Total RB digunakan</span>
-        <span className="font-semibold text-slate-900 text-right">{formatKg(totalRbGrams / 1000)}</span>
-        <span className="text-slate-600">Rata-rata RB/unit</span>
-        <span className={cn("font-semibold text-right", isOverCapacity ? "text-amber-700" : "text-slate-900")}>
+        <span className="text-ink">Unit diproduksi</span>
+        <span className="font-semibold text-ink text-right">{formatUnit(unitsProduced)}</span>
+        <span className="text-ink">Total RB digunakan</span>
+        <span className="font-semibold text-ink text-right">{formatKg(totalRbGrams / 1000)}</span>
+        <span className="text-ink">Rata-rata RB/unit</span>
+        <span className={cn("font-semibold text-right", isOverCapacity ? "text-[var(--status-warning)]" : "text-ink")}>
           {unitsProduced > 0
             ? `${(totalRbGrams / unitsProduced).toFixed(1)} g`
             : "—"}
         </span>
         {pkg && (
           <>
-            <span className="text-slate-600">Kemasan digunakan</span>
-            <span className="font-semibold text-slate-900 text-right text-xs mt-0.5">
+            <span className="text-ink">Kemasan digunakan</span>
+            <span className="font-semibold text-ink text-right text-xs mt-0.5">
               1 unit {pkg.name} / unit FG
             </span>
           </>
         )}
         {supplyCostPerUnit > 0 && (
           <>
-            <span className="text-slate-600">Komponen non-kopi lain</span>
-            <span className="font-semibold text-slate-900 text-right text-xs mt-0.5">
+            <span className="text-ink">Komponen non-kopi lain</span>
+            <span className="font-semibold text-ink text-right text-xs mt-0.5">
               {formatRupiah(supplyCostPerUnit)}/unit
             </span>
           </>
         )}
         {(laborCost || 0) > 0 && (
-          <><span className="text-slate-600">Biaya Tenaga Kerja</span>
-            <span className="font-semibold text-slate-900 text-right">{formatRupiah(laborCost)}</span>
-            <span className="text-[10px] text-slate-400 text-right -mt-1">per batch ({formatRupiah((laborCost || 0) / unitsProduced)}/unit)</span>
+          <><span className="text-ink">Biaya Tenaga Kerja</span>
+            <span className="font-semibold text-ink text-right">{formatRupiah(laborCost)}</span>
+            <span className="text-[10px] text-ink-secondary text-right -mt-1">per batch ({formatRupiah((laborCost || 0) / unitsProduced)}/unit)</span>
             <span></span>
           </>
         )}
         {(overheadAllocated || 0) > 0 && (
-          <><span className="text-slate-600">Alokasi Overhead</span>
-            <span className="font-semibold text-slate-900 text-right">{formatRupiah(overheadAllocated)}</span>
-            <span className="text-[10px] text-slate-400 text-right -mt-1">per batch ({formatRupiah((overheadAllocated || 0) / unitsProduced)}/unit)</span>
+          <><span className="text-ink">Alokasi Overhead</span>
+            <span className="font-semibold text-ink text-right">{formatRupiah(overheadAllocated)}</span>
+            <span className="text-[10px] text-ink-secondary text-right -mt-1">per batch ({formatRupiah((overheadAllocated || 0) / unitsProduced)}/unit)</span>
             <span></span>
           </>
         )}
-        <span className="text-slate-600 mt-1 pt-2 border-t border-slate-200/50">Estimasi HPP/unit</span>
-        <span className="font-semibold text-slate-900 text-right mt-1 pt-2 border-t border-slate-200/50">
+        <span className="text-ink mt-1 pt-2 border-t border-border/50">Estimasi HPP/unit</span>
+        <span className="font-semibold text-ink text-right mt-1 pt-2 border-t border-border/50">
           {hasMissingCost ? (
-            <span className="text-amber-600 text-xs flex flex-col items-end">
+            <span className="text-[var(--status-warning)] text-xs flex flex-col items-end">
               <span>{formatRupiah(estimatedHpp)}</span>
               <span className="text-[10px] font-normal mt-0.5">⚠ data harga RB tidak lengkap</span>
             </span>
@@ -192,7 +192,7 @@ function HppSummary({
         </span>
       </div>
       {isOverCapacity && pkg?.capacityGrams && (
-        <div className="mt-2 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+        <div className="mt-2 flex gap-2 rounded-lg border border-[var(--status-warning)]/30 bg-[var(--status-warning)]/10 p-2 text-xs text-[var(--status-warning)]">
           <AlertTriangle size={15} className="mt-0.5 shrink-0" />
           <span>
             Isi kopi {rbPerUnit.toFixed(1)} g melebihi kapasitas nominal kemasan {pkg.capacityGrams.toFixed(0)} g.
@@ -426,8 +426,8 @@ export function ProductionForm({
     <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-5 relative">
       {/* ── Pilih FG ── */}
       <FieldGroup>
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-          Produk Jadi <span className="text-red-500">*</span>
+        <Label className="text-[10px] uppercase font-bold tracking-wider text-ink-secondary">
+          Produk Jadi <span className="text-[var(--status-danger)]">*</span>
         </Label>
         <Controller
           control={control}
@@ -450,7 +450,7 @@ export function ProductionForm({
                     <SelectItem key={fg.id} value={fg.id}>
                       {fg.name}
                       {fg.recipe && (
-                        <span className="ml-1 text-slate-400">✓ resep</span>
+                        <span className="ml-1 text-ink-secondary">✓ resep</span>
                       )}
                     </SelectItem>
                   ))
@@ -460,12 +460,12 @@ export function ProductionForm({
           )}
         />
         {selectedFG?.recipe && (
-          <p className="text-xs text-emerald-600">
+          <p className="text-xs text-[var(--status-success)]">
             ✓ Resep "{selectedFG.recipe.items.map((i) => i.productName).join(" + ")}" dimuat otomatis. Gramasi bisa diedit bebas.
           </p>
         )}
         {selectedFG && !selectedFG.recipe && (
-          <p className="text-xs text-amber-600">
+          <p className="text-xs text-[var(--status-warning)]">
             Produk ini belum memiliki resep. Tambahkan komponen RB secara manual.
           </p>
         )}
@@ -474,8 +474,8 @@ export function ProductionForm({
 
       {/* ── Jumlah Unit ── */}
       <FieldGroup>
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-          Jumlah Unit Diproduksi <span className="text-red-500">*</span>
+        <Label className="text-[10px] uppercase font-bold tracking-wider text-ink-secondary">
+          Jumlah Unit Diproduksi <span className="text-[var(--status-danger)]">*</span>
         </Label>
         <Input
           type="number"
@@ -492,7 +492,7 @@ export function ProductionForm({
         <button
           type="button"
           onClick={() => setShowRecipeDetails((current) => !current)}
-          className="flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-left text-xs font-semibold text-emerald-700"
+          className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--status-success)]/30 bg-[var(--status-success)]/10/70 px-4 py-3 text-left text-xs font-semibold text-[var(--status-success)]"
         >
           <span>
             Resep otomatis · {selectedFG.recipe.items.map((item) => item.productName).join(" + ")} · {selectedFG.recipe.packagingName}
@@ -503,18 +503,18 @@ export function ProductionForm({
 
       {(!selectedFG?.recipe || showRecipeDetails) && (
         <>
-      <Separator className="bg-white/50" />
+      <Separator className="bg-card/50" />
 
       {/* ── Komponen Roasted Bean ── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-            Komponen Roasted Bean <span className="text-red-500">*</span>
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-ink-secondary">
+            Komponen Roasted Bean <span className="text-[var(--status-danger)]">*</span>
           </Label>
           <button
             type="button"
             onClick={() => append({ productId: "", productName: "", gramsPerUnit: 0 })}
-            className="flex items-center gap-1 rounded-lg border border-white/60 bg-white/30 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-white/50 transition-colors shadow-sm"
+            className="flex items-center gap-1 rounded-lg border border-white/60 bg-card/30 px-3 py-1 text-xs font-medium text-ink hover:bg-card/50 transition-colors shadow-sm"
           >
             <Plus size={14} /> Tambah
           </button>
@@ -534,14 +534,14 @@ export function ProductionForm({
             return (
               <div
                 key={field.id}
-                className="relative flex flex-wrap sm:flex-nowrap items-start gap-4 rounded-xl border border-white/60 bg-white/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group"
+                className="relative flex flex-wrap sm:flex-nowrap items-start gap-4 rounded-xl border border-white/60 bg-card/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group"
               >
                 {/* Delete button (absolute top right) */}
                 {fields.length > 1 && (
                   <button
                     type="button"
                     onClick={() => remove(index)}
-                    className="absolute -right-2 -top-3 z-10 flex min-h-9 min-w-9 items-center justify-center rounded-full border border-white/60 bg-white p-2 text-red-500 opacity-100 shadow-sm transition-opacity hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                    className="absolute -right-2 -top-3 z-10 flex min-h-9 min-w-9 items-center justify-center rounded-full border border-white/60 bg-card p-2 text-[var(--status-danger)] opacity-100 shadow-sm transition-opacity hover:bg-[var(--status-danger)]/10 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                     title="Hapus Komponen"
                     aria-label={`Hapus komponen kopi ${index + 1}`}
                   >
@@ -551,7 +551,7 @@ export function ProductionForm({
 
                 {/* Pilih RB */}
                 <div className="flex-1 min-w-[200px] space-y-1">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">Roasted Bean</Label>
+                  <Label className="text-[10px] uppercase font-bold text-ink-secondary mb-1 block tracking-wider">Roasted Bean</Label>
                   <Controller
                     control={control}
                     name={`rbComponents.${index}.productId`}
@@ -579,7 +579,7 @@ export function ProductionForm({
                                 {r.name}
                                 {r.roastLevel ? ` · ${r.roastLevel.replace("_", " ")}` : ""}
                                 {" "}
-                                <span className="text-slate-400 font-normal">({formatKg(r.stockKg)})</span>
+                                <span className="text-ink-secondary font-normal">({formatKg(r.stockKg)})</span>
                               </SelectItem>
                             ))
                           )}
@@ -588,7 +588,7 @@ export function ProductionForm({
                     )}
                   />
                   {selectedRB && (
-                    <p className={`text-[10px] font-medium pt-1 ${isOverStock ? "text-red-500" : "text-slate-500"}`}>
+                    <p className={`text-[10px] font-medium pt-1 ${isOverStock ? "text-[var(--status-danger)]" : "text-ink-secondary"}`}>
                       Stok: {formatKg(selectedRB.stockKg)}
                       {isOverStock && " — ⚠ melebihi stok"}
                     </p>
@@ -597,19 +597,19 @@ export function ProductionForm({
 
                 {/* Gram input */}
                 <div className="w-36 shrink-0 space-y-1">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">Gramasi per Unit</Label>
+                  <Label className="text-[10px] uppercase font-bold text-ink-secondary mb-1 block tracking-wider">Gramasi per Unit</Label>
                   <div className="relative">
                     <Input
                       type="number"
                       step="0.1"
                       min="1"
                       placeholder="e.g. 1000"
-                      className={cn("h-9 tabular-nums font-semibold pr-8 text-slate-900", glassInput, 
-                        errors.rbComponents?.[index]?.gramsPerUnit ? "border-red-400 bg-red-50/50 focus:border-red-500 focus:bg-white" : "")
+                      className={cn("h-9 tabular-nums font-semibold pr-8 text-ink", glassInput, 
+                        errors.rbComponents?.[index]?.gramsPerUnit ? "border-[var(--status-danger)]/30 bg-[var(--status-danger)]/10/50 focus:border-[var(--status-danger)]/30 focus:bg-card" : "")
                       }
                       {...register(`rbComponents.${index}.gramsPerUnit`, { valueAsNumber: true })}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">g</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-ink-secondary">g</span>
                   </div>
                   <FieldError message={errors.rbComponents?.[index]?.gramsPerUnit?.message} />
                 </div>
@@ -619,12 +619,12 @@ export function ProductionForm({
         </div>
       </div>
 
-      <Separator className="bg-white/50" />
+      <Separator className="bg-card/50" />
 
       {/* ── Kemasan ── */}
       <FieldGroup>
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-          Kemasan (Item Non-Kopi) <span className="text-red-500">*</span>
+        <Label className="text-[10px] uppercase font-bold tracking-wider text-ink-secondary">
+          Kemasan (Item Non-Kopi) <span className="text-[var(--status-danger)]">*</span>
         </Label>
         <Controller
           control={control}
@@ -647,7 +647,7 @@ export function ProductionForm({
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
                       {" "}
-                      <span className="text-slate-400 font-normal">
+                      <span className="text-ink-secondary font-normal">
                         ({p.code} · {formatUnit(p.stockUnit)} {p.baseUnit} · {formatRupiah(p.costPerUnit)}/{p.baseUnit})
                       </span>
                     </SelectItem>
@@ -659,12 +659,12 @@ export function ProductionForm({
         />
         <FieldError message={errors.packagingId?.message} />
         {selectedPackaging?.capacityGrams && (
-          <div className="mt-2 rounded-xl border border-sky-200/70 bg-sky-50/70 p-3">
+          <div className="mt-2 rounded-xl border border-[var(--instrument)]/30 bg-[var(--instrument)]/70 p-3">
             <div className="flex items-start gap-2">
-              <Calculator size={16} className="mt-0.5 shrink-0 text-sky-700" />
+              <Calculator size={16} className="mt-0.5 shrink-0 text-[var(--instrument)]" />
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-sky-900">Kalkulator jumlah kemasan</p>
-                <p className="mt-0.5 text-[11px] text-sky-700">
+                <p className="text-xs font-bold text-[var(--instrument)]">Kalkulator jumlah kemasan</p>
+                <p className="mt-0.5 text-[11px] text-[var(--instrument)]">
                   Kapasitas nominal {selectedPackaging.capacityGrams.toFixed(0)} g. Masukkan target bahan kopi yang ingin dipakai.
                 </p>
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -676,23 +676,23 @@ export function ProductionForm({
                       value={targetRbKg}
                       onChange={(event) => setTargetRbKg(event.target.value)}
                       placeholder="Contoh: 10"
-                      className="h-9 bg-white/80 pr-10 tabular-nums"
+                      className="h-9 bg-card/80 pr-10 tabular-nums"
                       aria-label="Target bahan kopi dalam kilogram"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-sky-600">kg</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--instrument)]">kg</span>
                   </div>
                   {packagingSuggestion && (
                     <button
                       type="button"
                       onClick={applyPackagingSuggestion}
-                      className="h-9 shrink-0 rounded-lg bg-sky-800 px-3 text-xs font-bold text-white transition hover:bg-sky-700"
+                      className="h-9 shrink-0 rounded-lg bg-[var(--instrument)] px-3 text-xs font-bold text-white transition hover:bg-[var(--instrument)]"
                     >
                       Terapkan {packagingSuggestion.units} unit
                     </button>
                   )}
                 </div>
                 {packagingSuggestion && (
-                  <p className="mt-2 text-[11px] text-sky-800">
+                  <p className="mt-2 text-[11px] text-[var(--instrument)]">
                     Saran: {packagingSuggestion.units} unit × {packagingSuggestion.gramsPerUnit.toFixed(1)} g
                     {packagingSuggestion.remainderGrams > 0
                       ? ` · sisa ${packagingSuggestion.remainderGrams.toFixed(1)} g`
@@ -711,13 +711,13 @@ export function ProductionForm({
       {/* ── Komponen Non-Kopi (opsional) ── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-ink-secondary">
             Komponen Non-Kopi (opsional)
           </Label>
           <button
             type="button"
             onClick={() => appendSupply({ supplyItemId: "", supplyItemName: "", quantityPerUnit: 0 })}
-            className="flex items-center gap-1 rounded-lg border border-white/60 bg-white/30 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-white/50 transition-colors shadow-sm"
+            className="flex items-center gap-1 rounded-lg border border-white/60 bg-card/30 px-3 py-1 text-xs font-medium text-ink hover:bg-card/50 transition-colors shadow-sm"
           >
             <Plus size={14} /> Tambah
           </button>
@@ -733,13 +733,13 @@ export function ProductionForm({
             return (
               <div
                 key={field.id}
-                className="relative flex flex-wrap sm:flex-nowrap items-start gap-4 rounded-xl border border-white/60 bg-white/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group"
+                className="relative flex flex-wrap sm:flex-nowrap items-start gap-4 rounded-xl border border-white/60 bg-card/40 backdrop-blur-md p-4 shadow-sm hover:shadow transition-all group"
               >
                 {supplyFields.length > 0 && (
                   <button
                     type="button"
                     onClick={() => removeSupply(index)}
-                    className="absolute -right-2 -top-3 z-10 flex min-h-9 min-w-9 items-center justify-center rounded-full border border-white/60 bg-white p-2 text-red-500 opacity-100 shadow-sm transition-opacity hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                    className="absolute -right-2 -top-3 z-10 flex min-h-9 min-w-9 items-center justify-center rounded-full border border-white/60 bg-card p-2 text-[var(--status-danger)] opacity-100 shadow-sm transition-opacity hover:bg-[var(--status-danger)]/10 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                     title="Hapus Komponen"
                     aria-label={`Hapus komponen non-kopi ${index + 1}`}
                   >
@@ -748,7 +748,7 @@ export function ProductionForm({
                 )}
 
                 <div className="flex-1 min-w-[200px] space-y-1">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">Item Non-Kopi</Label>
+                  <Label className="text-[10px] uppercase font-bold text-ink-secondary mb-1 block tracking-wider">Item Non-Kopi</Label>
                   <Controller
                     control={control}
                     name={`supplyComponents.${index}.supplyItemId`}
@@ -775,7 +775,7 @@ export function ProductionForm({
                               <SelectItem key={o.id} value={o.id}>
                                 {o.name}
                                 {" "}
-                                <span className="text-slate-400 font-normal">
+                                <span className="text-ink-secondary font-normal">
                                   ({o.code} · {o.stockQuantity} {o.baseUnit})
                                 </span>
                               </SelectItem>
@@ -786,7 +786,7 @@ export function ProductionForm({
                     )}
                   />
                   {selectedItem && (
-                    <p className={`text-[10px] font-medium pt-1 ${isOverStock ? "text-red-500" : "text-slate-500"}`}>
+                    <p className={`text-[10px] font-medium pt-1 ${isOverStock ? "text-[var(--status-danger)]" : "text-ink-secondary"}`}>
                       Stok: {selectedItem.stockQuantity} {selectedItem.baseUnit} · {formatRupiah(selectedItem.costPerUnit)}/{selectedItem.baseUnit}
                       {isOverStock && " — ⚠ melebihi stok"}
                     </p>
@@ -794,19 +794,19 @@ export function ProductionForm({
                 </div>
 
                 <div className="w-36 shrink-0 space-y-1">
-                  <Label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block tracking-wider">Qty per Unit</Label>
+                  <Label className="text-[10px] uppercase font-bold text-ink-secondary mb-1 block tracking-wider">Qty per Unit</Label>
                   <div className="relative">
                     <Input
                       type="number"
                       step="0.001"
                       min="0"
                       placeholder="e.g. 1"
-                      className={cn("h-9 tabular-nums font-semibold pr-8 text-slate-900", glassInput,
-                        errors.supplyComponents?.[index]?.quantityPerUnit ? "border-red-400 bg-red-50/50 focus:border-red-500 focus:bg-white" : "")
+                      className={cn("h-9 tabular-nums font-semibold pr-8 text-ink", glassInput,
+                        errors.supplyComponents?.[index]?.quantityPerUnit ? "border-[var(--status-danger)]/30 bg-[var(--status-danger)]/10/50 focus:border-[var(--status-danger)]/30 focus:bg-card" : "")
                       }
                       {...register(`supplyComponents.${index}.quantityPerUnit`, { valueAsNumber: true })}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-ink-secondary">
                       {selectedItem?.baseUnit ?? "unit"}
                     </span>
                   </div>
@@ -823,7 +823,7 @@ export function ProductionForm({
       {/* ── Biaya Tenaga Kerja & Overhead ── */}
       {(!selectedFG?.recipe || showRecipeDetails) && <div className="grid grid-cols-2 gap-4">
         <FieldGroup>
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-ink-secondary">
             Biaya Tenaga Kerja (opsional)
           </Label>
           <Input
@@ -834,10 +834,10 @@ export function ProductionForm({
             className={cn("h-9 tabular-nums font-semibold", glassInput)}
             {...register("laborCost", { valueAsNumber: true })}
           />
-          <p className="text-[10px] text-slate-400">Total upah/gaji untuk batch ini</p>
+          <p className="text-[10px] text-ink-secondary">Total upah/gaji untuk batch ini</p>
         </FieldGroup>
         <FieldGroup>
-          <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+          <Label className="text-[10px] uppercase font-bold tracking-wider text-ink-secondary">
             Alokasi Overhead (opsional)
           </Label>
           <Input
@@ -848,7 +848,7 @@ export function ProductionForm({
             className={cn("h-9 tabular-nums font-semibold", glassInput)}
             {...register("overheadAllocated", { valueAsNumber: true })}
           />
-          <p className="text-[10px] text-slate-400">Listrik, gas, air, penyusutan, dll.</p>
+          <p className="text-[10px] text-ink-secondary">Listrik, gas, air, penyusutan, dll.</p>
         </FieldGroup>
       </div>}
 
@@ -881,7 +881,7 @@ export function ProductionForm({
 
       {/* ── Catatan ── */}
       {(!selectedFG?.recipe || showRecipeDetails) && <FieldGroup>
-        <Label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Catatan (opsional)</Label>
+        <Label className="text-[10px] uppercase font-bold tracking-wider text-ink-secondary">Catatan (opsional)</Label>
         <Textarea
           placeholder="Batch notes, variasi blend, dll."
           rows={3}

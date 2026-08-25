@@ -104,17 +104,17 @@ export function CatatPengeluaranDrawer({ open, onOpenChange }: Props) {
       <form className="space-y-5">
         {/* Tanggal */}
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-zinc-700">
-            Tanggal <span className="text-red-500">*</span>
+          <Label className="text-xs font-medium text-ink">
+            Tanggal <span className="text-[var(--status-danger)]">*</span>
           </Label>
           <Input type="date" className="h-10 text-sm" {...register("date")} />
-          {errors.date && <p className="text-xs text-red-500">{errors.date.message}</p>}
+          {errors.date && <p className="text-xs text-[var(--status-danger)]">{errors.date.message}</p>}
         </div>
 
         {/* Kategori */}
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-zinc-700">
-            Kategori <span className="text-red-500">*</span>
+          <Label className="text-xs font-medium text-ink">
+            Kategori <span className="text-[var(--status-danger)]">*</span>
           </Label>
           <Select
             value={selectedCat}
@@ -134,16 +134,16 @@ export function CatatPengeluaranDrawer({ open, onOpenChange }: Props) {
               ))}
             </SelectContent>
           </Select>
-          {errors.category && <p className="text-xs text-red-500">Pilih kategori</p>}
+          {errors.category && <p className="text-xs text-[var(--status-danger)]">Pilih kategori</p>}
         </div>
 
         {/* Nominal */}
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-zinc-700">
-            Nominal (Rp) <span className="text-red-500">*</span>
+          <Label className="text-xs font-medium text-ink">
+            Nominal (Rp) <span className="text-[var(--status-danger)]">*</span>
           </Label>
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-zinc-400">Rp</span>
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-ink-secondary">Rp</span>
             <Input
               type="number"
               step="1"
@@ -153,12 +153,12 @@ export function CatatPengeluaranDrawer({ open, onOpenChange }: Props) {
               {...register("amount", { valueAsNumber: true })}
             />
           </div>
-          {errors.amount && <p className="text-xs text-red-500">{errors.amount.message}</p>}
+          {errors.amount && <p className="text-xs text-[var(--status-danger)]">{errors.amount.message}</p>}
         </div>
 
         {/* Keterangan */}
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-zinc-700">Keterangan</Label>
+          <Label className="text-xs font-medium text-ink">Keterangan</Label>
           <Textarea
             rows={3}
             placeholder="Deskripsi pengeluaran (opsional)..."

@@ -104,7 +104,7 @@ export function CatatModalDialog({ type, open, onOpenChange, onSuccess }: CatatM
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {isSetoran ? <Plus size={18} className="text-emerald-500" /> : <Minus size={18} className="text-red-500" />}
+            {isSetoran ? <Plus size={18} className="text-[var(--status-success)]" /> : <Minus size={18} className="text-[var(--status-danger)]" />}
             {title}
           </DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -114,7 +114,7 @@ export function CatatModalDialog({ type, open, onOpenChange, onSuccess }: CatatM
           <div className="space-y-2">
             <Label htmlFor="amount">Nominal (Rp)</Label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-stone-400 font-medium">Rp</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-secondary font-medium">Rp</span>
               <Input
                 id="amount"
                 type="number"
@@ -126,7 +126,7 @@ export function CatatModalDialog({ type, open, onOpenChange, onSuccess }: CatatM
                 {...register("amount", { valueAsNumber: true })}
               />
             </div>
-            {errors.amount && <p className="text-xs text-red-500">{errors.amount.message}</p>}
+            {errors.amount && <p className="text-xs text-[var(--status-danger)]">{errors.amount.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -137,7 +137,7 @@ export function CatatModalDialog({ type, open, onOpenChange, onSuccess }: CatatM
               max={getTodayString()}
               {...register("transactionDate")}
             />
-            {errors.transactionDate && <p className="text-xs text-red-500">{errors.transactionDate.message}</p>}
+            {errors.transactionDate && <p className="text-xs text-[var(--status-danger)]">{errors.transactionDate.message}</p>}
           </div>
 
           <div className="space-y-2">

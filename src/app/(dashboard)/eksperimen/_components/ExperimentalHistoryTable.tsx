@@ -14,8 +14,8 @@ export function ExperimentalHistoryTable({ batches, onPromote }: { batches: Expe
   if (batches.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-sm font-medium text-zinc-500">Belum ada batch eksperimental</p>
-        <p className="text-xs text-zinc-400 mt-1">Klik tombol di atas untuk membuat batch baru.</p>
+        <p className="text-sm font-medium text-ink-secondary">Belum ada batch eksperimental</p>
+        <p className="text-xs text-ink-secondary mt-1">Klik tombol di atas untuk membuat batch baru.</p>
       </div>
     );
   }
@@ -25,7 +25,7 @@ export function ExperimentalHistoryTable({ batches, onPromote }: { batches: Expe
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
         <thead>
-          <tr className="border-b border-white/60 text-xs uppercase tracking-wider text-slate-500">
+          <tr className="border-b border-white/60 text-xs uppercase tracking-wider text-ink-secondary">
             <th className="pb-2 pr-4 font-semibold">Kode</th>
             <th className="pb-2 pr-4 font-semibold">Nama</th>
             <th className="pb-2 pr-4 font-semibold">Output</th>
@@ -39,14 +39,14 @@ export function ExperimentalHistoryTable({ batches, onPromote }: { batches: Expe
         </thead>
         <tbody className="divide-y divide-white/40">
           {batches.map((batch) => (
-            <tr key={batch.id} className="hover:bg-white/30 transition-colors">
+            <tr key={batch.id} className="hover:bg-card/30 transition-colors">
               <td className="py-2.5 pr-4 font-mono font-semibold">{batch.code}</td>
               <td className="py-2.5 pr-4">
                 <span className="block">{batch.name}</span>
                 {batch.parentRoastBatchId && batch.parentRoastBatchCode && (
                   <Link
                     href={`/roasting/batch/${batch.parentRoastBatchId}`}
-                    className="mt-0.5 inline-flex text-xs font-semibold text-amber-800 hover:underline"
+                    className="mt-0.5 inline-flex text-xs font-semibold text-[var(--status-warning)] hover:underline"
                   >
                     Roast {batch.parentRoastBatchCode}
                   </Link>
@@ -59,10 +59,10 @@ export function ExperimentalHistoryTable({ batches, onPromote }: { batches: Expe
               <td className="py-2.5 pr-4">
                 <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
                   batch.status === "COMPLETED"
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    ? "bg-[var(--status-success)]/10 text-[var(--status-success)] border border-[var(--status-success)]/30"
                     : batch.status === "VOID"
-                    ? "bg-red-50 text-red-700 border border-red-200"
-                    : "bg-amber-50 text-amber-700 border border-amber-200"
+                    ? "bg-[var(--status-danger)]/10 text-[var(--status-danger)] border border-[var(--status-danger)]/30"
+                    : "bg-[var(--status-warning)]/10 text-[var(--status-warning)] border border-[var(--status-warning)]/30"
                 }`}>
                   {batch.status}
                 </span>
@@ -70,7 +70,7 @@ export function ExperimentalHistoryTable({ batches, onPromote }: { batches: Expe
                   <button
                     type="button"
                     onClick={() => onPromote(batch)}
-                    className="ml-2 inline-flex items-center gap-1 rounded-lg border border-white/60 bg-white/30 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-white/50 transition-colors shadow-sm"
+                    className="ml-2 inline-flex items-center gap-1 rounded-lg border border-white/60 bg-card/30 px-2 py-1 text-xs font-medium text-ink hover:bg-card/50 transition-colors shadow-sm"
                     title="Jadikan Produk Katalog"
                   >
                     <PackageSearch size={12} />
@@ -78,14 +78,14 @@ export function ExperimentalHistoryTable({ batches, onPromote }: { batches: Expe
                   </button>
                 )}
               </td>
-              <td className="py-2.5 text-xs text-slate-500">{formatDate(batch.createdAt)}</td>
+              <td className="py-2.5 text-xs text-ink-secondary">{formatDate(batch.createdAt)}</td>
               <td className="py-2.5 pl-4 text-center">
                 {batch.status === "COMPLETED" && (
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="min-h-9 min-w-11 px-2.5 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
+                    className="min-h-9 min-w-11 px-2.5 text-xs text-[var(--status-danger)] hover:bg-[var(--status-danger)]/10 hover:text-[var(--status-danger)]"
                     onClick={() => setVoidTarget(batch)}
                   >
                     Void

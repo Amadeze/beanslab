@@ -26,7 +26,7 @@ export default async function ProductionBatchRecapPage({
         actions={
           <Link
             href="/produksi"
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/20 px-3 text-xs font-bold text-white transition hover:bg-white/10"
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/20 px-3 text-xs font-bold text-white transition hover:bg-card/10"
           >
             <ArrowLeft size={14} /> Kembali
           </Link>
