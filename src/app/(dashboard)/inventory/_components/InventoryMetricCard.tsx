@@ -1,6 +1,9 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { type LucideIcon } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Eyebrow } from "@/components/ui/eyebrow";
 
 interface InventoryMetricCardProps {
   label: string;
@@ -15,29 +18,29 @@ interface InventoryMetricCardProps {
 
 const TONE_MAP = {
   green: {
-    value: "text-emerald-700",
-    icon: "bg-emerald-50 text-emerald-700",
-    activeBorder: "border-emerald-500 ring-1 ring-emerald-500",
+    value: "text-[var(--status-success)]",
+    icon: "bg-[var(--status-success)]/10 text-[var(--status-success)]",
+    activeBorder: "border-[var(--status-success)] ring-1 ring-[var(--status-success)]/40",
   },
   blue: {
-    value: "text-[var(--text-primary)]",
-    icon: "bg-sky-50 text-sky-700",
-    activeBorder: "border-sky-500 ring-1 ring-sky-500",
+    value: "text-ink",
+    icon: "bg-copper-soft text-copper",
+    activeBorder: "border-copper/40 ring-1 ring-copper/30",
   },
   red: {
-    value: "text-red-700",
-    icon: "bg-red-50 text-red-700",
-    activeBorder: "border-red-500 ring-1 ring-red-500",
+    value: "text-[var(--status-danger)]",
+    icon: "bg-[var(--status-danger)]/10 text-[var(--status-danger)]",
+    activeBorder: "border-[var(--status-danger)] ring-1 ring-[var(--status-danger)]/40",
   },
   orange: {
-    value: "text-[var(--amber-warm)]",
-    icon: "bg-amber-50 text-amber-700",
-    activeBorder: "border-[var(--amber-deep)] ring-1 ring-[var(--amber-deep)]",
+    value: "text-copper",
+    icon: "bg-copper-soft text-copper",
+    activeBorder: "border-copper/50 ring-1 ring-copper/40",
   },
   neutral: {
-    value: "text-[var(--text-secondary)]",
-    icon: "bg-stone-100 text-stone-600",
-    activeBorder: "border-stone-500 ring-1 ring-stone-500",
+    value: "text-ink-secondary",
+    icon: "bg-surface-sunken text-ink-tertiary",
+    activeBorder: "border-copper/40 ring-1 ring-copper/30",
   },
 };
 
@@ -54,27 +57,26 @@ export function InventoryMetricCard({
   const t = TONE_MAP[tone];
 
   return (
-    <button
-      type="button"
+    <Card
+      variant={onClick ? "interactive" : "default"}
       onClick={onClick}
-      disabled={!onClick}
-      className={`
-        relative min-w-0 glass-card p-4 text-left
-        ${onClick ? "cursor-pointer" : "cursor-default"}
-        ${active ? t.activeBorder : ""}
-      `}
+      className={cn(
+        "p-4 text-left",
+        onClick ? "cursor-pointer" : "cursor-default",
+        active ? t.activeBorder : "border-border",
+      )}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-medium leading-4 text-[var(--text-secondary)]">{label}</p>
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${t.icon}`}>
+        <Eyebrow tone="muted">{label}</Eyebrow>
+        <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", t.icon)}>
           <Icon size={17} aria-hidden="true" />
         </span>
       </div>
-      <p className={`mt-2 whitespace-nowrap font-mono text-sm font-bold tabular-nums sm:text-xl ${t.value}`}>
+      <p className={cn("mt-2 whitespace-nowrap font-heading text-2xl font-bold tracking-[-0.03em] tabular-nums sm:text-3xl", t.value)}>
         {typeof value === "number" ? value.toLocaleString("id-ID") : value}
-        {unit && <span className="ml-0.5 text-sm font-semibold">{unit}</span>}
+        {unit && <span className="ml-0.5 text-base font-semibold sm:text-lg">{unit}</span>}
       </p>
-      {helperText && <p className="mt-2 text-xs leading-4 text-[var(--text-tertiary)]">{helperText}</p>}
-    </button>
+      {helperText && <p className="mt-1 text-xs leading-4 text-ink-tertiary">{helperText}</p>}
+    </Card>
   );
 }

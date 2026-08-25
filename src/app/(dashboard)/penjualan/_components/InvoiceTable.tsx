@@ -23,6 +23,7 @@ import {
   type OperatorFulfillmentStatus,
 } from "@/lib/fulfillment-status";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { NoResults } from "@/components/ui/state";
 
 function canManageFulfillment(invoice: InvoiceRow) {
   return nextOperatorFulfillmentStatuses(
@@ -97,10 +98,10 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
     <>
     <div className="mb-4 flex flex-col sm:flex-row gap-3">
       <div className="relative flex-1 max-w-sm">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-tertiary" />
         <Input
           placeholder="Cari kode atau nama customer..."
-          className="h-10 rounded-lg border-stone-200 bg-white pl-9 focus-visible:ring-stone-400"
+          className="h-10 rounded-card border-border bg-card pl-9 focus-visible:ring-copper/30"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -108,7 +109,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
       <select
         value={statusFilter}
         onChange={(e) => setStatusFilter(e.target.value)}
-        className="h-10 rounded-lg border border-stone-200 bg-white px-3 text-sm font-medium text-stone-700 outline-none focus:ring-2 focus:ring-stone-400"
+        className="h-10 rounded-card border border-border bg-card px-3 text-sm font-medium text-ink outline-none focus-visible:ring-copper/30"
       >
         <option value="ALL">Semua Status</option>
         <option value="DRAFT">Draft</option>
@@ -120,15 +121,15 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
       </select>
     </div>
 
-    <div className="hidden overflow-hidden rounded-xl border border-stone-200 bg-white md:block">
+    <div className="hidden overflow-hidden rounded-card border border-border bg-card md:block">
       <Table>
         <TableHeader>
-          <TableRow className="border-b border-stone-200 bg-stone-50">
-            <TableHead className="w-40 text-xs font-bold uppercase tracking-widest text-slate-500">No. Nota</TableHead>
-            <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-500">Customer</TableHead>
-            <TableHead className="text-right text-xs font-bold uppercase tracking-widest text-slate-500">Total</TableHead>
-            <TableHead className="w-32 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Status</TableHead>
-            <TableHead className=" w-56 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Aksi</TableHead>
+          <TableRow className="border-b border-border bg-surface-sunken">
+            <TableHead className="w-40 text-xs font-bold uppercase tracking-widest text-ink-tertiary">No. Nota</TableHead>
+            <TableHead className="text-xs font-bold uppercase tracking-widest text-ink-tertiary">Customer</TableHead>
+            <TableHead className="text-right text-xs font-bold uppercase tracking-widest text-ink-tertiary">Total</TableHead>
+            <TableHead className="w-32 text-center text-xs font-bold uppercase tracking-widest text-ink-tertiary">Status</TableHead>
+            <TableHead className=" w-56 text-center text-xs font-bold uppercase tracking-widest text-ink-tertiary">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -155,7 +156,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
               const returEligible = inv.fulfillmentStatus === "DELIVERED" && inv.status !== "VOID" && inv.status !== "RETURNED";
               const voidEligible = inv.status !== "VOID" && inv.status !== "PAID" && inv.status !== "RETURNED";
               return (
-              <TableRow key={inv.id} className="transition-colors hover:bg-stone-50">
+              <TableRow key={inv.id} className="transition-colors hover:bg-surface-sunken">
                 <TableCell>
                   <p className="font-mono text-xs font-semibold text-slate-600">{inv.code}</p>
                   <p className="mt-0.5 text-[11px] text-slate-400">{formatDate(inv.issuedAt)}</p>

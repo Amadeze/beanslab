@@ -506,7 +506,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
       </div>
 
       {/* B2B Portal Customization (roastd.id Studio) */}
-      <div className="glass-card-static p-6 mt-6">
+      <div className="rounded-card border border-border bg-card shadow-elevation-soft p-6 mt-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -532,7 +532,7 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
             )}
             <a 
               href="/settings/portal-customizer"
-              className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2.5 text-xs font-bold text-gray-950 rounded-xl shadow-md transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                className="flex items-center gap-2 bg-gradient-to-r from-copper to-copper-strong px-5 py-2.5 text-xs font-bold text-card rounded-card shadow-md transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
             >
               Buka roastd.id Theme Studio <ExternalLink size={14} />
             </a>

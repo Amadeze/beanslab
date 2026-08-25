@@ -2,6 +2,8 @@
 
 import { TrendingUp, TrendingDown, Minus, Info, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
+import { Eyebrow } from "@/components/ui/eyebrow";
 
 interface ReportKpiCardProps {
   label: string;
@@ -10,7 +12,7 @@ interface ReportKpiCardProps {
   /** Persen vs periode lalu; `null` = periode sebelumnya kosong ("—"). */
   trend?: number | null;
   icon?: LucideIcon;
-  color?: "emerald" | "amber" | "rose" | "blue" | "purple" | "stone";
+  color?: "emerald" | "moss" | "amber" | "rose" | "blue" | "purple" | "stone";
   inverse?: boolean;
   sparkline?: number[];
   target?: string;
@@ -19,12 +21,13 @@ interface ReportKpiCardProps {
 }
 
 const colorMap = {
-  emerald: { bg: "bg-emerald-50", icon: "text-emerald-600", ring: "ring-emerald-200/50", bar: "bg-emerald-500" },
-  amber: { bg: "bg-amber-50", icon: "text-amber-600", ring: "ring-amber-200/50", bar: "bg-amber-500" },
-  rose: { bg: "bg-rose-50", icon: "text-rose-600", ring: "ring-rose-200/50", bar: "bg-rose-500" },
-  blue: { bg: "bg-blue-50", icon: "text-blue-600", ring: "ring-blue-200/50", bar: "bg-blue-500" },
-  purple: { bg: "bg-purple-50", icon: "text-purple-600", ring: "ring-purple-200/50", bar: "bg-purple-500" },
-  stone: { bg: "bg-stone-100", icon: "text-stone-600", ring: "ring-stone-200/50", bar: "bg-stone-500" },
+  emerald: { bg: "bg-emerald-50", icon: "text-emerald-700", ring: "ring-emerald-200/50", bar: "bg-emerald-500" },
+  moss: { bg: "bg-moss-soft", icon: "text-moss", ring: "ring-moss/15", bar: "bg-moss" },
+  amber: { bg: "bg-amber-50", icon: "text-amber-700", ring: "ring-amber-200/50", bar: "bg-amber-500" },
+  rose: { bg: "bg-rose-50", icon: "text-rose-700", ring: "ring-rose-200/50", bar: "bg-rose-500" },
+  blue: { bg: "bg-sky-50", icon: "text-sky-700", ring: "ring-sky-200/50", bar: "bg-sky-500" },
+  purple: { bg: "bg-violet-50", icon: "text-violet-700", ring: "ring-violet-200/50", bar: "bg-violet-500" },
+  stone: { bg: "bg-surface-sunken", icon: "text-ink-tertiary", ring: "ring-border", bar: "bg-ink-tertiary" },
 };
 
 function MiniSparkline({ data, color }: { data: number[]; color: { bar: string } }) {
@@ -48,34 +51,34 @@ export function ReportKpiCard({
 }: ReportKpiCardProps) {
   const c = colorMap[color];
   const trendColor = (() => {
-    if (trend === undefined || trend === null || trend === 0) return "text-stone-500";
-    if (inverse) return trend < 0 ? "text-emerald-600" : "text-rose-600";
-    return trend > 0 ? "text-emerald-600" : "text-rose-600";
+    if (trend === undefined || trend === null || trend === 0) return "text-ink-tertiary";
+    if (inverse) return trend < 0 ? "text-[var(--status-success)]" : "text-[var(--status-danger)]";
+    return trend > 0 ? "text-[var(--status-success)]" : "text-[var(--status-danger)]";
   })();
 
   return (
-    <div className="group relative rounded-xl border border-stone-200 bg-white p-4 transition-all hover:shadow-md hover:border-stone-300">
+    <Card className="p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-wider text-stone-500">
+          <Eyebrow tone="muted" className="flex items-center gap-1.5">
             {label}
             {help && (
               <span
-                className="ml-1.5 inline-flex cursor-help align-middle text-stone-400 hover:text-stone-600"
+                className="inline-flex cursor-help align-middle text-ink-tertiary hover:text-ink-secondary"
                 title={help}
                 aria-label={help}
               >
                 <Info size={12} />
               </span>
             )}
-          </p>
-          <p className="mt-1.5 text-xl font-black tracking-tight text-stone-900 tabular-nums">{value}</p>
-          {subtitle && <p className="mt-0.5 text-[11px] text-stone-500">{subtitle}</p>}
-          {target && <p className="mt-0.5 text-xs text-stone-400">Target: {target}</p>}
+          </Eyebrow>
+          <p className="mt-2 font-heading text-2xl font-bold tracking-[-0.04em] text-ink tabular-nums">{value}</p>
+          {subtitle && <p className="mt-0.5 text-xs text-ink-secondary">{subtitle}</p>}
+          {target && <p className="mt-0.5 text-xs text-ink-tertiary">Target: {target}</p>}
         </div>
         <div className="flex flex-col items-end gap-1.5">
           {Icon && (
-            <div className={cn("rounded-lg p-2 ring-1", c.bg, c.icon, c.ring)}>
+            <div className={cn("flex size-9 items-center justify-center rounded-[9px] ring-1", c.bg, c.icon, c.ring)}>
               <Icon size={16} />
             </div>
           )}
@@ -83,23 +86,23 @@ export function ReportKpiCard({
         </div>
       </div>
       {trend !== undefined && trend !== null && (
-        <div className="mt-3 flex items-center gap-1.5 border-t border-stone-100 pt-2.5">
+        <div className="mt-3 flex items-center gap-1.5 border-t border-border/70 pt-2.5">
           {trend > 0 ? <TrendingUp size={12} className={trendColor} />
             : trend < 0 ? <TrendingDown size={12} className={trendColor} />
             : <Minus size={12} className={trendColor} />}
           <span className={cn("text-xs font-semibold tabular-nums", trendColor)}>
             {trend > 0 ? "+" : ""}{trend.toFixed(1)}%
           </span>
-          <span className="text-xs text-stone-400">vs periode lalu</span>
+          <span className="text-xs text-ink-tertiary">vs periode lalu</span>
         </div>
       )}
       {trend === null && (
-        <div className="mt-3 flex items-center gap-1.5 border-t border-stone-100 pt-2.5">
-          <Minus size={12} className="text-stone-400" />
-          <span className="text-xs font-semibold tabular-nums text-stone-400">—</span>
-          <span className="text-xs text-stone-400">Periode baru</span>
+        <div className="mt-3 flex items-center gap-1.5 border-t border-border/70 pt-2.5">
+          <Minus size={12} className="text-ink-tertiary" />
+          <span className="text-xs font-semibold tabular-nums text-ink-tertiary">—</span>
+          <span className="text-xs text-ink-tertiary">Periode baru</span>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

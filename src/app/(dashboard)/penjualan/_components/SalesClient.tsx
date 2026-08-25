@@ -33,8 +33,8 @@ import {
 } from "@/components/ui/dialog";
 import type { ContractPriceOption, CustomerOption, FGStockOption, InvoiceRow } from "../actions";
 import type { SamplePageData } from "../sample-actions";
-import { GlassPanel } from "@/components/ui/glass-panel";
-import { SectionHeader } from "@/components/ui/section-header";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { cn } from "@/lib/utils";
 import { computeSalesKpis } from "@/lib/sales-kpis";
 
@@ -123,25 +123,25 @@ function ExportMenu({ invoices }: { invoices: InvoiceRow[] }) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((p) => !p)}
-        className="flex h-9 w-9 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-600 transition-colors hover:bg-stone-50"
+        className="flex h-9 w-9 items-center justify-center rounded-card border border-border bg-card text-ink-secondary transition-colors hover:bg-surface-sunken"
         aria-label="Export"
       >
         <Download size={16} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-40 rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
+        <div className="absolute right-0 top-full z-50 mt-1 w-40 rounded-card border border-border bg-card py-1 shadow-elevation-card">
           <button
             onClick={exportPDF}
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 hover:bg-white/60 transition-colors"
+            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-ink-secondary hover:bg-surface-sunken transition-colors"
           >
-            <FileTextIcon size={14} className="text-slate-400" />
+            <FileTextIcon size={14} className="text-ink-tertiary" />
             Export PDF
           </button>
           <button
             onClick={exportExcel}
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 hover:bg-white/60 transition-colors"
+            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-ink-secondary hover:bg-surface-sunken transition-colors"
           >
-            <FileSpreadsheet size={14} className="text-slate-400" />
+            <FileSpreadsheet size={14} className="text-ink-tertiary" />
             Export Excel
           </button>
         </div>
@@ -371,8 +371,8 @@ export function SalesClient({
                         className={cn(
                           "relative flex items-center gap-2.5 rounded-t-[8px] px-4 py-3 text-sm font-semibold transition-all data-[state=active]:bg-transparent data-[state=active]:shadow-none",
                           isActive
-                            ? "text-[var(--amber-deep)] dark:text-[var(--amber-warm)]"
-                            : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--glass-bg-hover)]",
+                            ? "text-domain-sales"
+                            : "text-ink-tertiary hover:text-ink hover:bg-surface-sunken",
                         )}
                       >
                         {tab.label}
@@ -381,15 +381,15 @@ export function SalesClient({
                             className={cn(
                               "ml-1 rounded-full px-2 py-0.5 text-xs font-bold transition-colors",
                               isActive
-                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300"
-                                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+                                ? "bg-plum-soft text-plum"
+                                : "bg-surface-sunken text-ink-tertiary",
                             )}
                           >
                             {tab.badge}
                           </span>
                         )}
                         {isActive && (
-                          <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[var(--amber-warm)] to-[var(--amber-deep)] rounded-t-full shadow-[0_-2px_10px_rgba(196,122,51,0.4)]" />
+                          <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-domain-sales rounded-t-full" />
                         )}
                       </TabsTrigger>
                     );
@@ -404,68 +404,70 @@ export function SalesClient({
                 >
                   <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-5">
                     <div className="lg:col-span-3 order-last lg:order-none">
-                      <GlassPanel padding="md">
-                        <InvoiceTable invoices={invoices} />
-                      </GlassPanel>
+                      <InvoiceTable invoices={invoices} />
                     </div>
                     <div className="lg:col-span-2 space-y-3 order-first lg:order-none">
-                      <GlassPanel padding="md">
-                        <SectionHeader
-                          title="Aktivitas Sample"
-                          description="Hari Ini"
-                        />
-                        <div className="mt-3 space-y-3">
+                      <Card>
+                        <CardHeader>
+                          <Eyebrow tone="muted">Aktivitas Sample</Eyebrow>
+                          <CardDescription>Hari Ini</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-[var(--text-tertiary)]">
+                            <span className="text-xs font-medium text-ink-tertiary">
                               Sample diberikan
                             </span>
-                            <span className="text-xs font-bold text-[var(--text-primary)]">
+                            <span className="text-xs font-bold text-ink">
                               {sampleData.todaySummary.packCount} pack
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-[var(--text-tertiary)]">
+                            <span className="text-xs font-medium text-ink-tertiary">
                               Biaya
                             </span>
-                            <span className="text-xs font-bold text-amber-600">
+                            <span className="text-xs font-bold text-domain-sales">
                               {formatRupiah(sampleData.todaySummary.totalCost)}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-[var(--text-tertiary)]">
+                            <span className="text-xs font-medium text-ink-tertiary">
                               Bulan ini
                             </span>
-                            <span className="text-xs font-bold text-[var(--text-primary)]">
+                            <span className="text-xs font-bold text-ink">
                               {sampleData.monthSummary.packCount} pack &middot;{" "}
                               {formatRupiah(sampleData.monthSummary.totalCost)}
                             </span>
                           </div>
-                        </div>
-                      </GlassPanel>
-                      <GlassPanel padding="md">
-                        <SectionHeader title="Aksi Cepat" />
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setWorkspace("samples");
-                              setSampleDrawerOpen(true);
-                            }}
-                            className="flex items-center gap-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] px-3 py-2.5 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--glass-bg-hover)] hover:text-[var(--text-primary)] transition-all"
-                          >
-                            <Gift size={14} />
-                            Kasih Sample
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDrawerOpen(true)}
-                            className="flex items-center gap-2 rounded-lg bg-[var(--amber-deep)] text-white px-3 py-2.5 text-xs font-semibold shadow-sm hover:brightness-110 transition-all"
-                          >
-                            <ReceiptText size={14} />
-                            Nota Baru
-                          </button>
-                        </div>
-                      </GlassPanel>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader>
+                          <Eyebrow tone="muted">Aksi Cepat</Eyebrow>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWorkspace("samples");
+                                setSampleDrawerOpen(true);
+                              }}
+                              className="flex items-center gap-2 rounded-card border border-border bg-surface-sunken px-3 py-2.5 text-xs font-semibold text-ink-secondary transition-all hover:bg-border"
+                            >
+                              <Gift size={14} />
+                              Kasih Sample
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDrawerOpen(true)}
+                              className="flex items-center gap-2 rounded-card bg-domain-sales px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-domain-sales/90"
+                            >
+                              <ReceiptText size={14} />
+                              Nota Baru
+                            </button>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
                   </div>
                 </TabsContent>
@@ -473,30 +475,28 @@ export function SalesClient({
                 <TabsContent value="samples" className="mt-0 outline-none">
                   <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-5">
                     <div className="lg:col-span-3 order-last lg:order-none">
-                      <GlassPanel padding="md">
-                        <SampleUsagePanel data={sampleData} />
-                      </GlassPanel>
+                      <SampleUsagePanel data={sampleData} />
                     </div>
                     <div className="lg:col-span-2 space-y-3 order-first lg:order-none">
-                      <GlassPanel padding="md">
-                        <SectionHeader
-                          title="Ringkasan Bulanan"
-                          description="Aktivitas sample"
-                        />
-                        <div className="mt-3 space-y-3">
+                      <Card>
+                        <CardHeader>
+                          <Eyebrow tone="muted">Ringkasan Bulanan</Eyebrow>
+                          <CardDescription>Aktivitas sample</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-[var(--text-tertiary)]">
+                            <span className="text-xs font-medium text-ink-tertiary">
                               Total pack
                             </span>
-                            <span className="text-xs font-bold text-[var(--text-primary)]">
+                            <span className="text-xs font-bold text-ink">
                               {sampleData.monthSummary.packCount}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-[var(--text-tertiary)]">
+                            <span className="text-xs font-medium text-ink-tertiary">
                               Total berat
                             </span>
-                            <span className="text-xs font-bold text-[var(--text-primary)]">
+                            <span className="text-xs font-bold text-ink">
                               {sampleData.monthSummary.totalGrams.toLocaleString(
                                 "id-ID",
                               )}{" "}
@@ -504,26 +504,30 @@ export function SalesClient({
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-[var(--text-tertiary)]">
+                            <span className="text-xs font-medium text-ink-tertiary">
                               Biaya (HPP)
                             </span>
-                            <span className="text-xs font-bold text-amber-600">
+                            <span className="text-xs font-bold text-domain-sales">
                               {formatRupiah(sampleData.monthSummary.totalCost)}
                             </span>
                           </div>
-                        </div>
-                      </GlassPanel>
-                      <GlassPanel padding="md">
-                        <SectionHeader title="Aksi Cepat" />
-                        <button
-                          type="button"
-                          onClick={() => setSampleDrawerOpen(true)}
-                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--amber-deep)] text-white px-3 py-2.5 text-xs font-semibold shadow-sm hover:brightness-110 transition-all"
-                        >
-                          <Gift size={14} />
-                          Sample Baru
-                        </button>
-                      </GlassPanel>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader>
+                          <Eyebrow tone="muted">Aksi Cepat</Eyebrow>
+                        </CardHeader>
+                        <CardContent>
+                          <button
+                            type="button"
+                            onClick={() => setSampleDrawerOpen(true)}
+                            className="mt-0 flex w-full items-center justify-center gap-2 rounded-card bg-domain-sales px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-domain-sales/90"
+                          >
+                            <Gift size={14} />
+                            Sample Baru
+                          </button>
+                        </CardContent>
+                      </Card>
                     </div>
                   </div>
                 </TabsContent>

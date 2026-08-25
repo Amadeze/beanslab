@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Flame, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { GlassPanel } from "@/components/ui/glass-panel";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/state";
 import { StandardDrawer } from "@/components/StandardDrawer";
 import { RoastingHistoryTable } from "./RoastingHistoryTable";
 import { RoastingForm } from "./RoastingForm";
@@ -131,14 +132,14 @@ export function RoastingClient({
               <WorkspaceNav kind="roastery" />
 
               <div className="mx-auto max-w-[1600px] px-4 pb-8 md:px-6 lg:px-8">
-                <GlassPanel padding="md">
+                <Card className="p-5 sm:p-6">
                   <RoastingHistoryTable
                     batches={batches}
                     machineOptions={machineOptions}
                     locationOptions={locationOptions}
                     onStartRoasting={() => setDrawerOpen(true)}
                   />
-                </GlassPanel>
+                </Card>
               </div>
             </>
           ) : (
@@ -174,21 +175,19 @@ export function RoastingClient({
         }
       >
         {gbOptions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-200 py-12">
-            <Plus size={24} className="text-zinc-300" />
-            <p className="text-sm font-medium text-zinc-500">
-              Tidak ada Green Bean tersedia
-            </p>
-            <p className="text-xs text-zinc-400">
-              Catat Barang Datang di halaman Inventory terlebih dahulu.
-            </p>
-            <Link
-              href="/inventory?view=receiving"
-              className="mt-1 inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-4 text-xs font-bold text-white transition hover:bg-slate-700"
-            >
-              Catat Barang Datang →
-            </Link>
-          </div>
+          <EmptyState
+            icon={<Plus size={18} />}
+            title="Tidak ada Green Bean tersedia"
+            description="Catat Barang Datang di halaman Inventory terlebih dahulu."
+            action={
+              <Link
+                href="/inventory?view=receiving"
+                className="inline-flex h-9 items-center gap-2 rounded-card bg-[#0B141B] px-4 text-xs font-bold text-white transition hover:bg-[#16242E]"
+              >
+                Catat Barang Datang →
+              </Link>
+            }
+          />
         ) : (
           <RoastingForm
             id="roasting-form"

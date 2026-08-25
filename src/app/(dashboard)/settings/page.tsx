@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SettingsNav } from "./_components/SettingsNav";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import {
   SETTINGS_GROUPS,
   getVisibleSettingsNavigation,
@@ -32,13 +33,10 @@ export default async function SettingsPage() {
             return (
               <section key={group} aria-labelledby={headingId}>
                 <div className="mb-3 flex items-center gap-3">
-                  <h2
-                    id={headingId}
-                    className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-stone-500"
-                  >
+                  <Eyebrow tone="muted" as="h2" id={headingId}>
                     {group}
-                  </h2>
-                  <span className="h-px flex-1 bg-stone-200" aria-hidden />
+                  </Eyebrow>
+                  <span className="h-px flex-1 bg-border" aria-hidden />
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   {groupItems.map((item) => {
@@ -47,16 +45,16 @@ export default async function SettingsPage() {
                       <Link
                         key={item.href}
                         href={item.href}
-                        className="group grid min-h-[132px] grid-cols-[40px_minmax(0,1fr)_24px] items-start gap-4 rounded-xl border border-stone-200 bg-white p-5 transition-colors hover:border-stone-300 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+                        className="group grid min-h-[132px] grid-cols-[40px_minmax(0,1fr)_24px] items-start gap-4 rounded-card border border-border bg-card p-5 shadow-elevation-soft transition-colors hover:border-border-strong hover:bg-surface-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-instrument"
                       >
-                        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-stone-100 text-stone-700">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-copper-soft text-copper">
                           <Icon size={18} aria-hidden />
                         </span>
                         <span>
-                          <span className="block text-sm font-bold text-stone-900">{item.label}</span>
-                          <span className="mt-1.5 block text-xs leading-5 text-stone-500">{item.description}</span>
+                          <span className="block text-sm font-bold text-ink">{item.label}</span>
+                          <span className="mt-1.5 block text-xs leading-5 text-ink-tertiary">{item.description}</span>
                         </span>
-                        <ChevronRight size={16} aria-hidden className="mt-1 text-stone-300 transition-transform group-hover:translate-x-0.5 group-hover:text-stone-600" />
+                        <ChevronRight size={16} aria-hidden className="mt-1 text-ink-tertiary transition-transform group-hover:translate-x-0.5 group-hover:text-ink-secondary" />
                       </Link>
                     );
                   })}

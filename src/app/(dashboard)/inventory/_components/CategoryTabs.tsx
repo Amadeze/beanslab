@@ -19,7 +19,7 @@ interface CategoryTabsProps {
 
 export function CategoryTabs({ tabs, active, onChange }: CategoryTabsProps) {
   return (
-    <div className="flex gap-0 border-b border-slate-200/60">
+    <div className="flex gap-0 border-b border-border">
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -27,22 +27,22 @@ export function CategoryTabs({ tabs, active, onChange }: CategoryTabsProps) {
           className={cn(
             "relative flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs font-semibold transition-colors",
             active === tab.id
-              ? "text-amber-800"
-              : "text-slate-500 hover:text-slate-700"
+              ? "text-copper"
+              : "text-ink-tertiary hover:text-ink-secondary"
           )}
         >
           <span>{tab.label}</span>
           <span className={cn(
             "rounded-full px-1.5 py-px text-xs font-bold tabular-nums",
-            active === tab.id ? "bg-blue-100 text-amber-800" : "bg-slate-100 text-slate-500"
+            active === tab.id ? "bg-copper-soft text-copper" : "bg-surface-sunken text-ink-tertiary"
           )}>
             {tab.count}
           </span>
           {tab.hasIssues && active !== tab.id && (
-            <span className="absolute right-0 top-1.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
+            <span className="absolute right-0 top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--status-warning)]" />
           )}
           {active === tab.id && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-700 rounded-t" />
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t bg-copper" />
           )}
         </button>
       ))}

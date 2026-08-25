@@ -7,6 +7,7 @@ import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { AuthFrame } from "@/components/auth/AuthFrame";
+import { Eyebrow } from "@/components/ui/eyebrow";
 
 function LoginForm() {
   const router = useRouter();
@@ -61,7 +62,7 @@ function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email</label>
+        <Eyebrow tone="neutral" as="label" className="block">Email</Eyebrow>
         <input
           type="email"
           autoComplete="email"
@@ -75,7 +76,7 @@ function LoginForm() {
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Password</label>
+          <Eyebrow tone="neutral" as="label" className="block">Password</Eyebrow>
           <Link href="/forgot-password" className="text-xs font-semibold text-primary transition-colors hover:text-primary/75">
             Lupa password?
           </Link>

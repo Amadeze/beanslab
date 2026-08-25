@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { StandardPageLayout } from "@/components/StandardPageLayout";
+import { EmptyState } from "@/components/ui/state";
 import { Search, AlertTriangle, Package, ArrowRight, Printer, User } from "lucide-react";
 import Link from "next/link";
 
@@ -29,7 +30,11 @@ function LotsTable({ lots }: { lots: LotRow[] }) {
   if (lots.length === 0) {
     return (
       <GlassPanel padding="lg">
-        <p className="text-center text-muted-foreground">Tidak ada lot ditemukan.</p>
+        <EmptyState
+          icon={<Package size={18} />}
+          title="Tidak ada lot"
+          description="Belum ada lot yang tercatat. Lot terbentuk saat penerimaan barang masuk."
+        />
       </GlassPanel>
     );
   }
@@ -108,10 +113,10 @@ function ExpiryAlertsSection({ alerts }: { alerts: { id: string; batchCode: stri
         <span className="font-bold text-sm">Jadwal Review Mutu ({alerts.length})</span>
       </div>
       <div className="space-y-2">
-        {alerts.map((alert) => (
-          <div key={alert.id} className="flex items-center justify-between rounded-md bg-white/60 p-3 text-sm">
-            <div className="flex items-center gap-3">
-              <Package className="h-4 w-4 text-amber-600" />
+         {alerts.map((alert) => (
+           <div key={alert.id} className="flex items-center justify-between rounded-card bg-card p-3 text-sm">
+             <div className="flex items-center gap-3">
+               <Package className="h-4 w-4 text-amber-600" />
               <div>
                 <div className="font-medium">{alert.batchCode}</div>
                 <div className="text-xs text-muted-foreground">
@@ -185,11 +190,11 @@ export default async function LotsPage({
           </div>
           {product ? <input type="hidden" name="product" value={product} /> : null}
           {supplier ? <input type="hidden" name="supplier" value={supplier} /> : null}
-          <select
-            name="status"
-            defaultValue={status}
-            className="h-10 rounded-md border border-input bg-white px-3 text-sm"
-          >
+            <select
+             name="status"
+             defaultValue={status}
+             className="h-10 rounded-md border border-border bg-card px-3 text-sm"
+           >
             <option value="">Semua status</option>
             <option value="consumed">Habis</option>
             <option value="expired">Perlu review</option>

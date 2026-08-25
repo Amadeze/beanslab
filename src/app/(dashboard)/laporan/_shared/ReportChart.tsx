@@ -18,6 +18,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
+import { Eyebrow } from "@/components/ui/eyebrow";
 
 type ChartType = "area" | "bar" | "line" | "pie";
 
@@ -46,8 +48,8 @@ const DEFAULT_COLORS = [
 ];
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "#fff",
-  border: "1px solid #E7E5E4",
+  backgroundColor: "#FFFDF8",
+  border: "1px solid #E7E2D9",
   borderRadius: "8px",
   fontSize: "12px",
 };
@@ -82,7 +84,7 @@ export function ReportChart({
     };
 
     const axisProps = {
-      tick: { fontSize: 10, fill: "#78716C" },
+      tick: { fontSize: 10, fill: "#8A8378" },
       tickLine: false,
       axisLine: false,
     };
@@ -96,7 +98,7 @@ export function ReportChart({
       case "area":
         return (
           <AreaChart {...commonProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E7E5E4" />}
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E7E2D9" />}
             <XAxis dataKey={xKey} {...axisProps} />
             <YAxis {...yAxisProps} />
             <Tooltip contentStyle={TOOLTIP_STYLE} />
@@ -118,7 +120,7 @@ export function ReportChart({
       case "bar":
         return (
           <BarChart {...commonProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E7E5E4" />}
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E7E2D9" />}
             <XAxis dataKey={xKey} {...axisProps} />
             <YAxis {...yAxisProps} />
             <Tooltip contentStyle={TOOLTIP_STYLE} />
@@ -137,7 +139,7 @@ export function ReportChart({
       case "line":
         return (
           <LineChart {...commonProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E7E5E4" />}
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E7E2D9" />}
             <XAxis dataKey={xKey} {...axisProps} />
             <YAxis {...yAxisProps} />
             <Tooltip contentStyle={TOOLTIP_STYLE} />
@@ -190,27 +192,23 @@ export function ReportChart({
   // Handle empty data
   if (!data || data.length === 0) {
     return (
-      <div className={cn("rounded-xl border border-stone-200 bg-white p-4", className)}>
-        <p className="mb-4 text-xs font-bold uppercase tracking-wider text-stone-500">
-          {title}
-        </p>
-        <div style={{ height }} className="flex items-center justify-center text-stone-400 text-sm">
+      <Card className={cn("p-5", className)}>
+        <Eyebrow className="mb-4">{title}</Eyebrow>
+        <div style={{ height }} className="flex items-center justify-center text-sm text-ink-tertiary">
           Tidak ada data
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className={cn("rounded-xl border border-stone-200 bg-white p-4", className)}>
-      <p className="mb-4 text-xs font-bold uppercase tracking-wider text-stone-500">
-        {title}
-      </p>
+    <Card className={cn("p-5", className)}>
+      <Eyebrow className="mb-4">{title}</Eyebrow>
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           {renderChart()}
         </ResponsiveContainer>
       </div>
-    </div>
+    </Card>
   );
 }

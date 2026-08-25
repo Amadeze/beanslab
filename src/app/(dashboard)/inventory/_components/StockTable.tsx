@@ -152,53 +152,53 @@ function LotStatusBadge({ status }: { status: LotOperationalStatus }) {
 
 function LotBreakdown({ lots, unit }: { lots: LotDisplayRow[]; unit: string | null }) {
   if (lots.length === 0) {
-    return <p className="pl-6 text-xs text-slate-500">Tidak ada lot aktif untuk item ini.</p>;
+    return <p className="pl-6 text-xs text-ink-secondary">Tidak ada lot aktif untuk item ini.</p>;
   }
   const locationCount = new Set(lots.flatMap((l) => l.placements.map((p) => p.key))).size;
   return (
     <div className="pl-6">
-      <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-slate-100 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+      <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-border pb-1 text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">
         <span>Kode Lot</span>
         <span>Supplier</span>
         <span className="pr-2">Kedaluwarsa</span>
         <span className="text-right w-24">Sisa</span>
       </div>
       {locationCount > 0 && (
-        <p className="pb-1 pt-1.5 text-[11px] font-medium text-slate-400">
+        <p className="pb-1 pt-1.5 text-[11px] font-medium text-ink-tertiary">
           {lots.length} lot · {locationCount} lokasi
         </p>
       )}
       {lots.map((lot) => (
-        <div key={lot.id} className="border-b border-slate-100/70 py-1.5 last:border-0">
+        <div key={lot.id} className="border-b border-border py-1.5 last:border-0">
           <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] items-center gap-3">
-            <span className="flex items-center gap-2 truncate text-xs font-medium text-slate-800">
+            <span className="flex items-center gap-2 truncate text-xs font-medium text-ink">
               <Link
                 href={`/inventory/lots/${lot.id}`}
-                className="truncate underline-offset-2 transition hover:text-slate-950 hover:underline"
+                className="truncate underline-offset-2 transition hover:text-copper hover:underline"
                 title="Buka detail & atur lokasi lot"
               >
                 {lot.batchCode}
               </Link>
               <LotStatusBadge status={lot.status} />
             </span>
-            <span className="truncate text-xs text-slate-500">{lot.supplierName ?? "—"}</span>
-            <span className="pr-2 text-xs tabular-nums text-slate-500">
+            <span className="truncate text-xs text-ink-secondary">{lot.supplierName ?? "—"}</span>
+            <span className="pr-2 text-xs tabular-nums text-ink-secondary">
               {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "—"}
             </span>
-            <span className="w-24 text-right text-xs font-semibold tabular-nums text-slate-900">
+            <span className="w-24 text-right text-xs font-semibold tabular-nums text-ink">
               {lot.remainingText}
             </span>
           </div>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {lot.placements.length === 0 ? (
-              <span className="text-[11px] text-slate-400">Belum ditempatkan</span>
+              <span className="text-[11px] text-ink-tertiary">Belum ditempatkan</span>
             ) : (
               lot.placements.map((p) => (
                 <span
                   key={p.key}
-                  className="inline-flex items-center gap-1 rounded-md border border-slate-200/70 bg-white/60 px-1.5 py-0.5 text-[11px] text-slate-500"
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-sunken px-1.5 py-0.5 text-[11px] text-ink-secondary"
                 >
-                  <MapPin size={10} className="text-slate-400" />
+                  <MapPin size={10} className="text-ink-tertiary" />
                   {p.label} · {p.qtyText}
                 </span>
               ))
@@ -394,7 +394,7 @@ export function StockTable({
     <button
       type="button"
       onClick={clearFilters}
-      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+      className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-ink-secondary transition-colors hover:bg-surface-sunken"
     >
       Bersihkan filter
     </button>
@@ -416,19 +416,19 @@ export function StockTable({
       {/* Toolbar */}
       <div className="flex items-center gap-2 py-3">
         <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-tertiary" size={14} />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Cari item..."
-            className="h-8 pl-8 text-xs bg-white/60 border-slate-200"
+            className="h-8 pl-8 text-xs bg-card border-border"
           />
         </div>
         <div className="relative">
           <select
             value={statusFilter}
             onChange={(e) => { const v = e.target.value as typeof statusFilter; setStatusFilter(v); updateUrl({ status: v === "all" ? null : v }); }}
-            className="h-8 appearance-none rounded-lg border border-slate-200 bg-white/60 pl-2.5 pr-7 text-xs font-medium text-slate-600 outline-none focus:border-blue-400"
+            className="h-8 appearance-none rounded-lg border border-border bg-card pl-2.5 pr-7 text-xs font-medium text-ink-secondary outline-none focus:border-copper"
           >
             <option value="all">Semua Status</option>
             <option value="aman">Aman</option>
@@ -436,37 +436,37 @@ export function StockTable({
             <option value="habis">Habis</option>
             <option value="belum_dikonfigurasi">Belum Diatur</option>
           </select>
-          <ChevronDown size={12} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
+          <ChevronDown size={12} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-ink-tertiary" />
         </div>
       </div>
 
       {/* Desktop Table */}
-      <div className="hidden md:block overflow-hidden rounded-lg border border-slate-200/60 bg-white/50">
+      <div className="hidden md:block overflow-hidden rounded-card border border-border bg-card">
         <Table>
           <TableHeader>
-            <TableRow className="border-b border-slate-100">
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                <button onClick={() => toggleSort("name")} className="flex items-center gap-1 hover:text-slate-700">
+            <TableRow className="border-b border-border">
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">
+                <button onClick={() => toggleSort("name")} className="flex items-center gap-1 hover:text-ink">
                   Item <ArrowUpDown size={10} />
                 </button>
               </TableHead>
-              <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                <button onClick={() => toggleSort("stock")} className="flex items-center gap-1 hover:text-slate-700 ml-auto">
+              <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">
+                <button onClick={() => toggleSort("stock")} className="flex items-center gap-1 hover:text-ink ml-auto">
                   Stok <ArrowUpDown size={10} />
                 </button>
               </TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                <button onClick={() => toggleSort("status")} className="flex items-center gap-1 hover:text-slate-700">
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">
+                <button onClick={() => toggleSort("status")} className="flex items-center gap-1 hover:text-ink">
                   Status <ArrowUpDown size={10} />
                 </button>
               </TableHead>
-              <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                <button onClick={() => toggleSort("hpp")} className="flex items-center gap-1 hover:text-slate-700 ml-auto">
+              <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">
+                <button onClick={() => toggleSort("hpp")} className="flex items-center gap-1 hover:text-ink ml-auto">
                   HPP <ArrowUpDown size={10} />
                 </button>
               </TableHead>
-              <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                <button onClick={() => toggleSort("value")} className="flex items-center gap-1 hover:text-slate-700 ml-auto">
+              <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">
+                <button onClick={() => toggleSort("value")} className="flex items-center gap-1 hover:text-ink ml-auto">
                   Nilai <ArrowUpDown size={10} />
                 </button>
               </TableHead>
@@ -497,7 +497,7 @@ export function StockTable({
                     <TableRow
                       className={cn(
                         "transition-colors cursor-pointer",
-                        lotList.length > 0 ? "hover:bg-slate-50/50" : "hover:bg-transparent"
+                        lotList.length > 0 ? "hover:bg-surface-sunken" : "hover:bg-transparent"
                       )}
                       onClick={() => {
                         if (lotList.length === 0) return;
@@ -509,16 +509,16 @@ export function StockTable({
                           {lotList.length > 0 && (
                             <ChevronRight
                               size={13}
-                              className={cn("shrink-0 text-slate-400 transition-transform", expanded && "rotate-90")}
+                              className={cn("shrink-0 text-ink-tertiary transition-transform", expanded && "rotate-90")}
                             />
                           )}
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-900">{row.name}</p>
-                            <p className="truncate text-xs text-slate-500">
+                            <p className="text-sm font-medium text-ink">{row.name}</p>
+                            <p className="truncate text-xs text-ink-secondary">
                               <span className="font-mono text-[11px]">{row.code}</span>
                               {row._meta ? (
                                 <>
-                                  <span className="px-1 text-slate-300">·</span>
+                                  <span className="px-1 text-ink-tertiary">·</span>
                                   {row._meta}
                                 </>
                               ) : null}
@@ -527,24 +527,24 @@ export function StockTable({
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={cn("text-sm font-semibold tabular-nums", row._stockValue <= 0 ? "text-slate-400" : "text-slate-900")}>
+                        <span className={cn("text-sm font-semibold tabular-nums", row._stockValue <= 0 ? "text-ink-tertiary" : "text-ink")}>
                           {row._supplyUnit ? `${row._stockValue.toLocaleString("id-ID", { maximumFractionDigits: 2 })} ${row._supplyUnit}` : (isKg ? formatKg(row._stockValue) : formatUnit(row._stockValue))}
                         </span>
                       </TableCell>
                       <TableCell>
                         <InventoryStatusBadge status={row._status} />
                       </TableCell>
-                      <TableCell className="text-right text-xs text-slate-600 tabular-nums">
-                        {row._hpp != null ? formatRupiah(row._hpp) : <span className="text-slate-300" title="HPP belum tersedia">—</span>}
+                      <TableCell className="text-right text-xs text-ink-secondary tabular-nums">
+                        {row._hpp != null ? formatRupiah(row._hpp) : <span className="text-ink-tertiary" title="HPP belum tersedia">—</span>}
                       </TableCell>
-                      <TableCell className="text-right text-xs font-semibold text-slate-900 tabular-nums">
+                      <TableCell className="text-right text-xs font-semibold text-ink tabular-nums">
                         <span title={valueInfo.unavailable ? "HPP belum tersedia" : undefined}>
                           {valueInfo.text}
                         </span>
                       </TableCell>
                     </TableRow>
                     {expanded && (
-                      <TableRow className="bg-slate-50/60">
+                      <TableRow className="bg-surface-sunken">
                         <TableCell colSpan={5} className="px-4 py-3">
                           <LotBreakdown lots={lotList} unit={row._supplyUnit} />
                         </TableCell>
@@ -576,7 +576,7 @@ export function StockTable({
               <div
                 key={row.id}
                 className={cn(
-                  "rounded-lg border border-slate-200/60 bg-white/50 overflow-hidden",
+                  "rounded-card border border-border bg-card overflow-hidden",
                   lotList.length > 0 && "cursor-pointer"
                 )}
                 onClick={() => {
@@ -586,66 +586,66 @@ export function StockTable({
               >
                 <div className="flex justify-between items-center px-3 py-2.5">
                   <div className="min-w-0 flex-1 mr-3">
-                    <p className="text-sm font-medium text-slate-900 truncate">{row.name}</p>
-                    <p className="truncate text-xs text-slate-500">
+                    <p className="text-sm font-medium text-ink truncate">{row.name}</p>
+                    <p className="truncate text-xs text-ink-secondary">
                       <span className="font-mono text-[11px]">{row.code}</span>
                       {row._meta ? (
                         <>
-                          <span className="px-1 text-slate-300">·</span>
+                          <span className="px-1 text-ink-tertiary">·</span>
                           {row._meta}
                         </>
                       ) : null}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <InventoryStatusBadge status={row._status} />
-                      <span className="text-xs text-slate-500 tabular-nums" title={valueInfo.unavailable ? "HPP belum tersedia" : undefined}>
+                      <span className="text-xs text-ink-secondary tabular-nums" title={valueInfo.unavailable ? "HPP belum tersedia" : undefined}>
                         {valueInfo.text}
                       </span>
                     </div>
                   </div>
-                  <span className={cn("text-sm font-semibold tabular-nums shrink-0", row._stockValue <= 0 ? "text-slate-400" : "text-slate-900")}>
+                  <span className={cn("text-sm font-semibold tabular-nums shrink-0", row._stockValue <= 0 ? "text-ink-tertiary" : "text-ink")}>
                     {row._supplyUnit ? `${row._stockValue.toLocaleString("id-ID", { maximumFractionDigits: 2 })} ${row._supplyUnit}` : (isKg ? formatKg(row._stockValue) : formatUnit(row._stockValue))}
                   </span>
                   {lotList.length > 0 && (
                     <ChevronRight
                       size={14}
-                      className={cn("ml-1 shrink-0 text-slate-400 transition-transform", expanded && "rotate-90")}
+                      className={cn("ml-1 shrink-0 text-ink-tertiary transition-transform", expanded && "rotate-90")}
                     />
                   )}
                 </div>
                 {expanded && (
                   <div className="space-y-1.5 px-3 pb-2.5">
                     {lotList.length === 0 ? (
-                      <p className="text-xs text-slate-500">Tidak ada lot aktif.</p>
+                      <p className="text-xs text-ink-secondary">Tidak ada lot aktif.</p>
                     ) : (
                       lotList.map((lot) => (
                         <div
                           key={lot.id}
-                          className="flex items-center justify-between rounded-md border border-slate-200/70 bg-white/70 px-2.5 py-2"
+                          className="flex items-center justify-between rounded-md border border-border bg-surface-sunken px-2.5 py-2"
                         >
                           <div className="min-w-0 pr-2">
                             <Link
                               href={`/inventory/lots/${lot.id}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="block truncate py-0.5 text-xs font-medium text-slate-800 underline-offset-2 transition hover:text-slate-950 hover:underline"
+                              className="block truncate py-0.5 text-xs font-medium text-ink underline-offset-2 transition hover:text-copper hover:underline"
                               title="Buka detail & atur lokasi lot"
                             >
                               {lot.batchCode}
                             </Link>
-                            <p className="text-[11px] text-slate-500">
+                            <p className="text-[11px] text-ink-secondary">
                               {lot.supplierName ?? "—"} ·{" "}
                               {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "tanpa kedaluwarsa"}
                             </p>
                             {lot.placements.length === 0 ? (
-                              <p className="text-[11px] text-slate-400">Belum ditempatkan</p>
+                              <p className="text-[11px] text-ink-tertiary">Belum ditempatkan</p>
                             ) : (
                               <div className="mt-0.5 flex flex-wrap gap-1">
                                 {lot.placements.map((p) => (
                                   <span
                                     key={p.key}
-                                    className="inline-flex items-center gap-0.5 rounded border border-slate-200/70 bg-white/70 px-1 py-0.5 text-[10px] text-slate-500"
+                                    className="inline-flex items-center gap-0.5 rounded border border-border bg-card px-1 py-0.5 text-[10px] text-ink-secondary"
                                   >
-                                    <MapPin size={9} className="text-slate-400" />
+                                    <MapPin size={9} className="text-ink-tertiary" />
                                     {p.label} · {p.qtyText}
                                   </span>
                                 ))}
@@ -654,7 +654,7 @@ export function StockTable({
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
                             <LotStatusBadge status={lot.status} />
-                            <span className="text-xs font-semibold tabular-nums text-slate-900">
+                            <span className="text-xs font-semibold tabular-nums text-ink">
                               {lot.remainingText}
                             </span>
                           </div>

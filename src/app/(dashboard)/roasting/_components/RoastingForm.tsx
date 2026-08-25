@@ -94,8 +94,8 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-const glassInput = "bg-white/40 border-white/60 backdrop-blur-md transition-all focus:bg-white/60 focus:border-white/80";
-const glassCard = "rounded-[1.25rem] border border-white/60 bg-white/30 backdrop-blur-xl p-4 shadow-sm";
+const glassInput = "bg-card border border-border transition-all focus:border-copper/60 focus:ring-2 focus:ring-copper/20";
+const glassCard = "rounded-card border border-border bg-surface-sunken p-4 shadow-elevation-soft";
 
 // =============================================================================
 // Field helpers
@@ -126,8 +126,8 @@ function ShrinkageDisplay({
   const valid = input > 0 && output > 0 && output < input;
   if (!valid) {
     return (
-      <div className={cn(glassCard, "flex h-16 items-center justify-center border-dashed border-white/80")}>
-        <p className="text-xs text-slate-500 font-medium tracking-wide">Isi berat masuk & keluar untuk melihat kalkulasi</p>
+      <div className={cn(glassCard, "flex h-16 items-center justify-center border-dashed border-border")}>
+        <p className="text-xs text-ink-tertiary font-medium tracking-wide">Isi berat masuk & keluar untuk melihat kalkulasi</p>
       </div>
     );
   }
@@ -351,7 +351,7 @@ export function RoastingForm({
       {/* ── Mode Toggle ── */}
       {/* ── Pilih Green Bean ── */}
       <FieldGroup>
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
           Green Bean <span className="text-red-500">*</span>
         </Label>
         <Controller
@@ -377,7 +377,7 @@ export function RoastingForm({
                     <SelectItem key={g.id} value={g.id}>
                       {g.name}{g.origin ? ` — ${g.origin}` : ""}
                       {" "}
-                      <span className="text-slate-400 font-normal">({formatKg(g.stockKg)})</span>
+                      <span className="text-ink-tertiary font-normal">({formatKg(g.stockKg)})</span>
                     </SelectItem>
                   ))
                 )}
@@ -386,8 +386,8 @@ export function RoastingForm({
           )}
         />
         {selectedGB && (
-          <p className="text-xs font-medium text-slate-500 pt-1">
-            Stok tersedia: <span className="font-bold text-slate-800">{formatKg(selectedGB.stockKg)}</span>
+          <p className="text-xs font-medium text-ink-tertiary pt-1">
+            Stok tersedia: <span className="font-bold text-ink">{formatKg(selectedGB.stockKg)}</span>
           </p>
         )}
         <FieldError message={errors.inputProductId?.message} />
@@ -395,7 +395,7 @@ export function RoastingForm({
 
       {/* ── Mesin Roasting ── */}
       <FieldGroup>
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
           Mesin Roasting (Opsional)
         </Label>
         <Controller
@@ -415,7 +415,7 @@ export function RoastingForm({
                 <SelectItem value="none">Tanpa mesin</SelectItem>
                 {machineOptions.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
-                    {m.name} <span className="text-slate-400 font-normal">({m.capacityKg}kg)</span>
+                    {m.name} <span className="text-ink-tertiary font-normal">({m.capacityKg}kg)</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -427,7 +427,7 @@ export function RoastingForm({
 
       {/* ── Profil Target ── */}
       <FieldGroup>
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
           Profil Target (Opsional)
         </Label>
         <Controller
@@ -456,7 +456,7 @@ export function RoastingForm({
 
       {/* ── Berat Masuk ── */}
       <FieldGroup>
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
           Berat Green Bean masuk (kg) <span className="text-red-500">*</span>
         </Label>
         <Input
@@ -484,7 +484,7 @@ export function RoastingForm({
 
       {/* Operator chooses the roast fact; product identity is inherited from GB. */}
       <FieldGroup>
-        <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+        <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
           Roast Level <span className="text-red-500">*</span>
         </Label>
         <Controller
@@ -523,7 +523,7 @@ export function RoastingForm({
       {/* ── Select existing RB ── */}
       {outputMode === "existing" && (
         <FieldGroup>
-          <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Pilih Roasted Bean</Label>
+          <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Pilih Roasted Bean</Label>
           <Controller
             control={control}
             name="outputProductId"
@@ -559,7 +559,7 @@ export function RoastingForm({
       {outputMode === "new" && (
         <div className={cn(glassCard, "space-y-4")}>
           <FieldGroup>
-            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+            <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
               Nama Roasted Bean <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -572,7 +572,7 @@ export function RoastingForm({
 
           <div className="grid grid-cols-2 gap-4">
             <FieldGroup>
-              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Origin</Label>
+              <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Origin</Label>
               <Input
                 placeholder="e.g. Aceh Gayo"
                 className={cn("h-9", glassInput)}
@@ -581,7 +581,7 @@ export function RoastingForm({
             </FieldGroup>
 
             <FieldGroup>
-              <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">Roast Level</Label>
+              <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Roast Level</Label>
               <Controller
                 control={control}
                 name="outputRoastLevel"
@@ -615,7 +615,7 @@ export function RoastingForm({
         <>
           <Separator className="bg-white/50" />
           <FieldGroup>
-            <Label className="text-xs uppercase font-bold tracking-wider text-slate-500">
+            <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
               Berat Roasted Bean keluar (kg) <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -655,7 +655,7 @@ export function RoastingForm({
       <button
         type="button"
         onClick={() => setShowAdvanced((current) => !current)}
-        className="flex w-full items-center justify-between rounded-lg px-1 py-1 text-xs font-semibold text-slate-500 hover:text-slate-700"
+        className="flex w-full items-center justify-between rounded-lg px-1 py-1 text-xs font-semibold text-ink-tertiary hover:text-ink"
       >
         Opsi lanjutan · Artisan & catatan
         <ChevronDown size={14} className={cn("transition-transform", showAdvanced && "rotate-180")} />
@@ -664,7 +664,7 @@ export function RoastingForm({
       {showAdvanced && (
         <div className={cn(glassCard, "space-y-4")}>
           <div>
-            <Label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
+            <Label className="mb-2 block text-xs font-bold uppercase tracking-wider text-ink-tertiary">
               Alur pencatatan
             </Label>
             <Controller
@@ -679,7 +679,7 @@ export function RoastingForm({
                       "min-h-10 rounded-xl border px-3 text-xs font-semibold",
                       field.value === "MANUAL"
                         ? "border-domain-roasting bg-domain-roasting text-white"
-                        : "border-white/60 bg-white/40 text-slate-600",
+                        : "border-white/60 bg-white/40 text-ink-secondary",
                     )}
                   >
                     Hasil sekarang
@@ -691,7 +691,7 @@ export function RoastingForm({
                       "min-h-10 rounded-xl border px-3 text-xs font-semibold",
                       field.value === "ARTISAN"
                         ? "border-indigo-500 bg-indigo-500 text-white"
-                        : "border-white/60 bg-white/40 text-slate-600",
+                        : "border-white/60 bg-white/40 text-ink-secondary",
                     )}
                   >
                     Tunggu Artisan
@@ -699,7 +699,7 @@ export function RoastingForm({
                 </div>
               )}
             />
-            <p className="mt-2 text-xs leading-4 text-slate-500">
+            <p className="mt-2 text-xs leading-4 text-ink-tertiary">
               {mode === "ARTISAN"
                 ? "Green Bean dicadangkan sekarang; hasil akhir masuk otomatis dari Artisan."
                 : "Green Bean keluar dan Roasted Bean masuk dalam satu penyimpanan."}
@@ -707,7 +707,7 @@ export function RoastingForm({
           </div>
 
           <FieldGroup>
-            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Catatan (opsional)</Label>
+            <Label className="text-xs font-bold uppercase tracking-wider text-ink-tertiary">Catatan (opsional)</Label>
             <Textarea
               placeholder="Profil, kondisi mesin, atau hasil cupping"
               rows={2}

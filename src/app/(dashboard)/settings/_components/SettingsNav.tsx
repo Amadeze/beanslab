@@ -10,7 +10,7 @@ export function SettingsNav({ userRole }: { userRole: string }) {
   const visibleItems = getVisibleSettingsNavigation(userRole);
 
   return (
-    <nav className="overflow-x-auto border-b border-stone-200 bg-white" aria-label="Navigasi pengaturan">
+    <nav className="overflow-x-auto border-b border-border bg-card" aria-label="Navigasi pengaturan">
       <div className="mx-auto flex w-max min-w-full max-w-[1600px] gap-1 px-4 py-2 md:px-6 lg:px-8">
         {visibleItems.map((item) => {
           const Icon = item.icon;
@@ -23,8 +23,8 @@ export function SettingsNav({ userRole }: { userRole: string }) {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-900",
-                active ? "bg-stone-900 text-white" : "text-stone-600 hover:bg-stone-100 hover:text-stone-900",
+                "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-instrument",
+                active ? "bg-ink text-card" : "text-ink-secondary hover:bg-surface-sunken hover:text-ink",
               )}
             >
               <Icon size={14} />

@@ -19,14 +19,17 @@ export function Eyebrow({
   tone = "neutral",
   className,
   as: Tag = "p",
+  id,
 }: {
   children: React.ReactNode;
   tone?: EyebrowTone;
   className?: string;
   as?: React.ElementType;
+  id?: string;
 }) {
   return (
     <Tag
+      id={id}
       className={cn(
         "font-mono text-[11px] font-bold uppercase tracking-[0.14em]",
         toneClass[tone],
