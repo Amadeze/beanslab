@@ -23,6 +23,7 @@ import {
   useReportData,
   type DateRange,
 } from "../../_shared";
+import { KpiRibbon } from "@/components/layout/KpiCards";
 import {
   getInventoryValuationReport,
   type InventoryValuationReport,
@@ -85,7 +86,7 @@ export default function InventoryOverviewClient() {
         />
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <KpiRibbon>
           <ReportKpiCard
             label="Total Nilai Stok"
             value={formatRupiah(data.grandTotalValue)}
@@ -118,7 +119,7 @@ export default function InventoryOverviewClient() {
             inverse
             help="Nilai barang yang dipakai untuk sampel (cupping/uji coba) pada periode laporan."
           />
-        </div>
+        </KpiRibbon>
 
         {/* Charts */}
         <div className="grid gap-4 lg:grid-cols-2">

@@ -25,6 +25,7 @@ import {
   type DateRange,
   type KeuanganOverviewData,
 } from "../../_shared";
+import { KpiRibbon } from "@/components/layout/KpiCards";
 import { getKeuanganOverview } from "../../actions";
 import { formatRupiah } from "@/lib/format";
 
@@ -89,7 +90,7 @@ export default function KeuanganOverviewClient() {
         />
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <KpiRibbon>
           <ReportKpiCard
             label="Total Pendapatan"
             value={formatRupiah(data.totalRevenue)}
@@ -123,7 +124,7 @@ export default function KeuanganOverviewClient() {
             color="blue"
             help="Arus kas = pergerakan kas aktual di buku besar (akun 1-1000), bukan Pendapatan − Beban."
           />
-        </div>
+        </KpiRibbon>
 
         {/* Charts */}
         <div className="grid gap-4 lg:grid-cols-3">
