@@ -18,7 +18,7 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --radius-card: 14px;
+  --radius-card: 12px;
 
   /* Design system colors */
   --color-obsidian: var(--obsidian);
@@ -247,6 +247,21 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Elegant editorial-minimal tokens (hybrid) */
+  --color-paper: var(--paper);
+  --color-paper-sunken: var(--paper-sunken);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-tertiary: var(--ink-tertiary);
+  --color-copper-strong: var(--copper-strong);
+  --color-copper-soft: var(--copper-soft);
+  --color-instrument-strong: var(--instrument-strong);
+  --color-border-strong: var(--border-strong);
+  --color-surface-sunken: var(--surface-sunken);
+  --shadow-elevation-soft: var(--elevation-soft);
+  --shadow-elevation-card: var(--elevation-card);
+  --radius-card: 12px;
 }
 
 :root {
@@ -270,7 +285,7 @@
   --domain-production: #A66F12;
   --domain-sales: #6F4A6A;
   --domain-finance: #4B6B3C;
-  --canvas: #ECEAE2;
+  --canvas: #F7F5F1;
   --surface: #F4F2EA;
   --surface-raised: #FFFDF8;
   --technical-line: #CDC8BC;
@@ -320,7 +335,7 @@
   --sidebar-ring: #15B8C6;
 
   /* Enhanced Design System Tokens */
-  --app-bg: #ECEAE2;
+  --app-bg: #F7F5F1;
   --glass-bg: rgba(255, 253, 248, 0.96);
   --glass-bg-hover: rgba(255, 255, 252, 1);
   --glass-bg-subtle: rgba(244, 242, 234, 0.9);
@@ -340,7 +355,7 @@
   --text-tertiary: #777D78;
 
   /* Canonical internal application tokens */
-  --surface-canvas: #ECEAE2;
+  --surface-canvas: #F7F5F1;
   --surface-panel: #F4F2EA;
   --surface-raised: #FFFDF8;
   --surface-inverse: #05090D;
@@ -355,6 +370,28 @@
   --status-danger: #8C2F39;
   --control-height: 2.75rem;
   --focus-ring: #15B8C6;
+
+  /* ── Elegant editorial-minimal extension (hybrid light canvas + dark workbench) ──
+     Additive layer. New components consume these; existing tokens unchanged. */
+  --paper: #F7F5F1;
+  --paper-sunken: #F1EEE8;
+  --ink: #1B1815;
+  --ink-secondary: #5C564E;
+  --ink-tertiary: #8A8378;
+  --copper-strong: #8C3A1E;
+  --copper-soft: #F3DCD1;
+  --instrument-strong: #0E7C8A;
+  --border-strong: #D8D2C6;
+  --elevation-soft: 0 1px 2px rgba(27, 24, 21, 0.04);
+  --elevation-card: 0 1px 2px rgba(27, 24, 21, 0.04), 0 8px 24px -16px rgba(27, 24, 21, 0.18);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --radius-card: 12px;
 }
 
 .dark {
