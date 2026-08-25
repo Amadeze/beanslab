@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import type { CuppingCategory } from "@prisma/client";
 import {
   CalendarDays,
@@ -283,8 +284,26 @@ function HistoryCard({ session }: { session: CuppingSessionRow }) {
         <div className={`h-full rounded-full ${band.surface}`} style={{ width: `${Math.min(100, average * 10)}%` }} />
       </div>
       {session.notes && <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{session.notes}</p>}
-      <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-xs text-muted-foreground">
-        <span>{session.location || "Lokasi tidak dicatat"}</span>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2">
+          <span>{session.location || "Lokasi tidak dicatat"}</span>
+          {session.batchId ? (
+            <Link
+              href={`/roasting/batch/${session.batchId}`}
+              className="inline-flex items-center gap-1 rounded-full border border-domain-roasting/25 bg-domain-roasting/8 px-2 py-0.5 font-semibold text-domain-roasting transition-colors hover:bg-domain-roasting/15"
+            >
+              Batch <ChevronRight className="h-3 w-3" />
+            </Link>
+          ) : null}
+          {session.lotId ? (
+            <Link
+              href={`/inventory/lots/${session.lotId}`}
+              className="inline-flex items-center gap-1 rounded-full border border-domain-inventory/25 bg-domain-inventory/8 px-2 py-0.5 font-semibold text-domain-inventory transition-colors hover:bg-domain-inventory/15"
+            >
+              Lot <ChevronRight className="h-3 w-3" />
+            </Link>
+          ) : null}
+        </div>
         <span className="inline-flex items-center gap-1 font-semibold text-foreground/70">
           {session.scaScore != null ? `SCA ${session.scaScore}` : `Total ${session.rawScore.toFixed(1)}`}
           <ChevronRight className="h-3 w-3" />
@@ -337,6 +356,21 @@ export default function CuppingPage() {
   useEffect(() => {
     void refreshData();
   }, []);
+
+  // Deep-link prefill: /cupping?batchId=… / ?lotId=… (from roasting/batch recap, lot trace)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    const qBatch = sp.get("batchId");
+    const qLot = sp.get("lotId");
+    if (qBatch && options.batches.some((batch) => batch.id === qBatch)) {
+      setSampleMode("batch");
+      setBatchId(qBatch);
+    }
+    if (qLot && options.lots.some((lot) => lot.id === qLot)) {
+      setLotId(qLot);
+    }
+  }, [options]);
 
   function toggleDescriptor(descriptor: string) {
     setDescriptors((current) =>

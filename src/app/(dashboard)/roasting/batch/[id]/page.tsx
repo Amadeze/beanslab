@@ -1,8 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { FlaskConical } from "lucide-react";
 import { BatchRecapClient } from "./_components/BatchRecapClient";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Button } from "@/components/ui/button";
 import { fetchDownstreamBatches } from "../../actions";
 import { computeRoastConsistency, type RoastMetricSample } from "@/lib/roast-intelligence";
 
@@ -245,6 +248,11 @@ export default async function BatchRecapPage({
         eyebrow="Roasting"
         description={`${inputProduct?.name} → ${outputProduct?.name}`}
         stage="roasting"
+        actions={
+          <Button variant="outline" render={<Link href={`/cupping?batchId=${batch.id}`} />}>
+            <FlaskConical size={14} /> Cup this roast
+          </Button>
+        }
       />
       <div className="custom-scrollbar flex-1 overflow-auto">
         <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">

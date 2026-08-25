@@ -14,6 +14,8 @@ export type CuppingSessionRow = {
   location: string | null;
   evaluatorName: string | null;
   notes: string | null;
+  batchId: string | null;
+  lotId: string | null;
   batchCode: string | null;
   productName: string | null;
   /** Komposit SCA 0–100 (sama dengan totalScore; disimpan di DB sebagai cuppingSession.totalScore). */
@@ -205,6 +207,8 @@ export async function getCuppingSessions(filters?: {
         location: session.location,
         evaluatorName: session.evaluatorName,
         notes: session.notes,
+        batchId: session.batchId,
+        lotId: session.lotId,
         batchCode: session.batch?.code ?? null,
         productName: session.product?.name ?? null,
         totalScore: sca ?? rawScore,
