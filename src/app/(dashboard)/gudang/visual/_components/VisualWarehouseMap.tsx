@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { computeFefoRisk } from "@/lib/roastery-kpis";
 import type { VisualLocation, VisualWarehouse } from "../actions";
 import { LocationDetailDrawer } from "./LocationDetailDrawer";
 
@@ -265,6 +266,11 @@ export function VisualWarehouseMap({ warehouses }: { warehouses: VisualWarehouse
     attention: allLocations.filter((loc) => getLocationState(loc).id === "attention").length,
     occupied: allLocations.filter((loc) => loc.lotCount > 0).length,
     configured: allLocations.filter((loc) => loc.capacity !== null).length,
+    fefo: computeFefoRisk(
+      allLocations.flatMap((loc) =>
+        loc.placements.map((placement) => ({ kg: placement.quantityKg + placement.quantityUnit, expiryDate: placement.expiryDate })),
+      ),
+    ),
   }), [allLocations]);
 
   const visibleWarehouses = useMemo(() => {
@@ -309,9 +315,10 @@ export function VisualWarehouseMap({ warehouses }: { warehouses: VisualWarehouse
 
   return (
     <div className="space-y-5">
-      <section aria-label="Ringkasan gudang" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Ringkasan gudang" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <SummaryCard label="Gudang aktif" value={warehouses.length} detail="Siap digunakan" icon={Warehouse} />
         <SummaryCard label="Lokasi terisi" value={`${stats.occupied}/${allLocations.length}`} detail="Lokasi dengan stok" icon={Boxes} />
+        <SummaryCard label="FEFO berisiko" value={stats.fefo.atRiskKg.toLocaleString("id-ID", { maximumFractionDigits: 1 }) + " kg"} detail={stats.fefo.riskPct === null ? "Belum ada stok bernilai" : `${stats.fefo.riskPct.toFixed(0)}% stok ≤30 hr · terdekat ${stats.fefo.minDaysToExpiry ?? "—"} hr`} icon={AlertTriangle} tone="warning" />
         <SummaryCard label="Perlu perhatian" value={stats.attention} detail="FEFO atau kapasitas" icon={AlertTriangle} tone="warning" />
         <SummaryCard label="Kapasitas diatur" value={`${stats.configured}/${allLocations.length}`} detail="Lokasi terukur" icon={CheckCircle2} />
       </section>
