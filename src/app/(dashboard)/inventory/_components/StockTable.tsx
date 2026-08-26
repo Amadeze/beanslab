@@ -287,7 +287,7 @@ function StockFlowCard({
             <Link href={cuppingHref ?? "/cupping"} className="inline-flex h-7 items-center gap-1 rounded-lg bg-primary/10 px-2.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary/20">
               <FlaskConical size={11} /> Cupping
             </Link>
-            <Link href="/produksi?mulai=1" className="inline-flex h-7 items-center gap-1 rounded-lg bg-primary/10 px-2.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary/20">
+            <Link href="/produksi?mulai=1" className="inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2.5 text-[11px] font-semibold text-ink-secondary transition-colors hover:border-primary/40 hover:text-primary">
               <Factory size={11} /> Produksi
             </Link>
           </>
