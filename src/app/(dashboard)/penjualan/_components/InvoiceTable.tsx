@@ -1,7 +1,9 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ExternalLink, Search, Plus, MoreHorizontal, Ban } from "lucide-react";
+import { ExternalLink, Search, Plus, MoreHorizontal, Ban, Network } from "lucide-react";
+import { useEntityPanel } from "@/components/layout/entity-panel";
+import { InvoicePanelContent } from "./InvoicePanelContent";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -47,6 +49,7 @@ const triggerSilentPrint = (url: string) => {
 };
 
 export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
+  const { show } = useEntityPanel();
   const [voidTarget, setVoidTarget] = useState<InvoiceRow | null>(null);
   const [payTarget, setPayTarget] = useState<InvoiceRow | null>(null);
   const [resiTarget, setResiTarget] = useState<InvoiceRow | null>(null);
@@ -158,7 +161,25 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceRow[] }) {
               return (
               <TableRow key={inv.id} className="transition-colors hover:bg-surface-sunken">
                 <TableCell>
-                  <p className="font-mono text-xs font-semibold text-ink">{inv.code}</p>
+                  <span className="inline-flex items-center gap-1.5">
+                    <p className="font-mono text-xs font-semibold text-ink">{inv.code}</p>
+                    <button
+                      type="button"
+                      title="Lihat ringkasan nota"
+                      aria-label={`Ringkasan ${inv.code}`}
+                      onClick={() =>
+                        show({
+                          key: `invoice:${inv.id}`,
+                          eyebrow: "Nota",
+                          title: inv.code,
+                          content: <InvoicePanelContent invoiceId={inv.id} />,
+                        })
+                      }
+                      className="rounded-md p-0.5 text-ink-tertiary transition-colors hover:bg-surface-sunken hover:text-copper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                    >
+                      <Network size={13} aria-hidden />
+                    </button>
+                  </span>
                   <p className="mt-0.5 text-[11px] text-ink-secondary">{formatDate(inv.issuedAt)}</p>
                   {inv.dueDate && (
                     <p className="text-xs text-[var(--status-warning)] font-bold uppercase tracking-wider mt-0.5">
