@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 type RouteEntry = { label: string; href: string; group: string; Icon: React.ElementType };
 
 const HIDDEN_ROUTES: RouteEntry[] = [
+  { label: "Peta Jejak", href: "/jejak", group: "Operasional", Icon: Radar },
   { label: "Cupping & QC", href: "/cupping", group: "Operasional", Icon: Radar },
   { label: "Grinding", href: "/grinding", group: "Operasional", Icon: Beaker },
   { label: "Eksperimen", href: "/eksperimen", group: "Operasional", Icon: FlaskConical },

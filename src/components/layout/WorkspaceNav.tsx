@@ -22,6 +22,7 @@ import {
   PackageOpen,
   FileSignature,
   LayoutGrid,
+  Radar,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -71,6 +72,7 @@ const WORKSPACES = {
       query: "tab=profiles",
       icon: Waves,
     },
+    { label: "Peta Jejak", href: "/jejak", icon: Radar },
     { label: "Penggilingan", href: "/grinding", icon: Coffee },
     { label: "Produksi & packing", href: "/produksi", icon: Factory },
     { label: "Eksperimen", href: "/eksperimen", icon: FlaskConical },
