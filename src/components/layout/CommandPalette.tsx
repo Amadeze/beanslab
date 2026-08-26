@@ -125,7 +125,7 @@ export function CommandPalette({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
-          <Search size={16} className="shrink-0 text-[#E9A17F]" />
+          <Search size={16} className="shrink-0 text-[var(--stage-roasting-soft)]" />
           <input
             ref={inputRef}
             value={query}
@@ -153,7 +153,7 @@ export function CommandPalette({
                       i === active ? "bg-white/[0.07]" : "hover:bg-white/[0.04]",
                     )}
                   >
-                    <span className="flex h-7 w-7 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.04] text-[#E9A17F]">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.04] text-[var(--stage-roasting-soft)]">
                       <Icon size={14} />
                     </span>
                     <span className="min-w-0 flex-1">

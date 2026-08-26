@@ -257,10 +257,10 @@ function GBChart({ data }: { data: { name: string; value: number }[] }) {
     <ResponsiveContainer width="100%" height={120}>
       <BarChart data={data} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
         <XAxis type="number" hide />
-        <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11, fill: "#64748b" }} />
+        <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11, fill: "var(--ink-tertiary)" }} />
         <Tooltip formatter={(v) => `${Number(v).toLocaleString("id-ID")} kg`} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
         <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-          {data.map((_, i) => <Cell key={i} fill={i % 2 === 0 ? "#2B7567" : "#B65331"} />)}
+          {data.map((_, i) => <Cell key={i} fill={i % 2 === 0 ? "var(--stage-inventory)" : "var(--stage-roasting)"} />)}
         </Bar>
       </BarChart>
     </ResponsiveContainer>

@@ -134,12 +134,12 @@ export function SettingsClient({ tenant }: { tenant: ExtendedTenant }) {
   const backgroundInputRef = useRef<HTMLInputElement>(null);
 
   const THEMES = [
-    { id: "amber", label: "Roast Copper", hex: "#B65331" },
-    { id: "blue", label: "Steel Blue", hex: "#426C7A" },
-    { id: "emerald", label: "Verdigris", hex: "#2B7567" },
-    { id: "rose", label: "Burgundy", hex: "#8C2F39" },
-    { id: "violet", label: "Mulberry", hex: "#6F4A6A" },
-    { id: "zinc", label: "Graphite", hex: "#4B5152" },
+    { id: "amber", label: "Roast Copper", hex: "var(--stage-roasting)" },
+    { id: "blue", label: "Steel Blue", hex: "var(--stage-neutral)" },
+    { id: "emerald", label: "Verdigris", hex: "var(--stage-inventory)" },
+    { id: "rose", label: "Burgundy", hex: "var(--status-danger)" },
+    { id: "violet", label: "Mulberry", hex: "var(--stage-sales)" },
+    { id: "zinc", label: "Graphite", hex: "var(--ink-secondary)" },
   ];
 
   const LAYOUTS = [

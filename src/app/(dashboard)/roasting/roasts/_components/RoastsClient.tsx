@@ -508,11 +508,11 @@ function TemperatureChart({
     ) ?? [];
 
   const eventColors: Record<string, string> = {
-    CHARGE: "#3b82f6",
-    FCs: "#4C0302",
-    FCe: "#4C0302",
-    SCs: "#ef4444",
-    DROP: "#00C8DF",
+    CHARGE: "var(--status-info)",
+    FCs: "var(--destructive)",
+    FCe: "var(--destructive)",
+    SCs: "var(--status-danger)",
+    DROP: "var(--instrument)",
   };
 
   return (
@@ -589,7 +589,7 @@ function TemperatureChart({
           <Line
             type="monotone"
             dataKey="BT"
-            stroke="#00668E"
+            stroke="var(--instrument-strong)"
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4 }}
@@ -598,7 +598,7 @@ function TemperatureChart({
             <Line
               type="monotone"
               dataKey="ET"
-              stroke="#60a5fa"
+              stroke="var(--status-info)"
               strokeWidth={1.5}
               dot={false}
               strokeDasharray="5 5"

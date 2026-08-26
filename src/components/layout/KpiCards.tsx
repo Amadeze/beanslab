@@ -30,16 +30,16 @@ interface KpiCardProps {
   };
 }
 
-export function KpiCard({ label, value, sub, trend, color = "#A94728", icon, onClick, active, signal }: KpiCardProps) {
+export function KpiCard({ label, value, sub, trend, color = "var(--copper)", icon, onClick, active, signal }: KpiCardProps) {
   const trendData = trend ? trend.map(v => ({ v })) : [];
   const uid = useId();
   const gradientId = `sparkline-gradient-${uid.replace(/:/g, "")}`;
 
   const signalColor = signal?.tone === "critical"
-    ? "text-[#DC2626]"
+    ? "text-[var(--status-danger)]"
     : signal?.tone === "ready"
-      ? "text-[#16A34A]"
-      : "text-[#6B7280]";
+      ? "text-[var(--status-success)]"
+      : "text-[var(--ink-tertiary)]";
 
   return (
     <div

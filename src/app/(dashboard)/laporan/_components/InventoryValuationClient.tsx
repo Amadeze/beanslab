@@ -76,7 +76,7 @@ export function InventoryValuationClient({ report, hideLayout }: InventoryValuat
     }
   };
 
-  const chartColors = ["#2B7567", "#A66F12", "#B65331", "#6F4A6A", "#7C6A9E"];
+  const chartColors = ["var(--stage-inventory)", "var(--stage-production)", "var(--stage-roasting)", "var(--stage-sales)", "color-mix(in srgb, var(--stage-sales) 55%, white)"];
   const chartData = [
     { name: "Green Bean", value: report.totalGreenBeanValue },
     { name: "Roasted Bean", value: report.totalRoastedBeanValue },

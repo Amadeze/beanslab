@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowUpDown, ChevronDown, ChevronRight, MapPin } from "lucide-react";
+import { Search, ArrowUpDown, ChevronDown, ChevronRight, MapPin, Flame, FlaskConical, Factory, ShoppingCart, ClipboardList } from "lucide-react";
 import { formatKg, formatRupiah, formatUnit } from "@/lib/format";
 import type { ProductStockRow, FGStockRow, ProductLotRow, SupplyLotRow, SupplyStockRow, LotPlacementRow } from "../types";
 import { SUPPLY_CATEGORY_LABEL } from "../types";
@@ -210,6 +210,121 @@ function LotBreakdown({ lots, unit }: { lots: LotDisplayRow[]; unit: string | nu
   );
 }
 
+// ─── Interactive stock card (Kartu mode) ───
+
+const TYPE_META: Record<UnifiedRow["_type"], { label: string; chip: string; action: "roasting" | "cupping" | "kasir" | "po" | null }> = {
+  GREEN_BEAN: { label: "Green Bean", chip: "bg-[var(--stage-inventory)]/12 text-[var(--stage-inventory)]", action: "roasting" },
+  ROASTED_BEAN: { label: "Roasted Bean", chip: "bg-[var(--stage-roasting)]/12 text-[var(--stage-roasting)]", action: "cupping" },
+  FINISHED_GOODS: { label: "Produk Jadi", chip: "bg-[var(--stage-sales)]/12 text-[var(--stage-sales)]", action: "kasir" },
+  PACKAGING: { label: "Kemasan", chip: "bg-surface-sunken text-ink-secondary", action: "po" },
+  SUPPLY: { label: "Non-Kopi", chip: "bg-surface-sunken text-ink-secondary", action: "po" },
+};
+
+function StockFlowCard({
+  row,
+  expanded,
+  onToggle,
+  cuppingHref,
+  lotsByProduct,
+  supplyLotsByItem,
+}: {
+  row: UnifiedRow;
+  expanded: boolean;
+  onToggle: () => void;
+  cuppingHref: string | null;
+  lotsByProduct?: Record<string, ProductLotRow[]>;
+  supplyLotsByItem?: Record<string, SupplyLotRow[]>;
+}) {
+  const meta = TYPE_META[row._type];
+  const valueInfo = formatInventoryValue(row._stockValue, row._hpp);
+  const stockText = row._supplyUnit
+    ? `${row._stockValue.toLocaleString("id-ID", { maximumFractionDigits: 2 })} ${row._supplyUnit}`
+    : (isKgGlobal(row) ? formatKg(row._stockValue) : formatUnit(row._stockValue));
+
+  return (
+    <div
+      className={cn(
+        "group flex min-w-0 flex-col gap-2.5 rounded-card border bg-card p-4 shadow-elevation-soft transition-[border-color,box-shadow] hover:shadow-elevation-card",
+        row._status === "habis"
+          ? "border-[color-mix(in_srgb,var(--status-danger)_40%,transparent)]"
+          : row._status === "rendah"
+            ? "border-[color-mix(in_srgb,var(--status-warning)_45%,transparent)]"
+            : "border-border hover:border-primary/40",
+      )}
+    >
+      <span className="flex items-center justify-between gap-2">
+        <span className={cn("rounded-full px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.1em]", meta.chip)}>
+          {meta.label}
+        </span>
+        <InventoryStatusBadge status={row._status} />
+      </span>
+
+      <button type="button" onClick={onToggle} className="min-w-0 text-left focus-visible:outline-none">
+        <p className="truncate text-sm font-bold text-foreground">{row.name}</p>
+        <p className="truncate font-mono text-[10px] text-ink-tertiary">{row.code}</p>
+      </button>
+
+      <div className="flex items-end justify-between gap-3">
+        <span className="font-heading text-xl font-bold leading-none tabular-nums text-foreground">
+          {stockText}
+        </span>
+        <span className="text-right text-[11px] leading-4 text-ink-secondary">
+          HPP {row._hpp != null ? formatRupiah(row._hpp) : "—"}
+          <br />
+          <span className="text-ink-tertiary">Nilai {valueInfo.text}</span>
+        </span>
+      </div>
+
+      {/* Aksi alur — lanjutkan proses dari kartu */}
+      <span className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2.5">
+        {meta.action === "roasting" ? (
+          <Link href="/roasting?mulai=1" className="inline-flex h-7 items-center gap-1 rounded-lg bg-primary px-2.5 text-[11px] font-bold text-primary-foreground transition-colors hover:bg-primary/90">
+            <Flame size={11} /> Roasting
+          </Link>
+        ) : null}
+        {meta.action === "cupping" ? (
+          <>
+            <Link href={cuppingHref ?? "/cupping"} className="inline-flex h-7 items-center gap-1 rounded-lg bg-primary/10 px-2.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary/20">
+              <FlaskConical size={11} /> Cupping
+            </Link>
+            <Link href="/produksi?mulai=1" className="inline-flex h-7 items-center gap-1 rounded-lg bg-primary/10 px-2.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary/20">
+              <Factory size={11} /> Produksi
+            </Link>
+          </>
+        ) : null}
+        {meta.action === "kasir" ? (
+          <Link href="/kasir" className="inline-flex h-7 items-center gap-1 rounded-lg bg-primary/10 px-2.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary/20">
+            <ShoppingCart size={11} /> Jual di Kasir
+          </Link>
+        ) : null}
+        {meta.action === "po" ? (
+          <Link href="/inventory?view=po" className="inline-flex h-7 items-center gap-1 rounded-lg bg-primary/10 px-2.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary/20">
+            <ClipboardList size={11} /> Buat PO
+          </Link>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={onToggle}
+          className="ml-auto inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2 text-[11px] font-semibold text-ink-secondary transition-colors hover:text-foreground"
+        >
+          <MapPin size={11} /> Lot
+          {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+        </button>
+      </span>
+
+      {expanded ? (
+        <LotBreakdown lots={toLotDisplayRows(row, lotsByProduct, supplyLotsByItem)} unit={row._supplyUnit} />
+      ) : null}
+    </div>
+  );
+}
+
+// helper agar StockCardGrid tahu satuan kg tanpa prop tambahan
+function isKgGlobal(row: UnifiedRow): boolean {
+  return row._unit === "kg";
+}
+
 // ─── Main component ───
 
 export function StockTable({
@@ -242,6 +357,17 @@ export function StockTable({
   const [sortKey, setSortKey] = useState<SortKey>("status");
   const [sortAsc, setSortAsc] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"kartu" | "tabel">(() => {
+    if (typeof window === "undefined") return "kartu";
+    return window.localStorage.getItem("ros-stock-view") === "tabel" ? "tabel" : "kartu";
+  });
+  const toggleViewMode = () => {
+    setViewMode((v) => {
+      const next = v === "kartu" ? "tabel" : "kartu";
+      try { window.localStorage.setItem("ros-stock-view", next); } catch {}
+      return next;
+    });
+  };
 
   // Sync URL → state on param change (e.g. browser back/forward)
   useEffect(() => {
@@ -438,8 +564,62 @@ export function StockTable({
           </select>
           <ChevronDown size={12} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-ink-tertiary" />
         </div>
+        {/* Mode tampilan: Kartu (default) | Tabel */}
+        <div className="hidden md:flex h-8 shrink-0 rounded-lg border border-border bg-card p-0.5" role="group" aria-label="Mode tampilan stok">
+          {(["kartu", "tabel"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={toggleViewMode}
+              aria-pressed={viewMode === m}
+              className={cn(
+                "rounded-md px-2.5 text-[11px] font-bold capitalize transition-colors",
+                viewMode === m ? "bg-foreground text-background" : "text-ink-tertiary hover:text-ink",
+              )}
+            >
+              {m === "kartu" ? "Kartu" : "Tabel"}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {/* Kartu mode (md+) */}
+      {viewMode === "kartu" ? (
+        <div className="hidden gap-3 md:grid sm:grid-cols-2 2xl:grid-cols-3">
+          {rows.length === 0 ? (
+            <div className="sm:col-span-2 2xl:col-span-3">
+              <EmptyState.CardEmptyState
+                label={hasActiveFilters ? "Tidak ada item yang cocok" : "Belum ada data"}
+                description="Coba ubah filter atau pencarian."
+                actionLabel={emptyAction?.props?.children as string | undefined}
+                onAction={emptyAction?.props?.onClick}
+              />
+            </div>
+          ) : (
+            rows.map((row) => {
+              const activeLots = (lotsByProduct?.[row.id] ?? []).filter((l) => l.status !== "consumed");
+              const cuppingHref =
+                row._type === "ROASTED_BEAN" && activeLots.length === 1
+                  ? `/cupping?lotId=${activeLots[0].id}`
+                  : row._type === "ROASTED_BEAN"
+                    ? "/cupping"
+                    : null;
+              return (
+                <StockFlowCard
+                  key={row.id}
+                  row={row}
+                  expanded={expandedId === row.id}
+                  onToggle={() => setExpandedId(expandedId === row.id ? null : row.id)}
+                  cuppingHref={cuppingHref}
+                  lotsByProduct={lotsByProduct}
+                  supplyLotsByItem={supplyLotsByItem}
+                />
+              );
+            })
+          )}
+        </div>
+      ) : (
+      <div>
       {/* Desktop Table */}
       <div className="hidden md:block overflow-hidden rounded-card border border-border bg-card">
         <Table>
@@ -557,6 +737,8 @@ export function StockTable({
           </TableBody>
         </Table>
       </div>
+      </div>
+      )}
 
       {/* Mobile Cards */}
       <div className="md:hidden flex flex-col gap-1.5">

@@ -32,6 +32,7 @@ import {
 import type { ActivityItem, DashboardData, LowStockItem } from "../actions";
 import { RoasteryCopilot } from "./RoasteryCopilot";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { StageCards, type StageCardData } from "./StageCards";
 import { CoffeeFlowMini } from "./CoffeeFlowMini";
 import { ControlTowerView } from "../../control-tower/_components/ControlTowerView";
 import type { getControlTowerData } from "../../control-tower/actions";
@@ -107,6 +108,49 @@ function StageStrip({ data, brief }: { data: DashboardData; brief: DailyBriefPay
       ))}
     </section>
   );
+}
+
+/** Kartu tahap interaktif — menggabungkan status + navigasi (mantan StageStrip). */
+function buildStageCards(data: DashboardData, brief: DailyBriefPayload | null): StageCardData[] {
+  const packed = data.operationalQueue.fulfillmentPacked;
+  return [
+    {
+      number: "01", label: "Pasokan", href: "/inventory", icon: Boxes,
+      value: data.lowStock.length > 0 ? String(data.lowStock.length) : data.operationalQueue.purchaseOrdersToReceive > 0 ? String(data.operationalQueue.purchaseOrdersToReceive) : "Aman",
+      sub: data.lowStock.length > 0 ? "stok di bawah batas" : data.operationalQueue.purchaseOrdersToReceive > 0 ? "PO belum diterima" : "Pasokan aman",
+      attention: data.lowStock.length > 0,
+    },
+    {
+      number: "02", label: "Gudang", href: "/gudang", icon: Warehouse,
+      value: packed > 0 ? String(packed) : "—",
+      sub: packed > 0 ? "paket siap kirim" : "lokasi & lot terpantau",
+      attention: false,
+    },
+    {
+      number: "03", label: "Roasting", href: "/roasting", icon: Flame,
+      value: data.operationalQueue.roastingBatchesOpen > 0 ? String(data.operationalQueue.roastingBatchesOpen) : `${brief?.roasting.batchCount ?? 0}`,
+      sub: data.operationalQueue.roastingBatchesOpen > 0 ? "batch berjalan" : "batch kemarin",
+      attention: false,
+    },
+    {
+      number: "04", label: "Produksi", href: "/produksi", icon: Factory,
+      value: data.operationalQueue.fulfillmentNeedsProduction > 0 ? String(data.operationalQueue.fulfillmentNeedsProduction) : `${brief?.production.unitsProduced ?? 0}`,
+      sub: data.operationalQueue.fulfillmentNeedsProduction > 0 ? "pesanan menunggu produksi" : "unit diproduksi kemarin",
+      attention: data.operationalQueue.fulfillmentNeedsProduction > 0,
+    },
+    {
+      number: "05", label: "Penjualan", href: "/penjualan", icon: ReceiptText,
+      value: formatRupiah(data.kpi.revenueToday),
+      sub: data.operationalQueue.overdueReceivables.count > 0 ? `${data.operationalQueue.overdueReceivables.count} tagihan jatuh tempo` : "tagihan lancar",
+      attention: data.operationalQueue.overdueReceivables.count > 0,
+    },
+    {
+      number: "06", label: "Kas & Piutang", href: "/keuangan", icon: WalletCards,
+      value: data.operationalQueue.paymentReviews > 0 ? String(data.operationalQueue.paymentReviews) : formatRupiah(data.kpi.kasToday),
+      sub: data.operationalQueue.paymentReviews > 0 ? "bukti bayar diverifikasi" : "kas masuk hari ini",
+      attention: data.operationalQueue.paymentReviews > 0 || data.operationalQueue.overdueReceivables.count > 0,
+    },
+  ];
 }
 
 export function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
@@ -477,7 +521,7 @@ export function DashboardShell({
         ]}
       />
 
-      <StageStrip data={data} brief={data.dailyBrief} />
+      <StageCards stages={buildStageCards(data, data.dailyBrief)} />
 
       <main className="custom-scrollbar min-w-0 flex-1 overflow-y-auto" id="main-content">
         <div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 md:p-6 lg:p-7">

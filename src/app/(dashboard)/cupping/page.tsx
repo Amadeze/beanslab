@@ -194,7 +194,7 @@ function SensoryMap({ scores }: { scores: Record<CuppingCategory, number> }) {
       <defs>
         <linearGradient id="sensory-fill" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="var(--domain-roasting)" stopOpacity="0.48" />
-          <stop offset="1" stopColor="#1f8276" stopOpacity="0.2" />
+          <stop offset="1" stopColor="var(--verdigris)" stopOpacity="0.2" />
         </linearGradient>
       </defs>
       {[0.4, 0.6, 0.8, 1].map((scale) => (

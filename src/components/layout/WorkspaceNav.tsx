@@ -163,7 +163,7 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
           aria-label={`Pilih area ${workspaceLabel}`}
           value={activeHref}
           onChange={(event) => router.push(event.target.value)}
-          className="h-10 min-w-0 flex-1 rounded-lg border border-white/15 bg-white/[0.06] px-3 text-sm font-semibold text-white outline-none focus:border-[#00C8DF] focus:ring-2 focus:ring-[#00C8DF]/30"
+          className="h-10 min-w-0 flex-1 rounded-lg border border-white/15 bg-white/[0.06] px-3 text-sm font-semibold text-white outline-none focus:border-[var(--instrument)] focus:ring-2 focus:ring-[var(--instrument)]/30"
         >
           {items.map((item) => (
             <option key={itemHref(item)} value={itemHref(item)} className="bg-[var(--chrome-panel)] text-white">
@@ -185,7 +185,7 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-[8px] border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C8DF]",
+                "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-[8px] border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]",
                 active
                   ? workspaceTone.active
                   : "border-transparent text-white/46 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",

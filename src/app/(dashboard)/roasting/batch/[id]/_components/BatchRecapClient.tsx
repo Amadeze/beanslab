@@ -605,11 +605,11 @@ function TemperatureChart({
   ) ?? [];
 
   const eventColors: Record<string, string> = {
-    CHARGE: "#3b82f6",
-    FCs: "#F0913F",
-    FCe: "#F0913F",
-    SCs: "#ef4444",
-    DROP: "#15B8C6",
+    CHARGE: "var(--status-info)",
+    FCs: "color-mix(in srgb, var(--stage-production-soft) 70%, var(--stage-production))",
+    FCe: "color-mix(in srgb, var(--stage-production-soft) 70%, var(--stage-production))",
+    SCs: "var(--status-danger)",
+    DROP: "var(--instrument)",
   };
 
   return (
@@ -649,12 +649,12 @@ function TemperatureChart({
               strokeWidth={1.5}
             />
           ))}
-          <Line type="monotone" dataKey="BT" stroke="#00668E" strokeWidth={2} dot={false} connectNulls />
+          <Line type="monotone" dataKey="BT" stroke="var(--instrument-strong)" strokeWidth={2} dot={false} connectNulls />
           {targetBtData && targetBtData.length > 0 && (
-            <Line type="monotone" dataKey="Target" stroke="#d6b98c" strokeWidth={1.5} dot={false} strokeDasharray="8 6" connectNulls />
+            <Line type="monotone" dataKey="Target" stroke="var(--brass-soft)" strokeWidth={1.5} dot={false} strokeDasharray="8 6" connectNulls />
           )}
           {etData && etData.length > 0 && (
-            <Line type="monotone" dataKey="ET" stroke="#60a5fa" strokeWidth={1.5} dot={false} strokeDasharray="5 5" connectNulls />
+            <Line type="monotone" dataKey="ET" stroke="var(--status-info)" strokeWidth={1.5} dot={false} strokeDasharray="5 5" connectNulls />
           )}
         </LineChart>
       </ResponsiveContainer>

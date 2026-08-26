@@ -182,7 +182,7 @@ export function RoastingClient({
             action={
               <Link
                 href="/inventory?view=receiving"
-                className="inline-flex h-9 items-center gap-2 rounded-card bg-[#0B141B] px-4 text-xs font-bold text-white transition hover:bg-[#16242E]"
+                className="inline-flex h-9 items-center gap-2 rounded-card bg-[var(--chrome-panel)] px-4 text-xs font-bold text-white transition hover:bg-[var(--chrome-accent)]"
               >
                 Catat Barang Datang →
               </Link>

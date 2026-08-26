@@ -11,7 +11,7 @@ const NODE_FILL: Record<number, string> = {
   [SANKEY_NODE.ROASTING]: "var(--stage-roasting)",
   [SANKEY_NODE.SUSUT]: "var(--status-danger)",
   [SANKEY_NODE.PENYESUAIAN]: "var(--status-warning)",
-  [SANKEY_NODE.STOK_RB]: "#8C5A2B",
+  [SANKEY_NODE.STOK_RB]: "color-mix(in srgb, var(--brass) 55%, var(--ink))",
   [SANKEY_NODE.PACKING]: "var(--moss, #4B6B3C)",
 };
 
