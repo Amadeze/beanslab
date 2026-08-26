@@ -43,12 +43,6 @@ const schema = z
   )
   .refine(
     (value) =>
-      !value.nationalCourierEnabled ||
-      (!!value.rajaOngkirOriginToken && value.rajaOngkirOriginToken.length > 0),
-    { message: "Aktifkan kurir nasional memerlukan token asal pengiriman (RajaOngkir)." },
-  )
-  .refine(
-    (value) =>
       !value.nationalCourierEnabled || value.rajaOngkirCourierCodes.length > 0,
     { message: "Pilih minimal satu kurir nasional yang diizinkan." },
   )
@@ -66,9 +60,6 @@ export async function saveCommerceSettings(formData: FormData) {
     .map((v) => String(v));
 
   const freeRaw = String(formData.get("freeShippingMinimum") ?? "").trim();
-  // DEBUG: log all form data keys
-  console.error("[DEBUG] FormData keys:", [...formData.keys()]);
-  console.error("[DEBUG] rajaOngkirOriginToken:", formData.get("rajaOngkirOriginToken"));
   const parsed = schema.safeParse({
     pickupEnabled: formData.get("pickupEnabled") === "on",
     deliveryEnabled: formData.get("deliveryEnabled") === "on",
@@ -89,9 +80,32 @@ export async function saveCommerceSettings(formData: FormData) {
     reservationMinutes: formData.get("reservationMinutes"),
   });
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "Pengaturan toko tidak valid.");
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Pengaturan toko tidak valid." };
   }
 const data = parsed.data;
+
+  const before = await tp.tenant.findUnique({
+    where: { id: user.tenantId },
+    select: {
+      storefrontPickupEnabled: true,
+      storefrontDeliveryEnabled: true,
+      storefrontFlatShippingRate: true,
+      storefrontFreeShippingMinimum: true,
+      storefrontTaxRate: true,
+      storefrontReservationMinutes: true,
+      nationalCourierEnabled: true,
+      rajaOngkirOriginId: true,
+      rajaOngkirOriginLabel: true,
+      rajaOngkirOriginProvince: true,
+      rajaOngkirOriginCity: true,
+      rajaOngkirOriginDistrict: true,
+      rajaOngkirOriginSubdistrict: true,
+      rajaOngkirOriginPostalCode: true,
+      rajaOngkirOriginStreet: true,
+      rajaOngkirCourierCodes: true,
+      rajaOngkirTareGrams: true,
+    },
+  });
 
   // Trust boundary: the persisted origin must derive from a server-issued
   // tamper-evident token, never from client-submitted hidden inputs.
@@ -101,38 +115,18 @@ const data = parsed.data;
   // (no external HTTP/crypto inside Serializable transactions).
   const token = formData.get("rajaOngkirOriginToken");
   let resolvedOrigin: OriginSelectionPayload | null = null;
-  if (data.nationalCourierEnabled && typeof token === "string" && token.length > 0) {
+  if (typeof token === "string" && token.length > 0) {
     resolvedOrigin = await verifyOriginSelectionToken(token);
     if (!resolvedOrigin) {
-      throw new Error("Token asal pengiriman tidak valid atau kadaluwarsa. Pilih ulang lokasi asal.");
+      return { success: false, error: "Token asal pengiriman tidak valid atau kadaluwarsa. Pilih ulang lokasi asal." };
     }
-  } else if (data.nationalCourierEnabled) {
-    throw new Error("Token asal pengiriman diperlukan untuk kurir nasional.");
+  }
+
+  if (data.nationalCourierEnabled && !resolvedOrigin && !before?.rajaOngkirOriginId) {
+    return { success: false, error: "Pilih lokasi asal pengiriman untuk mengaktifkan kurir nasional." };
   }
 
   await tp.$transaction(async (tx) => {
-    const before = await tx.tenant.findUnique({
-      where: { id: user.tenantId },
-      select: {
-        storefrontPickupEnabled: true,
-        storefrontDeliveryEnabled: true,
-        storefrontFlatShippingRate: true,
-        storefrontFreeShippingMinimum: true,
-        storefrontTaxRate: true,
-        storefrontReservationMinutes: true,
-        nationalCourierEnabled: true,
-        rajaOngkirOriginId: true,
-        rajaOngkirOriginLabel: true,
-        rajaOngkirOriginProvince: true,
-        rajaOngkirOriginCity: true,
-        rajaOngkirOriginDistrict: true,
-        rajaOngkirOriginSubdistrict: true,
-        rajaOngkirOriginPostalCode: true,
-        rajaOngkirOriginStreet: true,
-        rajaOngkirCourierCodes: true,
-        rajaOngkirTareGrams: true,
-      },
-    });
     const updated = await tx.tenant.update({
       where: { id: user.tenantId },
       data: {
@@ -144,13 +138,13 @@ const data = parsed.data;
         storefrontTaxRate: data.taxRate,
         storefrontReservationMinutes: data.reservationMinutes,
         nationalCourierEnabled: data.nationalCourierEnabled,
-        rajaOngkirOriginId: resolvedOrigin?.providerId ?? null,
-        rajaOngkirOriginLabel: resolvedOrigin?.label ?? null,
-        rajaOngkirOriginProvince: resolvedOrigin?.province ?? null,
-        rajaOngkirOriginCity: resolvedOrigin?.city ?? null,
-        rajaOngkirOriginDistrict: resolvedOrigin?.district ?? null,
-        rajaOngkirOriginSubdistrict: resolvedOrigin?.subdistrict ?? null,
-        rajaOngkirOriginPostalCode: resolvedOrigin?.postalCode ?? null,
+        rajaOngkirOriginId: resolvedOrigin ? resolvedOrigin.providerId : (before?.rajaOngkirOriginId ?? null),
+        rajaOngkirOriginLabel: resolvedOrigin ? resolvedOrigin.label : (before?.rajaOngkirOriginLabel ?? null),
+        rajaOngkirOriginProvince: resolvedOrigin ? resolvedOrigin.province : (before?.rajaOngkirOriginProvince ?? null),
+        rajaOngkirOriginCity: resolvedOrigin ? resolvedOrigin.city : (before?.rajaOngkirOriginCity ?? null),
+        rajaOngkirOriginDistrict: resolvedOrigin ? resolvedOrigin.district : (before?.rajaOngkirOriginDistrict ?? null),
+        rajaOngkirOriginSubdistrict: resolvedOrigin ? resolvedOrigin.subdistrict : (before?.rajaOngkirOriginSubdistrict ?? null),
+        rajaOngkirOriginPostalCode: resolvedOrigin ? resolvedOrigin.postalCode : (before?.rajaOngkirOriginPostalCode ?? null),
         rajaOngkirOriginStreet: data.rajaOngkirOriginStreet ?? null,
         rajaOngkirCourierCodes: data.rajaOngkirCourierCodes,
         rajaOngkirTareGrams: data.rajaOngkirTareGrams,
@@ -182,4 +176,5 @@ const data = parsed.data;
   });
   revalidatePath("/settings/commerce");
   revalidatePath(`/tenant/${user.tenantId}`);
+  return { success: true };
 }

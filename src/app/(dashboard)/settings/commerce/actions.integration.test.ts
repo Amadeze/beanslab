@@ -173,7 +173,7 @@ suite("tenant shipping settings (real PostgreSQL)", () => {
       taxRate: "0",
       reservationMinutes: "1440",
     });
-    await expect(saveCommerceSettings(fd)).resolves.toBeUndefined();
+    await expect(saveCommerceSettings(fd)).resolves.toEqual({ success: true });
 
     const tenant = await client.tenant.findUniqueOrThrow({ where: { id: TENANT_A } });
     expect(tenant.storefrontPickupEnabled).toBe(true);
@@ -193,7 +193,15 @@ suite("tenant shipping settings (real PostgreSQL)", () => {
       taxRate: "0",
       reservationMinutes: "1440",
     });
-    await expect(saveCommerceSettings(fd)).rejects.toThrow(/token/i);
+    // Kontrak baru: action mengembalikan hasil (bukan throw) agar form klien
+    // bisa menampilkan pesan tanpa crash boundary server action.
+    const result = await saveCommerceSettings(fd);
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringMatching(/asal pengiriman/i),
+      }),
+    );
   });
 
   it("rejects national courier enabled without any courier selected", async () => {
@@ -210,7 +218,13 @@ suite("tenant shipping settings (real PostgreSQL)", () => {
       taxRate: "0",
       reservationMinutes: "1440",
     });
-    await expect(saveCommerceSettings(fd)).rejects.toThrow(/kurir/i);
+    const result = await saveCommerceSettings(fd);
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringMatching(/kurir/i),
+      }),
+    );
   });
 
   it("persists server-validated provider snapshot via token, ignoring client-submitted label", async () => {
@@ -231,7 +245,7 @@ suite("tenant shipping settings (real PostgreSQL)", () => {
       taxRate: "0",
       reservationMinutes: "1440",
     });
-    await expect(saveCommerceSettings(fd)).resolves.toBeUndefined();
+    await expect(saveCommerceSettings(fd)).resolves.toEqual({ success: true });
 
     const tenant = await client.tenant.findUniqueOrThrow({ where: { id: TENANT_A } });
     expect(tenant.nationalCourierEnabled).toBe(true);
@@ -261,7 +275,12 @@ suite("tenant shipping settings (real PostgreSQL)", () => {
       taxRate: "0",
       reservationMinutes: "1440",
     });
-    await expect(saveCommerceSettings(fd)).rejects.toThrow(/tidak valid|kadaluwarsa/i);
+    await expect(saveCommerceSettings(fd)).resolves.toEqual(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringMatching(/tidak valid|kadaluwarsa/i),
+      }),
+    );
   });
 
   it("rejects an expired origin token", async () => {
@@ -279,7 +298,12 @@ suite("tenant shipping settings (real PostgreSQL)", () => {
       taxRate: "0",
       reservationMinutes: "1440",
     });
-    await expect(saveCommerceSettings(fd)).rejects.toThrow(/tidak valid|kadaluwarsa/i);
+    await expect(saveCommerceSettings(fd)).resolves.toEqual(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringMatching(/tidak valid|kadaluwarsa/i),
+      }),
+    );
   });
 
   it("filters unsupported courier codes", async () => {

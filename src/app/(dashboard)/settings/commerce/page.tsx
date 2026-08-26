@@ -3,7 +3,7 @@ import { requireRole, requireTenantPrisma } from "@/lib/auth";
 import { SUPPORTED_COURIERS } from "@/lib/shipping/rajaongkir-config";
 import { SettingsNav } from "../_components/SettingsNav";
 import { OriginSearchPicker } from "./_components/OriginSearchPicker";
-import { saveCommerceSettings } from "./actions";
+import { CommerceSettingsClientForm } from "./_components/CommerceSettingsClientForm";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,7 @@ export default async function CommerceSettingsPage() {
       <PageHeader title="Toko & Pengiriman" eyebrow="Pengaturan" description="Atur ongkir, pajak, dan berapa lama stok ditahan saat pelanggan belum membayar." />
       <SettingsNav userRole={user.role} />
       <div className="custom-scrollbar flex-1 overflow-auto">
-        <form action={saveCommerceSettings} className="mx-auto grid max-w-4xl gap-5 p-4 md:p-6 lg:p-8">
+        <CommerceSettingsClientForm>
           <section className="rounded-xl border border-stone-200 bg-white p-5">
             <h2 className="text-sm font-black text-stone-900">Cara menerima pesanan</h2>
             <p className="mt-1 text-xs leading-5 text-stone-500">Minimal satu pilihan harus aktif. Ongkir dihitung oleh server, bukan dipercaya dari browser pelanggan.</p>
@@ -106,7 +106,7 @@ export default async function CommerceSettingsPage() {
             <label className="text-xs font-bold uppercase tracking-wider text-stone-600">Tahan stok (menit)<input className={inputClass} name="reservationMinutes" type="number" min="15" max="10080" defaultValue={tenant.storefrontReservationMinutes} /><span className="mt-1 block normal-case font-normal text-stone-400">Contoh 1440 = 24 jam.</span></label>
           </section>
           <div className="flex justify-end"><button className="h-11 rounded-lg bg-stone-900 px-5 text-sm font-black text-white hover:bg-stone-800">Simpan pengaturan</button></div>
-        </form>
+        </CommerceSettingsClientForm>
       </div>
     </div>
   );
