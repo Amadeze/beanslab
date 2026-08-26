@@ -33,6 +33,9 @@ import {
 import { RoastingDestinationField } from "./RoastingDestinationField";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { EmptyState as ElegantEmptyState } from "@/components/ui/state";
+import { Network } from "lucide-react";
+import { useEntityPanel } from "@/components/layout/entity-panel";
+import { BatchPanelContent } from "./BatchPanelContent";
 
 // ─────────────────────────────────────────────
 // Shrinkage badge
@@ -90,6 +93,7 @@ interface RoastingHistoryTableProps {
 // ─────────────────────────────────────────────
 
 export function RoastingHistoryTable({ batches, machineOptions, locationOptions, onStartRoasting }: RoastingHistoryTableProps) {
+  const { show } = useEntityPanel();
   const [voidTarget, setVoidTarget] = useState<ParentRoastingBatchRow | null>(null);
   const [scrapTarget, setScrapTarget] = useState<ParentRoastingBatchRow | null>(null);
   const [completeTarget, setCompleteTarget] = useState<ParentRoastingBatchRow | null>(null);
@@ -263,12 +267,30 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
             filteredBatches.map((b) => (
               <TableRow key={b.id}>
                 <TableCell className="font-mono text-xs font-medium text-ink">
-                  <Link
-                    href={`/roasting/batch/${b.id}`}
-                    className="hover:text-copper hover:underline transition-colors"
-                  >
-                    {b.code}
-                  </Link>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Link
+                      href={`/roasting/batch/${b.id}`}
+                      className="hover:text-copper hover:underline transition-colors"
+                    >
+                      {b.code}
+                    </Link>
+                    <button
+                      type="button"
+                      title="Lihat rantai jejak batch ini"
+                      aria-label={`Rantai jejak ${b.code}`}
+                      onClick={() =>
+                        show({
+                          key: `batch:${b.id}`,
+                          eyebrow: "Rantai jejak",
+                          title: b.code,
+                          content: <BatchPanelContent batchId={b.id} />,
+                        })
+                      }
+                      className="rounded-md p-0.5 text-ink-tertiary transition-colors hover:bg-surface-sunken hover:text-copper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                    >
+                      <Network size={13} aria-hidden />
+                    </button>
+                  </span>
                 </TableCell>
                 <TableCell>
                   <p className="text-sm text-ink">{b.inputProductName}</p>

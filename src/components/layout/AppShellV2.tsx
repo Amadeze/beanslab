@@ -23,6 +23,7 @@ import {
   getActiveNavigation,
   type AppNavLink,
 } from "@/components/layout/Sidebar";
+import { EntityPanelProvider, useEntityPanel } from "@/components/layout/entity-panel";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { logoutAction } from "@/app/login/actions";
@@ -113,6 +114,32 @@ function Rail({
 
 // ── Panel konteks (kanan, xl ke atas) ──────────────────────────────────────
 
+/** Isi panel saat sebuah entri dipilih (Rantai Jejak, detail ringkas, dll). */
+function PanelEntityBody() {
+  const { entity, clear } = useEntityPanel();
+  if (!entity) return null;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <button
+        type="button"
+        onClick={clear}
+        className="inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-ink-tertiary transition-colors hover:bg-surface-sunken hover:text-foreground"
+      >
+        ← Ringkasan
+      </button>
+      <div className="min-w-0">
+        {entity.eyebrow ? (
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-copper">
+            {entity.eyebrow}
+          </p>
+        ) : null}
+        <p className="mt-0.5 truncate font-mono text-sm font-bold text-foreground">{entity.title}</p>
+      </div>
+      <div className="custom-scrollbar -mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-2">{entity.content}</div>
+    </div>
+  );
+}
+
 function ContextPanel({
   userRole,
   subscriptionTier,
@@ -133,6 +160,7 @@ function ContextPanel({
     { href: "/produksi", label: "Pesanan belum diproduksi", count: unfulfilledOrders },
     { href: "/inventory", label: "Stok di bawah batas", count: lowStockCount },
   ].filter((a) => a.count > 0);
+  const { entity } = useEntityPanel();
 
   return (
     <aside
@@ -149,6 +177,10 @@ function ContextPanel({
         </span>
       </div>
 
+      {entity ? (
+        <PanelEntityBody />
+      ) : (
+        <>
       <div className="rounded-card border border-border bg-card p-4 shadow-elevation-soft">
         <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-ink-tertiary">Workspace</p>
         <p className="mt-1 text-sm font-semibold capitalize text-foreground">{userRole.toLowerCase()}</p>
@@ -195,6 +227,8 @@ function ContextPanel({
           Tanya apa saja tentang data roastery Anda.
         </p>
       </Link>
+        </>
+      )}
 
       <button
         type="button"
@@ -363,6 +397,7 @@ export function AppShellV2({
   const moreActive = Boolean(activeItem && !mobileDockItems.some((i) => i.href === activeItem.href));
 
   return (
+    <EntityPanelProvider>
     <div className="ros-workspace flex h-[100dvh] w-full overflow-hidden bg-obsidian">
       {isMobileMenuOpen ? (
         <button
@@ -491,5 +526,6 @@ export function AppShellV2({
 
       <CommandPalette userRole={userRole} subscriptionTier={subscriptionTier} />
     </div>
+    </EntityPanelProvider>
   );
 }
