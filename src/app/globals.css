@@ -261,7 +261,6 @@
   --color-surface-sunken: var(--surface-sunken);
   --shadow-elevation-soft: var(--elevation-soft);
   --shadow-elevation-card: var(--elevation-card);
-  --radius-card: 12px;
 }
 
 :root {
@@ -269,9 +268,7 @@
   --obsidian: #080B0C;
   --obsidian-soft: #111617;
   --instrument: #15B8C6;
-  --instrument-strong: #126A73;
   --copper: #A94728;
-  --copper-soft: #F3DCD1;
   --verdigris: #2B7567;
   --verdigris-soft: #D2E8DF;
   --brass: #A66F12;
@@ -280,11 +277,6 @@
   --plum-soft: #E9DDE8;
   --moss: #4B6B3C;
   --moss-soft: #DAE6D2;
-  --domain-inventory: #2B7567;
-  --domain-roasting: #B65331;
-  --domain-production: #A66F12;
-  --domain-sales: #6F4A6A;
-  --domain-finance: #4B6B3C;
   --canvas: #F7F5F1;
   --surface: #F4F2EA;
   --surface-raised: #FFFDF8;
@@ -357,7 +349,6 @@
   /* Canonical internal application tokens */
   --surface-canvas: #F7F5F1;
   --surface-panel: #F4F2EA;
-  --surface-raised: #FFFDF8;
   --surface-inverse: #05090D;
   --domain-inventory: #2B7567;
   --domain-roasting: #B65331;
@@ -370,6 +361,28 @@
   --status-danger: #8C2F39;
   --control-height: 2.75rem;
   --focus-ring: #15B8C6;
+
+  /* ── Stage tones (selalu di atas krom obsidian — tema-konstan) ──
+     Satu keluarga var untuk Sidebar, stage rail, dan MobileDock.
+     Glow diturunkan via color-mix, tanpa var alpha terpisah. */
+  --stage-system: #B65331;
+  --stage-system-soft: #F0B590;
+  --stage-dock-system: #15B8C6;
+  --stage-dock-system-soft: #8EF3FC;
+  --stage-inventory: #2B7567;
+  --stage-inventory-soft: #87CDBC;
+  --stage-warehouse: #4A6B84;
+  --stage-warehouse-soft: #9FB8C9;
+  --stage-roasting: #B65331;
+  --stage-roasting-soft: #E9A17F;
+  --stage-production: #A66F12;
+  --stage-production-soft: #E0BC67;
+  --stage-sales: #6F4A6A;
+  --stage-sales-soft: #C7A8C4;
+  --stage-finance: #4B6B3C;
+  --stage-finance-soft: #A8C390;
+  --stage-neutral: #426C7A;
+  --stage-neutral-soft: #83A9B1;
 
   /* ── Elegant editorial-minimal extension (hybrid light canvas + dark workbench) ──
      Additive layer. New components consume these; existing tokens unchanged. */
@@ -391,7 +404,6 @@
   --space-5: 1.5rem;
   --space-6: 2rem;
   --space-8: 3rem;
-  --radius-card: 12px;
 }
 
 .dark {
@@ -439,9 +451,34 @@
   --glass-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
   --glass-shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
 
+  /* ── Dark values for every light-canvas token (dark mode tuntas) ── */
+  --canvas: #141210;
+  --surface: #1A1815;
+  --surface-raised: #211E1B;
+  --technical-line: #38322B;
+
+  --surface-canvas: #141210;
+  --surface-panel: #1A1815;
+  --status-info: #62A9C7;
+  --status-success: #6FBFA4;
+  --status-warning: #D9A441;
+  --status-danger: #D97C86;
+
+  --paper: #171512;
+  --paper-sunken: #12100E;
+  --ink: #F2EFEA;
+  --ink-secondary: #B3ACA2;
+  --ink-tertiary: #8B8478;
+  --copper-strong: #D96A45;
+  --border-strong: #453E35;
+  --elevation-soft: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --elevation-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.55);
+
   --text-primary: #F2EFEA;
-  --text-secondary: #9B948D;
-  --text-tertiary: #5E5852;
+  --text-secondary: #B3ACA2;
+  --text-tertiary: #8B8478;
+
+  --dashboard-canvas-grid: rgba(242, 239, 234, 0.03);
 }
 
 @layer base {
@@ -505,8 +542,8 @@
   .dashboard-canvas {
     background-color: var(--canvas);
     background-image:
-      linear-gradient(rgba(20, 24, 23, 0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(20, 24, 23, 0.025) 1px, transparent 1px);
+      linear-gradient(var(--dashboard-canvas-grid, rgba(20, 24, 23, 0.025)) 1px, transparent 1px),
+      linear-gradient(90deg, var(--dashboard-canvas-grid, rgba(20, 24, 23, 0.025)) 1px, transparent 1px);
     background-size: 32px 32px;
   }
 
@@ -625,10 +662,114 @@
     border-radius: var(--radius-card);
   }
 
+  /* ── Stage tone utilities (sumber tunggal untuk Sidebar, stage rail, MobileDock) ──
+     Semua di atas krom obsidian. Pola per tone S:
+       .tone-S-text        teks/ikon lembut (eyebrow, signal, inactive)
+       .tone-S-line        garis/pita dasar
+       .tone-S-active      pill aktif stage-rail (glow 30%)
+       .tone-S-complete    pill tahap selesai (55%/14%)
+       .tone-S-navactive   item sidebar aktif (glow panjang 90%)
+     .nav-icon-active bersifat lintas-tone (ikon aktif selalu putih di kaca gelap). */
+  .tone-system-text   { color: var(--stage-system-soft); }
+  .tone-system-line   { background-color: var(--stage-system); }
+  .tone-system-active { background-color: var(--stage-system); border-color: var(--stage-system); color: #fff; box-shadow: 0 0 22px color-mix(in srgb, var(--stage-system) 30%, transparent); }
+  .tone-system-complete { border-color: color-mix(in srgb, var(--stage-system) 55%, transparent); background-color: color-mix(in srgb, var(--stage-system) 14%, transparent); color: var(--stage-system-soft); }
+  .tone-system-navactive { background-color: var(--stage-system); color: #fff; box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--stage-system) 90%, transparent); }
+
+  .tone-inventory-text   { color: var(--stage-inventory-soft); }
+  .tone-inventory-line   { background-color: var(--stage-inventory); }
+  .tone-inventory-active { background-color: var(--stage-inventory); border-color: var(--stage-inventory); color: #fff; box-shadow: 0 0 22px color-mix(in srgb, var(--stage-inventory) 30%, transparent); }
+  .tone-inventory-complete { border-color: color-mix(in srgb, var(--stage-inventory) 55%, transparent); background-color: color-mix(in srgb, var(--stage-inventory) 14%, transparent); color: var(--stage-inventory-soft); }
+  .tone-inventory-navactive { background-color: var(--stage-inventory); color: #fff; box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--stage-inventory) 90%, transparent); }
+
+  .tone-warehouse-text   { color: var(--stage-warehouse-soft); }
+  .tone-warehouse-line   { background-color: var(--stage-warehouse); }
+  .tone-warehouse-active { background-color: var(--stage-warehouse); border-color: var(--stage-warehouse); color: #fff; box-shadow: 0 0 22px color-mix(in srgb, var(--stage-warehouse) 30%, transparent); }
+  .tone-warehouse-complete { border-color: color-mix(in srgb, var(--stage-warehouse) 55%, transparent); background-color: color-mix(in srgb, var(--stage-warehouse) 14%, transparent); color: var(--stage-warehouse-soft); }
+  .tone-warehouse-navactive { background-color: var(--stage-warehouse); color: #fff; box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--stage-warehouse) 90%, transparent); }
+
+  .tone-roasting-text   { color: var(--stage-roasting-soft); }
+  .tone-roasting-line   { background-color: var(--stage-roasting); }
+  .tone-roasting-active { background-color: var(--stage-roasting); border-color: var(--stage-roasting); color: #fff; box-shadow: 0 0 22px color-mix(in srgb, var(--stage-roasting) 30%, transparent); }
+  .tone-roasting-complete { border-color: color-mix(in srgb, var(--stage-roasting) 55%, transparent); background-color: color-mix(in srgb, var(--stage-roasting) 14%, transparent); color: var(--stage-roasting-soft); }
+  .tone-roasting-navactive { background-color: var(--stage-roasting); color: #fff; box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--stage-roasting) 90%, transparent); }
+
+  .tone-production-text   { color: var(--stage-production-soft); }
+  .tone-production-line   { background-color: var(--stage-production); }
+  .tone-production-active { background-color: var(--stage-production); border-color: var(--stage-production); color: #fff; box-shadow: 0 0 22px color-mix(in srgb, var(--stage-production) 30%, transparent); }
+  .tone-production-complete { border-color: color-mix(in srgb, var(--stage-production) 55%, transparent); background-color: color-mix(in srgb, var(--stage-production) 14%, transparent); color: var(--stage-production-soft); }
+  .tone-production-navactive { background-color: var(--stage-production); color: #fff; box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--stage-production) 90%, transparent); }
+
+  .tone-sales-text   { color: var(--stage-sales-soft); }
+  .tone-sales-line   { background-color: var(--stage-sales); }
+  .tone-sales-active { background-color: var(--stage-sales); border-color: var(--stage-sales); color: #fff; box-shadow: 0 0 22px color-mix(in srgb, var(--stage-sales) 30%, transparent); }
+  .tone-sales-complete { border-color: color-mix(in srgb, var(--stage-sales) 55%, transparent); background-color: color-mix(in srgb, var(--stage-sales) 14%, transparent); color: var(--stage-sales-soft); }
+  .tone-sales-navactive { background-color: var(--stage-sales); color: #fff; box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--stage-sales) 90%, transparent); }
+
+  .tone-finance-text   { color: var(--stage-finance-soft); }
+  .tone-finance-line   { background-color: var(--stage-finance); }
+  .tone-finance-active { background-color: var(--stage-finance); border-color: var(--stage-finance); color: #fff; box-shadow: 0 0 22px color-mix(in srgb, var(--stage-finance) 30%, transparent); }
+  .tone-finance-complete { border-color: color-mix(in srgb, var(--stage-finance) 55%, transparent); background-color: color-mix(in srgb, var(--stage-finance) 14%, transparent); color: var(--stage-finance-soft); }
+  .tone-finance-navactive { background-color: var(--stage-finance); color: #fff; box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--stage-finance) 90%, transparent); }
+
+  .tone-neutral-text   { color: var(--stage-neutral-soft); }
+  .tone-neutral-line   { background-color: var(--stage-neutral); }
+  .tone-neutral-active { background-color: var(--stage-neutral); border-color: var(--stage-neutral); color: #fff; box-shadow: 0 0 22px color-mix(in srgb, var(--stage-neutral) 30%, transparent); }
+  .tone-neutral-complete { border-color: color-mix(in srgb, var(--stage-neutral) 55%, transparent); background-color: color-mix(in srgb, var(--stage-neutral) 14%, transparent); color: var(--stage-neutral-soft); }
+  .tone-neutral-navactive { background-color: var(--stage-neutral); color: #fff; box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--stage-neutral) 90%, transparent); }
+
+  .nav-icon-active {
+    border-color: rgb(255 255 255 / 0.1);
+    background-color: rgb(255 255 255 / 0.1);
+    color: #fff;
+  }
+
+  /* ── MobileDock tones (system memakai instrument dock yang lebih terang) ── */
+  .dock-system-text { color: var(--stage-dock-system-soft); }
+  .dock-system-line { background-color: var(--stage-dock-system); box-shadow: 0 0 14px color-mix(in srgb, var(--stage-dock-system) 80%, transparent); }
+  .dock-system-activeicon { border-color: color-mix(in srgb, var(--stage-dock-system) 45%, transparent); background-color: color-mix(in srgb, var(--stage-dock-system) 15%, transparent); color: var(--stage-dock-system); }
+  .dock-system-prominent { background-color: var(--stage-dock-system); color: #041116; }
+  .dock-system-inactive { color: var(--stage-dock-system); }
+
+  .dock-inventory-text { color: var(--stage-inventory-soft); }
+  .dock-inventory-line { background-color: var(--stage-inventory); box-shadow: 0 0 14px color-mix(in srgb, var(--stage-inventory) 80%, transparent); }
+  .dock-inventory-activeicon { border-color: color-mix(in srgb, var(--stage-inventory) 55%, transparent); background-color: color-mix(in srgb, var(--stage-inventory) 18%, transparent); color: var(--stage-inventory-soft); }
+  .dock-inventory-prominent { background-color: var(--stage-inventory); color: #fff; }
+  .dock-inventory-inactive { color: var(--stage-inventory-soft); }
+
+  .dock-roasting-text { color: var(--stage-roasting-soft); }
+  .dock-roasting-line { background-color: var(--stage-roasting); box-shadow: 0 0 14px color-mix(in srgb, var(--stage-roasting) 80%, transparent); }
+  .dock-roasting-activeicon { border-color: color-mix(in srgb, var(--stage-roasting) 55%, transparent); background-color: color-mix(in srgb, var(--stage-roasting) 18%, transparent); color: var(--stage-roasting-soft); }
+  .dock-roasting-prominent { background-color: var(--stage-roasting); color: #fff; }
+  .dock-roasting-inactive { color: var(--stage-roasting-soft); }
+
+  .dock-production-text { color: var(--stage-production-soft); }
+  .dock-production-line { background-color: var(--stage-production); }
+  .dock-production-activeicon { border-color: color-mix(in srgb, var(--stage-production) 55%, transparent); background-color: color-mix(in srgb, var(--stage-production) 18%, transparent); color: var(--stage-production-soft); }
+  .dock-production-prominent { background-color: var(--stage-production); color: #fff; }
+  .dock-production-inactive { color: var(--stage-production-soft); }
+
+  .dock-sales-text { color: var(--stage-sales-soft); }
+  .dock-sales-line { background-color: var(--stage-sales); box-shadow: 0 0 14px color-mix(in srgb, var(--stage-sales) 80%, transparent); }
+  .dock-sales-activeicon { border-color: color-mix(in srgb, var(--stage-sales) 55%, transparent); background-color: color-mix(in srgb, var(--stage-sales) 18%, transparent); color: var(--stage-sales-soft); }
+  .dock-sales-prominent { background-color: var(--stage-sales); color: #fff; }
+  .dock-sales-inactive { color: var(--stage-sales-soft); }
+
+  .dock-finance-text { color: var(--stage-finance-soft); }
+  .dock-finance-line { background-color: var(--stage-finance); }
+  .dock-finance-activeicon { border-color: color-mix(in srgb, var(--stage-finance) 55%, transparent); background-color: color-mix(in srgb, var(--stage-finance) 18%, transparent); color: var(--stage-finance-soft); }
+  .dock-finance-prominent { background-color: var(--stage-finance); color: #fff; }
+  .dock-finance-inactive { color: var(--stage-finance-soft); }
+
+  .dock-neutral-text { color: var(--stage-neutral-soft); }
+  .dock-neutral-line { background-color: var(--stage-neutral); }
+  .dock-neutral-activeicon { border-color: color-mix(in srgb, var(--stage-neutral) 55%, transparent); background-color: color-mix(in srgb, var(--stage-neutral) 18%, transparent); color: var(--stage-neutral-soft); }
+  .dock-neutral-prominent { background-color: var(--stage-neutral); color: #fff; }
+  .dock-neutral-inactive { color: var(--stage-neutral-soft); }
+
   /* ── Animations ── */
 
-  @keyframes smoothFadeUp {
-    0% {
+  @keyframes smoothFadeUp {    0% {
       opacity: 0;
       transform: translateY(30px);
     }

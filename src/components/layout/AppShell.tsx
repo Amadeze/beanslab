@@ -24,6 +24,10 @@ const MOBILE_PRIMARY_HREFS = [
   "/roasting",
 ];
 
+/**
+ * Tone dock memakai utilitas `.dock-<tone>-*` dari globals.css — tanpa hex
+ * literal. Tone "system" memakai instrument dock yang lebih terang.
+ */
 const MOBILE_TONES: Record<AppNavLink["tone"], {
   text: string;
   line: string;
@@ -32,53 +36,53 @@ const MOBILE_TONES: Record<AppNavLink["tone"], {
   inactiveIcon: string;
 }> = {
   system: {
-    text: "text-[#8EF3FC]",
-    line: "bg-[#00C8DF] shadow-[0_0_14px_rgba(0,200,223,.8)]",
-    activeIcon: "border-[#00C8DF]/45 bg-[#00C8DF]/15 text-[#00C8DF]",
-    prominent: "bg-[#00C8DF] text-[#041116]",
-    inactiveIcon: "text-[#00C8DF]",
+    text: "dock-system-text",
+    line: "dock-system-line",
+    activeIcon: "dock-system-activeicon",
+    prominent: "dock-system-prominent",
+    inactiveIcon: "dock-system-inactive",
   },
   inventory: {
-    text: "text-[#87CDBC]",
-    line: "bg-[#2B7567] shadow-[0_0_14px_rgba(43,117,103,.8)]",
-    activeIcon: "border-[#2B7567]/55 bg-[#2B7567]/18 text-[#87CDBC]",
-    prominent: "bg-[#2B7567] text-white",
-    inactiveIcon: "text-[#87CDBC]",
+    text: "dock-inventory-text",
+    line: "dock-inventory-line",
+    activeIcon: "dock-inventory-activeicon",
+    prominent: "dock-inventory-prominent",
+    inactiveIcon: "dock-inventory-inactive",
   },
   roasting: {
-    text: "text-[#E9A17F]",
-    line: "bg-[#B65331] shadow-[0_0_14px_rgba(182,83,49,.8)]",
-    activeIcon: "border-[#B65331]/55 bg-[#B65331]/18 text-[#E9A17F]",
-    prominent: "bg-[#B65331] text-white",
-    inactiveIcon: "text-[#E9A17F]",
+    text: "dock-roasting-text",
+    line: "dock-roasting-line",
+    activeIcon: "dock-roasting-activeicon",
+    prominent: "dock-roasting-prominent",
+    inactiveIcon: "dock-roasting-inactive",
   },
   production: {
-    text: "text-[#E0BC67]",
-    line: "bg-[#A66F12]",
-    activeIcon: "border-[#A66F12]/55 bg-[#A66F12]/18 text-[#E0BC67]",
-    prominent: "bg-[#A66F12] text-white",
-    inactiveIcon: "text-[#E0BC67]",
+    text: "dock-production-text",
+    line: "dock-production-line",
+    activeIcon: "dock-production-activeicon",
+    prominent: "dock-production-prominent",
+    inactiveIcon: "dock-production-inactive",
   },
   sales: {
-    text: "text-[#C7A8C4]",
-    line: "bg-[#6F4A6A] shadow-[0_0_14px_rgba(111,74,106,.8)]",
-    activeIcon: "border-[#6F4A6A]/55 bg-[#6F4A6A]/18 text-[#C7A8C4]",
-    prominent: "bg-[#6F4A6A] text-white",
-    inactiveIcon: "text-[#C7A8C4]",
+    text: "dock-sales-text",
+    line: "dock-sales-line",
+    activeIcon: "dock-sales-activeicon",
+    prominent: "dock-sales-prominent",
+    inactiveIcon: "dock-sales-inactive",
   },
   finance: {
-    text: "text-[#A8C390]",
-    line: "bg-[#4B6B3C]",
-    activeIcon: "border-[#4B6B3C]/55 bg-[#4B6B3C]/18 text-[#A8C390]",
-    prominent: "bg-[#4B6B3C] text-white",
-    inactiveIcon: "text-[#A8C390]",
+    text: "dock-finance-text",
+    line: "dock-finance-line",
+    activeIcon: "dock-finance-activeicon",
+    prominent: "dock-finance-prominent",
+    inactiveIcon: "dock-finance-inactive",
   },
   neutral: {
-    text: "text-[#83A9B1]",
-    line: "bg-[#426C7A]",
-    activeIcon: "border-[#426C7A]/55 bg-[#426C7A]/18 text-[#83A9B1]",
-    prominent: "bg-[#426C7A] text-white",
-    inactiveIcon: "text-[#83A9B1]",
+    text: "dock-neutral-text",
+    line: "dock-neutral-line",
+    activeIcon: "dock-neutral-activeicon",
+    prominent: "dock-neutral-prominent",
+    inactiveIcon: "dock-neutral-inactive",
   },
 };
 

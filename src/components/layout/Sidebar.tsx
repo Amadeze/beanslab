@@ -35,45 +35,49 @@ export type AppNavLink = {
   tone: "system" | "inventory" | "roasting" | "sales" | "finance" | "production" | "neutral";
 };
 
+/**
+ * Tone nav memakai utilitas `.tone-<tone>-navactive` + `.tone-<tone>-text`
+ * dari globals.css — tanpa hex literal.
+ */
 export const NAV_TONE_STYLES: Record<AppNavLink["tone"], {
   active: string;
   activeIcon: string;
   inactiveIcon: string;
 }> = {
   system: {
-    active: "bg-[#B65331] text-white shadow-[0_10px_30px_-18px_rgba(182,83,49,.9)]",
-    activeIcon: "border-white/10 bg-white/10 text-white",
-    inactiveIcon: "text-[#E9A17F]",
+    active: "tone-system-navactive",
+    activeIcon: "nav-icon-active",
+    inactiveIcon: "tone-system-text",
   },
   inventory: {
-    active: "bg-[#2B7567] text-white shadow-[0_10px_30px_-18px_rgba(43,117,103,.9)]",
-    activeIcon: "border-white/10 bg-white/10 text-white",
-    inactiveIcon: "text-[#87CDBC]",
+    active: "tone-inventory-navactive",
+    activeIcon: "nav-icon-active",
+    inactiveIcon: "tone-inventory-text",
   },
   roasting: {
-    active: "bg-[#B65331] text-white shadow-[0_10px_30px_-18px_rgba(182,83,49,.9)]",
-    activeIcon: "border-white/10 bg-white/10 text-white",
-    inactiveIcon: "text-[#E9A17F]",
+    active: "tone-roasting-navactive",
+    activeIcon: "nav-icon-active",
+    inactiveIcon: "tone-roasting-text",
   },
   production: {
-    active: "bg-[#A66F12] text-white shadow-[0_10px_30px_-18px_rgba(166,111,18,.9)]",
-    activeIcon: "border-white/10 bg-white/10 text-white",
-    inactiveIcon: "text-[#E0BC67]",
+    active: "tone-production-navactive",
+    activeIcon: "nav-icon-active",
+    inactiveIcon: "tone-production-text",
   },
   sales: {
-    active: "bg-[#6F4A6A] text-white shadow-[0_10px_30px_-18px_rgba(111,74,106,.9)]",
-    activeIcon: "border-white/10 bg-white/10 text-white",
-    inactiveIcon: "text-[#C7A8C4]",
+    active: "tone-sales-navactive",
+    activeIcon: "nav-icon-active",
+    inactiveIcon: "tone-sales-text",
   },
   finance: {
-    active: "bg-[#4B6B3C] text-white shadow-[0_10px_30px_-18px_rgba(75,107,60,.9)]",
-    activeIcon: "border-white/10 bg-white/10 text-white",
-    inactiveIcon: "text-[#A8C390]",
+    active: "tone-finance-navactive",
+    activeIcon: "nav-icon-active",
+    inactiveIcon: "tone-finance-text",
   },
   neutral: {
-    active: "bg-[#426C7A] text-white shadow-[0_10px_30px_-18px_rgba(66,108,122,.9)]",
-    activeIcon: "border-white/10 bg-white/10 text-white",
-    inactiveIcon: "text-[#83A9B1]",
+    active: "tone-neutral-navactive",
+    activeIcon: "nav-icon-active",
+    inactiveIcon: "tone-neutral-text",
   },
 };
 
