@@ -149,7 +149,7 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
 
   return (
     <nav
-      className="border-b border-white/10 bg-[#05090D]"
+      className="border-b border-white/10 bg-obsidian"
       aria-label={`Navigasi workspace ${kind}`}
     >
       <div className="mx-auto flex min-h-12 w-full max-w-[1600px] items-center gap-3 px-4 md:hidden">
@@ -164,7 +164,7 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
           className="h-10 min-w-0 flex-1 rounded-lg border border-white/15 bg-white/[0.06] px-3 text-sm font-semibold text-white outline-none focus:border-[#00C8DF] focus:ring-2 focus:ring-[#00C8DF]/30"
         >
           {items.map((item) => (
-            <option key={itemHref(item)} value={itemHref(item)} className="bg-[#0B141B] text-white">
+            <option key={itemHref(item)} value={itemHref(item)} className="bg-[var(--chrome-panel)] text-white">
               {item.label}
             </option>
           ))}

@@ -276,7 +276,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "relative flex h-full shrink-0 flex-col overflow-hidden bg-[#05090D] text-white transition-[width] duration-500 ease-[cubic-bezier(.16,1,.3,1)]",
+        "relative flex h-full shrink-0 flex-col overflow-hidden bg-obsidian text-white transition-[width] duration-500 ease-[cubic-bezier(.16,1,.3,1)]",
         isCollapsed ? "w-[74px]" : "w-[264px]",
       )}
     >
@@ -297,7 +297,7 @@ export function Sidebar({
       )}>
         <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-[#B65331] text-white shadow-[0_0_34px_rgba(182,83,49,.25)]">
           <Coffee size={18} strokeWidth={2.2} />
-          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#05090D] bg-white" />
+          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-obsidian bg-white" />
         </div>
 
         {!isCollapsed ? (
@@ -323,7 +323,7 @@ export function Sidebar({
           <button
             type="button"
             onClick={() => setCollapsed(false)}
-            className="absolute -right-3 top-6 z-20 flex h-7 w-7 items-center justify-center rounded-[8px] border border-white/10 bg-[#0E1C24] text-white/55 shadow-xl transition hover:text-white"
+            className="absolute -right-3 top-6 z-20 flex h-7 w-7 items-center justify-center rounded-[8px] border border-white/10 bg-[var(--chrome-accent)] text-white/55 shadow-xl transition hover:text-white"
             aria-label="Perluas navigasi"
           >
             <ChevronRight size={13} />
@@ -332,7 +332,7 @@ export function Sidebar({
       </div>
 
       {!isCollapsed ? (
-        <div className="relative z-10 mx-4 mt-4 rounded-[12px] border border-white/[0.08] bg-[#0B141B] p-3.5">
+        <div className="relative z-10 mx-4 mt-4 rounded-[12px] border border-white/[0.08] bg-[var(--chrome-panel)] p-3.5">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[8px] uppercase tracking-[0.17em] text-white/35">
               Workspace
@@ -421,9 +421,9 @@ export function Sidebar({
                       </>
                     ) : (
                           <>
-                            {item.href === "/penjualan" && pendingPaymentReviews > 0 ? <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#05090D] bg-red-500" /> : null}
-                            {item.href === "/inventory" && lowStockCount > 0 ? <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#05090D] bg-red-500" /> : null}
-                            {item.href === "/produksi" && unfulfilledOrders > 0 ? <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#05090D] bg-amber-500" /> : null}
+                            {item.href === "/penjualan" && pendingPaymentReviews > 0 ? <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-obsidian bg-red-500" /> : null}
+                            {item.href === "/inventory" && lowStockCount > 0 ? <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-obsidian bg-red-500" /> : null}
+                            {item.href === "/produksi" && unfulfilledOrders > 0 ? <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-obsidian bg-amber-500" /> : null}
                           </>
                         )}
                   </Link>

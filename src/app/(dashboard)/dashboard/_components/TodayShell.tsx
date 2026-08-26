@@ -42,7 +42,7 @@ export function TodayShell({ data }: { data: TodayData }) {
           </div>
           <Link
             href={primaryAction.href}
-            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[10px] bg-[#05090D] px-4 text-sm font-bold text-white transition hover:bg-stone-800"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[10px] bg-obsidian px-4 text-sm font-bold text-white transition hover:bg-stone-800"
           >
             <PrimaryIcon size={16} />
             {primaryAction.label}

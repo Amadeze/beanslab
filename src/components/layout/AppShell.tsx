@@ -101,7 +101,7 @@ function MobileDock({
 }) {
   return (
     <nav
-      className="grid h-[60px] shrink-0 border-t border-white/10 bg-[#05090D] px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_40px_rgba(5,9,13,.18)] md:hidden"
+      className="grid h-[60px] shrink-0 border-t border-white/10 bg-obsidian px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_40px_rgba(5,9,13,.18)] md:hidden"
       style={{ gridTemplateColumns: `repeat(${items.length + 1}, minmax(0, 1fr))` }}
       aria-label="Navigasi utama mobile"
     >
@@ -127,8 +127,8 @@ function MobileDock({
             {prominent ? (
               <span
                 className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-[10px] border-[2px] border-[#05090D] shadow-[0_6px_18px_rgba(0,0,0,.4)]",
-                  active ? tone.prominent : `border-white/10 bg-[#0E1C24] ${tone.inactiveIcon}`,
+                  "flex h-9 w-9 items-center justify-center rounded-[10px] border-[2px] border-obsidian shadow-[0_6px_18px_rgba(0,0,0,.4)]",
+                  active ? tone.prominent : `border-white/10 bg-[var(--chrome-accent)] ${tone.inactiveIcon}`,
                 )}
               >
                 <Icon size={16} strokeWidth={2.2} />
@@ -218,7 +218,7 @@ export function AppShell({
   }, [pathname]);
 
   return (
-    <div className="ros-workspace flex h-[100dvh] w-full overflow-hidden bg-[#05090D]">
+    <div className="ros-workspace flex h-[100dvh] w-full overflow-hidden bg-obsidian">
       {isMobileMenuOpen ? (
         <button
           type="button"
@@ -269,7 +269,7 @@ export function AppShell({
       </div>
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background md:my-2 md:mr-2 md:rounded-[18px] md:border md:border-white/10 md:shadow-[0_24px_90px_rgba(0,0,0,.48)]">
-        <header className="flex h-[48px] shrink-0 items-center justify-between border-b border-white/10 bg-[#05090D] px-4 text-white md:hidden">
+        <header className="flex h-[48px] shrink-0 items-center justify-between border-b border-white/10 bg-obsidian px-4 text-white md:hidden">
           <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"

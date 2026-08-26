@@ -3,12 +3,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function DashboardLoading() {
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background" aria-busy="true" aria-label="Memuat ruang kendali roastery">
-      <div className="shrink-0 border-b border-white/10 bg-[#05090D] text-white">
+      <div className="shrink-0 border-b border-white/10 bg-obsidian text-white">
         <div className="mx-auto flex min-h-11 w-full max-w-[1600px] items-center justify-between px-4 sm:px-6 lg:px-8">
           <Skeleton className="h-2.5 w-44 bg-white/10" />
           <Skeleton className="hidden h-2.5 w-64 bg-white/10 sm:block" />
         </div>
-        <div className="border-t border-white/[0.06] bg-[#0B141B]/60 px-4 py-2 sm:px-6 lg:px-8">
+        <div className="border-t border-white/[0.06] bg-[var(--chrome-panel)]/60 px-4 py-2 sm:px-6 lg:px-8">
           <Skeleton className="h-4 w-64 bg-white/10" />
         </div>
         <div className="mx-auto grid w-full max-w-[1600px] grid-cols-5 border-t border-white/[0.06]">
@@ -39,7 +39,7 @@ export default function DashboardLoading() {
                 </div>
               ))}
             </section>
-            <section className="min-h-[300px] rounded-[14px] border border-white/10 bg-[#0B141B] p-5">
+            <section className="min-h-[300px] rounded-[14px] border border-white/10 bg-[var(--chrome-panel)] p-5">
               <Skeleton className="h-2 w-24 bg-white/10" />
               <Skeleton className="mt-4 h-8 w-3/4 bg-white/10" />
               <Skeleton className="mt-6 h-1.5 w-full bg-white/10" />

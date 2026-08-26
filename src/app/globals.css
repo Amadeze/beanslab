@@ -387,6 +387,8 @@
   /* Sinyal di krom obsidian */
   --chrome-danger-soft: #FF8C88;
   --chrome-instrument-soft: #71D2DA;
+  --chrome-panel: #0B141B;
+  --chrome-accent: #0E1C24;
 
   /* ── Elegant editorial-minimal extension (hybrid light canvas + dark workbench) ──
      Additive layer. New components consume these; existing tokens unchanged. */

@@ -120,7 +120,7 @@ export function CommandPalette({
       aria-label="Perintah cepat"
     >
       <div
-        className="w-full max-w-[560px] overflow-hidden rounded-[16px] border border-white/12 bg-[#0B141B] shadow-[0_40px_120px_rgba(0,0,0,.6)]"
+        className="w-full max-w-[560px] overflow-hidden rounded-[16px] border border-white/12 bg-[var(--chrome-panel)] shadow-[0_40px_120px_rgba(0,0,0,.6)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">

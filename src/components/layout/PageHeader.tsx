@@ -65,12 +65,12 @@ export function PageHeader({
   return (
     <header
       data-testid="page-header"
-      className="instrument-grid-dark relative z-20 shrink-0 border-b border-white/10 bg-[#05090D] text-white"
+      className="instrument-grid-dark relative z-20 shrink-0 border-b border-white/10 bg-obsidian text-white"
     >
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav
           aria-label="Breadcrumb"
-          className="border-b border-white/[0.06] bg-[#0B141B]/40"
+          className="border-b border-white/[0.06] bg-[var(--chrome-panel)]/40"
         >
           <div className="mx-auto flex w-full max-w-[1600px] items-center gap-1.5 px-4 py-1.5 text-[10px] font-semibold text-white/40 sm:px-6 lg:px-8">
             {breadcrumbs.map((crumb, index) => {
@@ -216,7 +216,7 @@ export function PageHeader({
         )}
       </div>
       {(signal || (metrics && metrics.length > 0) || next) && (
-        <div className="border-t border-white/[0.06] bg-[#0B141B]/60">
+        <div className="border-t border-white/[0.06] bg-[var(--chrome-panel)]/60">
           <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 sm:px-6 lg:px-8">
             {signal && (
               <button
@@ -310,7 +310,7 @@ export function PageHeader({
         <nav
           data-testid="operating-stage-rail-mobile"
           aria-label="Alur operasional roastery"
-          className="border-t border-white/[0.08] bg-[#0B141B]/95 xl:hidden"
+          className="border-t border-white/[0.08] bg-[var(--chrome-panel)]/95 xl:hidden"
         >
           <div className="mx-auto grid h-[44px] w-full max-w-[1600px] grid-cols-6 px-2 sm:px-6 lg:px-8">
             {operatingStages.map((item, index) => {
@@ -368,7 +368,7 @@ export function PageHeader({
 
 export function PageHeaderSkeleton({ stage = false }: { stage?: boolean }) {
   return (
-    <div className="shrink-0 border-b border-white/10 bg-[#05090D]" aria-hidden>
+    <div className="shrink-0 border-b border-white/10 bg-obsidian" aria-hidden>
       <div className="mx-auto flex min-h-[56px] w-full max-w-[1600px] items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
         <div className="space-y-1.5">
           <div className="h-1.5 w-20 animate-pulse rounded-full bg-white/20" />
@@ -378,7 +378,7 @@ export function PageHeaderSkeleton({ stage = false }: { stage?: boolean }) {
         <div className="h-8 w-24 animate-pulse rounded-lg bg-white/10" />
       </div>
       {stage && (
-        <div className="grid h-[44px] grid-cols-6 border-t border-white/10 bg-[#0B141B] px-6 xl:hidden">
+        <div className="grid h-[44px] grid-cols-6 border-t border-white/10 bg-[var(--chrome-panel)] px-6 xl:hidden">
           {Array.from({ length: 6 }).map((_, index) => (
             <div
               key={index}

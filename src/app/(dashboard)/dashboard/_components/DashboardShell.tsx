@@ -88,8 +88,8 @@ function CompactDashboardHeader({
       href: "/inventory",
       icon: Boxes,
       attention: data.lowStock.length > 0,
-      tone: "border-[#2B7567]/60 bg-[#2B7567]/16 text-[#87CDBC]",
-      line: "bg-[#2B7567]",
+      tone: "border-[var(--stage-inventory)]/60 bg-[var(--stage-inventory)]/16 text-[var(--stage-inventory-soft)]",
+      line: "bg-[var(--stage-inventory)]",
     },
     {
       number: "02",
@@ -98,8 +98,8 @@ function CompactDashboardHeader({
       href: "/gudang",
       icon: Warehouse,
       attention: false,
-      tone: "border-[#4A6B84]/60 bg-[#4A6B84]/16 text-[#9FB8C9]",
-      line: "bg-[#4A6B84]",
+      tone: "border-[var(--stage-warehouse)]/60 bg-[var(--stage-warehouse)]/16 text-[var(--stage-warehouse-soft)]",
+      line: "bg-[var(--stage-warehouse)]",
     },
     {
       number: "03",
@@ -110,8 +110,8 @@ function CompactDashboardHeader({
       href: "/roasting",
       icon: Flame,
       attention: false,
-      tone: "border-[#B65331]/60 bg-[#B65331]/16 text-[#E9A17F]",
-      line: "bg-[#B65331]",
+      tone: "border-[var(--stage-roasting)]/60 bg-[var(--stage-roasting)]/16 text-[var(--stage-roasting-soft)]",
+      line: "bg-[var(--stage-roasting)]",
     },
     {
       number: "04",
@@ -122,8 +122,8 @@ function CompactDashboardHeader({
       href: "/produksi",
       icon: Factory,
       attention: data.operationalQueue.fulfillmentNeedsProduction > 0,
-      tone: "border-[#A66F12]/60 bg-[#A66F12]/16 text-[#E0BC67]",
-      line: "bg-[#A66F12]",
+      tone: "border-[var(--stage-production)]/60 bg-[var(--stage-production)]/16 text-[var(--stage-production-soft)]",
+      line: "bg-[var(--stage-production)]",
     },
     {
       number: "05",
@@ -134,8 +134,8 @@ function CompactDashboardHeader({
       href: "/penjualan",
       icon: ReceiptText,
       attention: data.operationalQueue.overdueReceivables.count > 0,
-      tone: "border-[#6F4A6A]/60 bg-[#6F4A6A]/16 text-[#C7A8C4]",
-      line: "bg-[#6F4A6A]",
+      tone: "border-[var(--stage-sales)]/60 bg-[var(--stage-sales)]/16 text-[var(--stage-sales-soft)]",
+      line: "bg-[var(--stage-sales)]",
     },
     {
       number: "06",
@@ -146,25 +146,25 @@ function CompactDashboardHeader({
       href: "/keuangan",
       icon: WalletCards,
       attention: data.operationalQueue.paymentReviews > 0 || data.operationalQueue.overdueReceivables.count > 0,
-      tone: "border-[#4B6B3C]/60 bg-[#4B6B3C]/16 text-[#A8C390]",
-      line: "bg-[#4B6B3C]",
+      tone: "border-[var(--stage-finance)]/60 bg-[var(--stage-finance)]/16 text-[var(--stage-finance-soft)]",
+      line: "bg-[var(--stage-finance)]",
     },
   ];
 
   return (
     <header
       data-testid="compact-dashboard-header"
-      className="instrument-grid-dark relative shrink-0 border-b border-white/10 bg-[#05090D] text-white"
+      className="instrument-grid-dark relative shrink-0 border-b border-white/10 bg-obsidian text-white"
     >
       {/* Top bar: Eyebrow + KPIs */}
       <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[#69E8F3]">
+          <span className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[var(--chrome-instrument-soft)]">
             Owner control room
           </span>
-          <span className="h-px w-8 bg-[#00C8DF]" aria-hidden />
+          <span className="h-px w-8 bg-[var(--instrument)]" aria-hidden />
           <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-white/38">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#00C8DF] shadow-[0_0_10px_rgba(0,200,223,.55)]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--instrument)] shadow-[0_0_10px_rgba(0,200,223,.55)]" />
             Live · {asOfLabel}
           </span>
         </div>
@@ -192,35 +192,35 @@ function CompactDashboardHeader({
       </div>
 
       {/* Signal bar */}
-      <div className="border-t border-white/[0.06] bg-[#0B141B]/60">
+      <div className="border-t border-white/[0.06] bg-[var(--chrome-panel)]/60">
         <div className="mx-auto flex w-full max-w-[1600px] items-center gap-4 px-4 py-2 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             <span className={cn(
               "h-2 w-2 rounded-full",
               criticalCount > 0
-                ? "bg-[#FF8C88] shadow-[0_0_8px_rgba(255,140,136,.5)]"
+                ? "bg-[var(--chrome-danger-soft)] shadow-[0_0_8px_rgba(255,140,136,.5)]"
                 : hasPendingWork
-                  ? "bg-[#E0BC67]"
-                  : "bg-[#22C55E]",
+                  ? "bg-[var(--stage-production-soft)]"
+                  : "bg-[var(--status-success)]",
             )} />
             <span className={cn(
               "text-sm font-bold",
               criticalCount > 0
-                ? "text-[#FF8C88]"
+                ? "text-[var(--chrome-danger-soft)]"
                 : hasPendingWork
-                  ? "text-[#E0BC67]"
-                  : "text-[#22C55E]",
+                  ? "text-[var(--stage-production-soft)]"
+                  : "text-[var(--status-success)]",
             )}>
               {signal}
             </span>
           </div>
           {criticalCount > 0 && (
-            <span className="rounded-[6px] border border-[#FF8C88]/30 bg-[#4C0302] px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.14em] text-[#FFB0AD]">
+            <span className="rounded-[6px] border border-[var(--chrome-danger-soft)]/30 bg-[var(--destructive)] px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.14em] text-[var(--chrome-danger-soft)]">
               {criticalCount} kritis
             </span>
           )}
           {criticalCount === 0 && hasPendingWork && (
-            <span className="rounded-[6px] border border-[#E0BC67]/30 bg-[#3A2A0B] px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.14em] text-[#F2D792]">
+            <span className="rounded-[6px] border border-[var(--stage-production-soft)]/30 bg-[var(--brass-soft)]/15 px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.14em] text-[var(--brass-soft)]">
               {items.length} tindakan
             </span>
           )}
@@ -234,13 +234,13 @@ function CompactDashboardHeader({
             <Link
               key={label}
               href={href}
-              className="group relative min-w-0 border-r border-white/10 px-2 py-3 last:border-r-0 hover:bg-white/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00C8DF] sm:px-4 sm:py-4"
+              className="group relative min-w-0 border-r border-white/10 px-2 py-3 last:border-r-0 hover:bg-white/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--instrument)] sm:px-4 sm:py-4"
             >
               {index > 0 && (
                 <span
                   className={cn(
                     "absolute -left-px top-6 hidden h-px w-3 -translate-x-1/2 sm:top-[30px] sm:block sm:w-5",
-                    attention ? "bg-[#8C2F39]" : line,
+                    attention ? "bg-[var(--status-danger)]" : line,
                   )}
                   aria-hidden
                 />
@@ -250,7 +250,7 @@ function CompactDashboardHeader({
                   className={cn(
                     "relative z-10 flex h-6 w-6 items-center justify-center rounded-[6px] border sm:h-7 sm:w-7",
                     attention
-                      ? "border-[#FF8C88]/30 bg-[#4C0302] text-[#FFB0AD]"
+                      ? "border-[var(--chrome-danger-soft)]/30 bg-[var(--destructive)] text-[var(--chrome-danger-soft)]"
                       : tone,
                   )}
                   aria-label={`Tahap ${number}: ${label}`}
@@ -264,7 +264,7 @@ function CompactDashboardHeader({
                   <p
                     className={cn(
                       "mt-0.5 truncate text-[9px] font-bold tabular-nums sm:text-xs",
-                      attention ? "text-[#FF8C88]" : "text-white",
+                      attention ? "text-[var(--chrome-danger-soft)]" : "text-white",
                     )}
                   >
                     {status}
@@ -316,7 +316,7 @@ export function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
           <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-primary">Hari ini</p>
           <h2 id="work-queue-title" className="mt-1 text-base font-black tracking-[-0.025em] text-stone-950">Pekerjaan berikutnya</h2>
         </div>
-        <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-[8px] bg-[#05090D] px-2 text-xs font-bold tabular-nums text-[#8EF3FC]">
+        <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-[8px] bg-obsidian px-2 text-xs font-bold tabular-nums text-[var(--chrome-instrument-soft)]">
           {String(activeItems.length).padStart(2, "0")}
         </span>
       </div>
@@ -338,7 +338,7 @@ export function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
                   href={item.href}
                   className={cn(
                     "flex-1 grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-3 px-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-900 md:px-5",
-                    index === 0 && !showAll ? "min-h-[88px] bg-[#f3f9fa] hover:bg-[#e9f5f7]" : "min-h-[66px] hover:bg-stone-50",
+                    index === 0 && !showAll ? "min-h-[88px] bg-[var(--surface)] hover:bg-[var(--surface-sunken)]" : "min-h-[66px] hover:bg-stone-50",
                   )}
                 >
                   <span
@@ -423,9 +423,9 @@ function ShiftSummary({ data }: { data: DashboardData }) {
     : data.kpi.kasToday > 0 ? 100 : 0;
 
   return (
-    <section className="instrument-grid-dark overflow-hidden rounded-[14px] border border-white/10 bg-[#0B141B] text-white" aria-labelledby="shift-summary-title">
+    <section className="instrument-grid-dark overflow-hidden rounded-[14px] border border-white/10 bg-[var(--chrome-panel)] text-white" aria-labelledby="shift-summary-title">
       <div className="border-b border-white/10 px-5 py-5">
-        <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#69E8F3]">Shift ledger</p>
+        <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[var(--chrome-instrument-soft)]">Shift ledger</p>
         <div className="mt-2 flex items-end justify-between gap-4">
           <div>
             <h2 id="shift-summary-title" className="text-sm font-bold text-white/55">Penjualan hari ini</h2>
@@ -433,14 +433,14 @@ function ShiftSummary({ data }: { data: DashboardData }) {
               {formatRupiah(data.kpi.revenueToday)}
             </p>
           </div>
-          <Link href="/penjualan" className="mb-0.5 text-xs font-bold text-[#69E8F3] hover:text-white">Buka</Link>
+          <Link href="/penjualan" className="mb-0.5 text-xs font-bold text-[var(--chrome-instrument-soft)] hover:text-white">Buka</Link>
         </div>
         <div className="mt-5 flex items-center justify-between text-xs text-white/42">
           <span>Kas yang sudah diterima</span>
           <span className="font-bold tabular-nums">{cashRealization.toFixed(0)}%</span>
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full rounded-full bg-[#4B6B3C]" style={{ width: `${cashRealization}%` }} />
+          <div className="h-full rounded-full bg-[var(--stage-finance)]" style={{ width: `${cashRealization}%` }} />
         </div>
       </div>
 
@@ -451,7 +451,7 @@ function ShiftSummary({ data }: { data: DashboardData }) {
         </Link>
         <Link href="/keuangan" className="p-5 hover:bg-white/[0.04]">
           <dt className="font-mono text-[8px] uppercase tracking-[0.16em] text-white/35">Piutang aktif</dt>
-          <dd className="mt-2 text-sm font-black tabular-nums text-[#FF8C88]">{formatRupiah(data.kpi.totalPiutang)}</dd>
+          <dd className="mt-2 text-sm font-black tabular-nums text-[var(--chrome-danger-soft)]">{formatRupiah(data.kpi.totalPiutang)}</dd>
           <dd className="mt-1 text-xs text-white/35">{data.kpi.piutangCount} nota</dd>
         </Link>
       </dl>
@@ -480,7 +480,7 @@ function RevenuePanel({ data }: { data: DashboardData }) {
     <section className="rounded-[14px] border border-border bg-card p-4 md:p-5" aria-labelledby="revenue-title">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[#6F4A6A]">Arus penjualan</p>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[var(--stage-sales)]">Arus penjualan</p>
           <h2 id="revenue-title" className="text-sm font-bold text-stone-900">Pendapatan 7 hari</h2>
           <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-stone-900">{formatRupiah(total)}</p>
         </div>
@@ -493,12 +493,12 @@ function RevenuePanel({ data }: { data: DashboardData }) {
           <AreaChart data={data.revenueTrend} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>
             <defs>
               <linearGradient id="workbenchRevenue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#6F4A6A" stopOpacity={0.24} />
-                <stop offset="100%" stopColor="#6F4A6A" stopOpacity={0} />
+                <stop offset="0%" stopColor="var(--stage-sales)" stopOpacity={0.24} />
+                <stop offset="100%" stopColor="var(--stage-sales)" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#e7e5e4" vertical={false} strokeDasharray="3 4" />
-            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#78716c" }} dy={8} />
+            <CartesianGrid stroke="var(--technical-line)" vertical={false} strokeDasharray="3 4" />
+            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--ink-tertiary)" }} dy={8} />
             <RechartsTooltip
               content={({ active, payload, label }) => active && payload?.length ? (
                 <div className="rounded-md border border-stone-200 bg-white px-3 py-2 shadow-lg">
@@ -507,7 +507,7 @@ function RevenuePanel({ data }: { data: DashboardData }) {
                 </div>
               ) : null}
             />
-            <Area type="monotone" dataKey="revenue" stroke="#6F4A6A" strokeWidth={2} fill="url(#workbenchRevenue)" isAnimationActive={false} />
+            <Area type="monotone" dataKey="revenue" stroke="var(--stage-sales)" strokeWidth={2} fill="url(#workbenchRevenue)" isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -520,7 +520,7 @@ function ActivityTable({ items, mounted }: { items: ActivityItem[]; mounted: boo
     <section className="overflow-hidden rounded-[14px] border border-border bg-card" aria-labelledby="activity-title">
       <div className="flex min-h-14 items-center justify-between border-b border-stone-200 px-4 md:px-5">
         <div>
-          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[#426C7A]">Jejak operasi</p>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[var(--stage-neutral)]">Jejak operasi</p>
           <h2 id="activity-title" className="text-sm font-bold text-stone-900">Aktivitas terbaru</h2>
           <p className="text-xs text-stone-500">Transaksi lintas area kerja</p>
         </div>
@@ -574,7 +574,7 @@ function StockWatchlist({ items }: { items: LowStockItem[] }) {
     <section className="overflow-hidden rounded-[14px] border border-border bg-card" aria-labelledby="stock-watch-title">
       <div className="flex min-h-14 items-center justify-between border-b border-stone-200 px-4 md:px-5">
         <div>
-          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[#4C0302]">Risiko pasokan</p>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[var(--destructive)]">Risiko pasokan</p>
           <h2 id="stock-watch-title" className="text-sm font-bold text-stone-900">Pantauan stok</h2>
           <p className="text-xs text-stone-500">Item di bawah batas aman</p>
         </div>
