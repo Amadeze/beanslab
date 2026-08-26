@@ -148,7 +148,7 @@ export default function InventoryOverviewClient() {
           <div className="grid gap-3 sm:grid-cols-3">
             <Link
               href="/laporan/inventory/stock"
-              className="group flex items-center justify-between rounded-lg border border-stone-200 p-4 transition-colors hover:border-[#00C8DF]/30 hover:bg-[#00C8DF]/[0.03]"
+              className="group flex items-center justify-between rounded-lg border border-stone-200 p-4 transition-colors hover:border-[var(--instrument)]/30 hover:bg-[var(--instrument)]/[0.03]"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-blue-50 p-2">
@@ -163,13 +163,13 @@ export default function InventoryOverviewClient() {
               </div>
               <ArrowRight
                 size={14}
-                className="text-stone-300 transition-colors group-hover:text-[#00C8DF]"
+                className="text-stone-300 transition-colors group-hover:text-[var(--instrument)]"
               />
             </Link>
 
             <Link
               href="/laporan/inventory/roasting"
-              className="group flex items-center justify-between rounded-lg border border-stone-200 p-4 transition-colors hover:border-[#00C8DF]/30 hover:bg-[#00C8DF]/[0.03]"
+              className="group flex items-center justify-between rounded-lg border border-stone-200 p-4 transition-colors hover:border-[var(--instrument)]/30 hover:bg-[var(--instrument)]/[0.03]"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-amber-50 p-2">
@@ -184,13 +184,13 @@ export default function InventoryOverviewClient() {
               </div>
               <ArrowRight
                 size={14}
-                className="text-stone-300 transition-colors group-hover:text-[#00C8DF]"
+                className="text-stone-300 transition-colors group-hover:text-[var(--instrument)]"
               />
             </Link>
 
             <Link
               href="/laporan/inventory/production"
-              className="group flex items-center justify-between rounded-lg border border-stone-200 p-4 transition-colors hover:border-[#00C8DF]/30 hover:bg-[#00C8DF]/[0.03]"
+              className="group flex items-center justify-between rounded-lg border border-stone-200 p-4 transition-colors hover:border-[var(--instrument)]/30 hover:bg-[var(--instrument)]/[0.03]"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-emerald-50 p-2">
@@ -205,13 +205,13 @@ export default function InventoryOverviewClient() {
               </div>
               <ArrowRight
                 size={14}
-                className="text-stone-300 transition-colors group-hover:text-[#00C8DF]"
+                className="text-stone-300 transition-colors group-hover:text-[var(--instrument)]"
               />
             </Link>
 
             <Link
               href="/laporan/analisa/nilai-stok"
-              className="group flex items-center justify-between rounded-lg border border-stone-200 p-4 transition-colors hover:border-[#00C8DF]/30 hover:bg-[#00C8DF]/[0.03]"
+              className="group flex items-center justify-between rounded-lg border border-stone-200 p-4 transition-colors hover:border-[var(--instrument)]/30 hover:bg-[var(--instrument)]/[0.03]"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-indigo-50 p-2">
@@ -226,13 +226,13 @@ export default function InventoryOverviewClient() {
               </div>
               <ArrowRight
                 size={14}
-                className="text-stone-300 transition-colors group-hover:text-[#00C8DF]"
+                className="text-stone-300 transition-colors group-hover:text-[var(--instrument)]"
               />
             </Link>
 
             <Link
               href="/laporan/analisa/alur-kopi"
-              className="group flex items-center justify-between rounded-lg border border-stone-200 p-4 transition-colors hover:border-[#00C8DF]/30 hover:bg-[#00C8DF]/[0.03]"
+              className="group flex items-center justify-between rounded-lg border border-stone-200 p-4 transition-colors hover:border-[var(--instrument)]/30 hover:bg-[var(--instrument)]/[0.03]"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-neutral-50 p-2">
@@ -247,7 +247,7 @@ export default function InventoryOverviewClient() {
               </div>
               <ArrowRight
                 size={14}
-                className="text-stone-300 transition-colors group-hover:text-[#00C8DF]"
+                className="text-stone-300 transition-colors group-hover:text-[var(--instrument)]"
               />
             </Link>
           </div>

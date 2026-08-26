@@ -108,12 +108,12 @@ export function LocationDetailDrawer({ loc, onClose }: { loc: VisualLocation; on
         role="dialog"
         aria-modal="true"
         aria-labelledby="location-detail-title"
-        className="relative flex h-full w-full max-w-[560px] flex-col border-l border-white/10 bg-[#F4F2EA] shadow-[-24px_0_80px_rgba(5,9,13,.35)]"
+        className="relative flex h-full w-full max-w-[560px] flex-col border-l border-white/10 bg-[var(--surface)] shadow-[-24px_0_80px_rgba(5,9,13,.35)]"
       >
-        <header className="shrink-0 border-b border-white/10 bg-[#05090D] px-4 py-4 text-white sm:px-6">
+        <header className="shrink-0 border-b border-white/10 bg-[var(--obsidian)] px-4 py-4 text-white sm:px-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-[#2B7567]/45 bg-[#2B7567]/20 text-[#87CDBC]">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-[var(--stage-inventory)]/45 bg-[var(--stage-inventory)]/20 text-[var(--stage-inventory-soft)]">
                 <MapPin size={19} aria-hidden />
               </span>
               <div className="min-w-0">
@@ -128,7 +128,7 @@ export function LocationDetailDrawer({ loc, onClose }: { loc: VisualLocation; on
                 <p className="mt-1 font-mono text-xs uppercase tracking-[0.12em] text-white/55">{loc.code} · Zona {loc.rackGroup}</p>
               </div>
             </div>
-            <button ref={closeButtonRef} type="button" onClick={onClose} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-white/15 text-white/75 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C8DF]" aria-label="Tutup detail lokasi">
+            <button ref={closeButtonRef} type="button" onClick={onClose} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-white/15 text-white/75 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]" aria-label="Tutup detail lokasi">
               <X size={19} aria-hidden />
             </button>
           </div>
@@ -136,26 +136,26 @@ export function LocationDetailDrawer({ loc, onClose }: { loc: VisualLocation; on
 
         <div className="custom-scrollbar flex-1 overflow-y-auto px-4 py-5 sm:px-6">
           <section aria-label="Ringkasan lokasi" className="grid grid-cols-2 gap-3">
-            <div className="rounded-[12px] border border-[#CDC8BC] bg-[#FFFDF8] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#777D78]">Status</p>
-              <p className="mt-2 text-base font-bold text-[#141817]">{loc.lotCount > 0 ? `${loc.lotCount} lot tersimpan` : "Lokasi kosong"}</p>
+            <div className="rounded-[12px] border border-[var(--technical-line)] bg-[var(--surface-raised)] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--ink-tertiary)]">Status</p>
+              <p className="mt-2 text-base font-bold text-[var(--foreground)]">{loc.lotCount > 0 ? `${loc.lotCount} lot tersimpan` : "Lokasi kosong"}</p>
             </div>
-            <div className="rounded-[12px] border border-[#CDC8BC] bg-[#FFFDF8] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#777D78]">Kapasitas</p>
-              <p className="mt-2 text-base font-bold text-[#141817]">{loc.capacity ? loc.capacity.toLocaleString("id-ID", { maximumFractionDigits: 2 }) : "Belum diatur"}</p>
+            <div className="rounded-[12px] border border-[var(--technical-line)] bg-[var(--surface-raised)] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--ink-tertiary)]">Kapasitas</p>
+              <p className="mt-2 text-base font-bold text-[var(--foreground)]">{loc.capacity ? loc.capacity.toLocaleString("id-ID", { maximumFractionDigits: 2 }) : "Belum diatur"}</p>
             </div>
-            <div className="col-span-2 rounded-[12px] border border-[#CDC8BC] bg-[#FFFDF8] p-4">
+            <div className="col-span-2 rounded-[12px] border border-[var(--technical-line)] bg-[var(--surface-raised)] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#777D78]">Pemakaian lokasi</p>
-                  <p className="mt-2 text-sm font-semibold text-[#141817]">
+                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--ink-tertiary)]">Pemakaian lokasi</p>
+                  <p className="mt-2 text-sm font-semibold text-[var(--foreground)]">
                     {measurement ? `${measurement.value.toLocaleString("id-ID", { maximumFractionDigits: 2 })} ${measurement.unit}` : loc.lotCount > 0 ? "Satuan campuran" : "Belum ada stok"}
                   </p>
                 </div>
-                <span className="font-mono text-lg font-bold tabular-nums text-[#2B7567]">{occupancy === null ? "—" : `${Math.round(occupancy)}%`}</span>
+                <span className="font-mono text-lg font-bold tabular-nums text-[var(--stage-inventory)]">{occupancy === null ? "—" : `${Math.round(occupancy)}%`}</span>
               </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#E4E1D7]" aria-hidden>
-                <div className={`h-full rounded-full ${occupancy !== null && occupancy > 100 ? "bg-rose-600" : occupancy !== null && occupancy >= 80 ? "bg-amber-600" : "bg-[#2B7567]"}`} style={{ width: `${Math.min(100, occupancy ?? 0)}%` }} />
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--secondary)]" aria-hidden>
+                <div className={`h-full rounded-full ${occupancy !== null && occupancy > 100 ? "bg-rose-600" : occupancy !== null && occupancy >= 80 ? "bg-amber-600" : "bg-[var(--stage-inventory)]"}`} style={{ width: `${Math.min(100, occupancy ?? 0)}%` }} />
               </div>
             </div>
           </section>
@@ -172,37 +172,37 @@ export function LocationDetailDrawer({ loc, onClose }: { loc: VisualLocation; on
 
           <section aria-labelledby="stored-lots-title" className="mt-6">
             <div className="flex items-center justify-between gap-3">
-              <h3 id="stored-lots-title" className="text-sm font-bold text-[#141817]">Lot di lokasi ini</h3>
-              <span className="rounded-full bg-[#E4E1D7] px-2.5 py-1 text-xs font-semibold text-[#59605B]">{loc.placements.length}</span>
+              <h3 id="stored-lots-title" className="text-sm font-bold text-[var(--foreground)]">Lot di lokasi ini</h3>
+              <span className="rounded-full bg-[var(--secondary)] px-2.5 py-1 text-xs font-semibold text-[var(--ink-secondary)]">{loc.placements.length}</span>
             </div>
 
             {loc.placements.length === 0 ? (
-              <div className="mt-3 rounded-[12px] border border-dashed border-[#BFB9AB] bg-[#FFFDF8] p-7 text-center">
-                <Package className="mx-auto h-9 w-9 text-[#777D78]" aria-hidden />
-                <p className="mt-3 text-sm font-semibold text-[#141817]">Lokasi masih kosong</p>
-                <p className="mt-1 text-xs text-[#59605B]">Pindahkan lot melalui halaman detail lot atau gunakan pemindai lokasi.</p>
+              <div className="mt-3 rounded-[12px] border border-dashed border-[var(--input)] bg-[var(--surface-raised)] p-7 text-center">
+                <Package className="mx-auto h-9 w-9 text-[var(--ink-tertiary)]" aria-hidden />
+                <p className="mt-3 text-sm font-semibold text-[var(--foreground)]">Lokasi masih kosong</p>
+                <p className="mt-1 text-xs text-[var(--ink-secondary)]">Pindahkan lot melalui halaman detail lot atau gunakan pemindai lokasi.</p>
               </div>
             ) : (
               <div className="mt-3 space-y-3">
                 {loc.placements.map((placement) => (
-                  <article key={placement.lotId} className="rounded-[12px] border border-[#CDC8BC] bg-[#FFFDF8] p-4">
+                  <article key={placement.lotId} className="rounded-[12px] border border-[var(--technical-line)] bg-[var(--surface-raised)] p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-[#141817]">{placement.label}</p>
-                        <p className="mt-1 font-mono text-xs text-[#59605B]">{placement.batchCode}</p>
-                        <p className="mt-1 text-xs text-[#777D78]">{placement.supplierName ?? "Supplier tidak dicatat"}</p>
+                        <p className="truncate text-sm font-bold text-[var(--foreground)]">{placement.label}</p>
+                        <p className="mt-1 font-mono text-xs text-[var(--ink-secondary)]">{placement.batchCode}</p>
+                        <p className="mt-1 text-xs text-[var(--ink-tertiary)]">{placement.supplierName ?? "Supplier tidak dicatat"}</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="font-mono text-sm font-bold tabular-nums text-[#141817]">{quantityLabel(placement)}</p>
+                        <p className="font-mono text-sm font-bold tabular-nums text-[var(--foreground)]">{quantityLabel(placement)}</p>
                         {placement.expiryDate ? (
-                          <p className="mt-1 inline-flex items-center gap-1 text-xs text-[#59605B]"><Calendar size={12} aria-hidden />{new Date(placement.expiryDate).toLocaleDateString("id-ID")}</p>
+                          <p className="mt-1 inline-flex items-center gap-1 text-xs text-[var(--ink-secondary)]"><Calendar size={12} aria-hidden />{new Date(placement.expiryDate).toLocaleDateString("id-ID")}</p>
                         ) : null}
                       </div>
                     </div>
-                    <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[#E4E1D7] pt-3">
-                      <Link href={`/inventory/lots/${placement.lotId}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[9px] border border-[#BFB9AB] px-2 text-xs font-semibold text-[#141817] transition hover:bg-[#F4F2EA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]"><Package size={14} aria-hidden />Lihat</Link>
-                      <Link href={`/inventory/lots/${placement.lotId}?action=transfer&sourceLocationId=${loc.id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[9px] border border-[#BFB9AB] px-2 text-xs font-semibold text-[#141817] transition hover:bg-[#F4F2EA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]"><ArrowRightLeft size={14} aria-hidden />Pindahkan</Link>
-                      <button type="button" disabled={loc.isSystem || opnameLotId === placement.lotId} onClick={() => handleOpname(placement)} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[9px] border border-[#BFB9AB] px-2 text-xs font-semibold text-[#141817] transition hover:bg-[#F4F2EA] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]"><Scale size={14} aria-hidden />{opnameLotId === placement.lotId ? "Membuat…" : "Opname"}</button>
+                    <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[var(--secondary)] pt-3">
+                      <Link href={`/inventory/lots/${placement.lotId}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[9px] border border-[var(--input)] px-2 text-xs font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]"><Package size={14} aria-hidden />Lihat</Link>
+                      <Link href={`/inventory/lots/${placement.lotId}?action=transfer&sourceLocationId=${loc.id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[9px] border border-[var(--input)] px-2 text-xs font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]"><ArrowRightLeft size={14} aria-hidden />Pindahkan</Link>
+                      <button type="button" disabled={loc.isSystem || opnameLotId === placement.lotId} onClick={() => handleOpname(placement)} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[9px] border border-[var(--input)] px-2 text-xs font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface)] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]"><Scale size={14} aria-hidden />{opnameLotId === placement.lotId ? "Membuat…" : "Opname"}</button>
                     </div>
                   </article>
                 ))}
@@ -211,9 +211,9 @@ export function LocationDetailDrawer({ loc, onClose }: { loc: VisualLocation; on
           </section>
         </div>
 
-        <footer className="grid shrink-0 grid-cols-2 gap-3 border-t border-[#CDC8BC] bg-[#FFFDF8] p-4 sm:px-6">
-          <Link href={`/gudang/scan?code=${encodeURIComponent(loc.code)}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-[#2B7567] px-4 text-sm font-semibold text-white transition hover:bg-[#225F54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6] focus-visible:ring-offset-2"><ScanLine size={16} aria-hidden />Pindai lokasi</Link>
-          <Link href="/gudang" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] border border-[#BFB9AB] px-4 text-sm font-semibold text-[#141817] transition hover:bg-[#F4F2EA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]"><Warehouse size={16} aria-hidden />Kelola lokasi</Link>
+        <footer className="grid shrink-0 grid-cols-2 gap-3 border-t border-[var(--technical-line)] bg-[var(--surface-raised)] p-4 sm:px-6">
+          <Link href={`/gudang/scan?code=${encodeURIComponent(loc.code)}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-[var(--stage-inventory)] px-4 text-sm font-semibold text-white transition hover:bg-[color-mix(in srgb, var(--stage-inventory) 85%, black)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)] focus-visible:ring-offset-2"><ScanLine size={16} aria-hidden />Pindai lokasi</Link>
+          <Link href="/gudang" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] border border-[var(--input)] px-4 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]"><Warehouse size={16} aria-hidden />Kelola lokasi</Link>
         </footer>
       </aside>
     </div>

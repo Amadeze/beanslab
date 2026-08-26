@@ -295,7 +295,7 @@ export function Sidebar({
         "relative z-10 flex h-[72px] shrink-0 items-center border-b border-white/[0.08]",
         isCollapsed ? "justify-center px-3" : "gap-3 px-5",
       )}>
-        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-[#B65331] text-white shadow-[0_0_34px_rgba(182,83,49,.25)]">
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-[var(--stage-roasting)] text-white shadow-[0_0_34px_rgba(182,83,49,.25)]">
           <Coffee size={18} strokeWidth={2.2} />
           <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-obsidian bg-white" />
         </div>
@@ -312,7 +312,7 @@ export function Sidebar({
               <button
                 type="button"
                 onClick={() => setCollapsed(true)}
-                className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-white/10 text-white/35 transition hover:border-[#B65331]/35 hover:bg-[#B65331]/10 hover:text-[#F0B590]"
+                className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-white/10 text-white/35 transition hover:border-[var(--stage-roasting)]/35 hover:bg-[var(--stage-roasting)]/10 hover:text-[var(--stage-system-soft)]"
                 aria-label="Ciutkan navigasi"
               >
                 <ChevronLeft size={14} />
@@ -337,7 +337,7 @@ export function Sidebar({
             <span className="font-mono text-[8px] uppercase tracking-[0.17em] text-white/35">
               Workspace
             </span>
-            <span className="h-1.5 w-1.5 rounded-full bg-[#B65331] shadow-[0_0_12px_#B65331]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--stage-roasting)] shadow-[0_0_12px_var(--stage-roasting)]" />
           </div>
           <div className="mt-2 flex items-end justify-between gap-3">
             <div>
@@ -346,7 +346,7 @@ export function Sidebar({
               </p>
               <p className="mt-0.5 text-[9px] text-white/32">akses operasional aktif</p>
             </div>
-              <span className="rounded-[6px] border border-[#B65331]/30 bg-[#B65331]/12 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[#F3DCD1]">
+              <span className="rounded-[6px] border border-[var(--stage-roasting)]/30 bg-[var(--stage-roasting)]/12 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--copper-soft)]">
                 {PLAN_CATALOG[subscriptionTier].label}
               </span>
           </div>
@@ -386,7 +386,7 @@ export function Sidebar({
                     title={isCollapsed ? item.label : undefined}
                     aria-current={active ? "page" : undefined}
                      className={cn(
-                       "group relative flex items-center transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B65331]",
+                       "group relative flex items-center transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--stage-roasting)]",
                       isCollapsed
                         ? "mx-auto h-11 w-11 justify-center rounded-[11px]"
                         : "min-h-11 gap-3 rounded-[10px] px-3 py-2",
@@ -442,7 +442,7 @@ export function Sidebar({
           <button
             type="submit"
               className={cn(
-                "group flex w-full items-center rounded-[10px] text-white/38 transition hover:bg-[#B65331]/10 hover:text-[#F0B590]",
+                "group flex w-full items-center rounded-[10px] text-white/38 transition hover:bg-[var(--stage-roasting)]/10 hover:text-[var(--stage-system-soft)]",
               isCollapsed
                 ? "mx-auto h-11 w-11 justify-center"
                 : "gap-3 px-3 py-2.5 text-xs font-medium",

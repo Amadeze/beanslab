@@ -9,13 +9,13 @@ import { createWarehouse, updateWarehouse, toggleWarehouseActive, type Warehouse
 import { createLocation, updateLocation, toggleLocationActive, type LocationRow } from "../locations/actions";
 
 const INPUT_GLASS =
-  "h-11 w-full rounded-[10px] border border-[var(--glass-border)] bg-[var(--glass-bg)] px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[#2B7567]/30";
+  "h-11 w-full rounded-[10px] border border-[var(--glass-border)] bg-[var(--glass-bg)] px-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--stage-inventory)]/30";
 const BTN_PRIMARY =
-  "inline-flex min-h-11 items-center justify-center rounded-[10px] bg-[#2B7567] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#225F54] disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex min-h-11 items-center justify-center rounded-[10px] bg-[var(--stage-inventory)] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[color-mix(in srgb, var(--stage-inventory) 85%, black)] disabled:pointer-events-none disabled:opacity-50";
 const BTN_GHOST =
   "inline-flex min-h-11 items-center justify-center rounded-[10px] border border-[var(--glass-border)] px-5 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--glass-bg-hover)]";
 const BTN_GHOST_ICON =
-  "inline-flex h-11 w-11 items-center justify-center rounded-[9px] text-[var(--text-tertiary)] transition hover:bg-[var(--glass-bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]";
+  "inline-flex h-11 w-11 items-center justify-center rounded-[9px] text-[var(--text-tertiary)] transition hover:bg-[var(--glass-bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]";
 
 const SYSTEM_PURPOSE_LABELS: Record<string, string> = {
   ROASTING_WIP: "Roasting WIP",
@@ -157,13 +157,13 @@ export function GudangClient({
 
   return (
     <div className="space-y-6">
-      <div className="inline-flex w-fit items-center rounded-[10px] border border-[#CDC8BC] bg-[#E4E1D7] p-1">
+      <div className="inline-flex w-fit items-center rounded-[10px] border border-[var(--technical-line)] bg-[var(--secondary)] p-1">
         <button
           onClick={() => setActiveTab("warehouses")}
           className={`min-h-10 rounded-[7px] px-4 text-sm font-semibold transition ${
             activeTab === "warehouses"
-              ? "bg-[#2B7567] text-white shadow-sm"
-              : "text-[#59605B] hover:bg-white/70 hover:text-[#141817]"
+              ? "bg-[var(--stage-inventory)] text-white shadow-sm"
+              : "text-[var(--ink-secondary)] hover:bg-white/70 hover:text-[var(--foreground)]"
           }`}
         >
           Gudang
@@ -172,8 +172,8 @@ export function GudangClient({
           onClick={() => setActiveTab("locations")}
           className={`min-h-10 rounded-[7px] px-4 text-sm font-semibold transition ${
             activeTab === "locations"
-              ? "bg-[#2B7567] text-white shadow-sm"
-              : "text-[#59605B] hover:bg-white/70 hover:text-[#141817]"
+              ? "bg-[var(--stage-inventory)] text-white shadow-sm"
+              : "text-[var(--ink-secondary)] hover:bg-white/70 hover:text-[var(--foreground)]"
           }`}
         >
           Lokasi
@@ -194,7 +194,7 @@ export function GudangClient({
                 resetWarehouseForm();
                 setShowWarehouseForm(true);
               }}
-              className="inline-flex min-h-11 items-center gap-2 rounded-[10px] bg-[#2B7567] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#225F54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]"
+              className="inline-flex min-h-11 items-center gap-2 rounded-[10px] bg-[var(--stage-inventory)] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[color-mix(in srgb, var(--stage-inventory) 85%, black)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]"
             >
               <Plus size={16} /> Tambah Gudang
             </button>
@@ -385,7 +385,7 @@ export function GudangClient({
             </div>
             <button
               onClick={() => { resetLocationForm(); setShowLocationForm(true); }}
-              className="inline-flex min-h-11 items-center gap-2 rounded-[10px] bg-[#2B7567] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#225F54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15B8C6]"
+              className="inline-flex min-h-11 items-center gap-2 rounded-[10px] bg-[var(--stage-inventory)] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[color-mix(in srgb, var(--stage-inventory) 85%, black)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]"
             >
               <Plus size={16} /> Tambah Lokasi
             </button>
