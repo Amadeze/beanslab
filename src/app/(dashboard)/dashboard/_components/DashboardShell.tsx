@@ -31,9 +31,11 @@ import {
 } from "@/lib/dashboard-work-queue";
 import type { ActivityItem, DashboardData, LowStockItem } from "../actions";
 import { RoasteryCopilot } from "./RoasteryCopilot";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { CoffeeFlowMini } from "./CoffeeFlowMini";
 import { ControlTowerView } from "../../control-tower/_components/ControlTowerView";
 import type { getControlTowerData } from "../../control-tower/actions";
+import type { DailyBriefPayload } from "@/lib/daily-brief";
 
 function formatTimeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -60,222 +62,50 @@ const ACTIVITY_HREF: Record<ActivityItem["type"], string> = {
   SALE: "/penjualan",
 };
 
-function CompactDashboardHeader({
-  data,
-  items,
-  asOfLabel,
-}: {
-  data: DashboardData;
-  items: DashboardWorkItem[];
-  asOfLabel: string;
-}) {
-  const criticalCount = items.filter((item) => item.severity === "critical").length;
-  const hasPendingWork = items.length > 0;
-  const signal = items[0]?.title ?? "Tidak ada hambatan operasional";
-
-  const brief = data.dailyBrief;
-  // Prinsip satu sumber kebenaran: stage rail menampilkan STATUS operasional,
-  // bukan mengulang metrik yang sudah tampil di strip KPI atau kartu utama.
+/**
+ * StageStrip — alur 6 tahap sebagai kartu terang ringkas (Bento).
+ * Status diambil dari antrian operasional, bukan metrik ganda.
+ */
+function StageStrip({ data, brief }: { data: DashboardData; brief: DailyBriefPayload | null }) {
   const stages = [
-    {
-      number: "01",
-      label: "Pasokan",
-      status: data.lowStock.length > 0
-        ? "Perlu cek"
-        : data.operationalQueue.purchaseOrdersToReceive > 0
-          ? `${data.operationalQueue.purchaseOrdersToReceive} datang`
-          : "OK",
-      href: "/inventory",
-      icon: Boxes,
-      attention: data.lowStock.length > 0,
-      tone: "border-[var(--stage-inventory)]/60 bg-[var(--stage-inventory)]/16 text-[var(--stage-inventory-soft)]",
-      line: "bg-[var(--stage-inventory)]",
-    },
-    {
-      number: "02",
-      label: "Gudang",
-      status: "Lokasi & lot",
-      href: "/gudang",
-      icon: Warehouse,
-      attention: false,
-      tone: "border-[var(--stage-warehouse)]/60 bg-[var(--stage-warehouse)]/16 text-[var(--stage-warehouse-soft)]",
-      line: "bg-[var(--stage-warehouse)]",
-    },
-    {
-      number: "03",
-      label: "Roasting",
-      status: data.operationalQueue.roastingBatchesOpen > 0
-        ? `${data.operationalQueue.roastingBatchesOpen} aktif`
-        : `${brief?.roasting.batchCount ?? 0} kemarin`,
-      href: "/roasting",
-      icon: Flame,
-      attention: false,
-      tone: "border-[var(--stage-roasting)]/60 bg-[var(--stage-roasting)]/16 text-[var(--stage-roasting-soft)]",
-      line: "bg-[var(--stage-roasting)]",
-    },
-    {
-      number: "04",
-      label: "Produksi",
-      status: data.operationalQueue.fulfillmentNeedsProduction > 0
-        ? `${data.operationalQueue.fulfillmentNeedsProduction} pesanan`
-        : `${brief?.production.unitsProduced ?? 0} unit`,
-      href: "/produksi",
-      icon: Factory,
-      attention: data.operationalQueue.fulfillmentNeedsProduction > 0,
-      tone: "border-[var(--stage-production)]/60 bg-[var(--stage-production)]/16 text-[var(--stage-production-soft)]",
-      line: "bg-[var(--stage-production)]",
-    },
-    {
-      number: "05",
-      label: "Penjualan",
-      status: data.operationalQueue.overdueReceivables.count > 0
-        ? `${data.operationalQueue.overdueReceivables.count} jatuh tempo`
-        : "Aktif",
-      href: "/penjualan",
-      icon: ReceiptText,
-      attention: data.operationalQueue.overdueReceivables.count > 0,
-      tone: "border-[var(--stage-sales)]/60 bg-[var(--stage-sales)]/16 text-[var(--stage-sales-soft)]",
-      line: "bg-[var(--stage-sales)]",
-    },
-    {
-      number: "06",
-      label: "Kas",
-      status: data.operationalQueue.paymentReviews > 0
-        ? `${data.operationalQueue.paymentReviews} verifikasi`
-        : "OK",
-      href: "/keuangan",
-      icon: WalletCards,
-      attention: data.operationalQueue.paymentReviews > 0 || data.operationalQueue.overdueReceivables.count > 0,
-      tone: "border-[var(--stage-finance)]/60 bg-[var(--stage-finance)]/16 text-[var(--stage-finance-soft)]",
-      line: "bg-[var(--stage-finance)]",
-    },
+    { number: "01", label: "Pasokan", icon: Boxes, status: data.lowStock.length > 0 ? `${data.lowStock.length} stok kritis` : data.operationalQueue.purchaseOrdersToReceive > 0 ? `${data.operationalQueue.purchaseOrdersToReceive} PO datang` : "Aman", href: "/inventory", attention: data.lowStock.length > 0 },
+    { number: "02", label: "Gudang", icon: Warehouse, status: "Lokasi & lot", href: "/gudang", attention: false },
+    { number: "03", label: "Roasting", icon: Flame, status: data.operationalQueue.roastingBatchesOpen > 0 ? `${data.operationalQueue.roastingBatchesOpen} batch aktif` : `${brief?.roasting.batchCount ?? 0} batch kemarin`, href: "/roasting", attention: false },
+    { number: "04", label: "Produksi", icon: Factory, status: data.operationalQueue.fulfillmentNeedsProduction > 0 ? `${data.operationalQueue.fulfillmentNeedsProduction} pesanan menunggu` : `${brief?.production.unitsProduced ?? 0} unit kemarin`, href: "/produksi", attention: data.operationalQueue.fulfillmentNeedsProduction > 0 },
+    { number: "05", label: "Penjualan", icon: ReceiptText, status: data.operationalQueue.overdueReceivables.count > 0 ? `${data.operationalQueue.overdueReceivables.count} jatuh tempo` : `${formatRupiah(data.kpi.revenueToday)} hari ini`, href: "/penjualan", attention: data.operationalQueue.overdueReceivables.count > 0 },
+    { number: "06", label: "Kas", icon: WalletCards, status: data.operationalQueue.paymentReviews > 0 ? `${data.operationalQueue.paymentReviews} verifikasi bukti` : `${formatRupiah(data.kpi.kasToday)} masuk`, href: "/keuangan", attention: data.operationalQueue.paymentReviews > 0 || data.operationalQueue.overdueReceivables.count > 0 },
   ];
 
   return (
-    <header
-      data-testid="compact-dashboard-header"
-      className="instrument-grid-dark relative shrink-0 border-b border-white/10 bg-obsidian text-white"
-    >
-      {/* Top bar: Eyebrow + KPIs */}
-      <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-[var(--chrome-instrument-soft)]">
-            Owner control room
-          </span>
-          <span className="h-px w-8 bg-[var(--instrument)]" aria-hidden />
-          <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-white/38">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--instrument)] shadow-[0_0_10px_rgba(0,200,223,.55)]" />
-            Live · {asOfLabel}
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5">
-            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">Stok Kritis</span>
-            <span className="text-xs font-bold tabular-nums text-red-400">{data.kpi.lowStockCount}</span>
-          </div>
-          <div className="hidden h-3 w-px bg-white/10 sm:block" />
-          <div className="flex items-center gap-1.5">
-            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">Penjualan</span>
-            <span className="text-xs font-bold tabular-nums text-white/80">{formatRupiah(data.kpi.revenueToday)}</span>
-          </div>
-          <div className="hidden h-3 w-px bg-white/10 sm:block" />
-          <div className="hidden items-center gap-1.5 sm:flex">
-            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">Margin</span>
-            <span className="text-xs font-bold tabular-nums text-emerald-400">{data.kpi.averageGrossMargin.toFixed(1)}%</span>
-          </div>
-          <div className="hidden h-3 w-px bg-white/10 sm:block" />
-          <div className="hidden items-center gap-1.5 sm:flex">
-            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">Yield</span>
-            <span className="text-xs font-bold tabular-nums text-white/80">{data.kpi.averageRoastYield.toFixed(1)}%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Signal bar */}
-      <div className="border-t border-white/[0.06] bg-[var(--chrome-panel)]/60">
-        <div className="mx-auto flex w-full max-w-[1600px] items-center gap-4 px-4 py-2 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2">
-            <span className={cn(
-              "h-2 w-2 rounded-full",
-              criticalCount > 0
-                ? "bg-[var(--chrome-danger-soft)] shadow-[0_0_8px_rgba(255,140,136,.5)]"
-                : hasPendingWork
-                  ? "bg-[var(--stage-production-soft)]"
-                  : "bg-[var(--status-success)]",
-            )} />
-            <span className={cn(
-              "text-sm font-bold",
-              criticalCount > 0
-                ? "text-[var(--chrome-danger-soft)]"
-                : hasPendingWork
-                  ? "text-[var(--stage-production-soft)]"
-                  : "text-[var(--status-success)]",
-            )}>
-              {signal}
-            </span>
-          </div>
-          {criticalCount > 0 && (
-            <span className="rounded-[6px] border border-[var(--chrome-danger-soft)]/30 bg-[var(--destructive)] px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.14em] text-[var(--chrome-danger-soft)]">
-              {criticalCount} kritis
-            </span>
+    <section aria-label="Alur operasional hari ini" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      {stages.map(({ number, label, icon: Icon, status, href, attention }) => (
+        <Link
+          key={number}
+          href={href}
+          className={cn(
+            "group flex min-w-0 flex-col gap-1.5 rounded-card border bg-card p-4 shadow-elevation-soft transition-[border-color,transform] hover:-translate-y-0.5 motion-reduce:hover:transform-none",
+            attention ? "border-[color-mix(in_srgb,var(--status-danger)_45%,transparent)]" : "border-border hover:border-primary/40",
           )}
-          {criticalCount === 0 && hasPendingWork && (
-            <span className="rounded-[6px] border border-[var(--stage-production-soft)]/30 bg-[var(--brass-soft)]/15 px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.14em] text-[var(--brass-soft)]">
-              {items.length} tindakan
+        >
+          <span className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-[0.16em] text-ink-tertiary">
+              <Icon size={12} aria-hidden />
+              {number}
             </span>
-          )}
-        </div>
-      </div>
-
-      {/* 6-stage pipeline — 2×3 di ponsel, 1×6 di layar lebar */}
-      <div className="border-t border-white/[0.06]">
-        <div className="mx-auto grid w-full max-w-[1600px] grid-cols-3 sm:grid-cols-6">
-          {stages.map(({ number, label, status, href, icon: Icon, attention, tone, line }, index) => (
-            <Link
-              key={label}
-              href={href}
-              className="group relative min-w-0 border-r border-white/10 px-2 py-3 last:border-r-0 hover:bg-white/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--instrument)] sm:px-4 sm:py-4"
-            >
-              {index > 0 && (
-                <span
-                  className={cn(
-                    "absolute -left-px top-6 hidden h-px w-3 -translate-x-1/2 sm:top-[30px] sm:block sm:w-5",
-                    attention ? "bg-[var(--status-danger)]" : line,
-                  )}
-                  aria-hidden
-                />
-              )}
-              <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-                <span
-                  className={cn(
-                    "relative z-10 flex h-6 w-6 items-center justify-center rounded-[6px] border sm:h-7 sm:w-7",
-                    attention
-                      ? "border-[var(--chrome-danger-soft)]/30 bg-[var(--destructive)] text-[var(--chrome-danger-soft)]"
-                      : tone,
-                  )}
-                  aria-label={`Tahap ${number}: ${label}`}
-                >
-                  <Icon size={11} strokeWidth={2.1} />
-                </span>
-                <div className="min-w-0 max-w-full">
-                  <p className="truncate text-[8px] font-bold text-white/55 sm:text-xs">
-                    {label}
-                  </p>
-                  <p
-                    className={cn(
-                      "mt-0.5 truncate text-[9px] font-bold tabular-nums sm:text-xs",
-                      attention ? "text-[var(--chrome-danger-soft)]" : "text-white",
-                    )}
-                  >
-                    {status}
-                  </p>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </header>
+            {attention ? <span className="size-2 rounded-full bg-[var(--status-danger)]" aria-label="Perlu perhatian" /> : null}
+          </span>
+          <span className="truncate text-sm font-bold text-foreground">{label}</span>
+          <span
+            className={cn(
+              "truncate text-xs tabular-nums",
+              attention ? "font-semibold text-[var(--status-danger)]" : "text-ink-secondary",
+            )}
+          >
+            {status}
+          </span>
+        </Link>
+      ))}
+    </section>
   );
 }
 
@@ -626,7 +456,28 @@ export function DashboardShell({
 
   return (
     <div data-testid="operations-workbench" className="flex min-h-0 flex-1 flex-col bg-background">
-      <CompactDashboardHeader data={data} items={workItems} asOfLabel={asOfLabel} />
+      <PageHeader
+        title="Hari ini"
+        eyebrow={`Owner · Live ${asOfLabel}`}
+        description="Ringkasan operasi roastery Anda hari ini — dari pasokan sampai kas."
+        signal={{
+          label: "Fokus sekarang",
+          value: workItems[0]?.title ?? "Tidak ada hambatan",
+          tone: workItems.some((i) => i.severity === "critical")
+            ? ("critical" as const)
+            : workItems.length > 0
+              ? undefined
+              : ("ready" as const),
+        }}
+        metrics={[
+          { label: "Penjualan", value: formatRupiah(data.kpi.revenueToday) },
+          { label: "Kas masuk", value: formatRupiah(data.kpi.kasToday) },
+          { label: "Piutang", value: formatRupiah(data.kpi.totalPiutang) },
+          { label: "Yield roast", value: `${data.kpi.averageRoastYield.toFixed(1)}%` },
+        ]}
+      />
+
+      <StageStrip data={data} brief={data.dailyBrief} />
 
       <main className="custom-scrollbar min-w-0 flex-1 overflow-y-auto" id="main-content">
         <div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 md:p-6 lg:p-7">
@@ -635,12 +486,12 @@ export function DashboardShell({
             <ShiftSummary data={data} />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,.75fr)]">
-            <RevenuePanel data={data} />
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,.8fr)]">
+            <CoffeeFlowMini beliKg={data.coffeeFlowMini.beliKg} diRoastKg={data.coffeeFlowMini.diRoastKg} susutKg={data.coffeeFlowMini.susutKg} />
             <StockWatchlist items={data.lowStock} />
           </div>
 
-          <CoffeeFlowMini beliKg={data.coffeeFlowMini.beliKg} diRoastKg={data.coffeeFlowMini.diRoastKg} susutKg={data.coffeeFlowMini.susutKg} />
+          <RevenuePanel data={data} />
 
           <RoasteryCopilot insights={insights ?? []} />
 
