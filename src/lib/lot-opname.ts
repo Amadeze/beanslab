@@ -240,6 +240,8 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
       if (isProductKg && Math.abs(varianceKg) > 0.000001) {
         await appendLedger(tx, {
           tenantId,
+          lotId: opname.lotId,
+          lotNumber: opname.lot.batchCode,
           productId: opname.lot.productId,
           entryType: varianceKg > 0 ? "IN" : "OUT",
           refType: varianceKg > 0 ? "LOCATION_OPNAME_IN" : "LOCATION_OPNAME_OUT",
@@ -251,6 +253,8 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
       } else if ((isProductUnit || isPackaging) && Math.abs(varianceUnit) > 0) {
         await appendLedger(tx, {
           tenantId,
+          lotId: opname.lotId,
+          lotNumber: opname.lot.batchCode,
           ...(isProductUnit ? { productId: opname.lot.productId } : { packagingId: opname.lot.packagingId }),
           entryType: varianceUnit > 0 ? "IN" : "OUT",
           refType: varianceUnit > 0 ? "LOCATION_OPNAME_IN" : "LOCATION_OPNAME_OUT",
@@ -262,6 +266,8 @@ export async function confirmLocationOpname(opnameId: string): Promise<{ success
       } else if (isSupply && Math.abs(varianceSupply) > 0.000001) {
         await appendLedger(tx, {
           tenantId,
+          lotId: opname.lotId,
+          lotNumber: opname.lot.batchCode,
           supplyItemId: opname.lot.supplyItemId,
           entryType: varianceSupply > 0 ? "IN" : "OUT",
           refType: varianceSupply > 0 ? "LOCATION_OPNAME_IN" : "LOCATION_OPNAME_OUT",

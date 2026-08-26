@@ -5,7 +5,7 @@ import { requireRole, requireTenantPrisma, getCurrentTenantId, getSystemUserId }
 import { recordAudit } from "@/lib/audit";
 import { isSystemLocation, SYSTEM_LOCATION_ERROR } from "@/lib/system-location";
 import { revalidatePath } from "next/cache";
-import { summarizeLotInventory } from "@/lib/lot";
+import { summarizeLotInventory, summarizeSupplyLotInventory } from "@/lib/lot";
 import { Prisma } from "@prisma/client";
 
 export type PlacementActionResult =
@@ -72,7 +72,7 @@ export async function placeLot(data: {
     await tp.$transaction(async (tx) => {
       const lot = await tx.lot.findUnique({
         where: { id: data.lotId, tenantId },
-        include: { inventoryLedgers: { select: { entryType: true, quantityKg: true, quantityUnit: true } } },
+        include: { inventoryLedgers: { select: { entryType: true, quantityKg: true, quantityUnit: true, supplyQuantity: true } } },
       });
 
       if (!lot) {
@@ -121,20 +121,30 @@ export async function placeLot(data: {
       const newTotalUnit = sumUnit - existingUnit + qtyUnit;
       const newTotalSupply = sumSupply - existingSupply + qtySupply;
 
+      const supplySummary = lot.supplyItemId
+        ? summarizeSupplyLotInventory({
+            original: lot.supplyQuantity,
+            ledgers: lot.inventoryLedgers,
+            statusField: "supplyQuantity",
+            expiryDate: lot.expiryDate,
+            consumedAt: lot.consumedAt,
+          })
+        : null;
+
       if (lot.productId && Number(lot.quantityKg) > 0) {
         if (Math.round(newTotalKg * 1000) / 1000 > Math.round(inventory.remainingKg * 1000) / 1000) {
           throw new Error("TOTAL_PLACED_EXCEEDS_LOT");
         }
       }
 
-      if (lot.packagingId || lot.supplyItemId) {
+      if (lot.packagingId) {
         if (newTotalUnit > inventory.remainingUnit) {
           throw new Error("TOTAL_PLACED_EXCEEDS_LOT");
         }
       }
 
-      if (lot.supplyItemId && newTotalSupply > 0) {
-        if (Math.round(newTotalSupply * 1000) / 1000 > Math.round(inventory.remainingUnit * 1000) / 1000) {
+      if (lot.supplyItemId && supplySummary) {
+        if (Math.round(newTotalSupply * 1000) / 1000 > Math.round(supplySummary.remainingQty * 1000) / 1000) {
           throw new Error("TOTAL_PLACED_EXCEEDS_LOT");
         }
       }

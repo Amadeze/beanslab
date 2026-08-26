@@ -407,6 +407,7 @@ describe("confirmLocationOpname", () => {
           productId: "prod-1",
           packagingId: null,
           supplyItemId: null,
+          batchCode: "BATCH-1",
         },
       },
     });
@@ -416,12 +417,16 @@ describe("confirmLocationOpname", () => {
     const result = await confirmLocationOpname("opname-1");
 
     expect(result.success).toBe(true);
+    // Regression: entri ledger opname wajib membawa identitas lot agar
+    // rekonsiliasi lot-level dan FEFO tetap jalan.
     expect(appendLedger).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         entryType: "IN",
         refType: "LOCATION_OPNAME_IN",
         quantityKg: 1,
+        lotId: "lot-1",
+        lotNumber: "BATCH-1",
       }),
     );
   });
@@ -462,6 +467,7 @@ describe("confirmLocationOpname", () => {
           productId: null,
           packagingId: "pkg-1",
           supplyItemId: null,
+          batchCode: "BATCH-1",
         },
       },
     });
@@ -478,6 +484,8 @@ describe("confirmLocationOpname", () => {
         refType: "LOCATION_OPNAME_OUT",
         quantityUnit: 10,
         packagingId: "pkg-1",
+        lotId: "lot-1",
+        lotNumber: "BATCH-1",
       }),
     );
   });
@@ -518,6 +526,7 @@ describe("confirmLocationOpname", () => {
           productId: null,
           packagingId: null,
           supplyItemId: "sup-1",
+          batchCode: "BATCH-1",
         },
       },
     });
@@ -534,6 +543,8 @@ describe("confirmLocationOpname", () => {
         refType: "LOCATION_OPNAME_OUT",
         supplyQuantity: 5,
         supplyItemId: "sup-1",
+        lotId: "lot-1",
+        lotNumber: "BATCH-1",
       }),
     );
   });
