@@ -149,6 +149,59 @@ describe("visual warehouse map", () => {
     expect(loc.hasExpiryWarning).toBe(true);
     expect(loc.lotCount).toBe(1);
     expect(loc.totalKg).toBe(10);
+    // Sudah lewat kedaluwarsa → hari negatif (heat kritis).
+    expect(loc.minDaysToExpiry).not.toBeNull();
+    expect(loc.minDaysToExpiry!).toBeLessThanOrEqual(0);
+  });
+
+  it("computes minDaysToExpiry as the nearest future expiry across placements", async () => {
+    const in5 = new Date(Date.now() + 5 * 86_400_000);
+    const in23 = new Date(Date.now() + 23 * 86_400_000);
+    const makePlacement = (lotId: string, kg: number, expiryDate: Date | null) => ({
+      lotId,
+      quantityKg: kg,
+      quantityUnit: 0,
+      supplyQty: 0,
+      lot: {
+        batchCode: `LOT-${lotId}`,
+        productId: "prod-1",
+        packagingId: null,
+        supplyItemId: null,
+        expiryDate,
+        quantityKg: 100,
+        quantityUnit: 0,
+        supplyQuantity: 0,
+        product: { name: "Green Bean" },
+        packaging: null,
+        supplyItem: null,
+        supplier: { name: "S" },
+      },
+    });
+    const mockLocations = [
+      {
+        id: "loc-1",
+        code: "A-01",
+        name: "Rak A",
+        zone: "DRY",
+        isActive: true,
+        isDefault: true,
+        placements: [
+          makePlacement("L-A", 10, in23),
+          makePlacement("L-B", 10, in5),
+          makePlacement("L-C", 10, null),
+        ],
+      },
+    ];
+
+    prisma.warehouse.findMany = vi.fn().mockResolvedValue([
+      { id: "wh-1", code: "WH", name: "Gudang", address: null, isActive: true, isDefault: true, locations: mockLocations },
+    ]);
+
+    const result = await getVisualWarehouseMap();
+    const loc = result.warehouses[0].rackGroups["DRY"][0];
+    // Heat FEFO diambil dari lot TERDEKAT, bukan rata-rata.
+    expect(loc.minDaysToExpiry).toBeGreaterThanOrEqual(4);
+    expect(loc.minDaysToExpiry).toBeLessThanOrEqual(6);
   });
 
   it("computes correct total quantities per location", async () => {

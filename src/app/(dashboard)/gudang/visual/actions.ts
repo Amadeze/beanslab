@@ -30,6 +30,8 @@ export type VisualLocation = {
   totalSupply: number;
   lotCount: number;
   hasExpiryWarning: boolean;
+  /** Hari menuju kedaluwarsa lot TERCEPAT di lokasi ini; negatif = sudah lewat. */
+  minDaysToExpiry: number | null;
 };
 
 export type VisualWarehouse = {
@@ -53,6 +55,20 @@ function formatExpiryWarning(expiryDate: string | null): boolean {
   if (!expiryDate) return false;
   const diff = Math.ceil((new Date(expiryDate).getTime() - Date.now()) / 86_400_000);
   return diff < 30;
+}
+
+function computeMinDaysToExpiry(
+  placements: Array<{ expiryDate: string | null }>,
+): number | null {
+  let min: number | null = null;
+  for (const placement of placements) {
+    if (!placement.expiryDate) continue;
+    const diff = Math.ceil(
+      (new Date(placement.expiryDate).getTime() - Date.now()) / 86_400_000,
+    );
+    if (min === null || diff < min) min = diff;
+  }
+  return min;
 }
 
 export type VisualWarehouseMap = {
@@ -152,6 +168,7 @@ export async function getVisualWarehouseMap(): Promise<VisualWarehouseMap> {
         totalSupply,
         lotCount: placements.length,
         hasExpiryWarning: placements.some((p) => formatExpiryWarning(p.expiryDate)),
+        minDaysToExpiry: computeMinDaysToExpiry(placements),
       };
 
       if (!rackGroups[rackGroup]) rackGroups[rackGroup] = [];
