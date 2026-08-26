@@ -73,8 +73,12 @@ export function JejakBoard({ board }: { board: JejakBoard }) {
   const matchText = (...parts: Array<string | null | undefined>) =>
     !q || parts.some((p) => p?.toLocaleLowerCase("id-ID").includes(q));
 
-  const dim = (kind: Exclude<Selected, null>["kind"], id: string) =>
-    chainIds ? !chainIds[kind].has(id) : false;
+  const dim = (kind: Exclude<Selected, null>["kind"], id: string) => {
+    if (!chainIds) return false;
+    const key =
+      kind === "lot" ? "lots" : kind === "batch" ? "batches" : kind === "cupping" ? "cuppings" : "outputs";
+    return !chainIds[key].has(id);
+  };
 
   function toggle(kind: Exclude<Selected, null>["kind"], id: string) {
     setSelected((prev) => (prev && prev.kind === kind && prev.id === id ? null : { kind, id }));
