@@ -896,7 +896,15 @@ export async function createUser(input: CreateUserInput): Promise<ActionResult> 
 
     const hashedPassword = await bcrypt.hash(password, 10);
     await tp.user.create({
-      data: { tenantId, name, email, password: hashedPassword, role: input.role },
+      data: {
+        tenantId,
+        name,
+        email,
+        password: hashedPassword,
+        role: input.role,
+        // Diundang oleh OWNER terverifikasi di dalam sesi: jalur terpercaya.
+        emailVerifiedAt: new Date(),
+      },
     });
 
     revalidatePath("/master-data");

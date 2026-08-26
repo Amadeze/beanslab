@@ -22,7 +22,7 @@ type AppSession = IronSession<{ user?: SessionUser }>;
 
 export type LoginResult =
   | { success: true; role: string }
-  | { success: false; error: string };
+  | { success: false; error: string; code?: "EmailNotVerified" };
 
 export async function loginAction(email: string, password: string): Promise<LoginResult> {
   try {
@@ -48,6 +48,7 @@ export async function loginAction(email: string, password: string): Promise<Logi
         failedLoginAttempts: true,
         lockedUntil: true,
         sessionVersion: true,
+        emailVerifiedAt: true,
         tenant: { select: { isActive: true } },
       },
     });
@@ -74,6 +75,17 @@ export async function loginAction(email: string, password: string): Promise<Logi
         data: { failedLoginAttempts: attempts, lockedUntil },
       });
       return { success: false, error: "Email atau password salah." };
+    }
+
+    // Gerbang verifikasi email: akun password self-service wajib membuktikan
+    // kepemilikan email sebelum bisa masuk. Semua jalur pembuatan user lain
+    // (superadmin, undangan owner, reset password, Google) menandai verified.
+    if (!user.emailVerifiedAt) {
+      return {
+        success: false,
+        error: "Email belum diverifikasi. Periksa inbox Anda atau minta tautan verifikasi baru.",
+        code: "EmailNotVerified",
+      };
     }
 
     await prisma.user.update({

@@ -659,6 +659,11 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Null berarti email belum terverifikasi. Semua user yang ada sebelum
+  // migration 000000000011 di-backfill sebagai terverifikasi; hanya pendaftar
+  // self-service baru yang mulai dari null dan wajib verifikasi email.
+  emailVerifiedAt DateTime?
+
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
 
@@ -679,6 +684,7 @@ model User {
   journalEntries             JournalEntry[]
   auditLogs                  AuditLog[]
   passwordResetTokens        PasswordResetToken[]
+  emailVerificationTokens    EmailVerificationToken[]
   studioDeviceAuthorizations StudioDeviceAuthorization[] @relation("StudioDeviceAuthorizationApprover")
   authorizedRoastdStudios    RoastdStudio[]              @relation("RoastdStudioAuthorizer")
   sampleUsages               SampleUsage[]
@@ -708,6 +714,22 @@ model PasswordResetToken {
   @@index([userId, expiresAt])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+// Verifikasi email pendaftar workspace. Satu token aktif per user (userId
+// unique) — permintaan ulang mengganti token lama, meniru pola reset password.
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
 }
 
 // =============================================================================

@@ -5,7 +5,7 @@ import { OAuth2RequestError } from "arctic";
 import { prisma } from "@/lib/prisma";
 import { getIronSession } from "iron-session";
 import { SESSION_OPTIONS, type SessionUser } from "@/lib/session";
-import { googleLoginDestination, parseVerifiedGoogleUser } from "@/lib/google-oauth";
+import { googleLoginDestination, parseVerifiedGoogleUser, resolveGoogleSignInTarget } from "@/lib/google-oauth";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -45,21 +45,24 @@ export async function GET(request: Request) {
     const [userByGoogleId, userByEmail] = await Promise.all([
       prisma.user.findUnique({
         where: { googleId: googleUser.sub },
-        include: { tenant: { select: { isActive: true } } },
+        select: { id: true, googleId: true, password: true, isActive: true, tenantId: true, role: true, name: true, email: true, sessionVersion: true, emailVerifiedAt: true, tenant: { select: { isActive: true } } },
       }),
       prisma.user.findUnique({
         where: { email: googleUser.email },
-        include: { tenant: { select: { isActive: true } } },
+        select: { id: true, googleId: true, password: true, isActive: true, tenantId: true, role: true, name: true, email: true, sessionVersion: true, emailVerifiedAt: true, tenant: { select: { isActive: true } } },
       }),
     ]);
 
-    if (userByGoogleId && userByEmail && userByGoogleId.id !== userByEmail.id) {
-      return NextResponse.redirect(new URL("/login?error=GoogleAccountConflict", request.url));
+    const decision = resolveGoogleSignInTarget(
+      userByGoogleId ? { id: userByGoogleId.id, googleId: userByGoogleId.googleId, password: userByGoogleId.password } : null,
+      userByEmail ? { id: userByEmail.id, googleId: userByEmail.googleId, password: userByEmail.password } : null,
+    );
+
+    if (decision.action === "reject") {
+      return NextResponse.redirect(new URL(`/login?error=${decision.error}`, request.url));
     }
 
-    let user = userByGoogleId ?? userByEmail;
-
-    if (!user) {
+    if (decision.action === "signup") {
       // Store signup info in session cookie
       const signupSession = await getIronSession<{ googleUser?: { sub: string, email: string, name: string } }>(cookieStore, {
         password: SESSION_OPTIONS.password,
@@ -76,19 +79,26 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL("/register?mode=google", request.url));
     }
 
+    const account = userByEmail ?? userByGoogleId;
+    if (!account) {
+      return NextResponse.redirect(new URL("/login?error=InternalServerError", request.url));
+    }
+    let user = account;
+
     if (!user.isActive || (user.role !== "SUPERADMIN" && !user.tenant.isActive)) {
       return NextResponse.redirect(new URL("/login?error=AccountDisabled", request.url));
     }
 
-    if (user.googleId && user.googleId !== googleUser.sub) {
-      return NextResponse.redirect(new URL("/login?error=GoogleAccountConflict", request.url));
-    }
-
-    // If user exists but googleId is not linked yet, link it
+    // decision === "link": account exists without a Google id — link it now.
     if (!user.googleId) {
       user = await prisma.user.update({
         where: { id: user.id },
-        data: { googleId: googleUser.sub },
+        data: {
+          googleId: googleUser.sub,
+          // Google memverifikasi kepemilikan email (callback menolak
+          // email_verified=false), jadi tandai terverifikasi.
+          ...(user.emailVerifiedAt ? {} : { emailVerifiedAt: new Date() }),
+        },
         include: { tenant: { select: { isActive: true } } },
       });
     }

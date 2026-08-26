@@ -40,6 +40,8 @@ export async function consumePasswordResetToken(
       password: input.passwordHash,
       // Invalidate every stateless session issued before this reset.
       sessionVersion: { increment: 1 },
+      // Kepemilikan email terbukti lewat tautan reset ini.
+      emailVerifiedAt: now,
     },
   });
   if (updatedUser.count !== 1) throw new Error("RESET_USER_INACTIVE");

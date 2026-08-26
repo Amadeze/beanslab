@@ -132,6 +132,46 @@ export async function sendPasswordResetEmail(
   return { success: true, data };
 }
 
+export async function sendEmailVerificationEmail(
+  to: string,
+  name: string,
+  verifyUrl: string,
+) {
+  if (!process.env.RESEND_API_KEY) {
+    if (process.env.NODE_ENV === "production") {
+      return { success: false as const, error: "RESEND_API_KEY belum dikonfigurasi." };
+    }
+    console.log("Email verification email mocked because RESEND_API_KEY is not set.");
+    return { success: true as const, mocked: true as const };
+  }
+
+  const { data, error } = await getResendClient().emails.send({
+    from: process.env.EMAIL_FROM || "roastd.id <hello@roastd.id>",
+    to: [to],
+    subject: "Verifikasi email workspace roastd.id",
+    html: `
+      <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto;">
+        <h2>Verifikasi email Anda</h2>
+        <p>Halo ${escapeHtml(name)}, terima kasih telah membuat workspace di roastd.id.</p>
+        <p>Satu langkah lagi: konfirmasi bahwa email ini milik Anda sebelum masuk ke workspace.</p>
+        <p>
+          <a href="${verifyUrl}" style="display:inline-block;padding:12px 20px;background:#0f172a;color:#fff;text-decoration:none;border-radius:6px">
+            Verifikasi email
+          </a>
+        </p>
+        <p>Tautan ini berlaku 24 jam dan hanya dapat digunakan satu kali. Jika tautan kedaluwarsa, Anda dapat meminta tautan baru dari halaman verifikasi.</p>
+        <p style="font-size:12px;color:#64748b">Abaikan email ini jika Anda tidak mendaftarkan workspace roastd.id.</p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error("Email verification send error:", error);
+    return { success: false as const, error };
+  }
+  return { success: true as const, data };
+}
+
 // Helper for WhatsApp (Fonnte/Watzap Placeholder)
 export async function sendInvoiceWhatsApp(phone: string, invoiceCode: string, paymentUrl: string | null) {
   try {

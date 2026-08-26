@@ -100,6 +100,9 @@ export async function createTenant(data: {
           email: cleanEmail,
           password: hashedPassword,
           role: "OWNER",
+          // Dibuat oleh superadmin (jalur terpercaya): owner mengklaim akun
+          // lewat tautan setup password yang dikirim ke email ini.
+          emailVerifiedAt: new Date(),
           tenantId: tenant.id,
         },
       });

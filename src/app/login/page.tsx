@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginAction } from "./actions";
-import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { AuthFrame } from "@/components/auth/AuthFrame";
@@ -18,6 +18,7 @@ function LoginForm() {
       ? requestedFrom
       : "/dashboard";
   const urlError = searchParams.get("error");
+  const verified = searchParams.get("verified") === "1";
   const initialError = urlError === "AccountNotFound" 
     ? "Akun belum terdaftar. Silakan register terlebih dahulu." 
     : urlError === "OAuthError" 
@@ -26,6 +27,8 @@ function LoginForm() {
     ? "Email Google belum terverifikasi."
     : urlError === "GoogleAccountConflict"
     ? "Akun Google sudah tertaut ke pengguna lain. Hubungi administrator."
+    : urlError === "EmailRegisteredUsePassword"
+    ? "Email ini terdaftar dengan password. Silakan masuk menggunakan email dan password."
     : urlError === "AccountDisabled"
     ? "Akun dinonaktifkan. Hubungi administrator."
     : urlError === "InvalidState" 
@@ -37,15 +40,20 @@ function LoginForm() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(initialError);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [notice, setNotice] = useState(verified ? "Email terverifikasi. Silakan masuk." : "");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setNotice("");
+    setNeedsVerification(false);
     setLoading(true);
     try {
       const result = await loginAction(email, password);
       if (!result.success) {
         setError(result.error);
+        setNeedsVerification(result.code === "EmailNotVerified");
         return;
       }
       if (result.role === "SUPERADMIN") {
@@ -101,14 +109,31 @@ function LoginForm() {
         </div>
       </div>
 
+      {notice && (
+        <div className="flex items-center gap-2 rounded-[10px] border border-green-600/20 bg-green-600/8 px-4 py-3">
+          <CheckCircle2 size={16} className="shrink-0 text-green-600" />
+          <p className="text-sm text-green-700">{notice}</p>
+        </div>
+      )}
+
       {error && (
         <motion.div 
           initial={{ opacity: 0, y: -10 }} 
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 rounded-[10px] border border-destructive/20 bg-destructive/8 px-4 py-3"
+          className="flex flex-col gap-2 rounded-[10px] border border-destructive/20 bg-destructive/8 px-4 py-3"
         >
-          <AlertCircle size={16} className="shrink-0 text-red-500" />
-          <p className="text-sm text-destructive">{error}</p>
+          <div className="flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0 text-red-500" />
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+          {needsVerification ? (
+            <Link
+              href={`/verify-email?email=${encodeURIComponent(email)}`}
+              className="pl-6 text-sm font-semibold text-primary hover:text-primary/75"
+            >
+              Kirim ulang tautan verifikasi
+            </Link>
+          ) : null}
         </motion.div>
       )}
 

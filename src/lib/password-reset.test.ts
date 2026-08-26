@@ -74,6 +74,8 @@ describe("password reset tokens", () => {
         data: {
           password: "hash",
           sessionVersion: { increment: 1 },
+          // Reset via emailed link proves mailbox ownership.
+          emailVerifiedAt: expect.any(Date),
         },
       }),
     );

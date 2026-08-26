@@ -55,6 +55,11 @@ function RegisterForm() {
         setError(result.error || "Pendaftaran gagal. Periksa kembali data Anda dan coba lagi.");
         return;
       }
+      if ("checkEmail" in result && result.checkEmail) {
+        // Pendaftaran sukses tapi login menunggu verifikasi email.
+        router.push(`/verify-email?sent=1&email=${encodeURIComponent(email)}`);
+        return;
+      }
       router.push("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan yang tidak terduga. Silakan coba lagi.");

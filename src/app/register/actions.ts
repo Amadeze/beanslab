@@ -11,6 +11,12 @@ import {
   RateLimitError,
 } from "@/lib/rate-limit";
 import { isReservedTenantSubdomain } from "@/lib/tenant-host";
+import { sendEmailVerificationEmail } from "@/lib/notifications";
+import {
+  EMAIL_VERIFICATION_TOKEN_TTL_MS,
+  createEmailVerificationToken,
+  hashEmailVerificationToken,
+} from "@/lib/email-verification";
 import {
   emailIdentifier,
   layeredIdentifiers,
@@ -111,6 +117,8 @@ export async function registerTenant(data: {
         },
       });
 
+      // emailVerifiedAt sengaja null: kepemilikan email belum terbukti.
+      // Login diblokir sampai verifikasi selesai (lihat loginAction).
       const newUser = await tx.user.create({
         data: {
           tenantId: newTenant.id,
@@ -124,18 +132,30 @@ export async function registerTenant(data: {
       return { tenant: newTenant, user: newUser };
     });
 
-    const session = await getIronSession<{ user?: SessionUser }>(await cookies(), SESSION_OPTIONS);
-    session.user = {
-      id: result.user.id,
-      email: result.user.email,
-      name: result.user.name,
-      role: result.user.role,
-      tenantId: result.tenant.id,
-      sessionVersion: result.user.sessionVersion,
-    };
-    await session.save();
+    // Token verifikasi disimpan sebagai hash; tautan berisi token mentah.
+    // Gagal kirim email tidak membatalkan pendaftaran — user bisa minta
+    // ulang tautan dari halaman verifikasi (rate-limited).
+    const verificationToken = createEmailVerificationToken();
+    await prisma.emailVerificationToken.deleteMany({
+      where: { userId: result.user.id },
+    });
+    await prisma.emailVerificationToken.create({
+      data: {
+        userId: result.user.id,
+        tokenHash: hashEmailVerificationToken(verificationToken),
+        expiresAt: new Date(Date.now() + EMAIL_VERIFICATION_TOKEN_TTL_MS),
+      },
+    });
 
-    return { success: true, tenantId: result.tenant.id };
+    const appUrl = process.env.APP_URL;
+    if (!appUrl) throw new Error("APP_URL environment variable is required");
+    await sendEmailVerificationEmail(
+      result.user.email,
+      result.user.name,
+      `${appUrl}/verify-email?token=${encodeURIComponent(verificationToken)}`,
+    );
+
+    return { success: true, checkEmail: true as const };
   } catch (error) {
     console.error("Registration error:", error);
     return {
@@ -231,6 +251,9 @@ export async function registerTenantWithGoogle(data: {
           name: name || email.split("@")[0],
           email: email,
           googleId: googleId,
+          // Google sudah memverifikasi kepemilikan email ini (callback
+          // menolak email_verified=false), jadi akun langsung terverifikasi.
+          emailVerifiedAt: getCurrentDate(),
           role: "OWNER",
         },
       });
