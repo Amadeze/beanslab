@@ -1471,8 +1471,10 @@ export async function getExpenseReport(startDate: string, endDate: string): Prom
     tp.purchase.findMany({
       where: {
         receivedAt: { gte: rangeStartOnly, lte: rangeEndUTC },
-        status: { in: ["COMPLETED", "VOID"] },
-        OR: [{ voidAt: null }, { voidAt: { gt: rangeEndUTC } }],
+        OR: [
+          { status: "COMPLETED" },
+          { status: "VOID", voidAt: { gt: rangeEndUTC } },
+        ],
       },
       select: {
         totalCost: true,
@@ -1828,16 +1830,20 @@ const [invoiceTotal, expenseGroups, prevInvoiceTotal, prevExpenseTotal, purchase
     tp.purchase.aggregate({
       where: {
         receivedAt: { gte: rangeStart, lte: rangeEnd },
-        status: { in: ["COMPLETED", "VOID"] },
-        OR: [{ voidAt: null }, { voidAt: { gt: rangeEnd } }],
+        OR: [
+          { status: "COMPLETED" },
+          { status: "VOID", voidAt: { gt: rangeEnd } },
+        ],
       },
       _sum: { totalCost: true },
     }),
     tp.purchase.aggregate({
       where: {
         receivedAt: { gte: prevStart, lte: prevEnd },
-        status: { in: ["COMPLETED", "VOID"] },
-        OR: [{ voidAt: null }, { voidAt: { gt: prevEnd } }],
+        OR: [
+          { status: "COMPLETED" },
+          { status: "VOID", voidAt: { gt: prevEnd } },
+        ],
       },
       _sum: { totalCost: true },
     }),

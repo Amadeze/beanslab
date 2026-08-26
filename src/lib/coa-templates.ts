@@ -13,6 +13,7 @@ const MEDIUM_TEMPLATE: CoaAccountDef[] = [
   { code: "1-1010", name: "Bank BCA", type: "ASSET" },
   { code: "1-1020", name: "Bank Mandiri", type: "ASSET" },
   { code: "1-1100", name: "Piutang Usaha", type: "ASSET", isSystem: true },
+  { code: "1-1500", name: "Piutang Pajak (PPh)", type: "ASSET" },
   { code: "1-1200", name: "Persediaan Green Bean", type: "ASSET", isSystem: true },
   { code: "1-1210", name: "Persediaan Roasted Bean", type: "ASSET", isSystem: true },
   { code: "1-1220", name: "Persediaan Produk Jadi", type: "ASSET", isSystem: true },
@@ -62,6 +63,7 @@ const SMALL_TEMPLATE: CoaAccountDef[] = MEDIUM_TEMPLATE.filter((a) =>
 const MICRO_TEMPLATE: CoaAccountDef[] = [
   { code: "1-1000", name: "Kas", type: "ASSET", isSystem: true },
   { code: "1-1100", name: "Piutang", type: "ASSET", isSystem: true },
+  { code: "1-1500", name: "Piutang Pajak (PPh)", type: "ASSET" },
   { code: "1-1200", name: "Persediaan", type: "ASSET", isSystem: true },
   { code: "1-1300", name: "Peralatan", type: "ASSET" },
   { code: "2-1000", name: "Utang Usaha", type: "LIABILITY", isSystem: true },

@@ -311,6 +311,7 @@ export async function fulfillInvoiceAtHandover(
     })),
     { tx, tenantId: input.tenantId, userId: input.createdById, date: now },
     Number(invoice.tax),
+    Number(invoice.pphWithholding ?? 0),
   );
   await tx.invoice.update({
     where: { id: invoice.id },

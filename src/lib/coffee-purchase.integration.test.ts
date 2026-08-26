@@ -205,6 +205,10 @@ suite("roasted bean procurement — real PostgreSQL (TEST_DATABASE_URL)", () => 
     expect(ledger.entryType).toBe("IN");
     expect(ledger.refType).toBe("PURCHASE_RB");
     expect(Number(ledger.quantityKg)).toBe(10);
+    // Landed cost policy: WAC memasukkan ongkir (totalCost / kg), bukan harga
+    // item saja. GL mendebit persediaan dengan totalCost — valuation stok dari
+    // ledger harus rekonsiliasi dengan GL.
+    expect(Number(ledger.incomingPrice)).toBe(120_000);
 
     const journal = await client.journalEntry.findFirstOrThrow({
       where: { refType: "PURCHASE", reference: purchase.id },

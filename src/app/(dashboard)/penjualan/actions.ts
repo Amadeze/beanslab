@@ -646,7 +646,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
         await postSalesInvoice(
           inv.id, Number(inv.grandTotal), Number(inv.paidAmount), customer.name,
           enrichedItems.map((item) => ({ productType: item.productType, hpp: Number(item.hpp), quantity: item.quantity })),
-          { tx, tenantId, userId, date: now }, taxResult.taxAmount,
+          { tx, tenantId, userId, date: now }, taxResult.taxAmount, Number(taxResult.pphWithholding ?? 0),
         );
         await tx.invoice.update({ where: { id: inv.id }, data: { fulfillmentStatus: "DELIVERED", deliveredAt: now } });
       }
@@ -1213,7 +1213,7 @@ export async function saveInvoiceAwb(
     });
 
     await recordAudit(
-      {},
+      tenantPrisma,
       {
         tenantId,
         userId: await getSystemUserId(),

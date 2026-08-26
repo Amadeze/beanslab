@@ -182,15 +182,23 @@ export async function postSalesInvoice(
   items: Array<{ productType?: ProductType; hpp: number; quantity: number }> = [],
   options: PostingOptions = {},
   taxAmount = 0,
+  pphWithholding = 0,
 ): Promise<string> {
+  // PPh yang dipotong pembeli (B2B) disetor langsung ke otoritas pajak, bukan
+  // ke bisnis. Piutang usaha harus dikurangi sebesar PPh tersebut, dan sisanya
+  // dicatat sebagai Piutang Pajak (aset) yang nanti ditagih dari otoritas pajak.
+  const pph = Math.max(0, Math.min(pphWithholding, total - paidAmount));
   const remaining = total - paidAmount;
   const lines: PostingLine[] = [];
 
   if (paidAmount > 0) {
     lines.push({ accountCode: "2-1300", debit: paidAmount, credit: 0 });
   }
-  if (remaining > 0) {
-    lines.push({ accountCode: "1-1100", debit: remaining, credit: 0 });
+  if (remaining - pph > 0) {
+    lines.push({ accountCode: "1-1100", debit: remaining - pph, credit: 0 });
+  }
+  if (pph > 0) {
+    lines.push({ accountCode: "1-1500", debit: pph, credit: 0 });
   }
 
   // Pendapatan bersih (tanpa pajak) + utang pajak bila ada.

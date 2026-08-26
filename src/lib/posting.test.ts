@@ -317,6 +317,66 @@ describe("postSalesInvoice", () => {
   });
 });
 
+describe("postSalesInvoice with PPh withholding", () => {
+  it("splits outstanding AR into net receivable and PPh tax receivable (B2B credit)", async () => {
+    // Pembeli B2B memotong PPh dan menyetorkan langsung ke otoritas pajak:
+    // piutang usaha hanya sebesar yang benar-benar ditagih ke pelanggan,
+    // sisanya menjadi aset Piutang Pajak (1-1500).
+    await postSalesInvoice("inv-pph-1", 1_000_000, 0, "PT Maju", [], {}, 0, 20_000);
+    const result = getCreatedLines();
+    const totalDebit = result.lines.reduce((s: number, l: any) => s + l.debit, 0);
+    const totalCredit = result.lines.reduce((s: number, l: any) => s + l.credit, 0);
+    expect(Math.abs(totalDebit - totalCredit)).toBeLessThan(0.01);
+    expectLine(result, "1-1100", 980_000, 0);
+    expectLine(result, "1-1500", 20_000, 0);
+    expectLine(result, "4-1000", 0, 1_000_000);
+  });
+
+  it("applies withholding on top of a partial advance payment", async () => {
+    await postSalesInvoice("inv-pph-2", 1_000_000, 200_000, "PT Maju", [], {}, 0, 20_000);
+    const result = getCreatedLines();
+    expectLine(result, "2-1300", 200_000, 0);
+    expectLine(result, "1-1100", 780_000, 0);
+    expectLine(result, "1-1500", 20_000, 0);
+    expectLine(result, "4-1000", 0, 1_000_000);
+  });
+
+  it("keeps revenue net of output tax alongside the withholding split", async () => {
+    // Total sudah termasuk PPN: pendapatan = total - pajak keluaran.
+    await postSalesInvoice("inv-pph-3", 11_000_000, 0, "PT Maju", [], {}, 1_000_000, 200_000);
+    const result = getCreatedLines();
+    const totalDebit = result.lines.reduce((s: number, l: any) => s + l.debit, 0);
+    const totalCredit = result.lines.reduce((s: number, l: any) => s + l.credit, 0);
+    expect(Math.abs(totalDebit - totalCredit)).toBeLessThan(0.01);
+    expectLine(result, "1-1100", 10_800_000, 0);
+    expectLine(result, "1-1500", 200_000, 0);
+    expectLine(result, "4-1000", 0, 10_000_000);
+    expectLine(result, "2-1100", 0, 1_000_000);
+  });
+
+  it("clamps withholding so AR never goes negative when pph exceeds the balance", async () => {
+    await postSalesInvoice("inv-pph-4", 1_000_000, 900_000, "PT Maju", [], {}, 0, 500_000);
+    const result = getCreatedLines();
+    const totalDebit = result.lines.reduce((s: number, l: any) => s + l.debit, 0);
+    const totalCredit = result.lines.reduce((s: number, l: any) => s + l.credit, 0);
+    expect(Math.abs(totalDebit - totalCredit)).toBeLessThan(0.01);
+    // remaining = 100_000; pph dipotong maksimal sebesar itu.
+    expectLine(result, "2-1300", 900_000, 0);
+    expectLine(result, "1-1500", 100_000, 0);
+    const arLine = result.lines.find((l: any) => acctCode(l.accountId) === "1-1100");
+    expect(arLine).toBeUndefined();
+  });
+
+  it("ignores withholding on a fully paid invoice (no negative AR)", async () => {
+    await postSalesInvoice("inv-pph-5", 500_000, 500_000, "Budi", [], {}, 0, 50_000);
+    const result = getCreatedLines();
+    expectLine(result, "2-1300", 500_000, 0);
+    expectLine(result, "4-1000", 0, 500_000);
+    const pphLine = result.lines.find((l: any) => acctCode(l.accountId) === "1-1500");
+    expect(pphLine).toBeUndefined();
+  });
+});
+
 describe("postCustomerPrepayment", () => {
   it("records cash received before handover as a customer advance", async () => {
     await postCustomerPrepayment("pay-advance-1", 50_000, "INV-001", "Budi");

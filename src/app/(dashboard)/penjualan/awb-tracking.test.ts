@@ -232,15 +232,20 @@ describe("saveInvoiceAwb", () => {
     expect(result.error).toContain("kurir");
   });
 
-  it("writes audit on success", async () => {
+  it("writes audit on success using the tenant prisma client", async () => {
     const { prisma } = buildMockPrisma();
     (requireTenantPrisma as any).mockResolvedValue(prisma);
 
     const { saveInvoiceAwb } = await import("./actions");
-    await saveInvoiceAwb(INVOICE_ID, { awb: "JNE-NEW" });
+    const result = await saveInvoiceAwb(INVOICE_ID, { awb: "JNE-NEW" });
 
+    expect(result.success).toBe(true);
+    // Regression: recordAudit used to receive `{}` as the transaction client —
+    // the mutation committed, then the audit threw, reporting a false failure.
+    // It must receive the tenant-scoped client so the audit actually persists.
+    expect(recordAudit).toHaveBeenCalledTimes(1);
     expect(recordAudit).toHaveBeenCalledWith(
-      expect.anything(),
+      prisma,
       expect.objectContaining({
         tenantId: TENANT_A,
         entityType: "InvoiceAwb",
