@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { Prisma, PaymentStatus } from "@prisma/client";
 import { claimWebhookEvent, timingSafeEqualText } from "@/lib/webhook-inbox";
-import { getCurrentDate } from "@/lib/date-utils";
+import { addMonthsClamped, getCurrentDate } from "@/lib/date-utils";
 import {
   getRequestId,
   internalErrorResponse,
@@ -122,11 +122,15 @@ export async function POST(req: Request) {
       }
 
       const now = getCurrentDate();
-      const nextBilling =
+      // Kebijakan siklus bulanan: hari dipertahankan, clamp ke hari terakhir
+      // bulan tujuan (31 Jan → 28/29 Feb, bukan 3 Mar) agar tanggal tagihan
+      // tidak menggeser diri ke depan dan menyebabkan under-billing.
+      const nextBilling = addMonthsClamped(
         payment.tenant.nextBillingDate && payment.tenant.nextBillingDate > now
           ? new Date(payment.tenant.nextBillingDate)
-          : now;
-      nextBilling.setMonth(nextBilling.getMonth() + 1);
+          : now,
+        1,
+      );
 
       await tx.tenant.update({
         where: { id: payment.tenantId },

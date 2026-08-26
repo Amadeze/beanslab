@@ -183,3 +183,29 @@ export function getDateStringDaysAgo(days: number, timezone?: string | null): st
   date.setDate(date.getDate() - days);
   return formatInTimeZone(date, zone, "yyyy-MM-dd");
 }
+
+/**
+ * Tambah N bulan dengan kebijakan bisnis eksplisit: hari dipertahankan,
+ * dan saat bulan tujuan lebih pendek (mis. 31 Jan + 1 bulan), tanggal
+ * di-clamp ke hari terakhir bulan tujuan (28/29 Feb) — bukan meluber ke
+ * bulan berikutnya (3 Mar) yang menggeser siklus tagihan tanpa sengaja.
+ * Jam/menit/detik dipertahankan.
+ */
+export function addMonthsClamped(date: Date, months: number): Date {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
+  const time = [
+    date.getHours(),
+    date.getMinutes(),
+    date.getSeconds(),
+    date.getMilliseconds(),
+  ] as const;
+
+  const candidate = new Date(year, month + months, day, ...time);
+  if (candidate.getDate() === day) return candidate;
+
+  // Overflow (hari tidak ada di bulan tujuan): ambil hari terakhir bulan
+  // tujuan. day=0 pada bulan (month+months+1) = hari terakhir bulan sebelumnya.
+  return new Date(year, month + months + 1, 0, ...time);
+}
