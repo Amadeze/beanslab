@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenantPrisma, requireCurrentUser } from "@/lib/auth";
+import { isNextRedirectError } from "@/lib/api-auth";
 import {
   getRequestId,
   internalErrorResponse,
@@ -46,6 +47,12 @@ export async function GET(_req: NextRequest) {
       totalMachines: machineCount,
     });
   } catch (e) {
+    if (isNextRedirectError(e)) {
+      return NextResponse.json(
+        { error: { code: "UNAUTHENTICATED", message: "Sesi tidak valid." } },
+        { status: 401 },
+      );
+    }
     logServerError("artisan.status", e, { requestId });
     return internalErrorResponse(requestId, "Gagal memuat status integrasi.");
   }

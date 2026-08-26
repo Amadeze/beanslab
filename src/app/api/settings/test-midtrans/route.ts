@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getValidatedCurrentUser } from "@/lib/auth";
+import { requireApiUserWithActiveTenant } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { decryptCredential } from "@/lib/credentials";
 import { getRequestId, logServerError } from "@/lib/api-observability";
@@ -7,10 +7,9 @@ import { getRequestId, logServerError } from "@/lib/api-observability";
 export async function POST(req: Request) {
   const requestId = getRequestId(req.headers);
   try {
-    const user = await getValidatedCurrentUser();
-    if (!user || user.role !== "OWNER") {
-      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireApiUserWithActiveTenant("OWNER");
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const body = (await req.json()) as {
       serverKey?: string;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
+import { isNextRedirectError } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,9 @@ export async function GET() {
     return NextResponse.json({ logs });
   } catch (error: any) {
     console.error("Failed to fetch webhook logs:", error);
+    if (isNextRedirectError(error)) {
+      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    }
     const forbidden = error instanceof Error && error.message.startsWith("FORBIDDEN");
     return NextResponse.json(
       { error: forbidden ? "FORBIDDEN" : "Terjadi kesalahan sistem." },

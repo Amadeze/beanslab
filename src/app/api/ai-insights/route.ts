@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryReports } from "@/lib/ai-insights";
 import { requireRole, requireTenantPrisma, getTenantTimezone } from "@/lib/auth";
+import { isNextRedirectError } from "@/lib/api-auth";
 import { getRequestId, logServerError } from "@/lib/api-observability";
 import {
   layeredIdentifiers,
@@ -54,6 +55,10 @@ export async function POST(req: NextRequest) {
         { error: err.message },
         { status: 429, headers: { "Retry-After": String(err.retryAfter) } },
       );
+    }
+
+    if (isNextRedirectError(err)) {
+      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
     }
 
     logServerError("ai-insights", err, { requestId });

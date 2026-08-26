@@ -4,8 +4,12 @@ import { z } from "zod";
 // Pairing Code
 // =============================================================================
 
+// Machine id adalah cuid internal — batasi panjangnya agar nilai liar dari
+// klien tidak masuk sebagai eventId/log/DB tanpa batas.
+export const MACHINE_ID_SCHEMA = z.string().min(1).max(128);
+
 export const CreatePairingCodeSchema = z.object({
-  machineId: z.string().min(1),
+  machineId: MACHINE_ID_SCHEMA,
 });
 
 export const PairingCodeResponseSchema = z.object({

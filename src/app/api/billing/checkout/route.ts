@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getIronSession } from "iron-session";
 import { randomBytes } from "crypto";
-import { SESSION_OPTIONS, type SessionUser } from "@/lib/session";
+import { requireApiUserWithActiveTenant } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import midtransClient from "midtrans-client";
 import {
@@ -24,10 +22,13 @@ import {
 export async function POST(req: Request) {
   const requestId = getRequestId(req.headers);
   try {
-    const session = await getIronSession<{ user?: SessionUser }>(await cookies(), SESSION_OPTIONS);
-    if (!session.user || session.user.role !== "OWNER") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // Revalidasi sesi terhadap DB: role OWNER, user aktif, sessionVersion
+    // terkini, dan tenant aktif. Cookie mentah tidak dipercaya — tanpa ini,
+    // cookie lama (pra-deaktivasi / pra-ganti-role) masih bisa membuka
+    // sesi pembayaran langganan.
+    const auth = await requireApiUserWithActiveTenant("OWNER");
+    if (!auth.ok) return auth.response;
+    const session = { user: auth.user };
     const identity = resolveClientIdentity(req.headers);
     await enforceRateLimit({
       scope: "subscription-checkout",

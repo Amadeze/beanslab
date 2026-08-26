@@ -6,6 +6,7 @@ import {
   resolveClientIdentity,
 } from "@/lib/client-identity";
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
+import { isNextRedirectError } from "@/lib/api-auth";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { getRequestId, internalErrorResponse, logServerError } from "@/lib/api-observability";
 import { getRajaOngkirClientConfig } from "@/lib/shipping/platform-integration";
@@ -23,10 +24,22 @@ export async function POST(req: NextRequest) {
   let user;
   try {
     user = await requireRole("OWNER");
-  } catch {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  } catch (error) {
+    // requireRole melempar NEXT_REDIRECT saat sesi tidak valid — konversi
+    // ke 403 agar API tidak menjawab 307.
+    if (isNextRedirectError(error)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    throw error;
   }
-  await requireTenantPrisma();
+  try {
+    await requireTenantPrisma();
+  } catch (error) {
+    if (isNextRedirectError(error)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    throw error;
+  }
 
   try {
     await enforceRateLimit({

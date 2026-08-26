@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, requireTenantPrisma } from "@/lib/auth";
+import { isNextRedirectError } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
 import { tenantIdentifier } from "@/lib/client-identity";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
@@ -77,6 +78,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: e.message },
         { status: 429, headers: { "Retry-After": String(e.retryAfter) } },
+      );
+    }
+    if (isNextRedirectError(e)) {
+      return NextResponse.json(
+        { error: { code: "UNAUTHENTICATED", message: "Sesi tidak valid." } },
+        { status: 401 },
       );
     }
     logServerError("artisan.revoke", e, { requestId });

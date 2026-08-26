@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requireApiUserWithActiveTenant, isNextRedirectError } from "@/lib/api-auth";
 import { isAlogFile, parseAlog } from "@/lib/artisan/parser";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await requireRole("OWNER", "MANAGER", "OPERATOR");
+    const auth = await requireApiUserWithActiveTenant("OWNER", "MANAGER", "OPERATOR");
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -169,6 +171,12 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (e) {
+    if (isNextRedirectError(e)) {
+      return NextResponse.json(
+        { error: "Sesi tidak valid atau workspace tidak aktif." },
+        { status: 401 },
+      );
+    }
     console.error("Manual upload error:", e);
     return NextResponse.json(
       { error: "Gagal memproses file." },

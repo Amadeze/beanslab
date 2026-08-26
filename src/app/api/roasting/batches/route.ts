@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getValidatedCurrentUser } from "@/lib/auth";
+import { requireApiUserWithActiveTenant } from "@/lib/api-auth";
+
+// Enum-like query param divalidasi sebelum masuk ke Prisma — nilai liar akan
+// membuat query melempar error dan route jadi 500.
+const ALLOWED_BATCH_STATUSES = new Set([
+  "DRAFT",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "VOID",
+]);
 
 export async function GET(req: NextRequest) {
-  try {
-    const user = await getValidatedCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const auth = await requireApiUserWithActiveTenant();
+  if (!auth.ok) return auth.response;
+  const user = auth.user;
 
+  try {
     const status = req.nextUrl.searchParams.get("status");
 
     const where: any = { tenantId: user.tenantId };
     if (status) {
+      if (!ALLOWED_BATCH_STATUSES.has(status)) {
+        return NextResponse.json({ error: "Status tidak valid." }, { status: 400 });
+      }
       where.status = status;
     }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCurrentUser, requireTenantPrisma } from "@/lib/auth";
+import { isNextRedirectError } from "@/lib/api-auth";
 import { calculateStorefrontReadiness } from "@/lib/storefront-readiness";
 
 export async function GET(request: NextRequest) {
@@ -93,6 +94,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(readiness);
   } catch (error) {
+    if (isNextRedirectError(error)) {
+      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    }
     console.error("[readiness] error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

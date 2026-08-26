@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getValidatedCurrentUser } from "@/lib/auth";
+import { requireApiUserWithActiveTenant, isNextRedirectError } from "@/lib/api-auth";
 import { linkRoastToBatch } from "@/app/(dashboard)/roasting/actions";
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getValidatedCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Validasi sesi + tenant aktif di sini (JSON-friendly), sehingga action
+    // di bawah tidak perlu redirect dari konteks API.
+    const auth = await requireApiUserWithActiveTenant("OWNER", "MANAGER", "OPERATOR");
+    if (!auth.ok) return auth.response;
 
     const body = await req.json();
     const { batchId, roastId } = body;
@@ -27,6 +27,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
   } catch (err) {
+    if (isNextRedirectError(err)) {
+      return NextResponse.json(
+        { error: "Sesi tidak valid atau workspace tidak aktif." },
+        { status: 401 },
+      );
+    }
     console.error("[POST /api/roasting/link-roast]", err);
     return NextResponse.json({ error: "Gagal menghubungkan roast." }, { status: 500 });
   }

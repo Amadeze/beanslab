@@ -59,12 +59,6 @@ export async function POST(req: NextRequest) {
         { status: 404 },
       );
     }
-    if (pairingRecord.usedAt) {
-      return NextResponse.json(
-        { error: { code: "PAIRING_CODE_USED", message: "Kode pairing sudah digunakan." } },
-        { status: 410 },
-      );
-    }
     if (new Date() > pairingRecord.expiresAt) {
       return NextResponse.json(
         { error: { code: "PAIRING_CODE_EXPIRED", message: "Kode pairing sudah expired." } },
@@ -72,45 +66,61 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Handle old connector with same installationId
-    const existing = await prisma.roastdStudio.findUnique({
-      where: { installationId },
-      select: { id: true },
-    });
-    if (existing) {
-      // Update old connector with unique placeholder to free up installationId
-      await prisma.roastdStudio.update({
-        where: { id: existing.id },
-        data: {
-          installationId: `old-${existing.id}`,
-          status: "REVOKED",
-          revokedAt: new Date(),
-        },
-      });
-    }
-
-    // 3. Create new connector
+    // 2. Klaim kode secara atomik (anti-TOCTOU): hanya satu request konkuren
+    // yang berhasil menggeser usedAt null → terisi. Pengecekan usedAt/expires
+    // masuk ke WHERE klaim, bukan sekadar read-check-write terpisah.
     const connectorToken = generateConnectorToken();
     const credentialHash = hashConnectorToken(connectorToken);
 
-    const connector = await prisma.roastdStudio.create({
-      data: {
-        tenantId: pairingRecord.tenantId,
-        machineId: pairingRecord.machineId,
-        installationId,
-        computerName,
-        platform,
-        appVersion,
-        credentialHash,
-        status: "ONLINE",
-      },
+    const connector = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.artisanPairingCode.updateMany({
+        where: {
+          id: pairingRecord.id,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count !== 1) return null;
+
+      // 3. Handle old connector with same installationId
+      const existing = await tx.roastdStudio.findUnique({
+        where: { installationId },
+        select: { id: true },
+      });
+      if (existing) {
+        // Update old connector with unique placeholder to free up installationId
+        await tx.roastdStudio.update({
+          where: { id: existing.id },
+          data: {
+            installationId: `old-${existing.id}`,
+            status: "REVOKED",
+            revokedAt: new Date(),
+          },
+        });
+      }
+
+      // 4. Create new connector — gagal di sini me-roll back klaim kode juga.
+      return tx.roastdStudio.create({
+        data: {
+          tenantId: pairingRecord.tenantId,
+          machineId: pairingRecord.machineId,
+          installationId,
+          computerName,
+          platform,
+          appVersion,
+          credentialHash,
+          status: "ONLINE",
+        },
+      });
     });
 
-    // 4. Mark pairing code as used
-    await prisma.artisanPairingCode.update({
-      where: { id: pairingRecord.id },
-      data: { usedAt: new Date() },
-    });
+    if (!connector) {
+      return NextResponse.json(
+        { error: { code: "PAIRING_CODE_USED", message: "Kode pairing sudah digunakan." } },
+        { status: 410 },
+      );
+    }
 
     return NextResponse.json({
       connectorId: connector.id,

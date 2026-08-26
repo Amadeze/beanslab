@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getValidatedCurrentUser } from "@/lib/auth";
+import { requireApiUserWithActiveTenant } from "@/lib/api-auth";
 import {
   enforceRateLimit,
   RateLimitError,
@@ -23,10 +23,9 @@ const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req.headers);
   try {
-    const user = await getValidatedCurrentUser();
-    if (!user || !["SUPERADMIN", "OWNER", "MANAGER", "OPERATOR"].includes(user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireApiUserWithActiveTenant("SUPERADMIN", "OWNER", "MANAGER", "OPERATOR");
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
     const identity = resolveClientIdentity(req.headers);
     await enforceRateLimit({
       scope: "upload",

@@ -5,7 +5,7 @@
 // =============================================================================
 
 import { NextResponse } from "next/server";
-import { getValidatedCurrentUser } from "@/lib/auth";
+import { requireApiUserWithActiveTenant } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { loadStorefrontCatalog } from "@/lib/storefront-catalog";
 
@@ -13,10 +13,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const user = await getValidatedCurrentUser();
-    if (!user) {
-      return NextResponse.json({ products: [], offerings: [] });
-    }
+    const auth = await requireApiUserWithActiveTenant();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const catalog = await loadStorefrontCatalog(prisma, user.tenantId);
     return NextResponse.json(catalog);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenantPrisma } from "@/lib/auth";
+import { isNextRedirectError } from "@/lib/api-auth";
 import {
   getRequestId,
   internalErrorResponse,
@@ -51,6 +52,12 @@ export async function GET(_req: NextRequest) {
 
     return NextResponse.json({ connectors: result });
   } catch (e) {
+    if (isNextRedirectError(e)) {
+      return NextResponse.json(
+        { error: { code: "UNAUTHENTICATED", message: "Sesi tidak valid." } },
+        { status: 401 },
+      );
+    }
     logServerError("artisan.connectors", e, { requestId });
     return internalErrorResponse(requestId, "Gagal memuat data connector.");
   }

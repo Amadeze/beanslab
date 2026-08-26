@@ -13,12 +13,15 @@ import {
   logServerError,
 } from "@/lib/api-observability";
 import { findTenantByArtisanWebhookToken } from "@/lib/artisan/webhook-auth";
+import { MACHINE_ID_SCHEMA } from "@/lib/artisan/types";
 
 const ArtisanPayloadSchema = z.object({
-  event: z.string().min(1),
-  event_id: z.string().min(1).optional(),
-  parent_batch_id: z.string().min(1).optional(),
-  machine_id: z.string().min(1),
+  event: z.string().min(1).max(64),
+  event_id: z.string().min(1).max(128).optional(),
+  parent_batch_id: z.string().min(1).max(128).optional(),
+  // machine_id masuk ke eventId yang dipersist — batasi panjangnya agar
+  // payload liar tidak membengkakkan tabel webhook_events.
+  machine_id: MACHINE_ID_SCHEMA,
   timestamp: z.union([z.string(), z.number()]).optional(),
   metrics: z
     .object({

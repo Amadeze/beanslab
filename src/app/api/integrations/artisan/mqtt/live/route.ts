@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenantPrisma, requireRole } from "@/lib/auth";
+import { isNextRedirectError } from "@/lib/api-auth";
 import {
   getRequestId,
   internalErrorResponse,
@@ -22,7 +23,8 @@ export async function GET(req: NextRequest) {
         gte: new Date(Date.now() - LIVE_FRESHNESS_MS),
       },
     };
-    if (machineId) where.machineId = machineId;
+    // Batasi panjang param agar nilai liar tidak masuk ke query apa adanya.
+    if (machineId) where.machineId = machineId.slice(0, 128);
 
     const sessions = await (tenantPrisma as any).liveSession.findMany({
       where,
@@ -47,6 +49,12 @@ export async function GET(req: NextRequest) {
       freshnessMs: LIVE_FRESHNESS_MS,
     });
   } catch (e) {
+    if (isNextRedirectError(e)) {
+      return NextResponse.json(
+        { error: { code: "UNAUTHENTICATED", message: "Sesi tidak valid." } },
+        { status: 401 },
+      );
+    }
     logServerError("artisan.mqtt.live", e, { requestId });
     return internalErrorResponse(requestId, "Gagal memuat data live.");
   }
