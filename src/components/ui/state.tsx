@@ -2,8 +2,12 @@ import * as React from "react";
 import { Loader2, Inbox, TriangleAlert, SearchX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Eyebrow } from "./eyebrow";
+import { SharedEmptyState } from "@/components/shared/EmptyState";
 
-/** Centered, calm empty state. Always provide a next action when possible. */
+/**
+ * Empty state kanonik — delegasi ke SharedEmptyState (satu implementasi).
+ * Props `title` dipetakan ke `label`.
+ */
 export function EmptyState({
   icon,
   title,
@@ -18,27 +22,13 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "flex flex-col items-center justify-center gap-3 rounded-card border border-dashed border-border bg-surface-sunken/50 px-6 py-12 text-center",
-        className,
-      )}
-    >
-      <div className="flex size-11 items-center justify-center rounded-full bg-card text-ink-tertiary ring-1 ring-border">
-        {icon ?? <Inbox size={18} />}
-      </div>
-      <div className="space-y-1">
-        <Eyebrow tone="muted" className="justify-center">
-          {title}
-        </Eyebrow>
-        {description && (
-          <p className="max-w-sm text-sm leading-relaxed text-ink-secondary">
-            {description}
-          </p>
-        )}
-      </div>
-      {action && <div className="mt-1">{action}</div>}
-    </div>
+    <SharedEmptyState
+      label={title}
+      description={description}
+      icon={icon ?? <Inbox size={18} />}
+      action={action}
+      className={className}
+    />
   );
 }
 

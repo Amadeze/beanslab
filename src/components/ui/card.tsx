@@ -8,19 +8,29 @@ import { cn } from "@/lib/utils";
  *  - sunken: recessed inset (use for nested groups)
  *  - ghost: borderless, just padding
  *  - interactive: hover elevation + pointer
+ *  - glass: glass-token surface (absorbs the old GlassPanel)
  */
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
-    variant?: "default" | "sunken" | "ghost" | "interactive";
+    variant?: "default" | "sunken" | "ghost" | "interactive" | "glass";
+    padding?: "none" | "sm" | "md" | "lg";
   }
->(({ className, variant = "default", ...props }, ref) => {
+>(({ className, variant = "default", padding, ...props }, ref) => {
   const variants: Record<string, string> = {
     default: "bg-card border border-border shadow-elevation-soft",
     sunken: "bg-surface-sunken border border-border/70",
     ghost: "bg-transparent",
     interactive:
       "bg-card border border-border shadow-elevation-soft transition-[box-shadow,border-color,transform] hover:border-border-strong hover:shadow-elevation-card hover:-translate-y-0.5 motion-reduce:hover:transform-none",
+    glass:
+      "border border-[var(--glass-border)] bg-[var(--glass-bg)] shadow-[var(--glass-shadow)] rounded-[14px]",
+  };
+  const paddings: Record<string, string> = {
+    none: "",
+    sm: "p-3",
+    md: "p-5",
+    lg: "p-8",
   };
   return (
     <div
@@ -28,6 +38,7 @@ const Card = React.forwardRef<
       className={cn(
         "rounded-card text-ink",
         variants[variant],
+        padding ? paddings[padding] : null,
         className,
       )}
       {...props}

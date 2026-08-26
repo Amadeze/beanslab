@@ -143,12 +143,12 @@ export function EmptyState({
   // Card variant (default)
   return (
     <div className={cn(
-      "flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-6 text-center",
-      variant === "card" && "bg-card border-dashed border-border",
+      "flex flex-col items-center justify-center gap-3 rounded-card border border-dashed border-border bg-surface-sunken/50 px-6 py-12 text-center",
+      variant === "card" && "bg-surface-sunken/50",
       className
     )}>
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-card text-primary shadow-sm">
-        {icon || <Package size={24} />}
+      <div className="flex size-11 items-center justify-center rounded-full border border-border bg-card text-ink-tertiary">
+        {icon || <Package size={18} />}
       </div>
       <div className="flex flex-col gap-1.5">
         <p className="font-heading text-sm font-bold text-foreground">

@@ -13,6 +13,21 @@ interface PageHeaderBreadcrumb {
   href?: string;
 }
 
+export interface PageHeaderMetric {
+  label: string;
+  value: React.ReactNode;
+  onClick?: () => void;
+  active?: boolean;
+}
+
+export interface PageHeaderSignal {
+  label: string;
+  value: React.ReactNode;
+  tone?: "critical" | "ready" | "neutral";
+  onClick?: () => void;
+  active?: boolean;
+}
+
 interface PageHeaderProps {
   title: string;
   description?: string;
@@ -21,6 +36,12 @@ interface PageHeaderProps {
   stage?: OperatingStage;
   eyebrow?: string;
   breadcrumbs?: PageHeaderBreadcrumb[];
+  /** Sinyal status modul (opsional, baris kedua). */
+  signal?: PageHeaderSignal;
+  /** Metrik ringkas di baris kedua. */
+  metrics?: PageHeaderMetric[];
+  /** Tautan tahap berikutnya di baris kedua. */
+  next?: { label: string; href: string };
 }
 
 export function PageHeader({
@@ -31,6 +52,9 @@ export function PageHeader({
   stage,
   eyebrow,
   breadcrumbs,
+  signal,
+  metrics,
+  next,
 }: PageHeaderProps) {
   const activeStage = stage ?? titleStages[title];
   const activeIndex = operatingStages.findIndex(
@@ -90,7 +114,7 @@ export function PageHeader({
           <p
               className={cn(
                 "mb-1.5 flex items-center gap-2 font-mono text-[8px] font-bold uppercase tracking-[0.2em]",
-                headerTone?.eyebrow ?? "text-[#E9A17F]",
+                headerTone?.eyebrow ?? "text-[var(--stage-system-soft)]",
               )}
           >
             <span
@@ -98,7 +122,7 @@ export function PageHeader({
                 "size-1.5 rounded-full shadow-[0_0_12px_currentColor]",
                 headerTone?.active
                   .split(" ")
-                  .find((value) => value.startsWith("bg-")) ?? "bg-[#15B8C6]",
+                  .find((value) => value.startsWith("bg-")) ?? "bg-[var(--instrument)]",
               )}
               aria-hidden
             />
@@ -191,6 +215,97 @@ export function PageHeader({
           </div>
         )}
       </div>
+      {(signal || (metrics && metrics.length > 0) || next) && (
+        <div className="border-t border-white/[0.06] bg-[#0B141B]/60">
+          <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 sm:px-6 lg:px-8">
+            {signal && (
+              <button
+                type="button"
+                onClick={signal.onClick}
+                className={cn(
+                  "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-1.5 transition-all sm:w-auto sm:justify-start",
+                  signal.onClick && "cursor-pointer hover:bg-white/5",
+                  signal.active && "bg-white/10 ring-1 ring-white/20",
+                )}
+              >
+                <span className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-white/35">
+                  {signal.label}
+                </span>
+                <span
+                  className={cn(
+                    "font-heading text-sm font-bold",
+                    signal.tone === "critical"
+                      ? "text-[var(--chrome-danger-soft)]"
+                      : signal.tone === "ready"
+                        ? headerTone?.signal ?? "text-white"
+                        : "text-white",
+                  )}
+                >
+                  {signal.value}
+                </span>
+              </button>
+            )}
+
+            {metrics && metrics.length > 0 ? (
+              <>
+                <span className="hidden h-4 w-px bg-white/10 sm:block" aria-hidden />
+                <div className="grid w-full min-w-0 grid-cols-4 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-4">
+                  {metrics.map((metric) => {
+                    const metricContent = (
+                      <>
+                        <span className="truncate font-mono text-[7px] font-bold uppercase tracking-[0.1em] text-white/30 sm:text-[8px] sm:tracking-[0.12em]">
+                          {metric.label}
+                        </span>
+                        <span className="max-w-full truncate font-heading text-xs font-bold tabular-nums text-white/80">
+                          {metric.value}
+                        </span>
+                      </>
+                    );
+                    if (metric.onClick) {
+                      return (
+                        <button
+                          type="button"
+                          key={metric.label}
+                          onClick={metric.onClick}
+                          aria-pressed={metric.active ?? false}
+                          className={cn(
+                            "-mx-1 flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-lg px-1 py-0.5 text-left transition-colors sm:flex-row sm:items-center sm:gap-1.5",
+                            metric.active
+                              ? "bg-white/10 ring-1 ring-white/20"
+                              : "hover:bg-white/5",
+                          )}
+                        >
+                          {metricContent}
+                        </button>
+                      );
+                    }
+                    return (
+                      <div key={metric.label} className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-1.5">
+                        {metricContent}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : null}
+
+            {next ? (
+              <>
+                <span className="hidden h-4 w-px bg-white/10 sm:block" aria-hidden />
+                <Link
+                  href={next.href}
+                  className={cn(
+                    "ml-auto text-xs font-bold transition-[color,gap] hover:gap-2",
+                    headerTone?.signal ?? "text-[var(--chrome-instrument-soft)]",
+                  )}
+                >
+                  {next.label} →
+                </Link>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
       {activeStage && (
         <nav
           data-testid="operating-stage-rail-mobile"
