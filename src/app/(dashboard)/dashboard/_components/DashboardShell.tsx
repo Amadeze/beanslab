@@ -31,6 +31,7 @@ import {
 } from "@/lib/dashboard-work-queue";
 import type { ActivityItem, DashboardData, LowStockItem } from "../actions";
 import { RoasteryCopilot } from "./RoasteryCopilot";
+import { CoffeeFlowMini } from "./CoffeeFlowMini";
 import { ControlTowerView } from "../../control-tower/_components/ControlTowerView";
 import type { getControlTowerData } from "../../control-tower/actions";
 
@@ -638,6 +639,8 @@ export function DashboardShell({
             <RevenuePanel data={data} />
             <StockWatchlist items={data.lowStock} />
           </div>
+
+          <CoffeeFlowMini beliKg={data.coffeeFlowMini.beliKg} diRoastKg={data.coffeeFlowMini.diRoastKg} susutKg={data.coffeeFlowMini.susutKg} />
 
           <RoasteryCopilot insights={insights ?? []} />
 

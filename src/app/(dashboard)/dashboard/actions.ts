@@ -55,6 +55,12 @@ export type DashboardData = {
   activity:     ActivityItem[];
   asOf:         string; // ISO
   dailyBrief:   DailyBriefPayload | null;
+  /** Agregat arus kopi 30 hari (kg) untuk mini Sankey Hari Ini. */
+  coffeeFlowMini: {
+    beliKg: number;
+    diRoastKg: number;
+    susutKg: number;
+  };
   operationalQueue: {
     purchaseOrdersToReceive: number;
     roastingBatchesOpen: number;
@@ -92,6 +98,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   });
   const today = getZonedDayRange(now, tenant?.timezone);
   const sevenDayPeriod = getZonedDayRange(now, tenant?.timezone, -6);
+  const thirtyDayPeriod = getZonedDayRange(now, tenant?.timezone, -29);
 
   // ── All queries fire in parallel ──
   const [
@@ -115,6 +122,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     paymentReviews,
     fulfillmentGroups,
     overdueReceivables,
+    coffeeFlowMiniRaw,
   ] = await Promise.all([
 
     // 1. Revenue hari ini (nota yang DIKIRIM hari ini; pengakuan berbasis pengiriman 2F.2)
@@ -308,6 +316,16 @@ export async function getDashboardData(): Promise<DashboardData> {
       _count: true,
       _sum: { grandTotal: true, paidAmount: true, returnedAmount: true },
     }),
+
+    // 20. Arus kopi 30 hari (kg) untuk mini Sankey Hari Ini.
+    tp.inventoryLedger.groupBy({
+      by: ["refType"],
+      where: {
+        refType: { in: ["PURCHASE_GB", "ROASTING_GB_OUT", "ROASTING_RB_IN"] },
+        createdAt: { gte: thirtyDayPeriod.start, lt: thirtyDayPeriod.end },
+      },
+      _sum: { quantityKg: true },
+    }),
   ]);
 
   // ── KPI calculations ──
@@ -353,6 +371,19 @@ export async function getDashboardData(): Promise<DashboardData> {
       - Number(overdueReceivables._sum.paidAmount ?? 0)
       - Number(overdueReceivables._sum.returnedAmount ?? 0),
   );
+
+  // ── Arus kopi 30 hari (kg) ──
+  const kgByRef = new Map(
+    coffeeFlowMiniRaw.map((row) => [row.refType, Number(row._sum.quantityKg ?? 0)]),
+  );
+  const miniBeliKg = kgByRef.get("PURCHASE_GB") ?? 0;
+  const miniDiRoastKg = kgByRef.get("ROASTING_GB_OUT") ?? 0;
+  const miniHasilKg = kgByRef.get("ROASTING_RB_IN") ?? 0;
+  const coffeeFlowMini = {
+    beliKg: miniBeliKg,
+    diRoastKg: miniDiRoastKg,
+    susutKg: Math.max(0, Math.round((miniDiRoastKg - miniHasilKg) * 100) / 100),
+  };
 
   // ── Build stock maps ──
   // ── Low stock items ──
@@ -485,6 +516,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     activity: activities,
     asOf: now.toISOString(),
     dailyBrief: dailyBriefSnapshot?.payload as DailyBriefPayload | null ?? null,
+    coffeeFlowMini,
     operationalQueue: {
       purchaseOrdersToReceive,
       roastingBatchesOpen,

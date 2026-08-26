@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { cn } from "@/lib/utils";
 import { exportToProfessionalPdf, exportToProfessionalExcel } from "@/lib/export-utils";
+import { toCoffeeFlowSankey } from "@/lib/coffee-flow-sankey";
+import { CoffeeFlowSankeyChart } from "./CoffeeFlowSankeyChart";
 
 // =============================================================================
 // CSV Export (keep existing)
@@ -281,6 +283,10 @@ export function CoffeeFlowClient({ report }: { report: CoffeeFlowReport }) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeStage, setActiveStage] = useState<string | null>(null);
+  const [flowView, setFlowView] = useState<"ringkasan" | "diagram">("diagram");
+
+  // Transform ke graf Sankey dihitung ulang hanya saat report berubah.
+  const sankeyGraph = useMemo(() => toCoffeeFlowSankey(report), [report]);
 
   const filteredGB = useMemo(() => report.greenBeans.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())), [report.greenBeans, searchQuery]);
   const filteredRB = useMemo(() => report.roastedBeans.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())), [report.roastedBeans, searchQuery]);
@@ -313,8 +319,38 @@ export function CoffeeFlowClient({ report }: { report: CoffeeFlowReport }) {
         </div>
       </div>
 
-      {/* FLOW PIPELINE */}
-      <FlowPipeline report={report} onStageClick={(id) => setActiveStage(activeStage === id ? null : id)} />
+      {/* FLOW: Ringkasan | Diagram Alur */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Alur Arus Kopi</h3>
+          <div className="flex rounded-lg border border-slate-200 p-0.5" role="tablist" aria-label="Mode tampilan alur">
+            {(["ringkasan", "diagram"] as const).map((mode) => (
+              <button
+                key={mode}
+                role="tab"
+                aria-selected={flowView === mode}
+                onClick={() => setFlowView(mode)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-bold transition-colors",
+                  flowView === mode ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-800",
+                )}
+              >
+                {mode === "ringkasan" ? "Ringkasan" : "Diagram Alur"}
+              </button>
+            ))}
+          </div>
+        </div>
+        {flowView === "diagram" ? (
+          <div className="p-4">
+            <CoffeeFlowSankeyChart graph={sankeyGraph} />
+            <p className="mt-2 text-center text-[11px] text-slate-400">
+              Lebar pita proporsional terhadap kuantitas (kg). Arahkan kursor untuk detail.
+            </p>
+          </div>
+        ) : (
+          <FlowPipeline report={report} onStageClick={(id) => setActiveStage(activeStage === id ? null : id)} />
+        )}
+      </div>
 
       {/* CONVERSION FUNNEL */}
       <ConversionFunnel report={report} />
