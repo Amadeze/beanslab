@@ -22,11 +22,14 @@ export const CounterAnimation: FC<CounterAnimationProps> = ({
   const [hasAnimated, setHasAnimated] = useState(false);
 
   useEffect(() => {
+    // Observer dibuat sekali — bukan tiap kali hasAnimated berubah. Sebelumnya
+    // dependensi [hasAnimated] membuat observer kedua setiap animasi mulai
+    // (observer churn) yang tetap memantau sampai unmount.
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !hasAnimated) {
+        if (entry.isIntersecting) {
           setHasAnimated(true);
-          observer.unobserve(entry.target);
+          observer.disconnect();
         }
       },
       { threshold: 0.1 }
@@ -38,11 +41,9 @@ export const CounterAnimation: FC<CounterAnimationProps> = ({
     }
 
     return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
+      observer.disconnect();
     };
-  }, [hasAnimated]);
+  }, []);
 
   useEffect(() => {
     if (!hasAnimated) return;

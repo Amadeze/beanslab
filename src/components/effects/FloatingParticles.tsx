@@ -1,6 +1,6 @@
 'use client';
 
-import { type FC, useMemo } from 'react';
+import { type FC, useEffect, useState } from 'react';
 
 export interface FloatingParticlesProps {
   count?: number;
@@ -30,16 +30,23 @@ export const FloatingParticles: FC<FloatingParticlesProps> = ({
   count = 30,
   className = '',
 }) => {
-  const particles = useMemo<Particle[]>(() => {
-    return Array.from({ length: count }, (_, i) => ({
-      id: i,
-      size: Math.random() * 20 + 8,
-      left: `${Math.random() * 100}%`,
-      top: `${Math.random() * 100}%`,
-      delay: `${Math.random() * 5}s`,
-      duration: `${Math.random() * 10 + 10}s`,
-      color: COFFEE_COLORS[Math.floor(Math.random() * COFFEE_COLORS.length)],
-    }));
+  // Nilai acak HANYA dibuat setelah mount. Kalau dibuat saat render,
+  // markup server tidak akan pernah cocok dengan hydration pertama klien
+  // (hydration mismatch) karena Math.random() berbeda di kedua sisi.
+  const [particles, setParticles] = useState<Particle[]>([]);
+
+  useEffect(() => {
+    setParticles(
+      Array.from({ length: count }, (_, i) => ({
+        id: i,
+        size: Math.random() * 20 + 8,
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 5}s`,
+        duration: `${Math.random() * 10 + 10}s`,
+        color: COFFEE_COLORS[Math.floor(Math.random() * COFFEE_COLORS.length)],
+      })),
+    );
   }, [count]);
 
   return (

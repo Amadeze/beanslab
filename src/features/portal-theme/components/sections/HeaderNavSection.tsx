@@ -13,6 +13,21 @@ interface HeaderNavProps {
   sectionId?: string;
 }
 
+type NavLink = { label: string; href: string };
+
+// Fallback hanya bila tenant belum mengatur navLinks. Hanya memuat anchor
+// yang benar-benar dirender halaman (#catalog & #faq punya canonical anchors
+// di PortalThemeRenderer) — tautan mati seperti "#about" tidak dipakai lagi.
+const FALLBACK_NAV_LINKS: NavLink[] = [
+  { label: "Koleksi", href: "#catalog" },
+  { label: "FAQ", href: "#faq" },
+];
+
+function readConfiguredNavLinks(settings: Record<string, unknown>): NavLink[] {
+  const raw = settings.navLinks;
+  return Array.isArray(raw) ? (raw as NavLink[]) : FALLBACK_NAV_LINKS;
+}
+
 export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPreview = false, sectionId }: HeaderNavProps) {
   const styleMode = (settings.styleMode as string) || "glass_pill";
   const logoText = (settings.logoText as string) || "Nama Toko";
@@ -32,22 +47,32 @@ export function HeaderNavSection({ settings, onOpenCart, cartItemCount = 0, isPr
     return () => window.removeEventListener("scroll", onScroll);
   }, [isPreview]);
 
-  const defaultNavLinks = Array.isArray(settings.navLinks) ? settings.navLinks : [
-    { label: "Koleksi", href: "#catalog" },
-    { label: "Tentang", href: "#about" },
-    { label: "FAQ", href: "#faq" },
-  ];
+  const configuredNavLinks = readConfiguredNavLinks(settings);
 
-  const [navLinks, setNavLinks] = useState(defaultNavLinks);
+  const [navLinks, setNavLinks] = useState<NavLink[]>(configuredNavLinks);
 
   useEffect(() => {
-    // Only show links if their target section actually exists on the page
-    const filtered = defaultNavLinks.filter(link => {
-      const el = document.querySelector(link.href) || document.getElementById(link.href.replace("#", ""));
-      return !!el;
+    // Re-filter setiap kali customizer mengubah navLinks, dan setelah paint
+    // agar section yang ter-hydride belakangan tetap ditemukan. Tanpa ini
+    // navigasi bisa membeku dengan daftar lama atau menaut ke anchor yang
+    // tidak ada.
+    const raf = requestAnimationFrame(() => {
+      setNavLinks(configuredNavLinks.filter((link) => {
+        if (!link || typeof link.href !== "string") return false;
+        try {
+          return !!(document.querySelector(link.href) || document.getElementById(link.href.replace("#", "")));
+        } catch {
+          // Selector tidak valid untuk querySelector — coba id polos saja.
+          try {
+            return !!document.getElementById(link.href.replace("#", ""));
+          } catch {
+            return false;
+          }
+        }
+      }));
     });
-    setNavLinks(filtered);
-  }, []);
+    return () => cancelAnimationFrame(raf);
+  }, [configuredNavLinks]);
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();

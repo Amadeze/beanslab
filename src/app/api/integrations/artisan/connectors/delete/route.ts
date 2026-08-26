@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     // Nullify foreign keys in related tables first
     await tenantPrisma.artisanRoastImport.updateMany({
       where: { connectorId },
-      data: { connectorId: null as any },
+      data: { connectorId: null },
     });
 
     // Delete the connector

@@ -14,6 +14,15 @@ const FOCUSABLE = [
 export function useModalFocus(open: boolean, onClose: () => void) {
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Simpan callback terbaru di ref agar efek hanya bergantung pada `open`.
+  // Tanpa ini, pemanggil yang meneruskan fungsi anonim baru tiap render
+  // membuat listener dipasang-lepas berulang dan fokus melompat ke elemen
+  // pertama terus-menerus.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement instanceof HTMLElement
@@ -29,7 +38,7 @@ export function useModalFocus(open: boolean, onClose: () => void) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab" || !container) return;
@@ -56,7 +65,7 @@ export function useModalFocus(open: boolean, onClose: () => void) {
       document.removeEventListener("keydown", onKeyDown);
       previousFocus?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return containerRef;
 }

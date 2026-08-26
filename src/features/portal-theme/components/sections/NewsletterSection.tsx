@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Send } from "lucide-react";
 
@@ -16,6 +17,11 @@ export function NewsletterSection({ settings, typography }: NewsletterProps) {
   const placeholder = (settings.placeholder as string) || "Enter your email";
   const buttonText = (settings.buttonText as string) || "Subscribe";
   const privacyText = (settings.privacyText as string) || "";
+
+  // Belum ada backend langganan newsletter — tanpa preventDefault, tombol
+  // submit membuat browser melakukan navigasi GET penuh dan meninggalkan
+  // halaman toko.
+  const [submitted, setSubmitted] = useState(false);
 
   return (
     <section className="w-full" style={{ backgroundColor: "var(--portal-surface, #fff)" }}>
@@ -59,7 +65,13 @@ export function NewsletterSection({ settings, typography }: NewsletterProps) {
             </p>
           )}
 
-          <form className="flex max-w-md mx-auto flex-col gap-3 sm:flex-row">
+          <form
+            className="flex max-w-md mx-auto flex-col gap-3 sm:flex-row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSubmitted(true);
+            }}
+          >
             <input
               type="email"
               placeholder={placeholder}
@@ -84,6 +96,12 @@ export function NewsletterSection({ settings, typography }: NewsletterProps) {
               {buttonText}
             </motion.button>
           </form>
+
+          {submitted && (
+            <p className="mt-3 text-xs" style={{ color: "var(--portal-text-muted, #6B7280)" }}>
+              Pendaftaran newsletter belum diaktifkan oleh toko ini.
+            </p>
+          )}
 
           {privacyText && (
             <p className="mt-4 text-xs" style={{ color: "var(--portal-text-muted, #6B7280)", opacity: 0.7 }}>

@@ -78,7 +78,6 @@ export const DEFAULT_PORTAL_THEME_CONFIG: PortalThemeConfig = {
         ctaText: "Keranjang",
         navLinks: [
           { label: "Kopi", href: "#catalog" },
-          { label: "Tentang", href: "#about" },
           { label: "FAQ", href: "#faq" },
         ],
       },

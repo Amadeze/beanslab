@@ -365,7 +365,7 @@ export async function loadStorefrontCatalog(
   const lineageResults = await Promise.all(
     offeringRows.map(async (row: Record<string, any>) => {
       try {
-        return { row, resolution: await resolveOfferingLineage(db, row as OfferingForLineage), error: null as unknown };
+        return { row, resolution: await resolveOfferingLineage(db, row as OfferingForLineage), error: null as unknown | null };
       } catch (error) {
         return { row, resolution: null, error };
       }

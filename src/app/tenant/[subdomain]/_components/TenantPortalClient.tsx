@@ -161,6 +161,11 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
   const igLink = tenant.instagramHandle ? `https://instagram.com/${tenant.instagramHandle.replace('@', '')}` : null;
 
   // ─── Persist customer info ────────────────────────────────────────────
+  // Kunci diberi namespace per tenant: sebelumnya kunci global
+  // ("ros_customer_name") dipakai bersama semua toko sehingga data pelanggan
+  // satu tenant menimpa/muncul di portal tenant lain.
+  const storagePrefix = `ros:${tenant.subdomain || "storefront"}`;
+
   useEffect(() => {
     void useCartStore.persist.rehydrate();
     if (b2bProfile) {
@@ -169,23 +174,23 @@ export function TenantPortalClient({ tenant, isPreviewMode }: TenantPortalClient
       setCustomerAddress(b2bProfile.customer.address ?? "");
       return;
     }
-    const savedName = localStorage.getItem("ros_customer_name");
-    const savedPhone = localStorage.getItem("ros_customer_phone");
-    const savedAddress = localStorage.getItem("ros_customer_address");
-    const savedShipping = localStorage.getItem("ros_shipping_method");
+    const savedName = localStorage.getItem(`${storagePrefix}:name`);
+    const savedPhone = localStorage.getItem(`${storagePrefix}:phone`);
+    const savedAddress = localStorage.getItem(`${storagePrefix}:address`);
+    const savedShipping = localStorage.getItem(`${storagePrefix}:shipping`);
     if (savedName) setCustomerName(savedName);
     if (savedPhone) setCustomerPhone(savedPhone);
     if (savedAddress) setCustomerAddress(savedAddress);
     const savedAllowed = savedShipping === "PICKUP" ? tenant.storefrontPickupEnabled : tenant.storefrontDeliveryEnabled;
     if (savedShipping && savedAllowed) setShippingMethod(savedShipping);
-  }, [b2bProfile, tenant.storefrontDeliveryEnabled, tenant.storefrontPickupEnabled]);
+  }, [b2bProfile, storagePrefix, tenant.storefrontDeliveryEnabled, tenant.storefrontPickupEnabled]);
 
   useEffect(() => {
-    if (!b2bProfile && customerName) localStorage.setItem("ros_customer_name", customerName);
-    if (!b2bProfile && customerPhone) localStorage.setItem("ros_customer_phone", customerPhone);
-    if (customerAddress) localStorage.setItem("ros_customer_address", customerAddress);
-    if (shippingMethod) localStorage.setItem("ros_shipping_method", shippingMethod);
-  }, [b2bProfile, customerName, customerPhone, customerAddress, shippingMethod]);
+    if (!b2bProfile && customerName) localStorage.setItem(`${storagePrefix}:name`, customerName);
+    if (!b2bProfile && customerPhone) localStorage.setItem(`${storagePrefix}:phone`, customerPhone);
+    if (customerAddress) localStorage.setItem(`${storagePrefix}:address`, customerAddress);
+    if (shippingMethod) localStorage.setItem(`${storagePrefix}:shipping`, shippingMethod);
+  }, [b2bProfile, customerName, customerPhone, customerAddress, shippingMethod, storagePrefix]);
 
   // ─── Cart Actions ─────────────────────────────────────────────────────
   const handleAddToCart = (

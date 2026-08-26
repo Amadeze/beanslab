@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   Monitor, Tablet, Smartphone, Eye, Save, Check,
@@ -75,17 +75,27 @@ export default function PortalCustomizerPage() {
   const [readiness, setReadiness] = useState<ReadinessResult | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(true);
 
+  // Guard unmount: fetch/promise yang selesai setelah komponen pergi tidak
+  // boleh lagi memanggil setState (React warning + kebocoran update).
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const fetchReadiness = useCallback(async () => {
     try {
       const res = await fetch("/api/tenant/readiness");
       if (res.ok) {
         const data = await res.json();
-        setReadiness(data);
+        if (isMountedRef.current) setReadiness(data);
       }
     } catch {
       // ignore
     } finally {
-      setReadinessLoading(false);
+      if (isMountedRef.current) setReadinessLoading(false);
     }
   }, []);
 
@@ -95,6 +105,7 @@ export default function PortalCustomizerPage() {
 
   useEffect(() => {
     loadPortalTheme().then((res) => {
+      if (!isMountedRef.current) return;
       if (res.success && res.data) {
         const data = res.data as { config?: any; portalTheme?: any; subdomain?: string };
         if (data.config) {
@@ -110,6 +121,7 @@ export default function PortalCustomizerPage() {
     fetch("/api/portal-theme/products")
       .then((r) => r.json())
       .then((d) => {
+        if (!isMountedRef.current) return;
         if (d && d.products) setProducts(d.products);
         if (d && d.offerings) setOfferings(d.offerings);
       })
@@ -118,7 +130,9 @@ export default function PortalCustomizerPage() {
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => {
+      if (isMountedRef.current) setToast(null);
+    }, 3500);
   };
 
   const handleSaveDraft = async () => {
