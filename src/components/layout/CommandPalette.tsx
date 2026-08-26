@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, CornerDownLeft, Warehouse, Radar, FlaskConical, Beaker, Database, ScrollText, Receipt } from "lucide-react";
+import { Search, CornerDownLeft, Radar, FlaskConical, Beaker, Database, ScrollText, Receipt, Sparkles } from "lucide-react";
 import { APP_NAV_SECTIONS, canAccessNavigation } from "./Sidebar";
 import type { PlanTier } from "@/lib/plans";
 import { cn } from "@/lib/utils";
@@ -10,11 +10,11 @@ import { cn } from "@/lib/utils";
 type RouteEntry = { label: string; href: string; group: string; Icon: React.ElementType };
 
 const HIDDEN_ROUTES: RouteEntry[] = [
-  { label: "Gudang & FEFO", href: "/gudang", group: "Operasional", Icon: Warehouse },
-  { label: "Cupping & QC", href: "/cupping", group: "Roastery", Icon: Radar },
-  { label: "Grinding", href: "/grinding", group: "Produksi", Icon: Beaker },
-  { label: "Eksperimen", href: "/eksperimen", group: "Produksi", Icon: FlaskConical },
+  { label: "Cupping & QC", href: "/cupping", group: "Operasional", Icon: Radar },
+  { label: "Grinding", href: "/grinding", group: "Operasional", Icon: Beaker },
+  { label: "Eksperimen", href: "/eksperimen", group: "Operasional", Icon: FlaskConical },
   { label: "Master Data", href: "/master-data", group: "Komersial", Icon: Database },
+  { label: "Tanya Roastd", href: "/ai-insights", group: "Uang & Kinerja", Icon: Sparkles },
   { label: "Audit & Log", href: "/audit", group: "Kelola", Icon: ScrollText },
   { label: "Tagihan & Langganan", href: "/billing", group: "Kelola", Icon: Receipt },
 ];

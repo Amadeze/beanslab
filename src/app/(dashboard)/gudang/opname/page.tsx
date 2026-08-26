@@ -22,7 +22,7 @@ export default async function OpnamePage() {
       />
       <div className="custom-scrollbar flex-1 overflow-auto">
         <Suspense fallback={null}>
-          <WorkspaceNav kind="supply" />
+          <WorkspaceNav kind="warehouse" />
         </Suspense>
         <div className="mx-auto max-w-[1200px] p-4 md:p-6 lg:p-8">
           <Suspense fallback={null}>

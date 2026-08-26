@@ -14,32 +14,33 @@ import { getSalesChannelLabel } from "@/lib/sales-channel";
 const primaryItems = APP_NAV_SECTIONS.flatMap((section) => section.items);
 
 describe("product coherence navigation", () => {
-  it("uses five task contexts without duplicating workspace subpages", () => {
+  it("mirrors the six-stage spine without hiding whole modules", () => {
     expect(APP_NAV_SECTIONS.map((section) => section.label)).toEqual([
       "Hari ini",
       "Operasional",
       "Komersial",
-      "Kontrol",
+      "Uang & Kinerja",
       "Kelola",
     ]);
     expect(primaryItems.map((item) => item.href)).toEqual([
       "/dashboard",
       "/inventory",
+      "/gudang",
       "/roasting",
       "/produksi",
-      "/kasir",
       "/penjualan",
+      "/kasir",
       "/katalog",
       "/keuangan",
       "/laporan",
-      "/laporan/akuntansi",
-      "/ai-insights",
       "/settings",
     ]);
   });
 
   it.each([
-    ["/gudang/opname", "/inventory"],
+    ["/gudang", "/gudang"],
+    ["/gudang/opname", "/gudang"],
+    ["/gudang/visual", "/gudang"],
     ["/inventory/suppliers", "/inventory"],
     ["/cupping", "/roasting"],
     ["/roasting/profiles", "/roasting"],
@@ -47,8 +48,7 @@ describe("product coherence navigation", () => {
     ["/eksperimen", "/produksi"],
     ["/penjualan/kontrak", "/penjualan"],
     ["/master-data", "/katalog"],
-    ["/laporan/akuntansi", "/laporan/akuntansi"],
-    ["/ai-insights", "/ai-insights"],
+    ["/laporan/akuntansi", "/laporan"],
     ["/audit", "/settings"],
     ["/billing", "/settings"],
   ])("keeps %s inside its canonical workspace", (pathname, expectedHref) => {
@@ -57,13 +57,13 @@ describe("product coherence navigation", () => {
 
   it("keeps role-aware primary destinations after consolidation", () => {
     expect(canAccessNavigation("/control-tower", "OPERATOR", "BASIC")).toBe(true);
+    expect(canAccessNavigation("/gudang", "OPERATOR", "BASIC")).toBe(true);
     expect(canAccessNavigation("/produksi", "OPERATOR", "BASIC")).toBe(true);
     expect(canAccessNavigation("/settings", "OPERATOR", "BASIC")).toBe(false);
     expect(canAccessNavigation("/kasir", "CASHIER", "BASIC")).toBe(true);
     expect(canAccessNavigation("/inventory", "CASHIER", "BASIC")).toBe(false);
+    // Laporan = satu item ber-gate plan; akuntansi ada DI DALAMNYA.
     expect(canAccessNavigation("/laporan", "OWNER", "BASIC")).toBe(false);
-    expect(canAccessNavigation("/laporan/akuntansi", "OWNER", "BASIC")).toBe(true);
-    expect(canAccessNavigation("/ai-insights", "OWNER", "BASIC")).toBe(true);
     expect(canAccessNavigation("/laporan", "OWNER", "PRO")).toBe(true);
   });
 });

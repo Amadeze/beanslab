@@ -26,7 +26,7 @@ import {
 
 import { cn } from "@/lib/utils";
 
-type WorkspaceKind = "supply" | "roastery" | "sales";
+type WorkspaceKind = "supply" | "warehouse" | "roastery" | "sales";
 
 const WORKSPACES = {
   supply: [
@@ -56,10 +56,12 @@ const WORKSPACES = {
     },
     { label: "Supplier", href: "/inventory/suppliers", icon: Users },
     { label: "Lot & FEFO", href: "/inventory/lots", icon: PackageCheck },
-    { label: "Gudang & Lokasi", href: "/gudang", icon: Warehouse },
+    { label: "Persediaan Non-Kopi", href: "/katalog", query: "tab=supply", icon: PackageOpen },
+  ],
+  warehouse: [
+    { label: "Stok & Lokasi", href: "/gudang", icon: Warehouse },
     { label: "Peta Gudang", href: "/gudang/visual", icon: LayoutGrid },
     { label: "Opname", href: "/gudang/opname", icon: ClipboardCheck },
-    { label: "Persediaan Non-Kopi", href: "/katalog", query: "tab=supply", icon: PackageOpen },
   ],
   roastery: [
     { label: "Batch roasting", href: "/roasting", icon: Flame },
@@ -93,24 +95,30 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
   const items = WORKSPACES[kind];
   const workspaceLabel = {
     supply: "Pasokan",
-    roastery: "Roastery",
+    warehouse: "Gudang",
+    roastery: "Roasting",
     sales: "Penjualan",
   }[kind];
   const workspaceTone = {
     supply: {
-      active: "border-[#2B7567] bg-[#2B7567] text-white",
-      icon: "border-white/10 bg-white/10 text-white",
-      idleIcon: "text-[#87CDBC]",
+      active: "tone-inventory-active",
+      icon: "nav-icon-active",
+      idleIcon: "tone-inventory-text",
+    },
+    warehouse: {
+      active: "tone-warehouse-active",
+      icon: "nav-icon-active",
+      idleIcon: "tone-warehouse-text",
     },
     roastery: {
-      active: "border-[#B65331] bg-[#B65331] text-white",
-      icon: "border-white/10 bg-white/10 text-white",
-      idleIcon: "text-[#E9A17F]",
+      active: "tone-roasting-active",
+      icon: "nav-icon-active",
+      idleIcon: "tone-roasting-text",
     },
     sales: {
-      active: "border-[#6F4A6A] bg-[#6F4A6A] text-white",
-      icon: "border-white/10 bg-white/10 text-white",
-      idleIcon: "text-[#C7A8C4]",
+      active: "tone-sales-active",
+      icon: "nav-icon-active",
+      idleIcon: "tone-sales-text",
     },
   }[kind];
 

@@ -384,6 +384,10 @@
   --stage-neutral: #426C7A;
   --stage-neutral-soft: #83A9B1;
 
+  /* Sinyal di krom obsidian */
+  --chrome-danger-soft: #FF8C88;
+  --chrome-instrument-soft: #71D2DA;
+
   /* ── Elegant editorial-minimal extension (hybrid light canvas + dark workbench) ──
      Additive layer. New components consume these; existing tokens unchanged. */
   --paper: #F7F5F1;

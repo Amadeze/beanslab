@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Boxes,
   BookOpen,
+  Boxes,
   ChartNoAxesCombined,
   ChevronLeft,
   ChevronRight,
@@ -17,8 +17,8 @@ import {
   Settings2,
   ShoppingBag,
   ShoppingCart,
-  Sparkles,
   WalletCards,
+  Warehouse,
 } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
 import { cn } from "@/lib/utils";
@@ -103,26 +103,32 @@ export const APP_NAV_SECTIONS: NavSection[] = [
   },
   {
     label: "Operasional",
-    caption: "Bahan sampai produk",
+    caption: "Alur 01–04",
     items: [
       {
-        label: "Pasokan & Stok",
+        label: "Pasokan",
         shortLabel: "Pasokan",
         href: "/inventory",
         icon: Boxes,
         tone: "inventory",
-        matchPrefixes: ["/gudang"],
       },
       {
-        label: "Roastery",
-        shortLabel: "Roastery",
+        label: "Gudang",
+        shortLabel: "Gudang",
+        href: "/gudang",
+        icon: Warehouse,
+        tone: "neutral",
+      },
+      {
+        label: "Roasting",
+        shortLabel: "Roasting",
         href: "/roasting",
         icon: Flame,
         tone: "roasting",
         matchPrefixes: ["/cupping"],
       },
       {
-        label: "Produksi & Packing",
+        label: "Produksi",
         shortLabel: "Produksi",
         href: "/produksi",
         icon: Factory,
@@ -136,13 +142,6 @@ export const APP_NAV_SECTIONS: NavSection[] = [
     caption: "Jual dan layani",
     items: [
       {
-        label: "Buka Kasir",
-        shortLabel: "Kasir",
-        href: "/kasir",
-        icon: ShoppingCart,
-        tone: "sales",
-      },
-      {
         label: "Penjualan",
         shortLabel: "Penjualan",
         href: "/penjualan",
@@ -150,18 +149,25 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "sales",
       },
       {
-        label: "Produk & Resep",
-        shortLabel: "Produk",
+        label: "Buka Kasir",
+        shortLabel: "Kasir",
+        href: "/kasir",
+        icon: ShoppingCart,
+        tone: "sales",
+      },
+      {
+        label: "Katalog",
+        shortLabel: "Katalog",
         href: "/katalog",
-        icon: Boxes,
+        icon: BookOpen,
         tone: "sales",
         matchPrefixes: ["/master-data"],
       },
     ],
   },
   {
-    label: "Kontrol",
-    caption: "Uang dan kinerja",
+    label: "Uang & Kinerja",
+    caption: "Alur 06 dan analisa",
     items: [
       {
         label: "Kas & Piutang",
@@ -171,24 +177,10 @@ export const APP_NAV_SECTIONS: NavSection[] = [
         tone: "finance",
       },
       {
-        label: "Laporan Lanjutan",
+        label: "Laporan",
         shortLabel: "Laporan",
         href: "/laporan",
         icon: ChartNoAxesCombined,
-        tone: "neutral",
-      },
-      {
-        label: "Akuntansi Dasar",
-        shortLabel: "Akun",
-        href: "/laporan/akuntansi",
-        icon: BookOpen,
-        tone: "neutral",
-      },
-      {
-        label: "Tanya Roastd",
-        shortLabel: "Tanya",
-        href: "/ai-insights",
-        icon: Sparkles,
         tone: "neutral",
       },
     ],
@@ -222,6 +214,7 @@ export function canAccessNavigation(
       "/dashboard",
       "/control-tower",
       "/inventory",
+      "/gudang",
       "/roasting",
       "/produksi",
       "/katalog",
