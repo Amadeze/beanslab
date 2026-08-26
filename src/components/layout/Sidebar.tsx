@@ -32,7 +32,7 @@ export type AppNavLink = {
   icon: React.ElementType;
   matchPrefixes?: string[];
   step?: string;
-  tone: "system" | "inventory" | "roasting" | "sales" | "finance" | "production" | "neutral";
+  tone: "system" | "inventory" | "warehouse" | "roasting" | "sales" | "finance" | "production" | "neutral";
 };
 
 /**
@@ -53,6 +53,11 @@ export const NAV_TONE_STYLES: Record<AppNavLink["tone"], {
     active: "tone-inventory-navactive",
     activeIcon: "nav-icon-active",
     inactiveIcon: "tone-inventory-text",
+  },
+  warehouse: {
+    active: "tone-warehouse-navactive",
+    activeIcon: "nav-icon-active",
+    inactiveIcon: "tone-warehouse-text",
   },
   roasting: {
     active: "tone-roasting-navactive",

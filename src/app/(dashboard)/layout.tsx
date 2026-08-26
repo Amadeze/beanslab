@@ -1,4 +1,4 @@
-import { AppShell } from "@/components/layout/AppShell";
+import { AppShellV2 } from "@/components/layout/AppShellV2";
 import { getTenantAccessRecord, requireCurrentUser } from "@/lib/auth";
 import { getTenantAccessState } from "@/lib/subscription";
 import { prisma } from "@/lib/prisma";
@@ -63,7 +63,7 @@ export default async function DashboardLayout({
 
   return (
     <AppToastProvider>
-      <AppShell
+      <AppShellV2
         userRole={user.role}
         subscriptionTier={tenant?.subscriptionTier || "TRIAL"}
         pendingPaymentReviews={pendingPaymentReviews}
@@ -72,7 +72,7 @@ export default async function DashboardLayout({
       >
         {children}
         <OfflineIndicator />
-      </AppShell>
+      </AppShellV2>
     </AppToastProvider>
   );
 }
