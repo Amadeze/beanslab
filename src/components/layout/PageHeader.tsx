@@ -45,8 +45,8 @@ interface PageHeaderProps {
 }
 
 /**
- * CanvasHeader — header halaman pada KANVAS TERANG.
- * Hierarki: eyebrow mono copper → judul tinta besar → deskripsi.
+ * CanvasHeader â€” header halaman pada KANVAS TERANG.
+ * Hierarki: eyebrow mono copper â†’ judul tinta besar â†’ deskripsi.
  * Tahap ditampilkan sebagai deretan titik kecil yang tenang, bukan bar gelap.
  */
 export function PageHeader({
@@ -118,7 +118,7 @@ export function PageHeader({
                     )}
                   />
                 ))}
-                <span className="ml-1.5">SYS {String(activeIndex + 1).padStart(2, "0")}</span>
+                <span className="ml-1.5">TAHAP {activeIndex + 1}</span>
               </span>
             ) : null}
             {eyebrow ?? (activeStage ? "Roastery flow" : "Workspace")}
@@ -143,7 +143,7 @@ export function PageHeader({
       </div>
 
       {(signal || (metrics && metrics.length > 0) || next) && (
-        <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-card border border-border/70 bg-card px-4 py-2.5 shadow-elevation-soft">
+        <div className="mb-4 hidden flex-wrap items-center gap-x-5 gap-y-2 rounded-card border border-border/70 bg-card px-4 py-2.5 shadow-elevation-soft md:flex">
           {signal ? (
             <button
               type="button"
@@ -223,7 +223,7 @@ export function PageHeader({
                   headerTone?.signal ?? "text-primary",
                 )}
               >
-                {next.label} →
+                {next.label} â†’
               </Link>
             </>
           ) : null}

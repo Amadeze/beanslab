@@ -33,7 +33,7 @@ import type { PlanTier } from "@/lib/plans";
 const ALL_NAV_ITEMS = APP_NAV_SECTIONS.flatMap((section) => section.items);
 const MOBILE_PRIMARY_HREFS = ["/dashboard", "/inventory", "/kasir", "/roasting"];
 
-// ── Rail (ikon selalu bersama teks) ────────────────────────────────────────
+// â”€â”€ Rail (ikon selalu bersama teks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function Rail({
   userRole,
@@ -112,7 +112,7 @@ function Rail({
   );
 }
 
-// ── Panel konteks (kanan, xl ke atas) ──────────────────────────────────────
+// â”€â”€ Panel konteks (kanan, xl ke atas) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Isi panel saat sebuah entri dipilih (Rantai Jejak, detail ringkas, dll). */
 function PanelEntityBody() {
@@ -125,7 +125,7 @@ function PanelEntityBody() {
         onClick={clear}
         className="inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-ink-tertiary transition-colors hover:bg-surface-sunken hover:text-foreground"
       >
-        ← Ringkasan
+        â† Ringkasan
       </button>
       <div className="min-w-0">
         {entity.eyebrow ? (
@@ -143,23 +143,12 @@ function PanelEntityBody() {
 function ContextPanel({
   userRole,
   subscriptionTier,
-  pendingPaymentReviews,
-  lowStockCount,
-  unfulfilledOrders,
   onClose,
 }: {
   userRole: string;
   subscriptionTier: PlanTier;
-  pendingPaymentReviews: number;
-  lowStockCount: number;
-  unfulfilledOrders: number;
   onClose: () => void;
 }) {
-  const actions: Array<{ href: string; label: string; count: number }> = [
-    { href: "/penjualan/pembayaran", label: "Bukti bayar ditinjau", count: pendingPaymentReviews },
-    { href: "/produksi", label: "Pesanan belum diproduksi", count: unfulfilledOrders },
-    { href: "/inventory", label: "Stok di bawah batas", count: lowStockCount },
-  ].filter((a) => a.count > 0);
   const { entity } = useEntityPanel();
 
   return (
@@ -189,33 +178,6 @@ function ContextPanel({
         </p>
       </div>
 
-      <div className="rounded-card border border-border bg-card p-4 shadow-elevation-soft">
-        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-ink-tertiary">
-          Perlu tindakan
-        </p>
-        {actions.length === 0 ? (
-          <p className="mt-2 text-xs leading-5 text-ink-secondary">
-            Semua beres untuk sekarang.
-          </p>
-        ) : (
-          <ul className="mt-2 space-y-1.5">
-            {actions.map((a) => (
-              <li key={a.href}>
-                <Link
-                  href={a.href}
-                  className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-foreground"
-                >
-                  <span>{a.label}</span>
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums text-primary">
-                    {a.count}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
       <Link
         href="/ai-insights"
         className="group rounded-card border border-primary/25 bg-gradient-to-br from-card to-[color-mix(in_srgb,var(--copper)_6%,transparent)] p-4 transition-colors hover:border-primary/50"
@@ -241,7 +203,7 @@ function ContextPanel({
   );
 }
 
-// ── MobileDock (port dari shell lama) ──────────────────────────────────────
+// â”€â”€ MobileDock (port dari shell lama) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const MOBILE_TONES: Record<AppNavLink["tone"], Record<string, string>> = {
   system: { text: "dock-system-text", line: "dock-system-line", activeIcon: "dock-system-activeicon", prominent: "dock-system-prominent", inactiveIcon: "dock-system-inactive" },
@@ -344,7 +306,7 @@ function MobileDock({
   );
 }
 
-// ── Shell utama ────────────────────────────────────────────────────────────
+// â”€â”€ Shell utama â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function AppShellV2({
   children,
@@ -465,8 +427,8 @@ export function AppShellV2({
               aria-label="Cari halaman (Ctrl K)"
             >
               <Search size={12} />
-              <span className="hidden sm:inline">Cari…</span>
-              <kbd className="rounded border border-border px-1 font-mono text-[9px]">⌘K</kbd>
+              <span className="hidden sm:inline">Cariâ€¦</span>
+              <kbd className="rounded border border-border px-1 font-mono text-[9px]">âŒ˜K</kbd>
             </button>
             <button
               type="button"
@@ -496,14 +458,7 @@ export function AppShellV2({
       {/* Panel konteks */}
       {panelOpen ? (
         <>
-          <ContextPanel
-            userRole={userRole}
-            subscriptionTier={subscriptionTier}
-            pendingPaymentReviews={pendingPaymentReviews}
-            lowStockCount={lowStockCount}
-            unfulfilledOrders={unfulfilledOrders}
-            onClose={togglePanel}
-          />
+          <ContextPanel userRole={userRole} subscriptionTier={subscriptionTier} onClose={togglePanel} />
           <button
             type="button"
             onClick={togglePanel}
