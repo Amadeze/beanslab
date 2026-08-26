@@ -128,10 +128,10 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="instrument-grid-dark shrink-0 border-b border-white/10 bg-[#05090D] text-white">
+      <header className="instrument-grid-dark shrink-0 border-b border-white/10 bg-[var(--obsidian)] text-white">
         <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <div>
-            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[#8EF3FC]">
+            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--chrome-instrument-soft)]">
               Report Center
             </p>
             <h1 className="mt-0.5 font-heading text-lg font-bold tracking-[-0.035em] text-white">
@@ -140,7 +140,7 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
           </div>
           {actions && <div className="flex items-center gap-2">{actions}</div>}
         </div>
-        <nav className="border-t border-white/[0.08] bg-[#0B141B]/72">
+        <nav className="border-t border-white/[0.08] bg-[var(--chrome-panel)]/72">
           <div className="mx-auto flex w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
             {SUPER_TABS.map((tab) => {
               const Icon = tab.icon;
@@ -156,7 +156,7 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
                   className={cn(
                     "flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap",
                     isActive
-                      ? "border-[#15B8C6] text-[#8EF3FC]"
+                      ? "border-[var(--instrument)] text-[var(--chrome-instrument-soft)]"
                       : "border-transparent text-white/42 hover:border-white/25 hover:text-white/78",
                   )}
                 >
@@ -168,7 +168,7 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
           </div>
         </nav>
         {subTabs.length > 0 && (
-          <nav className="border-t border-white/[0.06] bg-[#0B141B]">
+          <nav className="border-t border-white/[0.06] bg-[var(--chrome-panel)]">
             <div className="mx-auto flex w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
               {subTabs.map((tab) => {
                 const Icon = tab.icon;
@@ -180,7 +180,7 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
                     className={cn(
                       "flex items-center gap-1.5 border-b-2 px-3 py-2 text-[11px] font-medium transition-colors whitespace-nowrap",
                       isActive
-                        ? "border-[#A66F12] text-[#E7C778]"
+                        ? "border-[var(--stage-production)] text-[color-mix(in srgb, var(--stage-production-soft) 80%, white)]"
                         : "border-transparent text-white/38 hover:border-white/20 hover:text-white/70",
                     )}
                   >

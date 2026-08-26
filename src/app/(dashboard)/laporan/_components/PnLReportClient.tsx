@@ -31,7 +31,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   OVERHEAD_PABRIK: "Overhead Pabrik",
 };
 
-const ACCENT = "#B65331";
+const ACCENT = "var(--stage-roasting)";
 
 function pct(part: number, total: number): string {
   if (total === 0) return "–";
@@ -188,7 +188,7 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
   const cogsRatio = pct(cogs, revenue);
   const opexRatio = pct(opex, revenue);
 
-  const chartColors = ["#6F4A6A", "#B65331", "#2B7567", "#A66F12", "#4B6B3C", "#64748b"];
+  const chartColors = ["var(--stage-sales)", "var(--stage-roasting)", "var(--stage-inventory)", "var(--stage-production)", "var(--stage-finance)", "var(--ink-tertiary)"];
 
   const content = (
     <>
@@ -287,7 +287,7 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
                 { name: "Operasional", amount: opex },
                 { name: "Laba Bersih", amount: Math.max(0, netProfit) },
               ].filter(d => d.amount > 0);
-              const pieColors = ["#7A8790", "#ef4444", "#4B6B3C"];
+              const pieColors = ["var(--ink-secondary)", "var(--status-danger)", "var(--stage-finance)"];
               return (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -312,13 +312,13 @@ export function PnLReportClient({ report, hideLayout }: PnLReportClientProps) {
                 { name: "Bulan Lalu", Revenue: report.previousMonthRevenue || 0, Expenses: (report.previousMonthCogs || 0) + (report.previousMonthOpex || 0) },
                 { name: "Bulan Ini", Revenue: revenue, Expenses: cogs + opex },
               ]} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--technical-line)" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tickFormatter={(val) => `${(val / 1000000).toFixed(0)}jt`} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={50} />
                 <RechartsTooltip formatter={(v: any) => formatRupiah(Number(v))} cursor={{ fill: "transparent" }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: "11px" }} />
-                <Bar dataKey="Revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                <Bar dataKey="Expenses" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="Revenue" fill="var(--status-info)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="Expenses" fill="var(--status-danger)" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -79,14 +79,14 @@ export function ReportFilters({
             type="date"
             value={dateRange.start}
             onChange={(e) => onDateRangeChange({ ...dateRange, start: e.target.value })}
-            className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs text-stone-700 focus:border-[#00C8DF] focus:outline-none focus:ring-1 focus:ring-[#00C8DF]"
+            className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs text-stone-700 focus:border-[var(--instrument)] focus:outline-none focus:ring-1 focus:ring-[var(--instrument)]"
           />
           <span className="text-xs text-stone-400">–</span>
           <input
             type="date"
             value={dateRange.end}
             onChange={(e) => onDateRangeChange({ ...dateRange, end: e.target.value })}
-            className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs text-stone-700 focus:border-[#00C8DF] focus:outline-none focus:ring-1 focus:ring-[#00C8DF]"
+            className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs text-stone-700 focus:border-[var(--instrument)] focus:outline-none focus:ring-1 focus:ring-[var(--instrument)]"
           />
         </div>
 
@@ -110,13 +110,13 @@ export function ReportFilters({
             className={cn(
               "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
               showFilters || activeFilterCount > 0
-                ? "border-[#00C8DF] bg-[#00C8DF]/5 text-[#00C8DF]"
+                ? "border-[var(--instrument)] bg-[var(--instrument)]/5 text-[var(--instrument)]"
                 : "border-stone-200 text-stone-600 hover:bg-stone-50",
             )}
           >
             <span>Filter</span>
             {activeFilterCount > 0 && (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#00C8DF] text-[8px] font-bold text-white">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--instrument)] text-[8px] font-bold text-white">
                 {activeFilterCount}
               </span>
             )}
@@ -139,7 +139,7 @@ export function ReportFilters({
               <select
                 value={activeFilters[filter.key] || ""}
                 onChange={(e) => onFilterChange?.(filter.key, e.target.value)}
-                className="rounded-md border border-stone-200 px-2 py-1 text-xs text-stone-700 focus:border-[#00C8DF] focus:outline-none"
+                className="rounded-md border border-stone-200 px-2 py-1 text-xs text-stone-700 focus:border-[var(--instrument)] focus:outline-none"
               >
                 <option value="">Semua</option>
                 {filter.options.map((opt) => (

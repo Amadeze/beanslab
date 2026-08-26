@@ -39,17 +39,17 @@ interface ReportChartProps {
 }
 
 const DEFAULT_COLORS = [
-  "#00C8DF",
-  "#B65331",
-  "#A66F12",
-  "#6F4A6A",
-  "#4B6B3C",
-  "#2B7567",
+  "var(--instrument)",
+  "var(--stage-roasting)",
+  "var(--stage-production)",
+  "var(--stage-sales)",
+  "var(--stage-finance)",
+  "var(--stage-inventory)",
 ];
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "#FFFDF8",
-  border: "1px solid #E7E2D9",
+  backgroundColor: "var(--surface-raised)",
+  border: "1px solid var(--border-strong)",
   borderRadius: "8px",
   fontSize: "12px",
 };
@@ -84,7 +84,7 @@ export function ReportChart({
     };
 
     const axisProps = {
-      tick: { fontSize: 10, fill: "#8A8378" },
+      tick: { fontSize: 10, fill: "var(--ink-tertiary)" },
       tickLine: false,
       axisLine: false,
     };
@@ -98,7 +98,7 @@ export function ReportChart({
       case "area":
         return (
           <AreaChart {...commonProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E7E2D9" />}
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="var(--border-strong)" />}
             <XAxis dataKey={xKey} {...axisProps} />
             <YAxis {...yAxisProps} />
             <Tooltip contentStyle={TOOLTIP_STYLE} />
@@ -120,7 +120,7 @@ export function ReportChart({
       case "bar":
         return (
           <BarChart {...commonProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E7E2D9" />}
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="var(--border-strong)" />}
             <XAxis dataKey={xKey} {...axisProps} />
             <YAxis {...yAxisProps} />
             <Tooltip contentStyle={TOOLTIP_STYLE} />
@@ -139,7 +139,7 @@ export function ReportChart({
       case "line":
         return (
           <LineChart {...commonProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E7E2D9" />}
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="var(--border-strong)" />}
             <XAxis dataKey={xKey} {...axisProps} />
             <YAxis {...yAxisProps} />
             <Tooltip contentStyle={TOOLTIP_STYLE} />

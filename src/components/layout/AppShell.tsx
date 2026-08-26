@@ -155,18 +155,18 @@ function MobileDock({
         onClick={onOpenMore}
         className={cn(
           "relative flex min-w-0 flex-col items-center justify-center gap-0.5 text-[8px] font-semibold transition",
-          moreActive ? "text-[#8EF3FC]" : "text-white/45",
+          moreActive ? "text-[var(--chrome-instrument-soft)]" : "text-white/45",
         )}
         aria-label="Buka semua menu"
       >
         {moreActive ? (
-          <span className="absolute top-0 h-[2px] w-8 bg-[#00C8DF] shadow-[0_0_14px_rgba(0,200,223,.8)]" />
+          <span className="absolute top-0 h-[2px] w-8 bg-[var(--instrument)] shadow-[0_0_14px_rgba(0,200,223,.8)]" />
         ) : null}
         <span
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-[8px] border",
             moreActive
-              ? "border-[#00C8DF]/45 bg-[#00C8DF]/15 text-[#00C8DF]"
+              ? "border-[var(--instrument)]/45 bg-[var(--instrument)]/15 text-[var(--instrument)]"
               : "border-transparent text-white/40",
           )}
         >
@@ -259,7 +259,7 @@ export function AppShell({
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
-          className="absolute bottom-20 left-3 right-3 z-10 flex h-9 items-center gap-2 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-white/55 transition hover:border-[#B65331]/35 hover:bg-[#B65331]/10 hover:text-[#F0B590]"
+          className="absolute bottom-20 left-3 right-3 z-10 flex h-9 items-center gap-2 rounded-[10px] border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-white/55 transition hover:border-[var(--stage-roasting)]/35 hover:bg-[var(--stage-roasting)]/10 hover:text-[var(--stage-system-soft)]"
           aria-label="Buka perintah cepat"
         >
           <Search size={13} />
@@ -280,7 +280,7 @@ export function AppShell({
               <Menu size={16} />
             </button>
             <div className="flex min-w-0 items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] border border-[#00C8DF]/40 bg-[#00C8DF]/10 text-[#00C8DF]">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] border border-[var(--instrument)]/40 bg-[var(--instrument)]/10 text-[var(--instrument)]">
                 <Coffee size={12} />
               </span>
               <div className="min-w-0">
@@ -290,8 +290,8 @@ export function AppShell({
               </div>
             </div>
           </div>
-          <span className="ml-3 flex shrink-0 items-center gap-1.5 rounded-[7px] border border-[#00C8DF]/35 bg-[#00C8DF]/10 px-2.5 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[#8EF3FC]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#00C8DF]" />
+          <span className="ml-3 flex shrink-0 items-center gap-1.5 rounded-[7px] border border-[var(--instrument)]/35 bg-[var(--instrument)]/10 px-2.5 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--chrome-instrument-soft)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--instrument)]" />
             live
           </span>
         </header>

@@ -134,7 +134,7 @@ export default function KeuanganOverviewClient() {
             data={data.revenueVsExpensesChart}
             xKey="date"
             yKeys={["revenue", "expenses"]}
-            colors={["#00C8DF", "#B65331"]}
+            colors={["var(--instrument)", "var(--stage-roasting)"]}
             showLegend
             className="lg:col-span-2"
           />
@@ -155,7 +155,7 @@ export default function KeuanganOverviewClient() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Link
               href="/laporan/keuangan/sales"
-              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[#00C8DF] hover:bg-[#00C8DF]/5"
+              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[var(--instrument)] hover:bg-[var(--instrument)]/5"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-emerald-50 p-2">
@@ -174,7 +174,7 @@ export default function KeuanganOverviewClient() {
             </Link>
             <Link
               href="/laporan/keuangan/expenses"
-              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[#00C8DF] hover:bg-[#00C8DF]/5"
+              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[var(--instrument)] hover:bg-[var(--instrument)]/5"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-rose-50 p-2">
@@ -193,7 +193,7 @@ export default function KeuanganOverviewClient() {
             </Link>
             <Link
               href="/laporan/analisa/laba-rugi"
-              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[#00C8DF] hover:bg-[#00C8DF]/5"
+              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[var(--instrument)] hover:bg-[var(--instrument)]/5"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-indigo-50 p-2">
@@ -212,7 +212,7 @@ export default function KeuanganOverviewClient() {
             </Link>
             <Link
               href="/laporan/analisa/neraca"
-              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[#00C8DF] hover:bg-[#00C8DF]/5"
+              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[var(--instrument)] hover:bg-[var(--instrument)]/5"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-blue-50 p-2">
@@ -231,7 +231,7 @@ export default function KeuanganOverviewClient() {
             </Link>
             <Link
               href="/laporan/akuntansi/arus-kas"
-              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[#00C8DF] hover:bg-[#00C8DF]/5"
+              className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[var(--instrument)] hover:bg-[var(--instrument)]/5"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-teal-50 p-2">
