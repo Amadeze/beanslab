@@ -1,0 +1,3134 @@
+// =============================================================================
+// ROASTERY OPERATING SYSTEM (ROS) — NALWENG ROASTERY
+// schema.prisma · PostgreSQL · Prisma ORM
+// =============================================================================
+// Arsitektur: 14 tabel inti, immutable transactions, ledger-driven stock.
+// Stok TIDAK PERNAH diubah manual — hanya via mutasi transaksi.
+// Koreksi dilakukan via VOID, bukan UPDATE.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum UserRole {
+  SUPERADMIN // web owner / system admin
+  OWNER // full access
+  MANAGER // semua modul, tanpa user management
+  OPERATOR // input transaksi hulu & tengah
+  CASHIER // input penjualan & payment
+}
+
+enum SubscriptionTier {
+  TRIAL
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum ProductType {
+  GREEN_BEAN // biji kopi mentah
+  ROASTED_BEAN // biji kopi yang sudah di-roast
+  FINISHED_GOODS // produk jadi siap jual
+  PACKAGING //Packaging
+}
+
+enum RoastLevel {
+  LIGHT
+  MEDIUM
+  MEDIUM_DARK
+  DARK
+}
+
+enum GrindSize {
+  WHOLE_BEAN
+  COARSE
+  MEDIUM_COARSE
+  MEDIUM
+  MEDIUM_FINE
+  FINE
+  ESPRESSO
+  CUSTOM
+}
+
+enum MaterialOrigin {
+  INTERNAL_ROAST // sangrai internal (roasting flow)
+  PURCHASED_ROASTED // Roasted Bean dibeli dari supplier
+}
+
+enum PurchaseType {
+  GREEN_BEAN // pembelian biji kopi mentah
+  ROASTED_BEAN // pembelian biji kopi sangrai jadi (beli jadi)
+  PACKAGING // pembelian bahan kemasan (legacy; write baru pakai SUPPLY)
+  SUPPLY // pembelian persediaan non-kopi (InventorySupplyItem)
+}
+
+enum InventorySupplyCategory {
+  PACKAGING // kemasan: pouch, valve, label, box
+  INGREDIENT // bahan baku non-kopi
+  CONSUMABLE // bahan operasional habis pakai
+  MERCHANDISE // barang jualan non-kopi
+  SPARE_PART // suku cadang
+  EQUIPMENT // alat (belum dikapitalisasi)
+  OTHER // kategori lain
+}
+
+enum SupplyBaseUnit {
+  KG // kilogram — kuantitas pecahan
+  GRAM // gram — kuantitas pecahan
+  LITER // liter — kuantitas pecahan
+  METER // meter — kuantitas pecahan
+  ROLL // roll — kuantitas pecahan
+  PCS // pieces — kuantitas pecahan
+  BOX // box — kuantitas pecahan
+  SET // set — kuantitas pecahan
+  OTHER // satuan lain — kuantitas pecahan
+}
+
+enum TransactionStatus {
+  PENDING // belum dieksekusi / dalam proses
+  COMPLETED // selesai, stok sudah dimutasi
+  VOID // dibatalkan, mutasi stok sudah dibalik
+}
+
+enum RoastLifecycleStatus {
+  PLANNED
+  RESERVED
+  CHARGED
+  COMPLETED
+  ABORTED
+  CANCELLED
+}
+
+enum RoastMaterialReservationStatus {
+  ACTIVE
+  CHARGED
+  RELEASED
+  CONSUMED
+}
+
+enum InvoiceStatus {
+  DRAFT // nota belum diterbitkan
+  ISSUED // nota diterbitkan, belum bayar
+  PARTIAL // bayar sebagian
+  PAID // lunas
+  VOID // dibatalkan
+  RETURNED // diretur (sebagian/seluruh)
+}
+
+enum TaxType {
+  PPN // Pajak Pertambahan Nilai (VAT)
+  PPH_21 // PPh Pasal 21
+  PPH_23 // PPh Pasal 23
+  PPH_4_2 // PPh Pasal 4 Ayat 2
+  NONE // Tidak dikenakan pajak
+}
+
+enum CustomerTier {
+  RETAIL
+  WHOLESALE_SILVER
+  WHOLESALE_GOLD
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  QRIS
+  CREDIT // piutang / COD jatuh tempo
+}
+
+enum PaymentProvider {
+  MANUAL
+  MIDTRANS
+  XENDIT
+}
+
+enum PaymentSubmissionStatus {
+  AWAITING_PROOF
+  AWAITING_VERIFICATION
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum PaymentNotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum ShippingMethod {
+  PICKUP
+  LOCAL_DELIVERY
+  STORE_COURIER
+  COURIER
+}
+
+enum StockReservationStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+  EXPIRED
+}
+
+enum FulfillmentStatus {
+  AWAITING_PAYMENT
+  PAID
+  NEEDS_PRODUCTION
+  READY_TO_PACK
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum FulfillmentTaskStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PurchasePaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum LedgerEntryType {
+  IN // stok masuk
+  OUT // stok keluar
+}
+
+enum SalePriceSource {
+  BASE
+  TIER
+  CONTRACT
+}
+
+enum JobRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum JournalRefType {
+  INVOICE
+  PAYMENT
+  CREDIT_NOTE
+  EXPENSE
+  CAPITAL
+  CAPITAL_WITHDRAWAL
+  SUPPLIER_PAYMENT
+  SAMPLE_USAGE
+  ADJUSTMENT
+  PRODUCTION
+  ROASTING
+  GRINDING
+  EXPERIMENTAL
+  SALE
+  PURCHASE
+  VOID_REVERSAL
+}
+
+enum ExpenseCategory {
+  GAJI // Gaji & tunjangan karyawan
+  UTILITAS // Listrik, air, internet
+  OPERASIONAL // Sewa tempat, bahan habis pakai, dll.
+  LAINNYA // Pengeluaran lain-lain
+}
+
+/// Jenis transaksi modal: setoran awal, tambahan modal, prive, dividen
+enum CapitalTransactionType {
+  INITIAL // Setoran modal awal
+  INJECTION // Tambahan modal
+  WITHDRAWAL // Prive / penarikan pemilik
+  DIVIDEND // Pembagian laba
+}
+
+enum StudioStatus {
+  ONLINE
+  OFFLINE
+  REVOKED
+}
+
+enum StudioDeviceAuthorizationStatus {
+  PENDING
+  APPROVED
+  CONSUMED
+  DENIED
+}
+
+enum ArtisanImportStatus {
+  UPLOADED
+  PARSING
+  IMPORTED
+  DUPLICATE
+  FAILED
+}
+
+enum RoastMatchStatus {
+  ON_TRACK
+  WATCH
+  DIVERGED
+  INVALID
+}
+
+/// Jenis transaksi asal untuk audit trail di InventoryLedger
+enum LedgerRefType {
+  PURCHASE_GB // Green Bean masuk via Purchase
+  PURCHASE_RB // Roasted Bean masuk via Purchase (beli jadi)
+  PURCHASE_PKG // Packaging masuk via Purchase
+  ROASTING_GB_OUT // Green Bean keluar ke roasting
+  ROASTING_RB_IN // Roasted Bean masuk dari roasting
+  PRODUCTION_RB_OUT // Roasted Bean keluar ke produksi
+  PRODUCTION_PKG_OUT // Packaging keluar ke produksi
+  PRODUCTION_FG_IN // Finished Goods masuk dari produksi
+  SALE_FG_OUT // Finished Goods keluar via penjualan
+  SAMPLE_RB_OUT // Roasted Bean keluar untuk sample / tester
+  SAMPLE_FG_OUT // Finished Goods keluar untuk sample / tester
+  SAMPLE_PKG_OUT // Kemasan keluar untuk sample / tester
+  ADJUSTMENT_IN // Penyesuaian stok masuk (Opname)
+  ADJUSTMENT_OUT // Penyesuaian stok keluar (Opname)
+  VOID_REVERSAL // entri kebalikan saat VOID
+  RETURN_FG_IN // Finished Goods masuk via retur penjualan
+  RETURN_PKG_IN // Packaging masuk via retur pembelian
+  SUPPLY_PURCHASE_IN // Supply masuk via Purchase
+  SUPPLY_PRODUCTION_OUT // Supply keluar ke produksi
+  SUPPLY_ADJUSTMENT_IN // Penyesuaian stok supply masuk (Opname)
+  SUPPLY_ADJUSTMENT_OUT // Penyesuaian stok supply keluar (Opname)
+  GRINDING_RB_OUT // Roasted Bean keluar ke grinding
+  GRINDING_FG_IN // Ground Coffee masuk dari grinding
+  EXPERIMENTAL_COMPONENT_OUT // Komponen keluar ke produksi eksperimental
+  EXPERIMENTAL_FG_IN // Hasil eksperimental masuk
+  LOCATION_OPNAME_IN // Koreksi stok lokasi masuk (Opname)
+  LOCATION_OPNAME_OUT // Koreksi stok lokasi keluar (Opname)
+}
+
+// =============================================================================
+// TABLE 0 · Tenant (SaaS Multi-Tenancy)
+// =============================================================================
+
+model Tenant {
+  id                      String  @id @default(cuid())
+  code                    String  @unique
+  name                    String
+  subdomain               String? @unique
+  themeColor              String  @default("amber")
+  logoUrl                 String?
+  heroImageUrl            String?
+  heroText                String?
+  backgroundImageUrl      String?
+  whatsappNumber          String?
+  contactEmail            String?
+  instagramHandle         String?
+  aboutText               String?
+  catalogTitle            String?
+  catalogSubtitle         String?
+  footerText              String?
+  problemStatement        String?
+  solutionStatement       String?
+  uspText                 String?
+  features                Json?
+  testimonials            Json?
+  faqs                    Json?
+  midtransClientKey       String?
+  midtransServerKey       String?
+  midtransIsProduction    Boolean @default(false)
+  xenditSubAccountId      String?
+  xenditEnabled           Boolean @default(false)
+  isArtisanEnabled        Boolean @default(false)
+  artisanWebhookToken     String? @unique
+  artisanWebhookTokenHash String? @unique
+  layoutStyle             String  @default("modern")
+  fontFamily              String  @default("sans")
+  themeMode               String  @default("light")
+  borderRadius            String  @default("md")
+  animationStyle          String  @default("subtle")
+  animationDirection      String  @default("up")
+  iconStyle               String  @default("regular")
+  isActive                Boolean @default(true)
+  themeConfig             Json?
+  timezone                String  @default("Asia/Jakarta")
+  locale                  String  @default("id-ID")
+
+  // Storefront commerce rules. Kept on Tenant so one-owner SMEs can configure
+  // checkout without maintaining a separate shipping-rule hierarchy.
+  storefrontPickupEnabled       Boolean  @default(true)
+  storefrontDeliveryEnabled     Boolean  @default(false)
+  storefrontFlatShippingRate    Decimal  @default(0) @db.Decimal(14, 2)
+  storefrontFreeShippingMinimum Decimal? @db.Decimal(14, 2)
+  storefrontTaxRate             Decimal  @default(0) @db.Decimal(5, 2)
+  storefrontReservationMinutes  Int      @default(1440)
+
+  // Phase 2H Batch 2 — Shipping / RajaOngkir (tenant-owned configuration).
+  // ONE origin per tenant (MVP). National courier defaults OFF so existing
+  // tenants remain valid without configuring an origin.
+  nationalCourierEnabled      Boolean @default(false)
+  rajaOngkirOriginId          String? // canonical provider destination id
+  rajaOngkirOriginLabel       String? // human-readable snapshot for UI display
+  rajaOngkirOriginProvince    String?
+  rajaOngkirOriginCity        String?
+  rajaOngkirOriginDistrict    String?
+  rajaOngkirOriginSubdistrict String?
+  rajaOngkirOriginPostalCode  String?
+  rajaOngkirOriginStreet      String? // roastery street/address detail
+  rajaOngkirCourierCodes      Json? // enabled national courier codes (string[])
+  rajaOngkirTareGrams         Int     @default(0) // default packing/tare grams
+
+  // Tax (PPN/PPh) configuration — toggle ON/OFF per tenant (pola Odoo/QuickBooks).
+  // Saat OFF: form invoice/kasir menyembunyikan seksi pajak dan memaksa tax = 0.
+  // Perubahan setting TIDAK mengubah invoice historis.
+  taxEnabled     Boolean @default(false)
+  defaultTaxRate Decimal @default(11) @db.Decimal(5, 2)
+
+  // Subscription & Billing Fields
+  subscriptionTier   SubscriptionTier   @default(TRIAL)
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+  trialEndsAt        DateTime?
+  nextBillingDate    DateTime?
+  setupCompletedAt   DateTime?
+  ownerCapital       Decimal            @default(0) @db.Decimal(14, 2) // Modal awal pemilik
+  initialCash        Decimal            @default(0) @db.Decimal(14, 2) // Saldo kas awal
+
+  // Landing page social proof (opt-in only — never show without explicit consent)
+  showOnLanding      Boolean @default(false)
+  landingLogoUrl     String?
+  landingDisplayName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users                            User[]
+  customers                        Customer[]
+  suppliers                        Supplier[]
+  products                         Product[]
+  packagings                       Packaging[]
+  recipes                          Recipe[]
+  purchases                        Purchase[]
+  purchaseOrders                   PurchaseOrder[]
+  purchaseOrderItems               PurchaseOrderItem[]
+  parentRoastingBatches            ParentRoastingBatch[]
+  roastMaterialReservations        RoastMaterialReservation[]
+  productionBatches                ProductionBatch[]
+  invoices                         Invoice[]
+  payments                         Payment[]
+  supplierPayments                 SupplierPayment[]
+  lots                             Lot[]
+  inventoryLedgers                 InventoryLedger[]
+  inventorySupplyItems             InventorySupplyItem[]
+  recipeSupplyItems                RecipeSupplyItem[]
+  productionSupplyUsages           ProductionSupplyUsage[]
+  expenses                         Expense[]
+  notificationPreferences          NotificationPreference[]
+  subscriptionPayments             SubscriptionPayment[]
+  auditLogs                        AuditLog[]
+  webhookEvents                    WebhookEvent[]
+  reminderDeliveries               ReminderDelivery[]
+  recipeItems                      RecipeItem[]
+  onboardingSnapshots              OnboardingSnapshot[]
+  childRoastingBatches             ChildRoastingBatch[]
+  invoiceItems                     InvoiceItem[]
+  jobRuns                          JobRun[]
+  dailyBriefSnapshots              DailyBriefSnapshot[]
+  sampleUsages                     SampleUsage[]
+  sampleUsageComponents            SampleUsageComponent[]
+  capitalTransactions              CapitalTransaction[]
+  accounts                         Account[]
+  journalEntries                   JournalEntry[]
+  creditNotes                      CreditNote[]
+  creditNoteItems                  CreditNoteItem[]
+  machines                         Machine[]
+  artisanPairingCodes              ArtisanPairingCode[]
+  studioDeviceAuthorizations       StudioDeviceAuthorization[]
+  roastdStudios                    RoastdStudio[]
+  artisanImports                   ArtisanRoastImport[]
+  roasts                           Roast[]
+  liveSessions                     LiveSession[]
+  portalTheme                      PortalTheme?
+  budgets                          Budget[]
+  cuppingSessions                  CuppingSession[]
+  grindingBatches                  GrindingBatch[]
+  experimentalProductions          ExperimentalProduction[]
+  experimentalProductionComponents ExperimentalProductionComponent[]
+  offerings                        CoffeeOffering[]
+  offeringVariants                 OfferingVariant[]
+  contracts                        Contract[]
+  contractPrices                   ContractPrice[]
+  tenantPaymentMethods             TenantPaymentMethod[]
+  paymentSubmissions               PaymentSubmission[]
+  paymentNotificationDeliveries    PaymentNotificationDelivery[]
+  stockReservations                StockReservation[]
+  fulfillmentTasks                 FulfillmentTask[]
+  invoiceTrackings                 InvoiceTracking[]
+  tenantRoastLevels                TenantRoastLevel[]
+  roastProfiles                    RoastProfile[]
+  warehouses                       Warehouse[]
+  locations                        Location[]
+  lotPlacements                    LotPlacement[]
+  locationTransfers                LocationTransfer[]
+  locationOpnames                  LocationOpname[]
+  coffeeSources                    CoffeeSource[]
+
+  @@map("tenants")
+}
+
+// =============================================================================
+// TABLE 0.95 · PlatformIntegration (Global Platform Integration Credentials)
+// One encrypted platform credential store per external provider (e.g. RajaOngkir
+// shipping cost API). Global — NOT tenant-scoped. The API key belongs to the
+// Roastd.id platform / Superadmin, never to a tenant. Secrets are encrypted at
+// rest via src/lib/credentials.ts (AES-256-GCM) and masked at the UI.
+// =============================================================================
+
+model PlatformIntegration {
+  id                  String    @id @default(cuid())
+  provider            String    @unique
+  encryptedApiKey     String?
+  isActive            Boolean   @default(false)
+  lastTestedAt        DateTime?
+  connectionStatus    String? // UNKNOWN | OK | FAILED
+  lastConnectionError String? // sanitized only — never raw provider body/key
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@map("platform_integrations")
+}
+
+// =============================================================================
+// TABLE 0.9 · PortalTheme (B2B Portal Block-Based Theme Customizer)
+// Supports draft/published state with versioned config.
+// =============================================================================
+
+model PortalTheme {
+  id              String    @id @default(cuid())
+  tenantId        String
+  name            String    @default("Default Theme")
+  schemaVersion   Int       @default(1)
+  draftConfig     Json
+  publishedConfig Json?
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId])
+  @@index([tenantId])
+  @@map("portal_themes")
+}
+
+// =============================================================================
+// TABLE 0.7 · TenantRoastLevel (Custom Roast Level Labels)
+// Tenant-scoped custom roast levels instead of hardcoded enum.
+// =============================================================================
+
+model TenantRoastLevel {
+  id        String   @id @default(cuid())
+  tenantId  String
+  label     String // e.g., "Omni", "Filter", "Espresso", "Nordic", "City+", "Full City"
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, label])
+  @@index([tenantId, isActive])
+  @@map("tenant_roast_levels")
+}
+
+// =============================================================================
+// TABLE 0.8 · Machine (Roaster Machine)
+// =============================================================================
+
+model Machine {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  capacityKg  Decimal? @db.Decimal(8, 2) // Kapasitas maksimal per batch (kg)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  roastdStudios              RoastdStudio[]
+  artisanImports             ArtisanRoastImport[]
+  artisanPairingCodes        ArtisanPairingCode[]
+  studioDeviceAuthorizations StudioDeviceAuthorization[]
+  roasts                     Roast[]
+  liveSessions               LiveSession[]
+  parentRoastingBatches      ParentRoastingBatch[]
+  grindingBatches            GrindingBatch[]
+  roastProfiles              RoastProfile[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive])
+  @@map("machines")
+}
+
+// =============================================================================
+// TABLE 0.6 · RoastProfile (Reusable Roast Target Profiles)
+// Tenant-scoped configuration for target roast parameters.
+// Actual roast data is stored in Roast (from Artisan/manual).
+// =============================================================================
+
+model RoastProfile {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  name                  String
+  machineId             String?
+  roastLevel            String
+  beanOrigin            String?
+  chargeTemp            Decimal? @db.Decimal(5, 2)
+  targetFirstCrackStart Int?
+  targetFirstCrackEnd   Int?
+  developmentTarget     Decimal? @db.Decimal(5, 2)
+  dropTemp              Decimal? @db.Decimal(5, 2)
+  notes                 String?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  tenant              Tenant                @relation(fields: [tenantId], references: [id])
+  machine             Machine?              @relation(fields: [machineId], references: [id])
+  referenceForBatches ParentRoastingBatch[] @relation("ProfileReferenceRoast")
+
+  @@index([tenantId, isActive])
+  @@map("roast_profiles")
+}
+
+// =============================================================================
+// TABLE 0.5 · SubscriptionPayment (SaaS Billing)
+// =============================================================================
+
+model SubscriptionPayment {
+  id              String           @id @default(cuid())
+  tenantId        String
+  amount          Decimal          @db.Decimal(12, 2)
+  status          PaymentStatus    @default(PENDING)
+  midtransOrderId String           @unique
+  paymentUrl      String?
+  tier            SubscriptionTier
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("subscription_payments")
+}
+
+// =============================================================================
+// TABLE 1 · User
+// =============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String? // bcrypt hash (optional for OAuth users)
+  googleId  String?  @unique
+  role      UserRole @default(OPERATOR)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Null berarti email belum terverifikasi. Semua user yang ada sebelum
+  // migration 000000000011 di-backfill sebagai terverifikasi; hanya pendaftar
+  // self-service baru yang mulai dari null dan wajib verifikasi email.
+  emailVerifiedAt DateTime?
+
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
+  // Session epoch: every password change/reset bumps this, invalidating all
+  // previously issued iron-session cookies (stateless) without server-side storage.
+  sessionVersion Int @default(0)
+
+  purchases                  Purchase[]
+  purchaseOrders             PurchaseOrder[]
+  parentRoastingBatches      ParentRoastingBatch[]
+  productionBatches          ProductionBatch[]
+  invoices                   Invoice[]
+  payments                   Payment[]
+  supplierPayments           SupplierPayment[]
+  ledgerEntries              InventoryLedger[]
+  capitalTransactions        CapitalTransaction[]
+  expenses                   Expense[]
+  journalEntries             JournalEntry[]
+  auditLogs                  AuditLog[]
+  passwordResetTokens        PasswordResetToken[]
+  emailVerificationTokens    EmailVerificationToken[]
+  studioDeviceAuthorizations StudioDeviceAuthorization[] @relation("StudioDeviceAuthorizationApprover")
+  authorizedRoastdStudios    RoastdStudio[]              @relation("RoastdStudioAuthorizer")
+  sampleUsages               SampleUsage[]
+  grindingBatches            GrindingBatch[]
+  experimentalProductions    ExperimentalProduction[]
+  reviewedPaymentSubmissions PaymentSubmission[]         @relation("PaymentSubmissionReviewer")
+  locationTransfers          LocationTransfer[]
+  locationOpnames            LocationOpname[]
+  confirmedLocationOpnames   LocationOpname[]            @relation("OpnameConfirmedBy")
+  tenantId                   String
+  tenant                     Tenant                      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+// Verifikasi email pendaftar workspace. Satu token aktif per user (userId
+// unique) — permintaan ulang mengganti token lama, meniru pola reset password.
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
+// =============================================================================
+// TABLE 2 · Customer
+// =============================================================================
+
+model Customer {
+  id      String  @id @default(cuid())
+  code    String // e.g., "CST-001"
+  name    String
+  phone   String?
+  email   String?
+  address String?
+
+  province   String?
+  city       String?
+  district   String?
+  postalCode String?
+
+  tier      CustomerTier @default(RETAIL)
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  invoices  Invoice[]
+  contracts Contract[]
+  tenantId  String
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+  @@map("customers")
+}
+
+// =============================================================================
+// TABLE 3 · Supplier
+// =============================================================================
+
+model Supplier {
+  id      String  @id @default(cuid())
+  code    String // e.g., "SUP-001"
+  name    String
+  phone   String?
+  address String?
+
+  province   String?
+  city       String?
+  district   String?
+  postalCode String?
+
+  region    String? // wilayah asal (Gayo, Toraja, Flores, dsb.)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchases      Purchase[]
+  purchaseOrders PurchaseOrder[]
+  lots           Lot[]
+  tenantId       String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+  @@map("suppliers")
+}
+
+// =============================================================================
+// TABLE 3B · CoffeeSource (Identitas Kopi / Green Coffee Master)
+// Akar identitas untuk satu kopi (single origin). BUKAN persediaan fisik —
+// identitas tetap ada meski stok Green Bean kosong.
+// Processing method yang berbeda = identitas yang berbeda:
+// "Gayo Fully Washed" dan "Gayo Anaerobic Natural" adalah dua CoffeeSource.
+// Product/Lot/Lot fisik mereferensikan identitas ini.
+// =============================================================================
+
+model CoffeeSource {
+  id                 String   @id @default(cuid())
+  code               String // e.g., "CS-GAYO-FW-001"
+  name               String // "Gayo Fully Washed"
+  country            String? // negara asal: "Indonesia"
+  region             String? // wilayah asal: "Gayo, Aceh Tengah"
+  farm               String? // farm / producer / cooperative
+  species            String? // "ARABICA", "ROBUSTA", dll.
+  varietal           String? // "Gayo 1", "Ateng Super", dll.
+  processMethod      String? // natural | washed/full washed | honey | wet hulled | anaerobic natural | anaerobic washed | carbonic maceration
+  fermentationMethod String? // metode fermentasi tambahan
+  elevation          String? // "1100–1600 mdpl"
+  cropYear           String? // "2025"
+  certifications     String[] // fair trade, organic, dll.
+  tastingNotes       String? // catatan cita rasa
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  products  Product[]
+  offerings CoffeeOffering[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+  @@map("coffee_sources")
+}
+
+// =============================================================================
+// CoffeeOffering · Penawaran katalog yang bisa dijual (COMMIT 3)
+//
+// SATU offering = SATU basis identitas kopi (CoffeeSource + tingkat sangrai).
+// Offering mengekspos varian KEMASAN (OfferingVariant) — berat bersih + harga
+// per paket — dan opsi gilingan (grindOptions). Kartu katalog storefront
+// memilih varian + gilingan di dalam kartu; TIDAK ada kartu duplikat per
+// gilingan.
+//
+// sourceMode:
+//  - INTERNAL_ROAST      → identity root = Green Bean dari CoffeeSource;
+//                          RB sangrai internal bisa muncul belakangan.
+//  - PURCHASED_ROASTED   → identity root = RB beli jadi dari CoffeeSource;
+//                          dijual langsung tanpa Green Bean.
+// Whole bean & ground memakai line of custody RB yang sama; grind adalah
+// pilihan persiapan pesanan (order-prep), bukan varian SKU.
+//
+// Offering TIDAK pernah menulis ledger/stok/lot/akuntansi — murni konfigurasi
+// katalog. Varian mengacu supply item PACKAGING asli (berat/kemasan nyata).
+// =============================================================================
+
+enum OfferingSourceMode {
+  INTERNAL_ROAST
+  PURCHASED_ROASTED
+}
+
+model CoffeeOffering {
+  id          String  @id @default(cuid())
+  code        String // e.g., "OF-GAYO-MED-001"
+  name        String // e.g., "Gayo Medium"
+  description String?
+  imageUrl    String?
+
+  coffeeSourceId String // identitas kopi akar (CoffeeSource)
+  sourceMode     OfferingSourceMode
+  roastLevel     String? // "LIGHT"/"MEDIUM"/... atau label kustom tenant
+
+  // Binding lineage eksplisit (opsional): produk ROASTED_BEAN yang menampung
+  // stok/reservasi untuk offering ini. Saat kosong, resolver storefront
+  // menurunkan lineage otomatis dari (CoffeeSource + sourceMode + roastLevel)
+  // dan WAJIB menghasilkan tepat satu kandidat — ambiguitas ditolak.
+  lineageProductId String? // FK → Product (type = ROASTED_BEAN)
+
+  grindOptions     GrindSize[] @default([WHOLE_BEAN])
+  allowCustomGrind Boolean     @default(true)
+
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantId       String
+  tenant         Tenant            @relation(fields: [tenantId], references: [id])
+  coffeeSource   CoffeeSource      @relation(fields: [coffeeSourceId], references: [id], onDelete: Restrict)
+  lineageProduct Product?          @relation("OfferingLineageProduct", fields: [lineageProductId], references: [id], onDelete: SetNull)
+  variants       OfferingVariant[]
+  invoiceItems   InvoiceItem[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive, sortOrder])
+  @@index([tenantId, coffeeSourceId])
+  @@index([tenantId, lineageProductId])
+  @@map("coffee_offerings")
+}
+
+model OfferingVariant {
+  id         String @id @default(cuid())
+  offeringId String
+
+  // Pilihan paket mereferensi konfigurasi kemasan/supply asli (net weight
+  // dari sana), bukan teks bebas. NULL untuk paket manual/kemasan legacy.
+  supplyItemId   String?
+  packageName    String // tampilan, e.g., "Box 250g"
+  netWeightGrams Decimal  @db.Decimal(8, 2)
+  unitPrice      Decimal  @db.Decimal(12, 2) // harga jual per paket (snapshot line nanti)
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenantId   String
+  tenant     Tenant               @relation(fields: [tenantId], references: [id])
+  offering   CoffeeOffering       @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  supplyItem InventorySupplyItem? @relation(fields: [supplyItemId], references: [id], onDelete: SetNull)
+
+  @@unique([offeringId, supplyItemId])
+  @@index([tenantId, offeringId, isActive])
+  @@map("offering_variants")
+}
+
+// =============================================================================
+// TABLE 4 · Product
+// Mewakili semua jenis kopi: Green Bean, Roasted Bean, dan Finished Goods.
+// Stok dihitung dari agregasi InventoryLedger, BUKAN disimpan di sini.
+// =============================================================================
+
+model Product {
+  id                String          @id @default(cuid())
+  code              String // e.g., "GB-GAYO-001", "RB-ETHIOPIA-MED", "FG-BLEND-250"
+  name              String
+  type              ProductType
+  coffeeSpecies     String? // "ARABICA", "ROBUSTA", "LIBERICA", "EXCELSA", "HIBRIDA", "LAINNYA"
+  category          String? // e.g. "Espresso Base", "Specialty"
+  origin            String? // asal kopi: "Gayo", "Ethiopia Yirgacheffe", dsb.
+  roastLevel        String? // hanya relevan untuk ROASTED_BEAN — bisa nilai enum default atau custom tenant
+  sourceGreenBeanId String? // exact GREEN_BEAN identity used to create this ROASTED_BEAN
+  coffeeSourceId    String? // FK → CoffeeSource (identitas kopi akar; GB/RB/lot mengacu ke sini)
+  materialOrigin    MaterialOrigin? // hanya relevan untuk ROASTED_BEAN: sangrai internal vs beli jadi
+  description       String?
+  imageUrl          String? // URL gambar produk
+  price             Decimal?        @default(0) @db.Decimal(12, 2) // Harga jual retail
+  priceSilver       Decimal?        @default(0) @db.Decimal(12, 2) // Harga jual Wholesale Silver
+  priceGold         Decimal?        @default(0) @db.Decimal(12, 2) // Harga jual Wholesale Gold
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Caching Field untuk Performa
+  stockUnit    Int      @default(0) // Cache jumlah unit (FG)
+  stockKg      Decimal  @default(0) @db.Decimal(10, 3) // Cache berat kg (GB/RB)
+  lastHpp      Decimal? @db.Decimal(12, 2) // HPP terakhir untuk FG
+  avgCostPerKg Decimal? @default(0) @db.Decimal(12, 2) // Moving average HPP
+
+  // Reorder alert configuration
+  reorderAlertEnabled Boolean @default(false)
+  leadTimeDays        Int     @default(7)
+  safetyStockQuantity Decimal @default(0) @db.Decimal(10, 3)
+  reorderLookbackDays Int     @default(30)
+
+  // Shelf life (hari) — untuk FEFO / best-before tracking
+  shelfLifeDays Int?
+
+  // Berat bersih untuk display katalog; form men-default dari capacityGrams
+  // supply item PACKAGING yang dipilih sehingga tidak perlu diisi dua kali.
+  netWeightGrams Decimal? @db.Decimal(8, 2)
+
+  // Relasi transaksi hulu
+  purchases          Purchase[]
+  purchaseOrderItems PurchaseOrderItem[]
+  roastingInputs     ParentRoastingBatch[] @relation("RoastingInput")
+  roastingOutputs    ParentRoastingBatch[] @relation("RoastingOutput")
+  sourceGreenBean    Product?              @relation("GreenBeanRoastOutputs", fields: [sourceGreenBeanId], references: [id], onDelete: SetNull)
+  roastLevelOutputs  Product[]             @relation("GreenBeanRoastOutputs")
+  coffeeSource       CoffeeSource?         @relation(fields: [coffeeSourceId], references: [id], onDelete: SetNull)
+  offeringLineages   CoffeeOffering[]      @relation("OfferingLineageProduct")
+
+  // Relasi resep & produksi
+  recipeItems       RecipeItem[]
+  recipes           Recipe[]
+  productionBatches ProductionBatch[]
+
+  // Relasi hilir
+  invoiceItems      InvoiceItem[]
+  creditNoteItems   CreditNoteItem[]
+  contractPrices    ContractPrice[]
+  lots              Lot[]
+  cuppingSessions   CuppingSession[]
+  stockReservations StockReservation[]
+  fulfillmentTasks  FulfillmentTask[]
+
+  // Ledger
+  ledgerEntries          InventoryLedger[]
+  sampleUsageComponents  SampleUsageComponent[]
+  grindingSources        GrindingBatch[]                   @relation("GrindingSource")
+  grindingOutputs        GrindingBatch[]                   @relation("GrindingOutput")
+  experimentalOutputs    ExperimentalProduction[]
+  experimentalComponents ExperimentalProductionComponent[]
+  tenantId               String
+  tenant                 Tenant                            @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, sourceGreenBeanId, roastLevel])
+  @@index([tenantId, type, isActive])
+  @@index([tenantId, sourceGreenBeanId])
+  @@index([tenantId, coffeeSourceId])
+  @@map("products")
+}
+
+// =============================================================================
+// TABLE 5 · Packaging
+// Kemasan fisik: zipper bag, kraft box, dll.
+// Stok dihitung dari InventoryLedger, BUKAN disimpan di kolom ini.
+// =============================================================================
+
+model Packaging {
+  id             String   @id @default(cuid())
+  code           String // e.g., "PKG-ZIPPER-250"
+  name           String // "Zipper Bag 250g", "Kraft Box 1kg"
+  weightGrams    Decimal  @db.Decimal(8, 2) // berat kemasan kosong (gram)
+  costPerUnit    Decimal  @db.Decimal(12, 2) // HPP kemasan per unit
+  avgCostPerUnit Decimal? @default(0) @db.Decimal(12, 2) // Moving average HPP kemasan per unit
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Caching Field untuk Performa
+  stockUnit Int @default(0) // Cache jumlah unit tersedia
+
+  // Reorder alert configuration
+  reorderAlertEnabled Boolean @default(false)
+  leadTimeDays        Int     @default(7)
+  safetyStockQuantity Int     @default(0)
+  reorderLookbackDays Int     @default(30)
+
+  purchases             Purchase[]
+  purchaseOrderItems    PurchaseOrderItem[]
+  recipes               Recipe[]
+  productionBatches     ProductionBatch[]
+  ledgerEntries         InventoryLedger[]
+  sampleUsageComponents SampleUsageComponent[]
+  lots                  Lot[]
+
+  // Mapping 1:1 ke InventorySupplyItem (category PACKAGING).
+  // Pasca-cutover: write baru memakai InventorySupplyItem; tabel ini
+  // compatibility/read-only. Hanya satu sisi yang mengisi referensi ini.
+  supplyItemId String?              @unique
+  supplyItem   InventorySupplyItem? @relation("PackagingSupplyMapping", fields: [supplyItemId], references: [id])
+  tenantId     String
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+  @@map("packagings")
+}
+
+// =============================================================================
+// TABLE 5B · InventorySupplyItem
+// Master persediaan non-kopi: kemasan, bahan baku, consumable, merchandise,
+// spare part, equipment, dan lainnya. Canonical write path pasca-cutover.
+// Stok dihitung dari InventoryLedger (SUM IN-OUT), BUKAN disimpan di kolom lain.
+// Perilaku (konsumsi produksi, HPP, jual, lot) ditentukan FIELD, bukan kategori.
+// Semua kuantitas pecahan (Decimal) dalam satuan baseUnit.
+// =============================================================================
+
+model InventorySupplyItem {
+  id       String                  @id @default(cuid())
+  code     String // e.g., "SUP-POUCH-250", "SUP-LABEL-60", "SUP-BEAN-GAYO"
+  name     String
+  category InventorySupplyCategory
+  baseUnit SupplyBaseUnit // satuan kuantitas item
+
+  // Perilaku — penentu perilaku (kategori hanya klasifikasi)
+  trackLot               Boolean @default(true) // ikut FEFO (Lot.consumedAt lifecycle)
+  shelfLifeDays          Int? // hari kedaluwarsa (best before)
+  consumableInProduction Boolean @default(false) // dapat dikonsumsi saat produksi
+  includeInProductHpp    Boolean @default(false) // biaya masuk HPP produk jadi
+  isSellable             Boolean @default(false) // dapat dijual (flow penjualan fase tersendiri)
+
+  // Metadata kemasan (hanya relevan untuk category PACKAGING)
+  capacityGrams   Decimal? @db.Decimal(8, 2) // kapasitas isi bersih (gram)
+  tareWeightGrams Decimal? @db.Decimal(8, 2) // berat kemasan kosong (gram)
+
+  // Biaya — per baseUnit; avgCostPerUnit adalah moving average dari ledger IN
+  costPerUnit    Decimal  @db.Decimal(12, 2)
+  avgCostPerUnit Decimal? @default(0) @db.Decimal(12, 2)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Caching Field untuk Performa — hanya turunan InventoryLedger (SUM IN-OUT)
+  stockQuantity Decimal @default(0) @db.Decimal(12, 3)
+
+  // Reorder alert configuration
+  reorderAlertEnabled Boolean @default(false)
+  leadTimeDays        Int     @default(7)
+  safetyStockQuantity Decimal @default(0) @db.Decimal(12, 3)
+  reorderLookbackDays Int     @default(30)
+
+  // Relasi
+  packaging              Packaging?                        @relation("PackagingSupplyMapping")
+  purchases              Purchase[]
+  purchaseOrderItems     PurchaseOrderItem[]
+  lots                   Lot[]
+  ledgerEntries          InventoryLedger[]
+  recipeItems            RecipeSupplyItem[]
+  productionUsages       ProductionSupplyUsage[]
+  experimentalComponents ExperimentalProductionComponent[]
+  offeringVariants       OfferingVariant[]
+  tenantId               String
+  tenant                 Tenant                            @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId, category, isActive])
+  @@map("inventory_supply_items")
+}
+
+// =============================================================================
+// TABLE 6 · Recipe
+// Template formula satu SKU Finished Goods: komposisi RB + kemasan + gramasi.
+// =============================================================================
+
+model Recipe {
+  id                     String      @id @default(cuid())
+  code                   String // e.g., "RCP-HOUSE-BLEND-250"
+  name                   String // "House Blend 250g"
+  productId              String // FK → Product (type = FINISHED_GOODS)
+  packagingId            String // LEGACY: FK → Packaging (compatibility). Write baru memakai RecipeSupplyItem (multi: pouch, valve, label, box)
+  outputGrams            Decimal     @db.Decimal(8, 2) // gram kopi bersih per unit output
+  storefrontGrindOptions GrindSize[] @default([WHOLE_BEAN])
+  notes                  String?
+  isActive               Boolean     @default(true)
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+
+  product           Product            @relation(fields: [productId], references: [id])
+  packaging         Packaging          @relation(fields: [packagingId], references: [id])
+  items             RecipeItem[]
+  supplyItems       RecipeSupplyItem[]
+  productionBatches ProductionBatch[]
+  tenantId          String
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+  @@map("recipes")
+}
+
+// =============================================================================
+// TABLE 7 · RecipeItem
+// Komponen Roasted Bean dalam sebuah resep (bisa blending multi-origin).
+// ratioPercent: persentase dalam blend (semua item dalam 1 recipe harus = 100%).
+// gramsPerUnit: gram RB untuk 1 unit output (= outputGrams * ratioPercent / 100).
+// =============================================================================
+
+model RecipeItem {
+  id           String  @id @default(cuid())
+  recipeId     String
+  productId    String // FK → Product (type = ROASTED_BEAN)
+  ratioPercent Decimal @db.Decimal(5, 2) // % kontribusi dalam blend
+  gramsPerUnit Decimal @db.Decimal(8, 3) // gram RB per 1 unit output
+
+  recipe   Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  product  Product @relation(fields: [productId], references: [id])
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+
+  // Satu jenis RB hanya boleh muncul sekali per resep
+  @@unique([recipeId, productId])
+  @@index([tenantId])
+  @@map("recipe_items")
+}
+
+// =============================================================================
+// TABLE 7B · RecipeSupplyItem
+// Komponen non-kopi dalam resep: PACKAGING (pouch, valve, label, box),
+// INGREDIENT, dan lainnya. Write path baru untuk komponen supply;
+// Recipe.packagingId hanya compatibility lama (satu kemasan default).
+// quantityPerUnit dalam baseUnit item (mis. 1 PCS pouch per 1 unit output).
+// =============================================================================
+
+model RecipeSupplyItem {
+  id              String  @id @default(cuid())
+  recipeId        String
+  supplyItemId    String
+  quantityPerUnit Decimal @db.Decimal(12, 3) // kuantitas per 1 unit output
+
+  recipe     Recipe              @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  supplyItem InventorySupplyItem @relation(fields: [supplyItemId], references: [id])
+  tenantId   String
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+
+  // Satu supply item hanya boleh muncul sekali per resep
+  @@unique([recipeId, supplyItemId])
+  @@index([tenantId])
+  @@map("recipe_supply_items")
+}
+
+// =============================================================================
+// TABLE 8 · Purchase (Barang Datang)
+// Mencatat penerimaan Green Bean, Packaging (legacy), ATAU Supply (non-kopi).
+// type = GREEN_BEAN → productId wajib, packagingId/supplyItemId null.
+// type = PACKAGING  → packagingId wajib (legacy; write baru pakai SUPPLY).
+// type = SUPPLY     → supplyItemId wajib, productId/packagingId null.
+// Saat status → COMPLETED: InventoryLedger IN di-insert otomatis oleh server.
+// Saat VOID: InventoryLedger OUT (reversal) di-insert otomatis.
+// =============================================================================
+
+model Purchase {
+  id           String       @id @default(cuid())
+  code         String // e.g., "PUR-2024-001"
+  operationKey String? // Idempotency key supplied by the receiving command
+  type         PurchaseType
+
+  supplierId   String
+  productId    String? // wajib jika type = GREEN_BEAN atau ROASTED_BEAN
+  packagingId  String? // wajib jika type = PACKAGING (legacy)
+  supplyItemId String? // wajib jika type = SUPPLY
+
+  weightKg       Decimal? @db.Decimal(10, 3) // GREEN_BEAN / ROASTED_BEAN: berat masuk (kg)
+  quantityUnits  Int? // PACKAGING (legacy): jumlah unit masuk
+  supplyQuantity Decimal? @db.Decimal(12, 3) // SUPPLY: kuantitas masuk (baseUnit item)
+
+  pricePerUnit Decimal @db.Decimal(12, 2) // per kg (GB) atau per unit (PKG)
+  shippingCost Decimal @default(0) @db.Decimal(12, 2) // ongkos kirim total
+  totalCost    Decimal @db.Decimal(14, 2) // = qty * pricePerUnit + shippingCost (dihitung server)
+
+  status        TransactionStatus     @default(PENDING)
+  paymentStatus PurchasePaymentStatus @default(PAID)
+  paidAmount    Decimal               @default(0) @db.Decimal(14, 2)
+  dueDate       DateTime?
+  receivedAt    DateTime              @default(now())
+  notes         String?
+  voidReason    String?
+  voidAt        DateTime?
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  // PO Lite reference (nullable untuk backward compat)
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+
+  supplier   Supplier             @relation(fields: [supplierId], references: [id])
+  product    Product?             @relation(fields: [productId], references: [id])
+  packaging  Packaging?           @relation(fields: [packagingId], references: [id])
+  supplyItem InventorySupplyItem? @relation(fields: [supplyItemId], references: [id])
+  createdBy  User                 @relation(fields: [createdById], references: [id])
+  payments   SupplierPayment[]
+  lots       Lot[]
+  tenantId   String
+  tenant     Tenant               @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, receivedAt])
+  @@index([tenantId, status])
+  @@index([tenantId, paymentStatus, dueDate])
+  @@index([tenantId, purchaseOrderId])
+  @@map("purchases")
+}
+
+// =============================================================================
+// TABLE 9 · ParentRoastingBatch & ChildRoastingBatch
+// Fase Pagi: ParentBatch dibuat dengan target input (Green Bean).
+// Fase Siang: ChildBatch masuk otomatis via webhook Artisan (Zero-Touch).
+// Fase Sore: ParentBatch diselesaikan (COMPLETED) dengan menginput hasil akhir (Roasted Bean),
+// memicu pemotongan stok & penambahan stok secara borongan.
+// =============================================================================
+
+model ParentRoastingBatch {
+  id           String  @id @default(cuid())
+  code         String // e.g., "PRST-2024-001"
+  operationKey String? // Idempotency key supplied by the roast command
+  tenantId     String
+
+  inputProductId String // FK → Product (type = GREEN_BEAN)
+  targetWeightKg Decimal @db.Decimal(10, 3) // Target dari Gudang Pagi (Misal: 20 Kg)
+
+  outputProductId String // FK → Product (type = ROASTED_BEAN)
+  actualOutputKg  Decimal? @db.Decimal(10, 3) // Hasil Akhir Sore (Misal: 16.5 Kg)
+
+  totalShrinkagePercent Decimal?             @db.Decimal(5, 2)
+  status                TransactionStatus    @default(PENDING) // PENDING (Aktif), COMPLETED, VOID
+  lifecycleStatus       RoastLifecycleStatus @default(PLANNED)
+
+  notes      String?
+  voidReason String?
+  voidAt     DateTime?
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  createdById String // FK → User (Roaster)
+
+  machineId String? // FK → Machine (mesin yang digunakan untuk batch ini)
+  machine   Machine? @relation(fields: [machineId], references: [id])
+
+  referenceRoastId String?
+  referenceRoast   Roast?  @relation("ParentReferenceRoast", fields: [referenceRoastId], references: [id], onDelete: SetNull)
+
+  referenceProfileId String?
+  referenceProfile   RoastProfile? @relation("ProfileReferenceRoast", fields: [referenceProfileId], references: [id], onDelete: SetNull)
+  profileSnapshot    Json?
+
+  inputProduct  Product @relation("RoastingInput", fields: [inputProductId], references: [id])
+  outputProduct Product @relation("RoastingOutput", fields: [outputProductId], references: [id])
+  createdBy     User    @relation(fields: [createdById], references: [id])
+  tenant        Tenant  @relation(fields: [tenantId], references: [id])
+
+  childBatches            ChildRoastingBatch[]
+  materialReservations    RoastMaterialReservation[]
+  productionBatches       ProductionBatch[]
+  grindingBatches         GrindingBatch[]
+  experimentalProductions ExperimentalProduction[]
+  cuppingSessions         CuppingSession[]
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, status, createdAt])
+  @@index([referenceRoastId])
+  @@index([referenceProfileId])
+  @@map("parent_roasting_batches")
+}
+
+model RoastMaterialReservation {
+  id               String                         @id @default(cuid())
+  tenantId         String
+  parentBatchId    String
+  lotId            String
+  sourceLocationId String
+  quantityKg       Decimal                        @db.Decimal(12, 3)
+  status           RoastMaterialReservationStatus @default(ACTIVE)
+  chargeTransferId String?
+  releasedAt       DateTime?
+  consumedAt       DateTime?
+  createdAt        DateTime                       @default(now())
+  updatedAt        DateTime                       @updatedAt
+
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parentBatch    ParentRoastingBatch @relation(fields: [parentBatchId], references: [id], onDelete: Cascade)
+  lot            Lot                 @relation(fields: [lotId], references: [id])
+  sourceLocation Location            @relation(fields: [sourceLocationId], references: [id])
+
+  @@unique([parentBatchId, lotId, sourceLocationId])
+  @@index([tenantId, status])
+  @@index([tenantId, lotId, status])
+  @@map("roast_material_reservations")
+}
+
+model ChildRoastingBatch {
+  id       String @id @default(cuid())
+  parentId String
+
+  artisanEventId String?           @unique // Mencegah duplikasi webhook (idempotency)
+  roastDuration  Int? // Durasi sangrai dalam detik
+  dropTemp       Decimal?          @db.Decimal(5, 2) // Suhu saat drop (suhu sebelum crash)
+  roastId        String? // FK → Roast (dari Artisan Sync)
+  matchScore     Float?
+  matchStatus    RoastMatchStatus?
+  matchDetails   Json?
+  matchedAt      DateTime?
+
+  recordedAt DateTime @default(now()) // Waktu webhook masuk
+
+  parent   ParentRoastingBatch @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  roast    Roast?              @relation(fields: [roastId], references: [id])
+  tenantId String
+  tenant   Tenant              @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("child_roasting_batches")
+}
+
+// =============================================================================
+// TABLE 10 · ProductionBatch (Blending + Packaging → Finished Goods)
+// Mengeksekusi sebuah Recipe untuk N unit output.
+// Server otomatis menghitung & mengkonsumsi: RB (per RecipeItem) + Packaging.
+// hppPerUnit = (total HPP RB terpakai + total HPP packaging) / unitsProduced.
+// Saat COMPLETED: Ledger RB OUT + PKG OUT + FG IN di-insert otomatis.
+// Saat VOID: reversal otomatis.
+// =============================================================================
+
+model ProductionBatch {
+  id           String  @id @default(cuid())
+  code         String // e.g., "PRD-2024-001"
+  operationKey String? // Idempotency key supplied by the production command
+
+  recipeId           String? // FK → Recipe (opsional: null jika produksi bebas tanpa template resep)
+  outputProductId    String // FK → Product (type = FINISHED_GOODS)
+  packagingId        String // bisa berbeda dari default resep (misal: kehabisan stok)
+  parentRoastBatchId String? // FK → ParentRoastingBatch (sumber RB jika berasal dari roasting)
+
+  unitsProduced Int // jumlah unit yang diproduksi
+  totalRbUsedKg Decimal @db.Decimal(10, 3) // total RB terpakai (kg), dihitung server
+  hppPerUnit    Decimal @db.Decimal(12, 2) // HPP per unit, snapshot saat produksi
+
+  // Biaya produksi langsung: tenaga kerja + overhead pabrik per batch
+  laborCost         Decimal? @default(0) @db.Decimal(14, 2)
+  overheadAllocated Decimal? @default(0) @db.Decimal(14, 2)
+
+  status     TransactionStatus @default(COMPLETED)
+  producedAt DateTime          @default(now())
+  notes      String?
+  voidReason String?
+  voidAt     DateTime?
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  recipe           Recipe?                 @relation(fields: [recipeId], references: [id])
+  outputProduct    Product                 @relation(fields: [outputProductId], references: [id])
+  packaging        Packaging               @relation(fields: [packagingId], references: [id])
+  parentRoastBatch ParentRoastingBatch?    @relation(fields: [parentRoastBatchId], references: [id])
+  createdBy        User                    @relation(fields: [createdById], references: [id])
+  supplyUsages     ProductionSupplyUsage[]
+  tenantId         String
+  tenant           Tenant                  @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, status, producedAt])
+  @@map("production_batches")
+}
+
+// =============================================================================
+// TABLE 10C · GrindingBatch (Penggilingan)
+// Transformasi Roasted Bean → Ground Coffee. Bukan roasting kedua.
+// =============================================================================
+
+model GrindingBatch {
+  id           String  @id @default(cuid())
+  code         String // e.g., "GRD-2024-001"
+  operationKey String? // Idempotency key supplied by the grinding command
+  tenantId     String
+
+  sourceProductId    String // FK → Product (type = ROASTED_BEAN)
+  outputProductId    String // FK → Product (output ground coffee)
+  parentRoastBatchId String? // FK → ParentRoastingBatch (sumber RB jika berasal dari roasting)
+
+  grindSize        GrindSize
+  customGrindLabel String? // diisi jika grindSize = CUSTOM
+  grinderId        String? // FK → Machine (opsional)
+  operatorId       String // FK → User
+
+  inputKg      Decimal  @db.Decimal(10, 3) // berat RB masuk
+  outputKg     Decimal  @db.Decimal(10, 3) // berat ground coffee hasil
+  lossKg       Decimal  @db.Decimal(10, 3) // susut (input - output)
+  grindingCost Decimal? @default(0) @db.Decimal(14, 2) // biaya tenaga/operasional grinding
+
+  batchReference String? // referensi batch/roast
+  notes          String?
+  status         TransactionStatus @default(COMPLETED)
+  createdAt      DateTime          @default(now())
+
+  sourceProduct    Product              @relation("GrindingSource", fields: [sourceProductId], references: [id])
+  outputProduct    Product              @relation("GrindingOutput", fields: [outputProductId], references: [id])
+  parentRoastBatch ParentRoastingBatch? @relation(fields: [parentRoastBatchId], references: [id])
+  grinder          Machine?             @relation(fields: [grinderId], references: [id])
+  operator         User                 @relation(fields: [operatorId], references: [id])
+  tenant           Tenant               @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, createdAt])
+  @@map("grinding_batches")
+}
+
+// =============================================================================
+// TABLE 10D · ExperimentalProduction (Produksi Eksperimental)
+// Produksi bebas tanpa template resep. Tidak otomatis menjadi katalog.
+// =============================================================================
+
+model ExperimentalProduction {
+  id           String  @id @default(cuid())
+  code         String
+  operationKey String?
+  tenantId     String
+
+  name   String // e.g., "Blend Trial #04"
+  status TransactionStatus @default(COMPLETED)
+
+  outputProductId    String // FK → Product (auto-created output)
+  parentRoastBatchId String? // FK → ParentRoastingBatch (sumber RB jika berasal dari roasting)
+
+  inputKg    Decimal @db.Decimal(10, 3)
+  outputKg   Decimal @db.Decimal(10, 3)
+  lossKg     Decimal @db.Decimal(10, 3)
+  hppPerUnit Decimal @db.Decimal(12, 2)
+
+  notes       String?
+  createdAt   DateTime @default(now())
+  createdById String
+
+  outputProduct    Product                           @relation(fields: [outputProductId], references: [id])
+  parentRoastBatch ParentRoastingBatch?              @relation(fields: [parentRoastBatchId], references: [id])
+  components       ExperimentalProductionComponent[]
+  operator         User                              @relation(fields: [createdById], references: [id])
+  tenant           Tenant                            @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, createdAt])
+  @@map("experimental_productions")
+}
+
+model ExperimentalProductionComponent {
+  id                       String @id @default(cuid())
+  experimentalProductionId String
+  tenantId                 String
+
+  componentType String // GREEN_BEAN | ROASTED_BEAN | SUPPLY | PACKAGING
+  productId     String?
+  supplyItemId  String?
+
+  quantityKg     Decimal? @db.Decimal(10, 3)
+  quantityUnit   Decimal?
+  supplyQuantity Decimal? @db.Decimal(12, 3)
+
+  unitCostSnapshot  Decimal @db.Decimal(12, 2)
+  totalCostSnapshot Decimal @db.Decimal(14, 2)
+
+  lotId     String?
+  lotNumber String?
+
+  notes String?
+
+  experimentalProduction ExperimentalProduction @relation(fields: [experimentalProductionId], references: [id], onDelete: Cascade)
+  product                Product?               @relation(fields: [productId], references: [id])
+  supplyItem             InventorySupplyItem?   @relation(fields: [supplyItemId], references: [id])
+  tenant                 Tenant                 @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([experimentalProductionId])
+  @@map("experimental_production_components")
+}
+
+// =============================================================================
+// TABLE 10B · ProductionSupplyUsage
+// Pemakaian aktual supply (PACKAGING/INGREDIENT/dll) per batch produksi +
+// snapshot biaya. quantity dalam baseUnit item; unitCostSnapshot diambil
+// saat batch dibuat (tidak berubah oleh pembelian berikutnya).
+// =============================================================================
+
+model ProductionSupplyUsage {
+  id                String  @id @default(cuid())
+  productionBatchId String
+  supplyItemId      String
+  quantity          Decimal @db.Decimal(12, 3) // kuantitas terpakai (baseUnit item)
+  unitCostSnapshot  Decimal @db.Decimal(12, 2) // HPP per baseUnit saat produksi
+  totalCostSnapshot Decimal @db.Decimal(14, 2) // = quantity × unitCostSnapshot
+
+  productionBatch ProductionBatch     @relation(fields: [productionBatchId], references: [id], onDelete: Cascade)
+  supplyItem      InventorySupplyItem @relation(fields: [supplyItemId], references: [id])
+  tenantId        String
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+
+  // Satu supply item hanya boleh muncul sekali per batch
+  @@unique([productionBatchId, supplyItemId])
+  @@index([tenantId])
+  @@index([supplyItemId])
+  @@map("production_supply_usages")
+}
+
+// =============================================================================
+// TABLE 11 · Invoice (Nota Penjualan)
+// Header nota. Status naik otomatis saat Payment masuk.
+// VOID membalik semua mutasi stok dari InvoiceItem.
+// =============================================================================
+
+model Invoice {
+  id           String  @id @default(cuid())
+  code         String // e.g., "INV-2024-001"
+  operationKey String? // Idempotency key supplied by the client command
+
+  customerId String
+
+  subtotal              Decimal           @db.Decimal(14, 2) // sebelum diskon, pajak & ongkir
+  discount              Decimal           @default(0) @db.Decimal(14, 2)
+  tax                   Decimal           @default(0) @db.Decimal(14, 2)
+  shippingCost          Decimal           @default(0) @db.Decimal(14, 2) // ongkos kirim
+  shippingMethod        ShippingMethod? // "PICKUP", "LOCAL_DELIVERY", "COURIER"
+  shippingAddress       String? // alamat spesifik jika dikirim
+  courierName           String? // nama ekspedisi
+  trackingNumber        String? // nomor resi
+  shippingCourierCode   String? // kode kurir RajaOngkir (jne, jnt, etc.)
+  shippingServiceCode   String? // kode layanan RajaOngkir (REG, YES, etc.)
+  shippingServiceName   String? // nama layanan manusia
+  shippingEtd           String? // estimasi waktu kirim (cth: "2-3")
+  shipmentWeightGrams   Int? // berat total kirim (gram) yang dipakai untuk quote
+  shippingSnapshot      Json? // snapshot imutabel seluruh transaksi shipping
+  cartFingerprint       String? // hash keranjang saat quote dibuat
+  destinationProviderId String? // provider ID tujuan dari token
+  destinationSnapshot   Json? // snapshot wilayah tujuan dari token
+  publicOrderToken      String?           @unique
+  fulfillmentStatus     FulfillmentStatus @default(AWAITING_PAYMENT)
+  reservationExpiresAt  DateTime?
+  paidAt                DateTime?
+  packedAt              DateTime?
+  shippedAt             DateTime?
+  deliveredAt           DateTime?
+  grandTotal            Decimal           @db.Decimal(14, 2) // = subtotal - discount + tax + shippingCost
+
+  // ── PPN/PPH fields ──
+  taxType        TaxType  @default(NONE)
+  taxRate        Decimal  @default(0) @db.Decimal(5, 2) // persentase (cth: 11.00 untuk PPN)
+  taxableAmount  Decimal  @default(0) @db.Decimal(14, 2) // Dasar Pengenaan Pajak (DPP)
+  pphType        String? // "PPh 21", "PPh 23", "PPh 4(2)"
+  pphWithholding Decimal? @db.Decimal(14, 2) // Jumlah PPh yang dipotong
+
+  paidAmount     Decimal       @default(0) @db.Decimal(14, 2) // diupdate server tiap Payment masuk
+  returnedAmount Decimal       @default(0) @db.Decimal(14, 2) // total nilai barang diretur
+  status         InvoiceStatus @default(DRAFT)
+  salesChannel   SalesChannel  @default(WALK_IN)
+
+  issuedAt DateTime  @default(now())
+  dueDate  DateTime?
+
+  notes      String?
+  voidReason String?
+  voidAt     DateTime?
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  customer           Customer            @relation(fields: [customerId], references: [id])
+  createdBy          User                @relation(fields: [createdById], references: [id])
+  items              InvoiceItem[]
+  payments           Payment[]
+  creditNotes        CreditNote[]
+  reminderDeliveries ReminderDelivery[]
+  paymentSubmissions PaymentSubmission[]
+  stockReservations  StockReservation[]
+  fulfillmentTasks   FulfillmentTask[]
+  tracking           InvoiceTracking?
+  tenantId           String
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+
+  midtransOrderId        String? @unique
+  paymentUrl             String?
+  paymentMethod          String?
+  purchaseOrderReference String? // Referensi PO milik customer B2B (snapshot saat checkout)
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, status, issuedAt])
+  @@index([tenantId, customerId, issuedAt])
+  @@index([tenantId, fulfillmentStatus, issuedAt])
+  @@map("invoices")
+}
+
+// =============================================================================
+// TABLE 12b · InvoiceTracking
+// AWB / tracking state for COURIER shipments. informational only — never
+// triggers fulfillment status changes or accounting mutations.
+// =============================================================================
+
+model InvoiceTracking {
+  id        String @id @default(cuid())
+  tenantId  String
+  invoiceId String @unique
+
+  awb               String // normalized waybill / AWB number
+  courierCode       String // RajaOngkir courier code (jne, jnt, etc.)
+  providerStatus    String? // latest normalized provider status label
+  providerDelivered Boolean? // provider says delivered?
+  events            Json? // normalized tracking event history (provider shape)
+  lastRefreshedAt   DateTime? // when tracking was last refreshed from provider
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, invoiceId])
+  @@map("invoice_tracking")
+}
+
+// Units promised to a storefront order but not yet posted as physical stock-out.
+// Shortages remain visible as FulfillmentTask rows and can be allocated later.
+model StockReservation {
+  id         String                 @id @default(cuid())
+  tenantId   String
+  invoiceId  String
+  productId  String
+  quantity   Int
+  // Berat terjanji (kg) untuk reservasi berbasis kg (penawaran kopi:
+  // jalur RB yang sama dikonsumsi dalam kg). NULL = reservasi unit legacy.
+  quantityKg Decimal?               @db.Decimal(10, 3)
+  status     StockReservationStatus @default(ACTIVE)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  releasedAt DateTime?
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([invoiceId, productId])
+  @@index([tenantId, status, expiresAt])
+  @@index([tenantId, productId, status])
+  @@map("stock_reservations")
+}
+
+model FulfillmentTask {
+  id                String                @id @default(cuid())
+  tenantId          String
+  invoiceId         String
+  productId         String
+  requestedQuantity Int
+  reservedQuantity  Int
+  shortageQuantity  Int
+  status            FulfillmentTaskStatus @default(OPEN)
+  notes             String?
+  completedAt       DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([invoiceId, productId])
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, productId, status])
+  @@map("fulfillment_tasks")
+}
+
+// =============================================================================
+// TABLE 12 · InvoiceItem
+// Line item per SKU dalam nota. Immutable setelah Invoice di-ISSUED.
+// hpp: snapshot HPP dari ProductionBatch terakhir saat Invoice dibuat.
+// margin = (unitPrice - discount) - hpp  →  dihitung di query/laporan.
+// =============================================================================
+
+model InvoiceItem {
+  id        String @id @default(cuid())
+  invoiceId String
+  productId String // FK → Product (type = FINISHED_GOODS)
+
+  quantity         Int
+  unitPrice        Decimal         @db.Decimal(12, 2)
+  discount         Decimal         @default(0) @db.Decimal(12, 2) // diskon per unit
+  subtotal         Decimal         @db.Decimal(14, 2) // = (unitPrice - discount) * quantity, dihitung server
+  hpp              Decimal         @db.Decimal(12, 2) // snapshot HPP per unit saat transaksi
+  priceSource      SalePriceSource @default(BASE)
+  contractPriceId  String?
+  grindSize        GrindSize?
+  customGrindLabel String?
+
+  // ── Snapshot penawaran kopi (immutable setelah invoice di-ISSUED) ──
+  // Menyimpan paket, berat bersih, roast/base, dan nama penawaran persis
+  // seperti saat checkout — tahan terhadap perubahan katalog berikutnya.
+  offeringId        String?
+  offeringVariantId String? // immutable identity of the selected sellable variant
+  offeringName      String?
+  packageName       String?
+  netWeightGrams    Decimal? @db.Decimal(8, 2)
+  roastLevel        String?
+
+  invoice       Invoice         @relation(fields: [invoiceId], references: [id])
+  product       Product         @relation(fields: [productId], references: [id])
+  contractPrice ContractPrice?  @relation(fields: [contractPriceId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  offering      CoffeeOffering? @relation(fields: [offeringId], references: [id], onDelete: SetNull)
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([contractPriceId])
+  @@index([offeringId])
+  @@index([offeringVariantId])
+  @@map("invoice_items")
+}
+
+// =============================================================================
+// TABLE 13 · Payment
+// Pembayaran atas sebuah Invoice. Immutable. Koreksi via VOID.
+// Server update Invoice.paidAmount & Invoice.status setelah tiap Payment.
+// =============================================================================
+
+model Payment {
+  id   String @id @default(cuid())
+  code String // e.g., "PAY-2024-001"
+
+  operationKey String? // Idempotency key supplied by the client command
+
+  invoiceId String
+
+  amount    Decimal       @db.Decimal(14, 2)
+  method    PaymentMethod @default(CASH)
+  reference String? // no. referensi transfer / QRIS
+  paidAt    DateTime      @default(now())
+
+  notes      String?
+  voidReason String?
+  voidAt     DateTime?
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  invoice    Invoice            @relation(fields: [invoiceId], references: [id])
+  createdBy  User               @relation(fields: [createdById], references: [id])
+  tenantId   String
+  tenant     Tenant             @relation(fields: [tenantId], references: [id])
+  submission PaymentSubmission?
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, paidAt])
+  @@index([tenantId, invoiceId])
+  @@map("payments")
+}
+
+// =============================================================================
+// TABLE 13B · Tenant payment destination
+// Public checkout may show these instructions. Credentials are never stored here.
+// =============================================================================
+
+model TenantPaymentMethod {
+  id            String          @id @default(cuid())
+  tenantId      String
+  provider      PaymentProvider @default(MANUAL)
+  method        PaymentMethod
+  label         String
+  bankName      String?
+  accountNumber String?
+  accountHolder String?
+  qrisImageUrl  String?
+  instructions  String?
+  requireProof  Boolean         @default(true)
+  isActive      Boolean         @default(true)
+  displayOrder  Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  tenant      Tenant              @relation(fields: [tenantId], references: [id])
+  submissions PaymentSubmission[]
+
+  @@index([tenantId, isActive, displayOrder])
+  @@map("tenant_payment_methods")
+}
+
+// A submission is intentionally separate from Payment. Uploading proof never
+// books cash or changes an invoice to PAID until an authorized tenant user verifies it.
+model PaymentSubmission {
+  id                     String                  @id @default(cuid())
+  tenantId               String
+  invoiceId              String
+  paymentMethodId        String?
+  paymentId              String?                 @unique
+  publicToken            String                  @unique
+  provider               PaymentProvider         @default(MANUAL)
+  method                 PaymentMethod
+  status                 PaymentSubmissionStatus @default(AWAITING_PROOF)
+  amount                 Decimal                 @db.Decimal(14, 2)
+  declaredAmount         Decimal?                @db.Decimal(14, 2)
+  reviewedAmount         Decimal?                @db.Decimal(14, 2)
+  payerName              String?
+  reference              String?
+  proofSha256            String?
+  suspectedDuplicateOfId String?
+  destination            Json?
+  proofObjectPath        String?
+  proofMimeType          String?
+  proofFilename          String?
+  submissionAttempt      Int                     @default(0)
+  submittedAt            DateTime?
+  reviewedAt             DateTime?
+  reviewedById           String?
+  rejectionReason        String?
+  expiresAt              DateTime
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  tenant                 Tenant                        @relation(fields: [tenantId], references: [id])
+  invoice                Invoice                       @relation(fields: [invoiceId], references: [id])
+  paymentMethod          TenantPaymentMethod?          @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  payment                Payment?                      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  reviewedBy             User?                         @relation("PaymentSubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  suspectedDuplicateOf   PaymentSubmission?            @relation("PaymentSubmissionDuplicate", fields: [suspectedDuplicateOfId], references: [id], onDelete: SetNull)
+  duplicateCandidates    PaymentSubmission[]           @relation("PaymentSubmissionDuplicate")
+  notificationDeliveries PaymentNotificationDelivery[]
+
+  @@index([tenantId, status, submittedAt])
+  @@index([tenantId, invoiceId])
+  @@index([tenantId, reference, submittedAt])
+  @@index([tenantId, proofSha256, submittedAt])
+  @@index([status, expiresAt])
+  @@map("payment_submissions")
+}
+
+// Durable delivery log for payment proof and review notifications. Provider
+// failures never roll back the underlying payment decision.
+model PaymentNotificationDelivery {
+  id                  String                    @id @default(cuid())
+  tenantId            String
+  paymentSubmissionId String
+  event               String
+  channel             String
+  recipient           String
+  attempt             Int                       @default(1)
+  status              PaymentNotificationStatus @default(PENDING)
+  providerMessageId   String?
+  error               String?
+  sentAt              DateTime?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  submission PaymentSubmission @relation(fields: [paymentSubmissionId], references: [id], onDelete: Cascade)
+
+  @@unique([paymentSubmissionId, event, channel, recipient, attempt])
+  @@index([tenantId, status, createdAt])
+  @@index([paymentSubmissionId])
+  @@map("payment_notification_deliveries")
+}
+
+// =============================================================================
+// TABLE 13A · CreditNote (Nota Retur)
+// Digunakan untuk retur penjualan — membalik sebagian/seluruh item invoice.
+// Stok dikembalikan via InventoryLedger (refType = RETURN_FG_IN / RETURN_PKG_IN).
+// Payment adjustment dicatat terpisah (refund manual atau potong tagihan).
+// =============================================================================
+
+model CreditNote {
+  id        String @id @default(cuid())
+  code      String // e.g., "CN-2024-001"
+  invoiceId String
+
+  operationKey String? // Idempotency key supplied by the return command
+
+  reason    String // alasan retur
+  total     Decimal  @db.Decimal(14, 2) // total nilai barang yang diretur
+  createdAt DateTime @default(now())
+
+  invoice  Invoice          @relation(fields: [invoiceId], references: [id])
+  items    CreditNoteItem[]
+  tenantId String
+  tenant   Tenant           @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, invoiceId])
+  @@map("credit_notes")
+}
+
+model CreditNoteItem {
+  id           String @id @default(cuid())
+  creditNoteId String
+  productId    String // FK → Product (FINISHED_GOODS)
+
+  quantity     Int
+  unitPrice    Decimal @db.Decimal(12, 2) // snapshot harga jual saat retur
+  unitDiscount Decimal @default(0) @db.Decimal(12, 2)
+  subtotal     Decimal @db.Decimal(14, 2) // = (unitPrice - unitDiscount) * quantity
+
+  creditNote CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id])
+  tenantId   String
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, creditNoteId])
+  @@map("credit_note_items")
+}
+
+// =============================================================================
+// TABLE 13B · SupplierPayment
+// Pembayaran hutang atas Purchase. Koreksi dilakukan melalui VOID.
+// Purchase.paidAmount dan Purchase.paymentStatus diperbarui secara atomik.
+// =============================================================================
+
+model SupplierPayment {
+  id   String @id @default(cuid())
+  code String // e.g., "SPAY-2024-001"
+
+  operationKey String? // Idempotency key supplied by the client command
+
+  purchaseId String
+
+  amount    Decimal       @db.Decimal(14, 2)
+  method    PaymentMethod @default(CASH)
+  reference String?
+  paidAt    DateTime      @default(now())
+
+  notes      String?
+  voidReason String?
+  voidAt     DateTime?
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  purchase  Purchase @relation(fields: [purchaseId], references: [id])
+  createdBy User     @relation(fields: [createdById], references: [id])
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, paidAt])
+  @@index([tenantId, purchaseId])
+  @@map("supplier_payments")
+}
+
+// =============================================================================
+// TABLE 15 · OnboardingSnapshot
+// Menyimpan progres wizard onboarding per tenant (survives browser close).
+// =============================================================================
+
+model OnboardingSnapshot {
+  id        String   @id @default(cuid())
+  tenantId  String
+  step      String
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, step])
+  @@index([tenantId])
+  @@map("onboarding_snapshots")
+}
+
+// =============================================================================
+// TABLE 14A · Lot / FEFO Traceability
+// Setiap pembelian (Purchase) dapat dikaitkan dengan satu atau lebih Lot.
+// Lot digunakan untuk pelacakan mundur (supplier → purchase → inventory → roast → invoice → customer)
+// dan maju (dari supplier ke customer).
+// FEFO (First Expired, First Out) diimplementasikan melalui expiryDate.
+// =============================================================================
+
+// Status QC per lot. HOLD = lot dikarantina: TIDAK dialokasikan oleh FEFO
+// (roast/penjualan/produksi) sampai dilepas.
+enum LotQcStatus {
+  PENDING
+  RELEASED
+  HOLD
+}
+
+model Lot {
+  id             String    @id @default(cuid())
+  tenantId       String
+  productId      String? // FK → Product (nullable, karena bisa untuk packaging/supply juga)
+  packagingId    String? // FK → Packaging (legacy)
+  supplyItemId   String? // FK → InventorySupplyItem (write baru pasca-cutover)
+  supplierId     String? // FK → Supplier (nullable)
+  batchCode      String // nomor batch/lot dari supplier
+  purchaseId     String? // FK → Purchase (nullable)
+  quantityKg     Decimal   @default(0) @db.Decimal(12, 2)
+  quantityUnit   Decimal   @default(0) @db.Decimal(12, 2)
+  supplyQuantity Decimal   @default(0) @db.Decimal(12, 3) // SUPPLY: kuantitas lot (baseUnit item)
+  expiryDate     DateTime?
+  createdAt      DateTime  @default(now())
+  receivedAt     DateTime  @default(now())
+  consumedAt     DateTime?
+  notes          String?
+
+  // Intake mutu per-lot (green coffee). Identitas asal (origin/proses) tetap
+  // di CoffeeSource; field ini menangkap kondisi FISIK kiriman spesifik ini.
+  supplierLotNumber String?
+  moisturePct       Decimal?    @db.Decimal(5, 2)
+  humidityPct       Decimal?    @db.Decimal(5, 2)
+  harvestDate       DateTime?
+  defectCount       Int?
+  qcStatus          LotQcStatus @default(RELEASED)
+
+  product                   Product?                   @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  packaging                 Packaging?                 @relation(fields: [packagingId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  supplyItem                InventorySupplyItem?       @relation(fields: [supplyItemId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  supplier                  Supplier?                  @relation(fields: [supplierId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  purchase                  Purchase?                  @relation(fields: [purchaseId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  tenant                    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  inventoryLedgers          InventoryLedger[]
+  roastMaterialReservations RoastMaterialReservation[]
+  placements                LotPlacement[]
+  transfers                 LocationTransfer[]
+  opnames                   LocationOpname[]
+  cuppingSessions           CuppingSession[]
+
+  @@unique([tenantId, batchCode], map: "lots_tenantId_batchCode_unique")
+  @@index([tenantId])
+  @@index([tenantId, productId], map: "lots_productId_idx")
+  @@index([tenantId, packagingId], map: "lots_packagingId_idx")
+  @@index([tenantId, supplierId], map: "lots_supplierId_idx")
+  @@index([tenantId, purchaseId], map: "lots_purchaseId_idx")
+  @@index([tenantId, expiryDate], map: "lots_expiryDate_idx")
+  @@index([tenantId, supplyItemId], map: "lots_supplyItemId_idx")
+  @@map("lots")
+}
+
+// =============================================================================
+// TABLE 14 · InventoryLedger  ★ PUSAT MUTASI STOK ★
+// Satu baris = satu event perubahan stok. Append-only. TIDAK PERNAH diedit.
+// Koreksi via VOID_REVERSAL (entri baru dengan nilai negatif/berlawanan).
+//
+// Aturan pengisian (XOR-3 untuk semua write baru):
+//   • Entri kopi (GB/RB/FG) → productId diisi, packagingId/supplyItemId null
+//   • Entri kemasan legacy  → packagingId diisi, productId/supplyItemId null
+//   • Entri supply (baru)   → supplyItemId diisi, productId/packagingId null
+//   • quantityKg  → untuk GB dan RB (satuan kilogram)
+//   • quantityUnit → untuk FG dan Packaging (satuan unit/pcs)
+//   • supplyQuantity → untuk InventorySupplyItem (baseUnit item, pecahan)
+// =============================================================================
+
+model CoffeeSpecies {
+  id String @id @default(cuid())
+}
+
+enum SalesChannel {
+  WALK_IN
+  WHATSAPP
+  MARKETPLACE
+  B2B_DIRECT
+  STOREFRONT
+  OTHER
+}
+
+model InventoryLedger {
+  id String @id @default(cuid())
+
+  productId    String? // FK → Product (GB / RB / FG)
+  packagingId  String? // FK → Packaging (legacy)
+  supplyItemId String? // FK → InventorySupplyItem (write baru pasca-cutover)
+
+  entryType LedgerEntryType // IN | OUT
+  refType   LedgerRefType // jenis transaksi asal
+  refId     String // ID transaksi asal (Purchase.id, RoastingBatch.id, dsb.)
+
+  quantityKg     Decimal? @db.Decimal(10, 3) // diisi untuk GB & RB
+  quantityUnit   Int? // diisi untuk FG & Packaging
+  supplyQuantity Decimal? @db.Decimal(12, 3) // diisi untuk Supply (baseUnit item, pecahan)
+
+  // ── Cost basis (Phase 2D.2A) ──
+  // Harga satuan pada saat entry IN; basis kalkulasi ulang WAC saat void.
+  // Rows lama (pra-migrasi) bernilai null — basis harga dianggap tidak lengkap.
+  incomingPrice      Decimal? @db.Decimal(12, 2)
+  // ID InventoryLedger asal yang dibalik (jika entry ini adalah VOID_REVERSAL).
+  // Memberi pasangan reversal yang deterministik di level baris
+  // (hard guard anti double-restore: satu reversal per baris sumber).
+  reversalOfLedgerId String?
+
+  // ── Lot / Traceability ──
+  lotNumber  String? // nomor lot / batch dari supplier
+  expiryDate DateTime? // tanggal kedaluwarsa (best before)
+  lotId      String? // FK → Lot (nullable)
+
+  notes String?
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  product    Product?             @relation(fields: [productId], references: [id])
+  packaging  Packaging?           @relation(fields: [packagingId], references: [id])
+  supplyItem InventorySupplyItem? @relation(fields: [supplyItemId], references: [id])
+  lot        Lot?                 @relation(fields: [lotId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  createdBy  User                 @relation(fields: [createdById], references: [id])
+
+  // Index untuk kalkulasi stok realtime per produk/packaging/supply
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  // Hard guard: satu reversal per baris sumber (anti double-restore saat void
+  // bersamaan). NULL ganda diperbolehkan di PostgreSQL.
+  @@unique([tenantId, reversalOfLedgerId])
+  @@index([tenantId, productId, createdAt])
+  @@index([tenantId, packagingId, createdAt])
+  @@index([tenantId, supplyItemId, createdAt])
+  @@index([lotId])
+  // Index untuk audit trail per transaksi
+  @@index([tenantId, refType, refId])
+  // Filter tenant + rentang tanggal lintas produk (riwayat mutasi, laporan periode)
+  @@index([tenantId, createdAt])
+  @@map("inventory_ledger")
+}
+
+// =============================================================================
+// TABLE 14B · SampleUsage
+// Pemakaian stok untuk sample/tester. Tidak membuat invoice atau arus kas.
+// HPP dicatat sebagai biaya promosi non-kas di laporan laba rugi.
+// =============================================================================
+
+model SampleUsage {
+  id           String  @id @default(cuid())
+  code         String
+  operationKey String?
+  sourceType   String // FINISHED_GOODS | RECIPE | CUSTOM_BLEND
+  sourceLabel  String
+
+  packCount  Int
+  totalGrams Decimal           @db.Decimal(12, 3)
+  totalCost  Decimal           @db.Decimal(14, 2)
+  recipient  String?
+  notes      String?
+  givenAt    DateTime          @default(now())
+  status     TransactionStatus @default(COMPLETED)
+
+  voidReason String?
+  voidAt     DateTime?
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  createdBy  User                   @relation(fields: [createdById], references: [id])
+  components SampleUsageComponent[]
+  tenantId   String
+  tenant     Tenant                 @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, givenAt, status])
+  @@map("sample_usages")
+}
+
+model SampleUsageComponent {
+  id            String  @id @default(cuid())
+  sampleUsageId String
+  productId     String?
+  packagingId   String?
+  label         String
+
+  quantityKg   Decimal? @db.Decimal(10, 3)
+  quantityUnit Int?
+  ratioPercent Decimal? @db.Decimal(5, 2)
+  unitCost     Decimal  @db.Decimal(14, 4)
+  totalCost    Decimal  @db.Decimal(14, 2)
+
+  sampleUsage SampleUsage @relation(fields: [sampleUsageId], references: [id], onDelete: Cascade)
+  product     Product?    @relation(fields: [productId], references: [id])
+  packaging   Packaging?  @relation(fields: [packagingId], references: [id])
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, sampleUsageId])
+  @@index([tenantId, productId])
+  @@index([tenantId, packagingId])
+  @@map("sample_usage_components")
+}
+
+// =============================================================================
+// TABLE 14C · NotificationPreference
+// Preferensi notifikasi per tenant (email, WhatsApp, dsb.)
+// =============================================================================
+
+model NotificationPreference {
+  id String @id @default(cuid())
+
+  channel String // "EMAIL" | "WHATSAPP" | "IN_APP"
+  event   String // "OVERDUE_INVOICE" | "LOW_STOCK" | "SUBSCRIPTION_RENEWAL" | "DAILY_BRIEF"
+  enabled Boolean @default(true)
+
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, channel, event])
+  @@index([tenantId, enabled])
+  @@map("notification_preferences")
+}
+
+// =============================================================================
+// TABLE 15 · Expense (Pengeluaran / OPEX)
+// Mencatat semua pengeluaran operasional untuk kalkulasi Laba Bersih di P&L.
+// Immutable — koreksi via void / pencatatan ulang.
+// =============================================================================
+
+model Expense {
+  id          String          @id @default(cuid())
+  date        DateTime
+  category    ExpenseCategory
+  amount      Decimal         @db.Decimal(14, 2)
+  description String?
+  voidReason  String?
+  voidAt      DateTime?
+
+  operationKey String? // Idempotency key supplied by the expense command
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  createdBy User   @relation(fields: [createdById], references: [id])
+  tenantId  String
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, date])
+  @@index([tenantId, category])
+  @@map("expenses")
+}
+
+// =============================================================================
+// TABLE 16 · CapitalTransaction (Mutasi Modal)
+// Mencatat setiap perubahan modal pemilik: setoran awal, tambahan modal, prive, dividen.
+// =============================================================================
+
+model CapitalTransaction {
+  id              String                 @id @default(cuid())
+  tenantId        String
+  type            CapitalTransactionType
+  amount          Decimal                @db.Decimal(14, 2) // positif = masuk (INITIAL/INJECTION), negatif = keluar (WITHDRAWAL/DIVIDEND)
+  description     String?
+  transactionDate DateTime               @default(now())
+  createdById     String
+  createdAt       DateTime               @default(now())
+
+  operationKey String? // Idempotency key supplied by the capital command
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  createdBy User   @relation(fields: [createdById], references: [id])
+
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, transactionDate])
+  @@index([tenantId, type])
+  @@map("capital_transactions")
+}
+
+// =============================================================================
+// PLATFORM AUDIT & INTEGRATION INBOX
+// =============================================================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entityType, entityId])
+  @@map("audit_logs")
+}
+
+model WebhookEvent {
+  id          String    @id @default(cuid())
+  tenantId    String
+  provider    String
+  eventId     String
+  eventType   String
+  status      String    @default("RECEIVED")
+  payload     Json
+  error       String?
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, provider, eventId])
+  @@index([tenantId, provider, receivedAt])
+  @@index([status, receivedAt])
+  @@map("webhook_events")
+}
+
+model ReminderDelivery {
+  id           String    @id @default(cuid())
+  tenantId     String
+  invoiceId    String
+  channel      String
+  reminderDate DateTime  @db.Date
+  status       String    @default("PENDING")
+  error        String?
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@unique([tenantId, invoiceId, channel, reminderDate])
+  @@index([tenantId, reminderDate, status])
+  @@map("reminder_deliveries")
+}
+
+model JobRun {
+  id         String       @id @default(cuid())
+  tenantId   String?
+  jobName    String
+  runKey     String       @unique
+  status     JobRunStatus @default(RUNNING)
+  attempt    Int          @default(1)
+  startedAt  DateTime     @default(now())
+  finishedAt DateTime?
+  summary    Json?
+  error      String?
+  claimToken String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([jobName, startedAt])
+  @@index([status, startedAt])
+  @@index([tenantId, startedAt])
+  @@map("job_runs")
+}
+
+model DailyBriefSnapshot {
+  id          String   @id @default(cuid())
+  tenantId    String
+  reportDate  DateTime @db.Date
+  periodStart DateTime
+  periodEnd   DateTime
+  generatedAt DateTime @default(now())
+  payload     Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, reportDate])
+  @@index([tenantId, generatedAt])
+  @@map("daily_brief_snapshots")
+}
+
+model RateLimitBucket {
+  key         String   @id
+  count       Int      @default(1)
+  windowStart DateTime
+  expiresAt   DateTime
+  updatedAt   DateTime @updatedAt
+
+  @@index([expiresAt])
+  @@map("rate_limit_buckets")
+}
+
+// =============================================================================
+// TABLE · PurchaseOrder (PO Lite)
+// Purchase Order sederhana yang terintegrasi dengan Reorder Point Alert.
+// =============================================================================
+
+enum POStatus {
+  DRAFT // Belum dikirim
+  SENT // Sudah dikirim ke supplier
+  PARTIAL // Sebagian barang diterima
+  RECEIVED // Semua barang diterima
+  CANCELLED // Dibatalkan
+}
+
+model PurchaseOrder {
+  id     String   @id @default(cuid())
+  code   String // PO-YYYYMM-NNN
+  status POStatus @default(DRAFT)
+
+  // Supplier
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+
+  // Snapshot data saat PO dibuat
+  expectedDate DateTime? // Tanggal perkiraan barang datang
+  notes        String?
+
+  // Financial
+  estimatedShippingCost Decimal  @default(0) @db.Decimal(12, 2) // Estimasi ongkir saat PO dibuat
+  totalEstimate         Decimal? @db.Decimal(12, 2) // Item + estimasi ongkir
+
+  // Tracking
+  sentAt     DateTime? // Kapan PO dikirim ke supplier
+  receivedAt DateTime? // Kapan barang diterima
+
+  // Audit
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Tenant
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  // Relations
+  items     PurchaseOrderItem[]
+  purchases Purchase[] // Link ke Purchase saat barang datang (bisa multi untuk partial receipt)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  // Produk
+  productId    String?
+  product      Product?             @relation(fields: [productId], references: [id])
+  packagingId  String?
+  packaging    Packaging?           @relation(fields: [packagingId], references: [id])
+  supplyItemId String?
+  supplyItem   InventorySupplyItem? @relation(fields: [supplyItemId], references: [id])
+
+  // Quantity & Harga
+  quantity       Decimal  @db.Decimal(10, 3) // kg atau unit
+  unitPrice      Decimal  @db.Decimal(12, 2) // Harga per kg/unit
+  totalPrice     Decimal  @db.Decimal(12, 2) // quantity × unitPrice
+  supplyQuantity Decimal? @db.Decimal(12, 3) // SUPPLY: kuantitas (baseUnit item, pecahan)
+
+  // Reorder reference (dari mana data ini)
+  reorderPoint Decimal? @db.Decimal(10, 3) // Snapshot reorder point saat PO dibuat
+  currentStock Decimal? @db.Decimal(10, 3) // Snapshot stok saat PO dibuat
+
+  createdAt DateTime @default(now())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, purchaseOrderId])
+  @@map("purchase_order_items")
+}
+
+// =============================================================================
+// ARTISAN DESKTOP INTEGRATION
+// =============================================================================
+
+model ArtisanPairingCode {
+  id              String    @id @default(cuid())
+  tenantId        String
+  machineId       String
+  createdByUserId String
+  codeHash        String    @unique
+  expiresAt       DateTime
+  usedAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  machine Machine @relation(fields: [machineId], references: [id])
+
+  @@index([tenantId])
+  @@index([codeHash])
+  @@index([expiresAt])
+  @@map("artisan_pairing_codes")
+}
+
+model StudioDeviceAuthorization {
+  id                   String                          @id @default(cuid())
+  deviceCodeHash       String                          @unique
+  verificationCodeHash String                          @unique
+  installationId       String
+  computerName         String
+  platform             String
+  appVersion           String
+  status               StudioDeviceAuthorizationStatus @default(PENDING)
+  expiresAt            DateTime
+  approvedAt           DateTime?
+  consumedAt           DateTime?
+  createdAt            DateTime                        @default(now())
+
+  tenantId         String?
+  machineId        String?
+  approvedByUserId String?
+
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
+  machine    Machine? @relation(fields: [machineId], references: [id])
+  approvedBy User?    @relation("StudioDeviceAuthorizationApprover", fields: [approvedByUserId], references: [id])
+
+  @@index([deviceCodeHash])
+  @@index([verificationCodeHash])
+  @@index([status, expiresAt])
+  @@index([tenantId])
+  @@index([machineId])
+  @@map("studio_device_authorizations")
+}
+
+model RoastdStudio {
+  id                 String       @id @default(cuid())
+  tenantId           String
+  machineId          String
+  installationId     String       @unique
+  computerName       String
+  platform           String
+  appVersion         String
+  credentialHash     String       @unique
+  status             StudioStatus @default(OFFLINE)
+  lastSeenAt         DateTime?
+  revokedAt          DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  authorizedByUserId String?
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  machine      Machine              @relation(fields: [machineId], references: [id])
+  authorizedBy User?                @relation("RoastdStudioAuthorizer", fields: [authorizedByUserId], references: [id], onDelete: SetNull)
+  imports      ArtisanRoastImport[]
+
+  @@index([tenantId])
+  @@index([machineId])
+  @@index([credentialHash])
+  @@index([lastSeenAt])
+  @@index([status])
+  @@index([authorizedByUserId])
+  @@map("roastd_studios")
+}
+
+model ArtisanRoastImport {
+  id               String              @id @default(cuid())
+  tenantId         String
+  machineId        String
+  // Null for manual web uploads (no connector); connector imports always set it.
+  connectorId      String?
+  originalFilename String
+  fileHash         String
+  fileSize         Int
+  storageKey       String
+  status           ArtisanImportStatus @default(UPLOADED)
+  errorCode        String?
+  errorMessage     String?
+  roastId          String?
+  fileModifiedAt   DateTime?
+  uploadedAt       DateTime            @default(now())
+  importedAt       DateTime?
+
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  machine   Machine       @relation(fields: [machineId], references: [id])
+  connector RoastdStudio? @relation(fields: [connectorId], references: [id])
+
+  @@unique([tenantId, machineId, fileHash])
+  @@index([tenantId, uploadedAt])
+  @@index([tenantId, status, uploadedAt])
+  @@index([machineId])
+  @@index([connectorId])
+  @@index([status])
+  @@index([uploadedAt])
+  @@map("artisan_roast_imports")
+}
+
+// =============================================================================
+// ROAST PROFILE (parsed from .alog files)
+// =============================================================================
+
+model Roast {
+  id        String  @id @default(cuid())
+  tenantId  String
+  machineId String
+  importId  String? @unique
+
+  // Basic info
+  title         String?
+  roastDate     DateTime?
+  sourceVersion String?
+
+  // Timing (seconds)
+  chargeTime Int?
+  dropTime   Int?
+  duration   Int?
+
+  // Temperatures (Celsius)
+  chargeTemperature Float?
+  dropTemperature   Float?
+  dryEndTime        Int?
+
+  // First/Second crack (seconds from start)
+  firstCrackStartTime  Int?
+  firstCrackEndTime    Int?
+  secondCrackStartTime Int?
+  secondCrackEndTime   Int?
+
+  // Weight
+  greenWeightGrams   Float?
+  roastedWeightGrams Float?
+  lossPercent        Float?
+
+  // Metadata
+  metadata Json?
+
+  // Temperature curves (stored as JSON arrays)
+  beanTemperatureSeries          Json
+  environmentalTemperatureSeries Json
+  events                         Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant               Tenant                @relation(fields: [tenantId], references: [id])
+  machine              Machine               @relation(fields: [machineId], references: [id])
+  childRoastingBatches ChildRoastingBatch[]
+  referenceForBatches  ParentRoastingBatch[] @relation("ParentReferenceRoast")
+
+  @@index([tenantId, roastDate])
+  @@index([machineId])
+  @@index([roastDate])
+  @@map("roasts")
+}
+
+// =============================================================================
+// LIVE SESSION (MQTT)
+// =============================================================================
+
+enum LiveSessionStatus {
+  ACTIVE
+  COMPLETED
+  RECONCILED
+}
+
+model LiveSession {
+  id        String @id @default(cuid())
+  tenantId  String
+  machineId String
+  sessionId String @unique
+
+  status       LiveSessionStatus @default(ACTIVE)
+  startedAt    DateTime          @default(now())
+  lastUpdateAt DateTime          @default(now())
+
+  currentBT Float?
+  currentET Float?
+  events    Json   @default("[]")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  machine Machine @relation(fields: [machineId], references: [id])
+
+  @@index([tenantId])
+  @@index([machineId])
+  @@index([sessionId])
+  @@map("live_sessions")
+}
+
+// =============================================================================
+// CHART OF ACCOUNTS & DOUBLE ENTRY
+// =============================================================================
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+model Account {
+  id       String      @id @default(cuid())
+  code     String // e.g. "1-1000"
+  name     String // e.g. "Kas Operasional"
+  type     AccountType
+  isActive Boolean     @default(true)
+  isSystem Boolean     @default(false) // system accounts cannot be deleted
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  journalLines JournalLine[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, name])
+  @@index([tenantId, type])
+  @@map("accounts")
+}
+
+model JournalEntry {
+  id          String          @id @default(cuid())
+  code        String // e.g. "JE-2026-07-001"
+  date        DateTime // transaction date
+  description String
+  reference   String? // link to source document (invoice ID, expense ID, etc.)
+  refType     JournalRefType? // source type: INVOICE, EXPENSE, CAPITAL, PRODUCTION, etc.
+
+  lines JournalLine[]
+
+  createdById String
+  createdAt   DateTime  @default(now())
+  voidAt      DateTime?
+  voidReason  String?
+
+  createdBy User   @relation(fields: [createdById], references: [id])
+  tenantId  String
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, refType, reference])
+  @@index([tenantId, date])
+  @@index([tenantId, refType])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id     String @id @default(cuid())
+  sideId Int    @default(0) // ordering within entry (0, 1, 2...)
+
+  debit  Decimal @db.Decimal(16, 2)
+  credit Decimal @db.Decimal(16, 2)
+
+  journalEntryId String
+  accountId      String
+
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id])
+  account      Account      @relation(fields: [accountId], references: [id])
+
+  @@index([journalEntryId])
+  @@index([accountId])
+  @@map("journal_lines")
+}
+
+model Budget {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  periodMonth Int
+  periodYear  Int
+  category    String
+  amount      Decimal @db.Decimal(16, 2)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, periodYear, periodMonth, category])
+  @@index([tenantId, periodYear, periodMonth])
+  @@map("budgets")
+}
+
+// =============================================================================
+// CONTRACT & CONTRACT PRICE (OEM / Private Label)
+// =============================================================================
+
+model Contract {
+  id               String    @id @default(cuid())
+  tenantId         String
+  customerId       String
+  contractNumber   String
+  startDate        DateTime
+  endDate          DateTime?
+  terms            String?
+  allowCredit      Boolean   @default(false)
+  paymentTermsDays Int?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id])
+  customer Customer        @relation(fields: [customerId], references: [id])
+  prices   ContractPrice[]
+
+  @@unique([tenantId, customerId, contractNumber])
+  @@index([tenantId])
+  @@index([customerId])
+  @@map("contracts")
+}
+
+model ContractPrice {
+  id           String   @id @default(cuid())
+  contractId   String
+  productId    String
+  tierName     String
+  minOrderQty  Decimal  @db.Decimal(12, 2)
+  pricePerKg   Decimal? @db.Decimal(14, 2)
+  pricePerUnit Decimal? @db.Decimal(14, 2)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contract     Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  product      Product       @relation(fields: [productId], references: [id])
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  invoiceItems InvoiceItem[]
+
+  @@unique([tenantId, contractId, productId, tierName, minOrderQty], map: "contract_prices_tenantId_contractId_productId_tierName_minOrder")
+  @@index([contractId])
+  @@index([productId])
+  @@index([tenantId])
+  @@map("contract_prices")
+}
+
+// =============================================================================
+// CUPPING MODULE — SCA Cupping Protocol Scoring
+// =============================================================================
+
+enum CuppingCategory {
+  FRAGRANCE
+  AROMA
+  FLAVOR
+  AFTERTASTE
+  ACIDITY
+  BODY
+  BALANCE
+  UNIFORMITY
+  CLEAN_CUP
+  SWEETNESS
+  OVERALL
+}
+
+model CuppingSession {
+  id            String   @id @default(cuid())
+  code          String
+  tenantId      String
+  batchId       String?
+  productId     String?
+  lotId         String? // traceability: lot green bean yang dievaluasi
+  date          DateTime
+  location      String?
+  evaluatorName String?
+  notes         String?
+  defectCount   Int? // jumlah taint/fault (konvensi SCA, penalti 2 poin/defect)
+  totalScore    Float? // komposit SCA 0–100 (dihitung server saat simpan)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  batch   ParentRoastingBatch? @relation(fields: [batchId], references: [id])
+  product Product?             @relation(fields: [productId], references: [id])
+  lot     Lot?                 @relation(fields: [lotId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  tenant  Tenant               @relation(fields: [tenantId], references: [id])
+  scores  CuppingScore[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([batchId])
+  @@index([productId])
+  @@index([lotId])
+  @@index([tenantId, date])
+  @@map("cupping_sessions")
+}
+
+model CuppingScore {
+  id        String          @id @default(cuid())
+  sessionId String
+  category  CuppingCategory
+  score     Decimal         @db.Decimal(4, 2)
+  maxScore  Decimal         @default(10) @db.Decimal(4, 2)
+  notes     String?
+
+  session CuppingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, category])
+  @@index([sessionId])
+  @@index([category])
+  @@map("cupping_scores")
+}
+
+// =============================================================================
+// TABLE S1 · Warehouse (Gudang)  — SMART STORAGE EPIC
+// Physical storage facility. Tenant-scoped. One tenant may have multiple
+// warehouses; the lazily-created default is flagged isDefault=true.
+// =============================================================================
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  tenantId  String
+  code      String // e.g. "WH-01"
+  name      String // e.g. "Gudang Utama"
+  address   String?
+  isActive  Boolean  @default(true)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  locations Location[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isDefault])
+  @@map("warehouses")
+}
+
+// =============================================================================
+// TABLE S2 · Location (Lokasi / Rak / Bin)  — SMART STORAGE EPIC
+// Granular storage position within a warehouse (e.g. shelf/rack/bin).
+// Tenant-scoped; inherits warehouse isolation via FK cascade.
+// =============================================================================
+
+model Location {
+  id          String   @id @default(cuid())
+  tenantId    String
+  warehouseId String
+  code        String // e.g. "A-01-02" (zone-row-bin)
+  name        String // e.g. "Rak A, Anrak, Bin 02"
+  zone        String? // optional grouping e.g. "DRY", "COLD"
+  capacity    Decimal? @db.Decimal(12, 3) // kapasitas kapasitas (satuan bebas, opsional)
+
+  isActive      Boolean  @default(true)
+  isDefault     Boolean  @default(false)
+  isSystem      Boolean  @default(false)
+  systemPurpose String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant                    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  warehouse                 Warehouse                  @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  placements                LotPlacement[]
+  outTransfers              LocationTransfer[]         @relation("SourceLocation")
+  inTransfers               LocationTransfer[]         @relation("DestinationLocation")
+  opnames                   LocationOpname[]
+  roastMaterialReservations RoastMaterialReservation[]
+
+  @@unique([tenantId, warehouseId, code])
+  @@index([tenantId, warehouseId, isDefault])
+  @@map("locations")
+}
+
+// =============================================================================
+// TABLE S3 · LotPlacement  — SMART STORAGE EPIC
+// Records how much of a canonical Lot is physically positioned in a Location.
+// Sum of quantityKg across placements for a lot MUST NOT exceed the lot's
+// remaining (ledger-adjusted) balance. Historical lots without placement
+// remain "Belum Ditempatkan".
+// =============================================================================
+
+model LotPlacement {
+  id           String  @id @default(cuid())
+  tenantId     String
+  lotId        String
+  locationId   String
+  quantityKg   Decimal @db.Decimal(12, 3) // berat yang ditempatkan di lokasi ini
+  quantityUnit Int     @default(0) // unit yang ditempatkan (FG / packaging)
+  supplyQty    Decimal @default(0) @db.Decimal(12, 3) // supply baseUnit yang ditempatkan
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lot      Lot      @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, lotId, locationId])
+  @@index([tenantId, locationId])
+  @@index([tenantId, lotId])
+  @@map("lot_placements")
+}
+
+// =============================================================================
+// TABLE S4 · LocationTransfer  — SMART STORAGE EPIC
+// Atomic movement of quantity from one location to another for a given lot.
+// Each transfer adjusts two LotPlacements within a single transaction:
+// source decremented, destination incremented. The source placement must
+// hold enough quantity to cover the transfer amount.
+// =============================================================================
+
+enum LocationTransferStatus {
+  PENDING // dalam proses
+  COMPLETED // selesai
+  VOID // dibatalkan
+}
+
+model LocationTransfer {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  lotId                 String
+  sourceLocationId      String
+  destinationLocationId String
+  quantityKg            Decimal? @db.Decimal(12, 3) // kg yang dipindah (jika product tracked by kg)
+  quantityUnit          Int? // unit yang dipindah (jika product tracked by unit)
+  supplyQty             Decimal? @db.Decimal(12, 3) // supply qty yang dipindah
+
+  notes       String?
+  status      LocationTransferStatus @default(PENDING)
+  completedAt DateTime?
+  voidAt      DateTime?
+  voidReason  String?
+
+  createdAt   DateTime @default(now())
+  createdById String
+  updatedAt   DateTime @updatedAt
+
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lot                 Lot      @relation(fields: [lotId], references: [id])
+  sourceLocation      Location @relation("SourceLocation", fields: [sourceLocationId], references: [id])
+  destinationLocation Location @relation("DestinationLocation", fields: [destinationLocationId], references: [id])
+  createdBy           User     @relation(fields: [createdById], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, lotId])
+  @@index([tenantId, sourceLocationId])
+  @@index([tenantId, destinationLocationId])
+  @@map("location_transfers")
+}
+
+// =============================================================================
+// TABLE S5 · LocationOpname  — SMART STORAGE EPIC
+// Physical count (opname) of a lot at a specific location. Draft → Confirmed.
+// On confirm, the LotPlacement quantity is set to the counted value and any
+// variance is reconciled in the canonical InventoryLedger.
+// =============================================================================
+
+enum LocationOpnameStatus {
+  DRAFT // sedang disiapkan, belum disahkan
+  CONFIRMED // sudah disahkan — stok telah disesuaikan
+  CANCELLED // dibatalkan
+}
+
+model LocationOpname {
+  id         String @id @default(cuid())
+  tenantId   String
+  locationId String
+  lotId      String
+
+  // System-quantity captured at draft time (from existing placement or lot).
+  systemQuantityKg   Decimal? @db.Decimal(12, 3)
+  systemQuantityUnit Int?
+  systemSupplyQty    Decimal? @db.Decimal(12, 3)
+
+  // Physically counted quantity.
+  countedQuantityKg   Decimal? @db.Decimal(12, 3)
+  countedQuantityUnit Int?
+  countedSupplyQty    Decimal? @db.Decimal(12, 3)
+
+  notes         String?
+  status        LocationOpnameStatus @default(DRAFT)
+  confirmedAt   DateTime?
+  confirmedById String?
+  cancelledAt   DateTime?
+  cancelReason  String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location    Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  lot         Lot      @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  confirmedBy User?    @relation("OpnameConfirmedBy", fields: [confirmedById], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, locationId])
+  @@index([tenantId, lotId])
+  @@map("location_opnames")
+}

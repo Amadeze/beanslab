@@ -1,0 +1,25 @@
+allowBuilds:
+  '@mohammednagy/graphify-ts': true
+  '@prisma/engines': true
+  core-js: false
+  esbuild: true
+  onnxruntime-node: true
+  prisma: true
+  protobufjs: true
+  sharp: true
+  'understand-anything@https://codeload.github.com/Egonex-AI/Understand-Anything/tar.gz/2cda14e89535049e49120198886bc0b82e9e630f': true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - tsx@4.22.5
+overrides:
+  '@hono/node-server': 1.19.14
+  brace-expansion@1.1.15: 1.1.18
+  brace-expansion@2.1.2: 2.1.4
+  dompurify: 3.4.14
+  exceljs@4.4.0>uuid: 11.1.1
+  fast-uri: 3.1.5
+  find-my-way: 9.7.0
+  nanoid: 3.3.18
+  postcss: 8.5.26
+  sharp: 0.35.3
+  valibot: 1.4.2

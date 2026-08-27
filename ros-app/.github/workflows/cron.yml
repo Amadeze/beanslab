@@ -1,0 +1,36 @@
+# External scheduler for the POST-only /api/cron/* endpoints.
+#
+# Why not Vercel Cron: Vercel Cron Jobs issue GET, while these routes are
+# POST-only (Authorization: Bearer $CRON_SECRET) and cron jobs are NOT
+# available on the Hobby tier — so hourly `payment-submissions` cannot be
+# scheduled there. An external scheduler that POSTs works on any Vercel tier.
+#
+# This legacy workflow is manual-only. Scheduled production calls live in
+# operations.yml so two workflows cannot race the same job.
+
+name: Cron (/api/cron/* POST endpoints)
+
+on:
+  workflow_dispatch:
+
+env:
+  APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+  CRON_SECRET: ${{ secrets.PRODUCTION_CRON_SECRET }}
+
+jobs:
+  fire-cron-jobs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: subscriptions (daily, deduped)
+        run: |
+          curl -fsS -X POST "$APP_URL/api/cron/subscriptions" -H "Authorization: Bearer $CRON_SECRET"
+      - name: overdue-reminders (daily, deduped)
+        run: |
+          curl -fsS -X POST "$APP_URL/api/cron/overdue-reminders" -H "Authorization: Bearer $CRON_SECRET"
+      - name: daily-brief (daily, deduped)
+        run: |
+          curl -fsS -X POST "$APP_URL/api/cron/daily-brief" -H "Authorization: Bearer $CRON_SECRET"
+      - name: payment-submissions (hourly)
+        run: |
+          curl -fsS -X POST "$APP_URL/api/cron/payment-submissions" -H "Authorization: Bearer $CRON_SECRET"

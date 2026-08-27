@@ -1,0 +1,68 @@
+name: ROS Daily Operations
+
+on:
+  schedule:
+    - cron: "15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    env:
+      PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+      PRODUCTION_CRON_SECRET: ${{ secrets.PRODUCTION_CRON_SECRET }}
+    steps:
+      - name: Check operational secrets
+        id: config
+        shell: bash
+        run: |
+          if [[ -z "$PRODUCTION_APP_URL" || -z "$PRODUCTION_CRON_SECRET" ]]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Operational secrets are not configured; scheduled calls are skipped."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check production readiness
+        if: steps.config.outputs.configured == 'true'
+        run: curl --fail --silent --show-error "$PRODUCTION_APP_URL/api/health"
+
+      - name: Synchronize subscriptions
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $PRODUCTION_CRON_SECRET" \
+            "$PRODUCTION_APP_URL/api/cron/subscriptions"
+
+      - name: Expire unpaid storefront orders
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $PRODUCTION_CRON_SECRET" \
+            "$PRODUCTION_APP_URL/api/cron/payment-submissions"
+
+      - name: Send overdue reminders
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $PRODUCTION_CRON_SECRET" \
+            "$PRODUCTION_APP_URL/api/cron/overdue-reminders"
+
+      - name: Generate tenant daily briefs
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $PRODUCTION_CRON_SECRET" \
+            "$PRODUCTION_APP_URL/api/cron/daily-brief"
+
+      - name: Clean operational data
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $PRODUCTION_CRON_SECRET" \
+            "$PRODUCTION_APP_URL/api/cron/operational-cleanup"

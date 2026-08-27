@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<roast>
+  <title>Gayo Heavy Roast</title>
+  <beans>Gayo Aceh - Full Wash</beans>
+  <notes>Sample roast for testing parser</notes>
+  <weight green="200" roasted="168" loss="16.0" />
+  <time charge="01:30" drop="13:45" total="12:15" />
+  <events>
+    <event name="CHARGE" time="01:30" tempBT="195.2" tempET="225.0" />
+    <event name="TP" time="03:15" tempBT="152.4" tempET="205.3" />
+    <event name="FCs" time="09:20" tempBT="196.8" tempET="215.7" />
+    <event name="FCe" time="10:05" tempBT="201.2" tempET="217.4" />
+    <event name="SCs" time="11:30" tempBT="210.5" tempET="220.1" />
+    <event name="DROP" time="13:45" tempBT="215.3" tempET="222.8" />
+  </events>
+  <curve>
+    <point time="00:00" bt="22.1" et="22.0" />
+    <point time="00:05" bt="22.3" et="22.1" />
+    <point time="00:10" bt="22.5" et="22.3" />
+    <point time="00:15" bt="22.8" et="22.5" />
+    <point time="00:20" bt="23.1" et="22.8" />
+    <point time="00:25" bt="23.5" et="23.0" />
+    <point time="00:30" bt="24.0" et="23.3" />
+    <point time="00:35" bt="24.5" et="23.6" />
+    <point time="00:40" bt="25.2" et="24.0" />
+    <point time="00:45" bt="26.0" et="24.5" />
+    <point time="00:50" bt="27.0" et="25.1" />
+    <point time="00:55" bt="28.2" et="25.8" />
+    <point time="01:00" bt="29.5" et="26.5" />
+    <point time="01:05" bt="31.0" et="27.3" />
+    <point time="01:10" bt="32.8" et="28.2" />
+    <point time="01:15" bt="34.8" et="29.2" />
+    <point time="01:20" bt="37.0" et="30.3" />
+    <point time="01:25" bt="39.5" et="31.5" />
+    <point time="01:30" bt="195.2" et="225.0" />
+    <point time="01:35" bt="190.0" et="223.5" />
+    <point time="01:40" bt="185.5" et="222.0" />
+    <point time="01:45" bt="181.8" et="220.5" />
+    <point time="01:50" bt="178.5" et="219.0" />
+    <point time="01:55" bt="175.8" et="217.8" />
+    <point time="02:00" bt="173.5" et="216.5" />
+    <point time="02:05" bt="171.5" et="215.5" />
+    <point time="02:10" bt="169.8" et="214.5" />
+    <point time="02:15" bt="168.5" et="213.8" />
+    <point time="02:20" bt="167.2" et="213.0" />
+    <point time="02:25" bt="166.2" et="212.5" />
+    <point time="02:30" bt="165.5" et="212.0" />
+    <point time="02:35" bt="164.8" et="211.5" />
+    <point time="02:40" bt="164.2" et="211.2" />
+    <point time="02:45" bt="163.8" et="210.8" />
+    <point time="02:50" bt="163.5" et="210.5" />
+    <point time="02:55" bt="163.2" et="210.2" />
+    <point time="03:00" bt="163.0" et="210.0" />
+    <point time="03:05" bt="162.8" et="209.8" />
+    <point time="03:10" bt="162.5" et="209.5" />
+    <point time="03:15" bt="152.4" et="205.3" />
+    <point time="03:20" bt="153.0" et="205.5" />
+    <point time="03:25" bt="154.0" et="206.0" />
+    <point time="03:30" bt="155.2" et="206.5" />
+    <point time="03:35" bt="156.5" et="207.0" />
+    <point time="03:40" bt="158.0" et="207.5" />
+    <point time="03:45" bt="159.5" et="208.0" />
+    <point time="03:50" bt="161.2" et="208.5" />
+    <point time="03:55" bt="163.0" et="209.0" />
+    <point time="04:00" bt="164.8" et="209.5" />
+    <point time="04:05" bt="166.5" et="210.0" />
+    <point time="04:10" bt="168.2" et="210.5" />
+    <point time="04:15" bt="170.0" et="211.0" />
+    <point time="04:20" bt="171.8" et="211.5" />
+    <point time="04:25" bt="173.5" et="212.0" />
+    <point time="04:30" bt="175.2" et="212.5" />
+    <point time="04:35" bt="177.0" et="213.0" />
+    <point time="04:40" bt="178.8" et="213.5" />
+    <point time="04:45" bt="180.5" et="214.0" />
+    <point time="04:50" bt="182.2" et="214.5" />
+    <point time="04:55" bt="183.8" et="215.0" />
+    <point time="05:00" bt="185.5" et="215.5" />
+    <point time="05:05" bt="187.0" et="216.0" />
+    <point time="05:10" bt="188.5" et="216.5" />
+    <point time="05:15" bt="190.0" et="217.0" />
+    <point time="05:20" bt="191.5" et="217.5" />
+    <point time="05:25" bt="193.0" et="218.0" />
+    <point time="05:30" bt="194.2" et="218.5" />
+    <point time="05:35" bt="195.5" et="219.0" />
+    <point time="05:40" bt="196.8" et="219.5" />
+    <point time="05:45" bt="198.0" et="220.0" />
+    <point time="05:50" bt="199.2" et="220.5" />
+    <point time="05:55" bt="200.5" et="221.0" />
+    <point time="06:00" bt="201.5" et="221.5" />
+    <point time="06:05" bt="202.5" et="222.0" />
+    <point time="06:10" bt="203.5" et="222.5" />
+    <point time="06:15" bt="204.5" et="223.0" />
+    <point time="06:20" bt="205.2" et="223.5" />
+    <point time="06:25" bt="206.0" et="224.0" />
+    <point time="06:30" bt="206.8" et="224.5" />
+    <point time="06:35" bt="207.5" et="225.0" />
+    <point time="06:40" bt="208.2" et="225.5" />
+    <point time="06:45" bt="209.0" et="226.0" />
+    <point time="06:50" bt="209.5" et="226.5" />
+    <point time="06:55" bt="210.0" et="227.0" />
+    <point time="07:00" bt="210.5" et="227.5" />
+    <point time="07:05" bt="211.0" et="228.0" />
+    <point time="07:10" bt="211.5" et="228.5" />
+    <point time="07:15" bt="212.0" et="229.0" />
+    <point time="07:20" bt="212.3" et="229.5" />
+    <point time="07:25" bt="212.7" et="230.0" />
+    <point time="07:30" bt="213.0" et="230.5" />
+    <point time="07:35" bt="213.3" et="231.0" />
+    <point time="07:40" bt="213.7" et="231.5" />
+    <point time="07:45" bt="214.0" et="232.0" />
+    <point time="07:50" bt="214.2" et="232.5" />
+    <point time="07:55" bt="214.5" et="233.0" />
+    <point time="08:00" bt="214.7" et="233.5" />
+    <point time="08:05" bt="215.0" et="234.0" />
+    <point time="08:10" bt="215.2" et="234.5" />
+    <point time="08:15" bt="215.3" et="235.0" />
+    <point time="08:20" bt="215.5" et="235.5" />
+    <point time="08:25" bt="215.7" et="236.0" />
+    <point time="08:30" bt="215.8" et="236.5" />
+    <point time="08:35" bt="216.0" et="237.0" />
+    <point time="08:40" bt="216.2" et="237.5" />
+    <point time="08:45" bt="216.3" et="238.0" />
+    <point time="08:50" bt="216.5" et="238.5" />
+    <point time="08:55" bt="216.6" et="239.0" />
+    <point time="09:00" bt="216.7" et="239.5" />
+    <point time="09:05" bt="216.8" et="240.0" />
+    <point time="09:10" bt="216.8" et="240.5" />
+    <point time="09:15" bt="216.8" et="241.0" />
+    <point time="09:20" bt="196.8" et="215.7" />
+    <point time="09:25" bt="197.5" et="216.0" />
+    <point time="09:30" bt="198.2" et="216.3" />
+    <point time="09:35" bt="199.0" et="216.5" />
+    <point time="09:40" bt="199.8" et="216.8" />
+    <point time="09:45" bt="200.5" et="217.0" />
+    <point time="09:50" bt="201.2" et="217.3" />
+    <point time="09:55" bt="201.8" et="217.5" />
+    <point time="10:00" bt="202.5" et="217.8" />
+    <point time="10:05" bt="201.2" et="217.4" />
+    <point time="10:10" bt="202.0" et="217.6" />
+    <point time="10:15" bt="202.8" et="217.8" />
+    <point time="10:20" bt="203.5" et="218.0" />
+    <point time="10:25" bt="204.2" et="218.2" />
+    <point time="10:30" bt="205.0" et="218.5" />
+    <point time="10:35" bt="205.5" et="218.8" />
+    <point time="10:40" bt="206.0" et="219.0" />
+    <point time="10:45" bt="206.5" et="219.3" />
+    <point time="10:50" bt="207.0" et="219.5" />
+    <point time="10:55" bt="207.5" et="219.8" />
+    <point time="11:00" bt="208.0" et="220.0" />
+    <point time="11:05" bt="208.5" et="220.3" />
+    <point time="11:10" bt="209.0" et="220.5" />
+    <point time="11:15" bt="209.5" et="220.8" />
+    <point time="11:20" bt="210.0" et="221.0" />
+    <point time="11:25" bt="210.3" et="221.3" />
+    <point time="11:30" bt="210.5" et="220.1" />
+    <point time="11:35" bt="211.0" et="220.3" />
+    <point time="11:40" bt="211.5" et="220.5" />
+    <point time="11:45" bt="212.0" et="220.8" />
+    <point time="11:50" bt="212.5" et="221.0" />
+    <point time="11:55" bt="213.0" et="221.3" />
+    <point time="12:00" bt="213.3" et="221.5" />
+    <point time="12:05" bt="213.7" et="221.8" />
+    <point time="12:10" bt="214.0" et="222.0" />
+    <point time="12:15" bt="214.3" et="222.3" />
+    <point time="12:20" bt="214.7" et="222.5" />
+    <point time="12:25" bt="215.0" et="222.8" />
+    <point time="12:30" bt="215.0" et="222.8" />
+  </curve>
+  <metadata>
+    <roaster>Loring S35</roaster>
+    <profile>Full City+</profile>
+    <ambientTemp>26.5</ambientTemp>
+    <ambientHumidity>65</ambientHumidity>
+    <softwareVersion>Artisan v2.8.0</softwareVersion>
+  </metadata>
+</roast>

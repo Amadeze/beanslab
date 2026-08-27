@@ -1,0 +1,206 @@
+"use client";
+
+import { useState } from "react";
+import { Flame, TrendingUp, Package, AlertTriangle } from "lucide-react";
+import {
+  ReportLayout,
+  ReportKpiCard,
+  ReportChart,
+  ReportTable,
+  ReportFilters,
+  ReportExport,
+  ReportSkeleton,
+  ReportError,
+  useReportData,
+  ReportHeader,
+  ReportInsightCard,
+  type DateRange,
+  type ReportColumn,
+  type RoastingReportData,
+} from "../../../_shared";
+import { getRoastingReport } from "../../../actions";
+import { formatKg } from "@/lib/format";
+import { generateRoastingInsights } from "@/lib/report-insights";
+
+export default function RoastingReportClient() {
+  // Use local timezone for initial date (browser timezone, matches user expectation)
+  const getLocalDateString = (daysOffset = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysOffset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const [dateRange, setDateRange] = useState<DateRange>({
+    start: getLocalDateString(-30),
+    end: getLocalDateString(),
+  });
+  const { data, error, loading, retry } = useReportData(
+    () => getRoastingReport(dateRange.start, dateRange.end),
+    [dateRange.start, dateRange.end],
+  );
+
+  const columns: ReportColumn<RoastingReportData["batches"][0]>[] = [
+    { key: "id", label: "Batch", sortable: true },
+    {
+      key: "date",
+      label: "Tanggal",
+      sortable: true,
+      format: (v) => new Date(v).toLocaleDateString("id-ID"),
+    },
+    {
+      key: "gbInput",
+      label: "GB Input",
+      sortable: true,
+      format: (v) => formatKg(v),
+      className: "text-right",
+    },
+    {
+      key: "rbOutput",
+      label: "RB Output",
+      sortable: true,
+      format: (v) => formatKg(v),
+      className: "text-right",
+    },
+    {
+      key: "yield",
+      label: "Yield",
+      sortable: true,
+      format: (v) => (
+        <span className={`font-semibold ${v >= 85 ? "text-emerald-600" : "text-amber-600"}`}>
+          {v.toFixed(1)}%
+        </span>
+      ),
+    },
+    { key: "machine", label: "Mesin", sortable: true },
+  ];
+
+  if (error) {
+    return (
+      <ReportLayout activeTab="inventory/roasting">
+        <ReportError message={error} onRetry={retry} />
+      </ReportLayout>
+    );
+  }
+
+  if (loading || !data) {
+    return (
+      <ReportLayout activeTab="inventory/roasting">
+        <ReportSkeleton />
+      </ReportLayout>
+    );
+  }
+
+  const dateRangeLabel = `${new Date(dateRange.start).toLocaleDateString("id-ID", { day: "numeric", month: "short" })} - ${new Date(dateRange.end).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}`;
+
+  const insights = generateRoastingInsights(data).map((i) => ({
+    type: i.severity as "positive" | "negative" | "warning" | "info",
+    text: i.message,
+    value: i.value,
+  }));
+
+  return (
+    <ReportLayout
+      activeTab="inventory/roasting"
+      actions={
+        <ReportExport
+          title="Laporan Roasting"
+          filename="roasting-report"
+          columns={[
+            { header: "Batch", key: "id" },
+            { header: "Tanggal", key: "date", format: (v) => new Date(v as string).toLocaleDateString("id-ID") },
+            { header: "GB Input", key: "gbInput", format: (v) => `${Number(v).toFixed(1)} kg` },
+            { header: "RB Output", key: "rbOutput", format: (v) => `${Number(v).toFixed(1)} kg` },
+            { header: "Yield", key: "yield", format: (v) => `${Number(v).toFixed(1)}%` },
+            { header: "Mesin", key: "machine" },
+          ]}
+          data={data.batches}
+          subtitle="Batch roasting, yield, dan analisa produksi"
+          period={dateRangeLabel}
+          status="DRAFT"
+          summary={[
+            { label: "Total Batch", value: `${data.totalBatches} batch` },
+            { label: "GB Used", value: `${data.totalGbUsed.toFixed(1)} kg` },
+            { label: "RB Produced", value: `${data.totalRbProduced.toFixed(1)} kg` },
+            { label: "Avg Yield", value: `${data.avgYield.toFixed(1)}%` },
+          ]}
+        />
+      }
+    >
+      <div className="space-y-6">
+        <ReportHeader
+          title="Laporan Roasting"
+          subtitle="Batch roasting, yield, dan analisa produksi"
+          period={dateRangeLabel}
+          generatedAt={new Date()}
+        />
+
+        <ReportFilters
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+          <ReportKpiCard
+            label="Total Batch"
+            value={data.totalBatches}
+            subtitle="batch"
+            icon={Flame}
+            color="amber"
+          />
+          <ReportKpiCard
+            label="GB Used"
+            value={formatKg(data.totalGbUsed)}
+            icon={Package}
+            color="emerald"
+          />
+          <ReportKpiCard
+            label="RB Produced"
+            value={formatKg(data.totalRbProduced)}
+            icon={Package}
+            color="blue"
+          />
+          <ReportKpiCard
+            label="Avg Yield"
+            value={`${data.avgYield.toFixed(1)}%`}
+            icon={TrendingUp}
+            color="emerald"
+            sparkline={data.yieldTrend.slice(-7).map((y) => y.yield)}
+            help="Yale = berat output (RB) ÷ berat input (GB) × 100. Semakin mendekati 100% semakin efisien."
+          />
+          <ReportKpiCard
+            label="Loss"
+            value={`${data.lossPercent.toFixed(1)}%`}
+            subtitle={`${data.totalLossKg.toFixed(1)} kg`}
+            icon={AlertTriangle}
+            color="rose"
+            inverse
+            help="Susut sangrai = berat biji yang hilang saat proses (100% − yield). Umumnya 12­–20% untuk batch normal."
+          />
+        </div>
+
+        {/* Insights */}
+        {insights.length > 0 && (
+          <ReportInsightCard insights={insights} />
+        )}
+
+        {/* Charts */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ReportChart
+            title={`Yield Trend (${dateRangeLabel})`}
+            type="line"
+            data={data.yieldTrend}
+            xKey="date"
+            yKey="yield"
+          />
+        </div>
+
+        {/* Batch Table */}
+        <ReportTable
+          columns={columns}
+          data={data.batches}
+          pageSize={10}
+        />
+      </div>
+    </ReportLayout>
+  );
+}
