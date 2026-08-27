@@ -129,7 +129,7 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="instrument-grid-dark shrink-0 border-b border-white/10 bg-[var(--obsidian)] text-white">
-        <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-3 px-3 py-2 sm:px-6 sm:py-2.5 lg:px-8">
           <div>
             <p className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--chrome-instrument-soft)]">
               Report Center
@@ -157,7 +157,7 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
                     "flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap",
                     isActive
                       ? "border-[var(--instrument)] text-[var(--chrome-instrument-soft)]"
-                      : "border-transparent text-white/42 hover:border-white/25 hover:text-white/78",
+                      : "border-transparent text-white/60 hover:border-white/25 hover:text-white/85",
                   )}
                 >
                   <Icon size={15} />
@@ -181,7 +181,7 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
                       "flex items-center gap-1.5 border-b-2 px-3 py-2 text-[11px] font-medium transition-colors whitespace-nowrap",
                       isActive
                         ? "border-[var(--stage-production)] text-[color-mix(in srgb, var(--stage-production-soft) 80%, white)]"
-                        : "border-transparent text-white/38 hover:border-white/20 hover:text-white/70",
+                        : "border-transparent text-white/60 hover:border-white/20 hover:text-white/85",
                     )}
                   >
                     <Icon size={13} />
@@ -194,7 +194,7 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
         )}
       </header>
       <main className="custom-scrollbar min-w-0 flex-1 overflow-y-auto bg-transparent">
-        <div className="mx-auto w-full max-w-[1600px] p-4 md:p-6 lg:p-7">
+        <div className="mx-auto w-full max-w-[1600px] p-2.5 sm:p-3 md:p-4 lg:p-5">
           {children}
         </div>
       </main>

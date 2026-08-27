@@ -96,7 +96,7 @@ export function StandardPageLayout({
       {hasSpeedDial && (
         <>
           {speedDialOpen && <button type="button" className="fixed inset-0 z-[99] bg-stone-950/25 md:hidden" onClick={closeSpeedDial} aria-label="Tutup menu aksi" />}
-          <div ref={speedDialRef} className="fixed bottom-[calc(88px+env(safe-area-inset-bottom,0px))] right-4 z-[100] flex flex-col items-end md:hidden">
+          <div ref={speedDialRef} className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px)+12px)] right-3 z-[100] flex flex-col items-end md:hidden">
             {speedDialOpen && (
               <div id={panelId} role="menu" aria-label="Menu aksi" className="mb-2 flex flex-col items-end gap-2">
                 {mobileSpeedDialItems?.map((item) => (
@@ -124,12 +124,12 @@ export function StandardPageLayout({
               ref={fabRef}
               type="button"
               onClick={() => setSpeedDialOpen((open) => !open)}
-              className="flex min-h-12 items-center gap-2 rounded-[11px] border border-primary/45 bg-[#080B0C] px-4 py-3 text-sm font-semibold text-[#F0AC8C] shadow-[0_16px_36px_rgba(5,9,13,.38)]"
+              className="flex min-h-[44px] items-center gap-2 rounded-full border border-primary/45 bg-[#080B0C] px-4 py-2.5 text-sm font-semibold text-[#F0AC8C] shadow-[0_12px_28px_rgba(5,9,13,.38)]"
               aria-label={speedDialOpen ? "Tutup menu aksi" : "Buka menu aksi"}
               aria-expanded={speedDialOpen}
               aria-controls={panelId}
             >
-              {speedDialOpen ? <X size={19} /> : <Plus size={19} />}
+              {speedDialOpen ? <X size={18} /> : <Plus size={18} />}
               {speedDialOpen ? "Tutup" : "Aksi"}
             </button>
           </div>
@@ -140,16 +140,16 @@ export function StandardPageLayout({
         <button
           type="button"
           onClick={mobileFabAction?.onClick}
-          className="fixed bottom-[calc(88px+env(safe-area-inset-bottom,0px))] right-4 z-[100] flex min-h-12 items-center gap-2 rounded-[11px] border border-primary bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-[0_16px_36px_rgba(5,9,13,.3)] md:hidden"
+          className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px)+12px)] right-3 z-[100] flex min-h-[44px] items-center gap-1.5 rounded-full border border-primary bg-primary px-3.5 py-2.5 text-[13px] font-bold leading-none text-primary-foreground shadow-[0_12px_28px_rgba(5,9,13,.3)] md:hidden"
           aria-label={mobileFabAction?.["aria-label"] || mobileFabAction?.label}
         >
-          {mobileFabAction?.icon || <Plus size={19} />}
-          <span>{mobileFabAction?.label}</span>
+          {mobileFabAction?.icon || <Plus size={18} />}
+          <span className="truncate max-w-[9rem]">{mobileFabAction?.label}</span>
         </button>
       )}
 
-      <div className={cn("custom-scrollbar relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden", hasMobileAction && "pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-0")}>
-        <div className="mx-auto min-w-0 w-full max-w-[1600px] p-4 sm:p-5 md:p-6 lg:p-7">
+      <div className={cn("custom-scrollbar relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden", hasMobileAction && "pb-[calc(68px+env(safe-area-inset-bottom,0px))] md:pb-0")}>
+        <div className="mx-auto min-w-0 w-full max-w-[1600px] p-2.5 sm:p-3 md:p-3 lg:px-4 lg:py-3">
           {isLoading ? <PageSkeleton /> : children}
         </div>
       </div>

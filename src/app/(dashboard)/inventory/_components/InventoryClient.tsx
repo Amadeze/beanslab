@@ -732,9 +732,9 @@ export function InventoryClient({
         ] : []
       }
     >
-      <WorkspaceNav kind="supply" />
-
-      <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">
+      <div className="flex flex-col gap-2 md:gap-3">
+        <WorkspaceNav kind="supply" />
+        <div className="relative z-10">
           {activeView === "stock" && (
             <StockTable
               gbStocks={gbStocks}
@@ -772,7 +772,7 @@ export function InventoryClient({
 
         {/* ── Sample Consumption Summary (Stock tab only, lower emphasis) ── */}
         {activeView === "stock" && (sampleConsumption.rbConsumedKg > 0 || sampleConsumption.fgConsumedUnits > 0 || sampleConsumption.pkgConsumedUnits > 0) && (
-          <div className="page-surface relative mt-5 overflow-hidden px-5 py-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="page-surface relative overflow-hidden px-3 py-3 animate-in fade-in slide-in-from-top-2 duration-300">
             <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5 pointer-events-none" />
             <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -795,6 +795,7 @@ export function InventoryClient({
             </div>
           </div>
         )}
+      </div>
 
       {/* ── Drawers ── */}
       <StandardDrawer open={gbDrawerOpen} onOpenChange={(open) => { if (!isSubmitting) setGbDrawerOpen(open); }} title="Catat Barang Datang (Green Bean)" description="Stok Green Bean akan bertambah otomatis setelah disimpan." size="lg">

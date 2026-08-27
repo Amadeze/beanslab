@@ -154,7 +154,46 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
       className="border-b border-white/10 bg-obsidian"
       aria-label={`Navigasi workspace ${kind}`}
     >
-      <div className="mx-auto flex min-h-10 w-full max-w-[1600px] flex-wrap items-center gap-2 px-3 py-1.5 md:hidden">
+      <div className="mx-auto flex w-full max-w-[1600px] items-center gap-1.5 overflow-x-auto px-2 py-1.5 md:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex shrink-0 items-center gap-1.5">
+          {items.map((item) => {
+            const Icon = item.icon;
+            const active = itemIsActive(item);
+            const href = itemHref(item);
+
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "inline-flex min-h-9 h-9 shrink-0 items-center gap-1 rounded-full border px-3 text-[11px] font-semibold leading-none whitespace-nowrap transition-colors",
+                  active
+                    ? workspaceTone.active
+                    : "border-white/15 bg-white/[0.04] text-white/65 hover:border-white/20 hover:bg-white/[0.08] hover:text-white",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex size-3.5 items-center justify-center rounded-full border",
+                    active
+                      ? workspaceTone.icon
+                      : cn(
+                          "border-white/10 bg-white/[0.04]",
+                          workspaceTone.idleIcon,
+                        ),
+                  )}
+                >
+                  <Icon size={8} strokeWidth={2.1} />
+                </span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mx-auto hidden max-w-[1600px] flex-wrap gap-1 px-4 py-1 md:flex md:px-6 lg:px-8">
         {items.map((item) => {
           const Icon = item.icon;
           const active = itemIsActive(item);
@@ -166,15 +205,15 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-[6px] border px-2 py-1 text-xs font-semibold transition-colors",
+                "inline-flex h-8 items-center gap-1.5 rounded-[8px] border px-2.5 text-xs font-semibold leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]",
                 active
                   ? workspaceTone.active
-                  : "border-transparent text-white/50 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",
+                  : "border-transparent text-white/46 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",
               )}
             >
               <span
                 className={cn(
-                  "flex h-4 w-4 items-center justify-center rounded-[4px] border",
+                  "flex size-4 items-center justify-center rounded-[5px] border",
                   active
                     ? workspaceTone.icon
                     : cn(
@@ -184,43 +223,6 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
                 )}
               >
                 <Icon size={9} strokeWidth={2} />
-              </span>
-              {item.label}
-            </Link>
-          );
-        })}
-      </div>
-
-      <div className="mx-auto hidden max-w-[1600px] flex-wrap gap-1 px-4 py-1.5 md:flex md:px-6 lg:px-8">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const active = itemIsActive(item);
-          const href = itemHref(item);
-
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "inline-flex min-h-10 items-center gap-1.5 rounded-[8px] border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]",
-                active
-                  ? workspaceTone.active
-                  : "border-transparent text-white/46 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",
-              )}
-            >
-              <span
-                className={cn(
-                  "flex h-5 w-5 items-center justify-center rounded-[5px] border",
-                  active
-                    ? workspaceTone.icon
-                    : cn(
-                        "border-white/10 bg-white/[0.04]",
-                        workspaceTone.idleIcon,
-                      ),
-                )}
-              >
-                <Icon size={10} strokeWidth={2} />
               </span>
               {item.label}
             </Link>

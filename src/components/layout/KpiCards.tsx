@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 
 export function KpiRibbon({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-4 py-3 sm:px-6 lg:px-8">
-      <div className={cn("grid overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_0_rgba(5,9,13,.04)] sm:grid-cols-2 lg:grid-cols-4", className)}>
+    <div className="mx-auto w-full max-w-[1600px] px-0 py-1 sm:px-0 sm:py-2">
+      <div className={cn("grid grid-cols-2 overflow-hidden rounded-[12px] border border-border bg-card shadow-[0_1px_0_rgba(5,9,13,.04)] lg:grid-cols-4", className)}>
         {children}
       </div>
     </div>
@@ -45,29 +45,29 @@ export function KpiCard({ label, value, sub, trend, color = "var(--copper)", ico
     <div
       onClick={onClick}
       className={cn(
-        "group relative flex min-h-[86px] flex-col overflow-hidden border-b border-border p-3.5 transition-colors sm:border-r lg:border-b-0 lg:p-4 [&:nth-child(2n)]:sm:border-r-0 [&:nth-child(4n)]:lg:border-r-0",
+        "group relative flex min-h-[68px] flex-col overflow-hidden border-b border-border p-2.5 transition-colors sm:border-r lg:border-b-0 lg:p-3.5 [&:nth-child(2n)]:border-r-0 lg:[&:nth-child(2n)]:border-r lg:[&:nth-child(4n)]:border-r-0",
         onClick && "cursor-pointer hover:bg-accent/45",
         active && "bg-accent shadow-[inset_0_-3px_0_var(--primary)]"
       )}
     >
-      <div className="relative z-10 mb-auto flex items-start justify-between">
-        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <div className="relative z-10 mb-auto flex items-start justify-between gap-1">
+        <p className="font-mono text-[8px] font-bold uppercase leading-none tracking-[0.12em] text-muted-foreground">{label}</p>
         {icon && (
           <div
-            className="flex h-7 w-7 items-center justify-center rounded-[8px] border"
+            className="hidden size-6 items-center justify-center rounded-[6px] border sm:flex"
             style={{
               color,
-              borderColor: `color-mix(in srgb, ${color} 32%, transparent)`,
-              backgroundColor: `color-mix(in srgb, ${color} 12%, white)`,
+              borderColor: `color-mix(in srgb, ${color} 28%, transparent)`,
+              backgroundColor: `color-mix(in srgb, ${color} 10%, white)`,
             }}
           >
             {icon}
           </div>
         )}
       </div>
-      <div className="relative z-10 mt-2">
-        <h3 className="font-heading text-lg font-bold leading-none tracking-[-0.04em] text-foreground lg:text-xl">{value}</h3>
-        {sub && <p className="mt-1.5 text-xs text-muted-foreground">{sub}</p>}
+      <div className="relative z-10 mt-1.5">
+        <h3 className="font-heading text-[15px] font-bold leading-none tracking-[-0.04em] text-foreground lg:text-lg">{value}</h3>
+        {sub && <p className="mt-1 text-[11px] leading-none text-muted-foreground">{sub}</p>}
       </div>
       {/* Signal indicator */}
       {signal && (

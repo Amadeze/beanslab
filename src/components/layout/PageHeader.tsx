@@ -1,5 +1,8 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   operatingStages,
@@ -64,6 +67,7 @@ export function PageHeader({
   next,
   compact = false,
 }: PageHeaderProps) {
+  const [descOpen, setDescOpen] = useState(false);
   const activeStage = stage ?? titleStages[title];
   const activeIndex = operatingStages.findIndex((item) => item.id === activeStage);
   const headerTone = activeStage ? operatingStageTones[activeStage] : undefined;
@@ -72,7 +76,7 @@ export function PageHeader({
     <header data-testid="page-header" className="shrink-0">
       {breadcrumbs && breadcrumbs.length > 0 ? (
         <nav aria-label="Breadcrumb" className={compact ? "pb-1" : "pb-2"}>
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-ink-tertiary">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-ink-secondary">
             {breadcrumbs.map((crumb, index) => {
               const isLast = index === breadcrumbs.length - 1;
               return (
@@ -89,7 +93,7 @@ export function PageHeader({
                       {crumb.label}
                     </span>
                   )}
-                  {!isLast && <span aria-hidden className="text-ink-tertiary/50">/</span>}
+                  {!isLast && <span aria-hidden className="text-ink-secondary/50">/</span>}
                 </span>
               );
             })}
@@ -99,12 +103,12 @@ export function PageHeader({
 
       <div className={cn(
         "flex flex-wrap items-end justify-between",
-        compact ? "gap-x-4 gap-y-2 pb-2 pt-0.5" : "gap-x-6 gap-y-3 pb-4 pt-1"
+        compact ? "gap-x-3 gap-y-1 pb-1.5 pt-0.5 md:gap-x-4 md:gap-y-2 md:pb-2" : "gap-x-6 gap-y-3 pb-4 pt-1"
       )}>
         <div className="min-w-0">
           <p
             className={cn(
-              "mb-1.5 flex items-center gap-2 font-mono text-[9px] font-bold uppercase tracking-[0.2em]",
+              "mb-1 flex items-center gap-2 font-mono text-[8px] font-bold uppercase tracking-[0.2em] md:mb-1.5 md:text-[9px]",
               headerTone?.eyebrow ?? "text-copper",
             )}
           >
@@ -129,13 +133,31 @@ export function PageHeader({
             ) : null}
             {eyebrow ?? (activeStage ? "Roastery flow" : "Workspace")}
           </p>
-          <h1 className="truncate font-heading text-[clamp(1.65rem,2.6vw,2.15rem)] font-bold leading-none tracking-[-0.04em] text-foreground">
+          <h1 className="truncate font-heading text-[clamp(1.35rem,5vw,2.15rem)] font-bold leading-none tracking-[-0.04em] text-foreground">
             {title}
           </h1>
           {description && !compact ? (
             <p className="mt-2 max-w-2xl text-sm leading-5 text-ink-secondary">{description}</p>
           ) : compact && description ? (
-            <p className="mt-1 max-w-2xl text-[11px] leading-4 text-ink-tertiary truncate">{description}</p>
+            <>
+              <p className="mt-1 hidden max-w-2xl truncate text-[11px] leading-4 text-ink-secondary md:block">{description}</p>
+              <div className="md:hidden">
+                <button
+                  type="button"
+                  onClick={() => setDescOpen((v) => !v)}
+                  aria-expanded={descOpen}
+                  className="mt-1 inline-flex min-h-9 items-center gap-1 rounded-full border border-border bg-card px-3 py-2 text-[11px] font-medium leading-none text-ink-secondary shadow-sm"
+                >
+                  Info
+                  <ChevronDown size={12} className={cn("transition-transform", descOpen && "rotate-180")} />
+                </button>
+                {descOpen && (
+                  <p className="mt-1.5 max-w-2xl rounded-lg border border-border bg-surface px-2.5 py-2 text-xs leading-4 text-ink shadow-sm">
+                    {description}
+                  </p>
+                )}
+              </div>
+            </>
           ) : null}
         </div>
 
@@ -166,7 +188,7 @@ export function PageHeader({
               )}
             >
               <span className={cn(
-                "font-mono font-bold uppercase tracking-[0.16em] text-ink-tertiary",
+                "font-mono font-bold uppercase tracking-[0.16em] text-ink-secondary",
                 compact ? "text-[7px]" : "text-[8px]"
               )}>
                 {signal.label}
@@ -195,7 +217,7 @@ export function PageHeader({
                   const metricContent = (
                     <>
                       <span className={cn(
-                        "truncate font-mono font-bold uppercase tracking-[0.12em] text-ink-tertiary",
+                        "truncate font-mono font-bold uppercase tracking-[0.12em] text-ink-secondary",
                         compact ? "text-[6px]" : "text-[7px] sm:text-[8px]"
                       )}>
                         {metric.label}

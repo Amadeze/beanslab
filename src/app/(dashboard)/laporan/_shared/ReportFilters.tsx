@@ -69,34 +69,34 @@ export function ReportFilters({
   const activeFilterCount = Object.values(activeFilters).filter(Boolean).length;
 
   return (
-    <div className={cn("space-y-3", className)}>
-      {/* Main filters row */}
-      <div className="flex flex-wrap items-center gap-3">
+    <div className={cn("space-y-2", className)}>
+      {/* Main filters row — compact */}
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
         {/* Date range */}
-        <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-stone-400" />
+        <div className="flex items-center gap-1">
+          <Calendar size={13} className="hidden text-stone-400 sm:block" />
           <input
             type="date"
             value={dateRange.start}
             onChange={(e) => onDateRangeChange({ ...dateRange, start: e.target.value })}
-            className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs text-stone-700 focus:border-[var(--instrument)] focus:outline-none focus:ring-1 focus:ring-[var(--instrument)]"
+            className="min-h-9 h-9 rounded-lg border border-stone-200 bg-card px-2 text-[11px] text-ink focus:border-[var(--instrument)] focus:outline-none focus:ring-1 focus:ring-[var(--instrument)] sm:px-2.5 sm:text-xs"
           />
-          <span className="text-xs text-stone-400">–</span>
+          <span className="text-[11px] text-ink-secondary">–</span>
           <input
             type="date"
             value={dateRange.end}
             onChange={(e) => onDateRangeChange({ ...dateRange, end: e.target.value })}
-            className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs text-stone-700 focus:border-[var(--instrument)] focus:outline-none focus:ring-1 focus:ring-[var(--instrument)]"
+            className="min-h-9 h-9 rounded-lg border border-stone-200 bg-card px-2 text-[11px] text-ink focus:border-[var(--instrument)] focus:outline-none focus:ring-1 focus:ring-[var(--instrument)] sm:px-2.5 sm:text-xs"
           />
         </div>
 
-        {/* Date presets */}
+        {/* Date presets — pill chips hemat ruang, min 36px */}
         <div className="flex items-center gap-1">
           {DATE_PRESETS.map((preset) => (
             <button
               key={preset.days}
               onClick={() => handlePreset(preset.days)}
-              className="rounded-md px-2 py-1 text-xs font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-700"
+              className="inline-flex min-h-9 items-center rounded-full border border-border bg-card px-2.5 py-1.5 text-[11px] font-semibold leading-none text-ink-secondary transition-colors hover:border-[var(--instrument)]/30 hover:bg-[var(--instrument)]/5 hover:text-ink"
             >
               {preset.label}
             </button>
@@ -108,10 +108,10 @@ export function ReportFilters({
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
-              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+              "flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
               showFilters || activeFilterCount > 0
                 ? "border-[var(--instrument)] bg-[var(--instrument)]/5 text-[var(--instrument)]"
-                : "border-stone-200 text-stone-600 hover:bg-stone-50",
+                : "border-border bg-card text-ink-secondary hover:bg-surface-sunken",
             )}
           >
             <span>Filter</span>

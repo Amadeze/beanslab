@@ -75,20 +75,21 @@ export function RoastingClient({
         ] : undefined
       }
     >
-      <WorkspaceNav kind="roastery" />
-
-      <div className="mx-auto max-w-[1600px] px-4 pb-8 md:px-6 lg:px-8">
+      <div className="flex flex-col gap-2 md:gap-3">
+        <WorkspaceNav kind="roastery" />
         {activeTab === "batches" ? (
-          <Card className="p-5 sm:p-6">
-            <RoastingHistoryTable
-              batches={batches}
-              machineOptions={machineOptions}
-              locationOptions={locationOptions}
-              onStartRoasting={() => setDrawerOpen(true)}
-            />
+          <Card className="overflow-hidden border shadow-elevation-soft">
+            <div className="p-2.5 sm:p-3">
+              <RoastingHistoryTable
+                batches={batches}
+                machineOptions={machineOptions}
+                locationOptions={locationOptions}
+                onStartRoasting={() => setDrawerOpen(true)}
+              />
+            </div>
           </Card>
         ) : (
-          <div className="p-4 md:p-6 lg:p-8">
+          <div className="sm:p-1">
             <RoastsClient roasts={roastProfiles} />
           </div>
         )}

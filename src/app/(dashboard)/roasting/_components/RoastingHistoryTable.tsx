@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Target, X, Flame, MoreHorizontal, RotateCcw, Trash2 } from "lucide-react";
+import { Search, Target, X, Flame, MoreHorizontal, RotateCcw, Trash2, FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import {
@@ -48,7 +48,7 @@ import {
 
 function ShrinkageBadge({ percent }: { percent: number | null }) {
   if (percent === null) {
-    return <span className="text-xs text-ink-tertiary font-medium">-</span>;
+    return <span className="text-xs text-ink-secondary font-medium">-</span>;
   }
   const label = `${percent.toFixed(1)}%`;
   const className =
@@ -218,12 +218,12 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
 
   return (
     <>
-    <div className="mb-snug flex flex-col sm:flex-row gap-2">
-      <div className="relative flex-1 max-w-xs">
-        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-tertiary" />
+    <div className="mb-2 flex gap-1.5">
+      <div className="relative min-w-0 flex-1">
+        <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-secondary" />
         <Input
-          placeholder="Cari kode atau nama beans..."
-          className="h-9 rounded-card pl-8 text-sm"
+          placeholder="Cari kode atau nama..."
+          className="min-h-9 h-9 rounded-lg border-border bg-card pl-7 pr-2 text-xs focus-visible:ring-1"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -231,9 +231,10 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
       <select
         value={statusFilter}
         onChange={(e) => setStatusFilter(e.target.value)}
-        className="h-9 rounded-card border border-input bg-card px-2.5 text-sm font-medium text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+        className="min-h-9 h-9 shrink-0 rounded-lg border border-input bg-card px-2 pr-6 text-xs font-medium text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring/20"
+        aria-label="Filter status"
       >
-        <option value="ALL">Semua Status</option>
+        <option value="ALL">Semua</option>
         <option value="COMPLETED">Selesai</option>
         <option value="PENDING">Proses</option>
         <option value="VOID">Void</option>
@@ -291,7 +292,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
                           content: <BatchPanelContent batchId={b.id} />,
                         })
                       }
-                      className="rounded-md p-0.5 text-ink-tertiary transition-colors hover:bg-surface-sunken hover:text-copper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                      className="rounded-md p-0.5 text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-copper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                     >
                       <Network size={13} aria-hidden />
                     </button>
@@ -412,7 +413,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
       </Table>
     </div>
 
-    <div className="md:hidden flex flex-col gap-2">
+    <div className="md:hidden flex flex-col gap-1.5">
       {filteredBatches.length === 0 ? (
         <ElegantEmptyState
           title="Belum ada riwayat roasting"
@@ -420,59 +421,92 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
         />
       ) : (
         filteredBatches.map((b) => (
-          <div key={b.id} className="page-surface flex flex-col gap-1.5 p-3">
-            {/* Row 1: Batch name + output weight */}
-            <div className="flex justify-between items-baseline gap-2">
-              <div className="min-w-0">
-                <p className="font-bold text-ink truncate">{b.outputProductName}</p>
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                  <Link
-                    href={`/roasting/batch/${b.id}`}
-                    className="font-mono text-xs font-semibold text-ink-secondary hover:text-copper hover:underline transition-colors"
-                  >
-                    {b.code}
-                  </Link>
-                  <span className="text-xs text-ink-tertiary">•</span>
-                  <span className="text-xs uppercase font-medium text-ink-tertiary truncate max-w-[120px]">{b.inputProductName}</span>
-                </div>
+          <div key={b.id} className="page-surface flex flex-col gap-1.5 p-2.5">
+            {/* Baris 1: Nama batch + berat hasil (bold, prominent) */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/roasting/batch/${b.id}`}
+                  className="block truncate text-[13px] font-bold leading-tight text-ink hover:text-copper hover:underline"
+                >
+                  {b.outputProductName}
+                </Link>
+                <p className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wide text-ink-secondary">
+                  {b.inputProductName}
+                </p>
               </div>
-              <div className="text-right shrink-0 ml-2">
-                <p className="font-mono text-lg font-black text-ink">{b.actualOutputKg ? formatKg(b.actualOutputKg) : "-"}</p>
-                <p className="font-mono text-[10px] font-medium text-ink-tertiary">Masuk: {formatKg(b.targetWeightKg)}</p>
+              <div className="shrink-0 text-right">
+                <p className="font-mono text-[15px] font-black leading-none tracking-tight text-ink">
+                  {b.actualOutputKg ? formatKg(b.actualOutputKg) : "—"}
+                </p>
+                <p className="mt-0.5 font-mono text-[9px] font-medium leading-none text-ink-secondary">
+                  Masuk {formatKg(b.targetWeightKg)}
+                </p>
               </div>
             </div>
 
-            {/* Row 2: Status, shrinkage, date + Actions */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1.5 border-t border-border/50">
-              <div className="flex items-center gap-2 flex-wrap">
+            {/* Baris 2: Kode RST + status badge + tanggal (satu baris) */}
+            <div className="flex items-center gap-1.5 overflow-hidden">
+              <Link
+                href={`/roasting/batch/${b.id}`}
+                className="shrink-0 font-mono text-[11px] font-semibold text-ink-secondary hover:text-copper hover:underline"
+              >
+                {b.code}
+              </Link>
+              <span className="shrink-0">
                 <StatusBadge status={b.status} />
-                <ShrinkageBadge percent={b.totalShrinkagePercent} />
-                <CuppingBadge score={b.cuppingScore ?? null} />
-                <span className="text-[10px] font-medium text-ink-tertiary whitespace-nowrap">{formatDate(b.createdAt)}</span>
+              </span>
+              <ShrinkageBadge percent={b.totalShrinkagePercent} />
+              <CuppingBadge score={b.cuppingScore ?? null} />
+              <span className="ml-auto shrink-0 whitespace-nowrap font-mono text-[10px] text-ink-secondary">
+                {formatDate(b.createdAt)}
+              </span>
+            </div>
+
+            {/* Baris 3: aksi minimal — icon-only / overflow, touch target ≥40px */}
+            <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-1.5">
+              <div className="flex min-w-0 items-center gap-1">
+                {b.status === "PENDING" && (
+                  <button
+                    type="button"
+                    className="inline-flex min-h-9 h-9 items-center gap-1 rounded-full bg-copper-soft px-2.5 text-[10px] font-semibold text-copper-strong hover:bg-copper-soft/80"
+                    onClick={() => {
+                      setReferenceTarget(b);
+                      setReferenceSearch("");
+                    }}
+                  >
+                    <Target size={10} /> {b.referenceProfile?.title ? <span className="max-w-[90px] truncate">{b.referenceProfile.title}</span> : "Kurva"}
+                  </button>
+                )}
+                {b.status === "COMPLETED" && b.referenceProfile?.title ? (
+                  <span className="truncate text-[10px] text-ink-secondary">{b.referenceProfile.title}</span>
+                ) : null}
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex shrink-0 items-center gap-1.5">
                 {b.status === "COMPLETED" && (
                   <>
                     <Button
-                      size="sm"
+                      size="icon"
                       variant="ghost"
-                      className="h-8 px-2 text-xs font-bold text-copper hover:bg-copper-soft hover:text-copper"
+                      className="size-10 rounded-full border border-border bg-card text-copper hover:bg-copper-soft hover:text-copper"
                       onClick={() => {
                         window.location.href = `/cupping?batchId=${b.id}`;
                       }}
+                      aria-label={`Cupping ${b.code}`}
+                      title="Cupping"
                     >
-                      Cup
+                      <FlaskConical size={15} />
                     </Button>
                     <Popover>
                       <PopoverTrigger>
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8 text-ink-tertiary hover:text-red-500 hover:bg-red-50 rounded-card"
+                          className="size-10 rounded-full border border-border bg-card text-ink-secondary hover:text-red-500 hover:bg-red-50"
                           aria-label={`Aksi untuk ${b.code}`}
                         >
-                          <MoreHorizontal size={16} />
+                          <MoreHorizontal size={15} />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent align="end" side="bottom" sideOffset={4} className="w-40">
@@ -492,7 +526,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
                     <Button
                       size="sm"
                       variant="default"
-                      className="h-8 px-2.5 text-xs font-bold text-white bg-copper hover:bg-copper-strong rounded-card"
+                      className="min-h-9 h-9 px-3 text-[11px] font-bold leading-none text-white bg-copper hover:bg-copper-strong rounded-full"
                       onClick={() => {
                         setCompleteTarget(b);
                         setDestinationLocationId(locationOptions[0]?.id ?? "");
@@ -513,10 +547,10 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8 text-ink-tertiary hover:text-red-500 hover:bg-red-50 rounded-card"
+                          className="size-10 rounded-full border border-border bg-card text-ink-secondary hover:text-ink"
                           aria-label={`Lainnya untuk ${b.code}`}
                         >
-                          <MoreHorizontal size={16} />
+                          <MoreHorizontal size={15} />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent align="end" side="bottom" sideOffset={4} className="w-44">
@@ -551,23 +585,11 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
                     </Popover>
                   </>
                 )}
+                {b.status === "VOID" && (
+                  <span className="font-mono text-[10px] text-ink-secondary">Void</span>
+                )}
               </div>
             </div>
-
-            {/* Reference profile - compact */}
-            {b.status === "PENDING" && (
-              <button
-                type="button"
-                className="flex items-center justify-between rounded-card bg-copper-soft px-2.5 py-1.5 text-left text-[10px] text-copper-strong"
-                onClick={() => {
-                  setReferenceTarget(b);
-                  setReferenceSearch("");
-                }}
-              >
-                <span className="flex items-center gap-1 font-semibold"><Target size={11} /> Kurva acuan</span>
-                <span className="max-w-36 truncate text-[10px] font-normal">{b.referenceProfile?.title ?? "Atur dari web"}</span>
-              </button>
-            )}
           </div>
         ))
       )}
@@ -580,7 +602,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-copper">Kurva acuan dari web</p>
               <h3 className="mt-1 text-lg font-bold text-ink">{referenceTarget.code}</h3>
-              <p className="mt-1 text-xs text-ink-tertiary">
+              <p className="mt-1 text-xs text-ink-secondary">
                 Studio hanya membaca pilihan ini dan tidak dapat menggantinya.
               </p>
             </div>
@@ -597,7 +619,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
 
           <div className="p-5">
             <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-tertiary" />
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-secondary" />
               <Input
                 autoFocus
                 value={referenceSearch}
@@ -608,9 +630,9 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
             </div>
             <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
               {referencePending ? (
-                <p className="py-8 text-center text-sm text-ink-tertiary">Mencari kurva...</p>
+                <p className="py-8 text-center text-sm text-ink-secondary">Mencari kurva...</p>
               ) : referenceOptions.length === 0 ? (
-                <p className="py-8 text-center text-sm text-ink-tertiary">Kurva tidak ditemukan.</p>
+                <p className="py-8 text-center text-sm text-ink-secondary">Kurva tidak ditemukan.</p>
               ) : referenceOptions.map((profile) => {
                 const incompatible = Boolean(referenceTarget.machineId && referenceTarget.machineId !== profile.machineId);
                 return (
@@ -623,9 +645,9 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
                   >
                     <span className="min-w-0">
                       <strong className="block truncate text-sm text-ink">{profile.title}</strong>
-                      <small className="text-xs text-ink-tertiary">{profile.machineName}{profile.duration ? ` · ${Math.round(profile.duration / 60)} menit` : ""}</small>
+                      <small className="text-xs text-ink-secondary">{profile.machineName}{profile.duration ? ` · ${Math.round(profile.duration / 60)} menit` : ""}</small>
                     </span>
-                    <span className="ml-3 shrink-0 text-xs font-semibold uppercase text-ink-tertiary">
+                    <span className="ml-3 shrink-0 text-xs font-semibold uppercase text-ink-secondary">
                       {incompatible ? "Mesin berbeda" : profile.id === referenceTarget.referenceProfile?.id ? "Terpilih" : "Pilih"}
                     </span>
                   </button>
@@ -635,7 +657,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
           </div>
 
           <div className="flex items-center justify-between border-t border-border bg-surface-sunken px-5 py-4">
-            <span className="text-xs text-ink-tertiary">
+            <span className="text-xs text-ink-secondary">
               {referenceTarget.machineName ? `Mesin: ${referenceTarget.machineName}` : "Mesin mengikuti profil pertama"}
             </span>
             {referenceTarget.referenceProfile && (
@@ -680,18 +702,18 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
         <div className="rounded-card border border-border/60 bg-card/70 shadow-elevation-card backdrop-blur-md w-full max-w-sm overflow-hidden animate-in zoom-in-95">
           <div className="p-5">
             <h3 className="font-bold text-lg mb-1">Validasi Akhir Sesi</h3>
-            <p className="text-xs text-ink-tertiary mb-4">Selesaikan {completeTarget.code} ({completeTarget.outputProductName}) dengan menginput berat akhir.</p>
+            <p className="text-xs text-ink-secondary mb-4">Selesaikan {completeTarget.code} ({completeTarget.outputProductName}) dengan menginput berat akhir.</p>
             <p className="mb-4 rounded-card bg-amber-50 px-3 py-2 text-xs text-amber-700">
               Setelah diselesaikan, stok roasted bean langsung diperbarui dan sesi tidak dapat dibatalkan.
             </p>
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Berat Masuk (Kg)</label>
+                <label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">Berat Masuk (Kg)</label>
                 <Input value={completeTarget.targetWeightKg} disabled className="bg-surface-sunken font-mono text-sm" />
               </div>
               <div>
-                <label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Berat Keluar / Matang (Kg)</label>
+                <label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">Berat Keluar / Matang (Kg)</label>
                 <Input
                   type="number"
                   autoFocus
@@ -737,17 +759,17 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
         <div className="rounded-card border border-border/60 bg-card/70 shadow-elevation-card backdrop-blur-md w-full max-w-sm overflow-hidden animate-in zoom-in-95">
           <div className="p-5">
             <h3 className="font-bold text-lg mb-1">Split Batch</h3>
-            <p className="text-xs text-ink-tertiary mb-4">
+            <p className="text-xs text-ink-secondary mb-4">
               Batch {splitTarget.code} ({splitTarget.targetWeightKg} kg) akan dibagi berdasarkan kapasitas mesin.
             </p>
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Berat Masuk (Kg)</label>
+                <label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">Berat Masuk (Kg)</label>
                 <Input value={splitTarget.targetWeightKg} disabled className="bg-surface-sunken font-mono text-sm" />
               </div>
               <div>
-                <label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Pilih Mesin</label>
+                <label className="text-xs uppercase font-bold tracking-wider text-ink-secondary">Pilih Mesin</label>
                 <select
                   value={selectedMachineId}
                   onChange={(e) => setSelectedMachineId(e.target.value)}
