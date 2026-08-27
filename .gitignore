@@ -69,3 +69,26 @@ next-env.d.ts
 /public/downloads/RoastdStudio-*.exe
 !/public/downloads/RoastdStudio-0.10.2-x64-setup.exe
 /public/downloads/ArtisanSync-*.exe
+
+# local caches & tooling (untracked, regenerable)
+.pnpm-store/
+.commandcode/
+.playwright-cli/
+test-alog/
+nul
+
+# local research / experiments (not part of Vercel web build)
+research/
+roastd-studio-gpl/
+__dream_query.py
+chunk_files.py
+merge_and_build.py
+run_*.py
+graphify_step1.ps1
+system_prompt.txt
+
+# desktop (Tauri) — local only, not deployed to Vercel
+desktop/
+
+# stale duplicate app container (now empty, removal pending reboot)
+ros-app/

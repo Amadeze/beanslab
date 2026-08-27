@@ -445,7 +445,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
             {/* Row 2: Status, shrinkage, date + Actions */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1.5 border-t border-border/50">
               <div className="flex items-center gap-2 flex-wrap">
-                <WorkflowState {...roastBatchStage(b.status)} />
+                <StatusBadge status={b.status} />
                 <ShrinkageBadge percent={b.totalShrinkagePercent} />
                 <CuppingBadge score={b.cuppingScore ?? null} />
                 <span className="text-[10px] font-medium text-ink-tertiary whitespace-nowrap">{formatDate(b.createdAt)}</span>
@@ -454,13 +454,16 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
               <div className="flex items-center gap-1.5">
                 {b.status === "COMPLETED" && (
                   <>
-                    <NextAction
-                      label="Cup"
-                      tone="roasting"
-                      href={`/cupping?batchId=${b.id}`}
+                    <Button
                       size="sm"
-                      className="h-8 px-2"
-                    />
+                      variant="ghost"
+                      className="h-8 px-2 text-xs font-bold text-copper hover:bg-copper-soft hover:text-copper"
+                      onClick={() => {
+                        window.location.href = `/cupping?batchId=${b.id}`;
+                      }}
+                    >
+                      Cup
+                    </Button>
                     <Popover>
                       <PopoverTrigger>
                         <Button

@@ -34,6 +34,15 @@ const eslintConfig = defineConfig([
     "*.js",
     ".codex/**",
     ".ua/**",
+    // Local-only / stale duplicates — not part of Vercel build
+    "roastd-studio-gpl/**",
+    "desktop/**",
+    "research/**",
+    "test-alog/**",
+    ".pnpm-store/**",
+    ".commandcode/**",
+    ".playwright-cli/**",
+    "public/downloads/**",
   ]),
 ]);
 
