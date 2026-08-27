@@ -154,23 +154,41 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
       className="border-b border-white/10 bg-obsidian"
       aria-label={`Navigasi workspace ${kind}`}
     >
-      <div className="mx-auto flex min-h-12 w-full max-w-[1600px] items-center gap-3 px-4 md:hidden">
-        <label htmlFor={`workspace-${kind}`} className="shrink-0 text-xs font-semibold text-white/65">
-          {workspaceLabel}
-        </label>
-        <select
-          id={`workspace-${kind}`}
-          aria-label={`Pilih area ${workspaceLabel}`}
-          value={activeHref}
-          onChange={(event) => router.push(event.target.value)}
-          className="h-10 min-w-0 flex-1 rounded-lg border border-white/15 bg-white/[0.06] px-3 text-sm font-semibold text-white outline-none focus:border-[var(--instrument)] focus:ring-2 focus:ring-[var(--instrument)]/30"
-        >
-          {items.map((item) => (
-            <option key={itemHref(item)} value={itemHref(item)} className="bg-[var(--chrome-panel)] text-white">
+      <div className="mx-auto flex min-h-10 w-full max-w-[1600px] items-center gap-2 px-3 py-1.5 overflow-x-auto md:hidden -mx-3">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = itemIsActive(item);
+          const href = itemHref(item);
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-[6px] border px-2 py-1 text-xs font-semibold transition-colors",
+                active
+                  ? workspaceTone.active
+                  : "border-transparent text-white/50 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-4 w-4 items-center justify-center rounded-[4px] border",
+                  active
+                    ? workspaceTone.icon
+                    : cn(
+                        "border-white/10 bg-white/[0.04]",
+                        workspaceTone.idleIcon,
+                      ),
+                )}
+              >
+                <Icon size={9} strokeWidth={2} />
+              </span>
               {item.label}
-            </option>
-          ))}
-        </select>
+            </Link>
+          );
+        })}
       </div>
 
       <div className="mx-auto hidden w-max min-w-full max-w-[1600px] gap-1 overflow-x-auto px-4 py-1.5 md:flex md:px-6 lg:px-8">

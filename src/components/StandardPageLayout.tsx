@@ -30,6 +30,7 @@ interface StandardPageLayoutProps {
   children: React.ReactNode;
   isLoading?: boolean;
   stage?: "inventory" | "roasting" | "production" | "sales" | "finance";
+  compact?: boolean;
 }
 
 export function StandardPageLayout({
@@ -42,6 +43,7 @@ export function StandardPageLayout({
   children,
   isLoading = false,
   stage,
+  compact = false,
 }: StandardPageLayoutProps) {
   const [speedDialOpen, setSpeedDialOpen] = useState(false);
   const fabRef = useRef<HTMLButtonElement>(null);
@@ -88,6 +90,7 @@ export function StandardPageLayout({
         actions={actionButton}
         mobileActions={mobileHeaderActions}
         stage={stage}
+        compact={compact}
       />
 
       {hasSpeedDial && (

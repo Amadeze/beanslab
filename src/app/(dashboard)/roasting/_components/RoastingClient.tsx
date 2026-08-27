@@ -3,14 +3,14 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Flame, Loader2, Plus } from "lucide-react";
+import { Flame, Loader2, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/state";
 import { StandardDrawer } from "@/components/StandardDrawer";
+import { StandardPageLayout } from "@/components/StandardPageLayout";
 import { RoastingHistoryTable } from "./RoastingHistoryTable";
 import { RoastingForm } from "./RoastingForm";
-import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import { RoastsClient } from "../roasts/_components/RoastsClient";
 import type {
@@ -54,103 +54,44 @@ export function RoastingClient({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const kpi = useMemo(() => {
-    const validBatches = batches.filter((b) => b.status === "COMPLETED");
-    const totalGB = validBatches.reduce((sum, b) => sum + b.targetWeightKg, 0);
-    const totalRB = validBatches.reduce(
-      (sum, b) => sum + (b.actualOutputKg ?? 0),
-      0,
-    );
-    const avgLoss = totalGB > 0 ? ((totalGB - totalRB) / totalGB) * 100 : 0;
-
-    return { count: batches.length, totalGB, totalRB, avgLoss };
-  }, [batches]);
-
-  // ── Compact header signal ──
-  const headerSignal = useMemo(() => {
-    if (activeTab === "batches") {
-      return gbOptions.length > 0 && machineOptions.length > 0
-        ? { label: "Sinyal", value: "Siap roasting", tone: "ready" as const }
-        : { label: "Sinyal", value: "Input belum siap", tone: "critical" as const };
-    }
-    return { label: "Profil", value: `${roastProfiles.length} profil`, tone: "neutral" as const };
-  }, [activeTab, gbOptions.length, machineOptions.length, roastProfiles.length]);
-
-  const headerMetrics = useMemo(() => {
-    if (activeTab === "batches") {
-      return [
-        { label: "GB", value: `${gbOptions.length} pilihan` },
-        { label: "Mesin", value: `${machineOptions.length} unit` },
-        { label: "RB", value: `${kpi.totalRB.toFixed(1)} kg` },
-        { label: "Loss", value: `${kpi.avgLoss.toFixed(1)}%` },
-      ];
-    }
-    return [{ label: "Profil", value: roastProfiles.length }];
-  }, [activeTab, gbOptions.length, machineOptions.length, kpi, roastProfiles.length]);
-
   return (
-    <>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <CompactHeader
-          title="Roasting"
-          description="Batch roasting, profil hasil Artisan, dan produksi lanjutan berada dalam satu konteks kerja."
-          stage="roasting"
-          signal={headerSignal}
-          metrics={headerMetrics}
-          next={{ label: "Lanjut ke Produksi", href: "/produksi" }}
-          actions={
-            activeTab === "batches" ? (
-              <Button
-                size="default"
-                variant="default"
-                className="gap-2 px-5"
-                onClick={() => setDrawerOpen(true)}
-              >
-                <Flame size={16} />
-                Mulai Roasting
-              </Button>
-            ) : null
-          }
-          mobileActions={
-            activeTab === "batches" ? (
-              <Button
-                size="sm"
-                variant="default"
-                className="gap-1.5 px-3"
-                onClick={() => setDrawerOpen(true)}
-              >
-                <Flame size={14} />
-                Mulai Roasting
-              </Button>
-            ) : null
-          }
-        />
+    <StandardPageLayout
+      title="Roasting"
+      description="Batch roasting, profil hasil Artisan, dan produksi lanjutan berada dalam satu konteks kerja."
+      stage="roasting"
+      compact
+      mobileFabAction={
+        activeTab === "batches" ? {
+          label: "Mulai Roasting",
+          icon: <Flame size={19} />,
+          onClick: () => setDrawerOpen(true),
+          "aria-label": "Mulai batch roasting baru",
+        } : undefined
+      }
+      mobileSpeedDialItems={
+        activeTab === "batches" ? [
+          { label: "Batch Roasting", icon: <Flame size={17} />, onClick: () => setDrawerOpen(true), variant: "primary" },
+          { label: "Impor Artisan", icon: <Upload size={17} />, onClick: () => router.push("/roasting?tab=profiles&import=1") },
+        ] : undefined
+      }
+    >
+      <WorkspaceNav kind="roastery" />
 
-        <div className="custom-scrollbar flex-1 overflow-auto">
-          {activeTab === "batches" ? (
-            <>
-              <WorkspaceNav kind="roastery" />
-
-              <div className="mx-auto max-w-[1600px] px-4 pb-8 md:px-6 lg:px-8">
-                <Card className="p-5 sm:p-6">
-                  <RoastingHistoryTable
-                    batches={batches}
-                    machineOptions={machineOptions}
-                    locationOptions={locationOptions}
-                    onStartRoasting={() => setDrawerOpen(true)}
-                  />
-                </Card>
-              </div>
-            </>
-          ) : (
-            <>
-              <WorkspaceNav kind="roastery" />
-              <div className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
-                <RoastsClient roasts={roastProfiles} />
-              </div>
-            </>
-          )}
-        </div>
+      <div className="mx-auto max-w-[1600px] px-4 pb-8 md:px-6 lg:px-8">
+        {activeTab === "batches" ? (
+          <Card className="p-5 sm:p-6">
+            <RoastingHistoryTable
+              batches={batches}
+              machineOptions={machineOptions}
+              locationOptions={locationOptions}
+              onStartRoasting={() => setDrawerOpen(true)}
+            />
+          </Card>
+        ) : (
+          <div className="p-4 md:p-6 lg:p-8">
+            <RoastsClient roasts={roastProfiles} />
+          </div>
+        )}
       </div>
 
       <StandardDrawer
@@ -208,6 +149,6 @@ export function RoastingClient({
           />
         )}
       </StandardDrawer>
-    </>
+    </StandardPageLayout>
   );
 }

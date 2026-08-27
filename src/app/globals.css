@@ -809,6 +809,27 @@
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255,255,255,0.05);
   }
+
+  /* ── Density Utilities (mobile-first space efficiency) ── */
+  .space-y-dense > * + * { margin-top: var(--space-2); }
+  .space-y-snug > * + * { margin-top: var(--space-3); }
+  .space-y-relaxed > * + * { margin-top: var(--space-5); }
+
+  .gap-dense { gap: var(--space-2); }
+  .gap-snug { gap: var(--space-3); }
+  .gap-relaxed { gap: var(--space-5); }
+
+  .p-dense { padding: var(--space-2); }
+  .p-snug { padding: var(--space-3); }
+  .px-dense { padding-left: var(--space-2); padding-right: var(--space-2); }
+  .px-snug { padding-left: var(--space-3); padding-right: var(--space-3); }
+  .py-dense { padding-top: var(--space-2); padding-bottom: var(--space-2); }
+  .py-snug { padding-top: var(--space-3); padding-bottom: var(--space-3); }
+
+  .mb-dense { margin-bottom: var(--space-2); }
+  .mb-snug { margin-bottom: var(--space-3); }
+  .mt-dense { margin-top: var(--space-2); }
+  .mt-snug { margin-top: var(--space-3); }
 }
 
 /* Dashboard compatibility layer.

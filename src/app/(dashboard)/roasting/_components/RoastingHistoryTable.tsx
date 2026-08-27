@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Target, X, Flame, Plus } from "lucide-react";
+import { Search, Target, X, Flame, MoreHorizontal, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { toastSafe } from "@/lib/toast";
 import {
@@ -36,6 +36,11 @@ import { EmptyState as ElegantEmptyState } from "@/components/ui/state";
 import { Network } from "lucide-react";
 import { useEntityPanel } from "@/components/layout/entity-panel";
 import { BatchPanelContent } from "./BatchPanelContent";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 
 // ─────────────────────────────────────────────
 // Shrinkage badge
@@ -213,12 +218,12 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
 
   return (
     <>
-    <div className="mb-4 flex flex-col sm:flex-row gap-3">
-      <div className="relative flex-1 max-w-sm">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-tertiary" />
+    <div className="mb-snug flex flex-col sm:flex-row gap-2">
+      <div className="relative flex-1 max-w-xs">
+        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-tertiary" />
         <Input
           placeholder="Cari kode atau nama beans..."
-          className="h-10 rounded-card pl-9"
+          className="h-9 rounded-card pl-8 text-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -226,7 +231,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
       <select
         value={statusFilter}
         onChange={(e) => setStatusFilter(e.target.value)}
-        className="h-10 rounded-card border border-input bg-card px-3 text-sm font-medium text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+        className="h-9 rounded-card border border-input bg-card px-2.5 text-sm font-medium text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
       >
         <option value="ALL">Semua Status</option>
         <option value="COMPLETED">Selesai</option>
@@ -407,7 +412,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
       </Table>
     </div>
 
-    <div className="md:hidden flex flex-col gap-3">
+    <div className="md:hidden flex flex-col gap-2">
       {filteredBatches.length === 0 ? (
         <ElegantEmptyState
           title="Belum ada riwayat roasting"
@@ -415,11 +420,12 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
         />
       ) : (
         filteredBatches.map((b) => (
-          <div key={b.id} className="page-surface flex flex-col gap-2 p-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="font-bold text-ink">{b.outputProductName}</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
+          <div key={b.id} className="page-surface flex flex-col gap-1.5 p-3">
+            {/* Row 1: Batch name + output weight */}
+            <div className="flex justify-between items-baseline gap-2">
+              <div className="min-w-0">
+                <p className="font-bold text-ink truncate">{b.outputProductName}</p>
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                   <Link
                     href={`/roasting/batch/${b.id}`}
                     className="font-mono text-xs font-semibold text-ink-secondary hover:text-copper hover:underline transition-colors"
@@ -427,69 +433,136 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
                     {b.code}
                   </Link>
                   <span className="text-xs text-ink-tertiary">•</span>
-                  <span className="text-xs uppercase font-bold text-ink-tertiary">{b.inputProductName}</span>
+                  <span className="text-xs uppercase font-medium text-ink-tertiary truncate max-w-[120px]">{b.inputProductName}</span>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="font-mono text-sm font-black text-ink">{b.actualOutputKg ? formatKg(b.actualOutputKg) : "-"}</p>
-                <p className="font-mono text-xs font-bold text-ink-tertiary mt-0.5">Masuk: {formatKg(b.targetWeightKg)}</p>
+              <div className="text-right shrink-0 ml-2">
+                <p className="font-mono text-lg font-black text-ink">{b.actualOutputKg ? formatKg(b.actualOutputKg) : "-"}</p>
+                <p className="font-mono text-[10px] font-medium text-ink-tertiary">Masuk: {formatKg(b.targetWeightKg)}</p>
               </div>
             </div>
 
-            <div className="flex justify-between items-end mt-2 pt-2 border-t border-border">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={b.status} />
-                  <ShrinkageBadge percent={b.totalShrinkagePercent} />
-                  <CuppingBadge score={b.cuppingScore ?? null} />
-                </div>
-                <span className="text-xs font-semibold text-ink-tertiary">{formatDate(b.createdAt)}</span>
+            {/* Row 2: Status, shrinkage, date + Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1.5 border-t border-border/50">
+              <div className="flex items-center gap-2 flex-wrap">
+                <WorkflowState {...roastBatchStage(b.status)} />
+                <ShrinkageBadge percent={b.totalShrinkagePercent} />
+                <CuppingBadge score={b.cuppingScore ?? null} />
+                <span className="text-[10px] font-medium text-ink-tertiary whitespace-nowrap">{formatDate(b.createdAt)}</span>
               </div>
+
               <div className="flex items-center gap-1.5">
                 {b.status === "COMPLETED" && (
-                  <Button size="sm" variant="ghost" onClick={() => setVoidTarget(b)} className="h-9 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600 rounded-card">
-                    Void
-                  </Button>
+                  <>
+                    <NextAction
+                      label="Cup"
+                      tone="roasting"
+                      href={`/cupping?batchId=${b.id}`}
+                      size="sm"
+                      className="h-8 px-2"
+                    />
+                    <Popover>
+                      <PopoverTrigger>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-ink-tertiary hover:text-red-500 hover:bg-red-50 rounded-card"
+                          aria-label={`Aksi untuk ${b.code}`}
+                        >
+                          <MoreHorizontal size={16} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" side="bottom" sideOffset={4} className="w-40">
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-red-500 hover:bg-red-50 rounded-card"
+                          onClick={() => setVoidTarget(b)}
+                        >
+                          Void
+                        </Button>
+                      </PopoverContent>
+                    </Popover>
+                  </>
                 )}
                 {b.status === "PENDING" && (
                   <>
-                    <Button size="sm" variant="ghost" onClick={() => {
-                      setCompleteTarget(b);
-                      setDestinationLocationId(locationOptions[0]?.id ?? "");
-                      const totalRoasted = b.childBatches
-                        .filter((c) => c.roastedWeightGrams)
-                        .reduce((sum, c) => sum + (c.roastedWeightGrams || 0), 0);
-                      if (totalRoasted > 0) {
-                        setActualOutputKg((totalRoasted / 1000).toFixed(2));
-                      } else {
-                        setActualOutputKg("");
-                      }
-                    }} className="h-9 px-2.5 text-[11px] font-bold uppercase text-copper hover:bg-copper-soft hover:text-copper rounded-card">
-                      Validasi Sore
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="h-8 px-2.5 text-xs font-bold text-white bg-copper hover:bg-copper-strong rounded-card"
+                      onClick={() => {
+                        setCompleteTarget(b);
+                        setDestinationLocationId(locationOptions[0]?.id ?? "");
+                        const totalRoasted = b.childBatches
+                          .filter((c) => c.roastedWeightGrams)
+                          .reduce((sum, c) => sum + (c.roastedWeightGrams || 0), 0);
+                        if (totalRoasted > 0) {
+                          setActualOutputKg((totalRoasted / 1000).toFixed(2));
+                        } else {
+                          setActualOutputKg("");
+                        }
+                      }}
+                    >
+                      Validasi
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setVoidTarget(b)} className="h-9 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600 rounded-card">
-                      {b.lifecycleStatus === "CHARGED" ? "Kembalikan" : "Batalkan"}
-                    </Button>
-                    {b.lifecycleStatus === "CHARGED" && (
-                      <Button size="sm" variant="ghost" onClick={() => setScrapTarget(b)} className="h-9 px-2.5 text-[11px] font-bold uppercase text-red-700 hover:bg-red-100 hover:text-red-800 rounded-card">
-                        Scrap
-                      </Button>
-                    )}
+                    <Popover>
+                      <PopoverTrigger>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-ink-tertiary hover:text-red-500 hover:bg-red-50 rounded-card"
+                          aria-label={`Lainnya untuk ${b.code}`}
+                        >
+                          <MoreHorizontal size={16} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" side="bottom" sideOffset={4} className="w-44">
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-copper hover:bg-copper-soft hover:text-copper rounded-card"
+                          onClick={() => {
+                            setSplitTarget(b);
+                            setShowSplitModal(true);
+                          }}
+                        >
+                          <RotateCcw size={13} className="mr-1.5" /> Split
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-red-500 hover:bg-red-50 hover:text-red-600 rounded-card"
+                          onClick={() => setVoidTarget(b)}
+                        >
+                          <Trash2 size={13} className="mr-1.5" />
+                          {b.lifecycleStatus === "CHARGED" ? "Kembalikan" : "Batalkan"}
+                        </Button>
+                        {b.lifecycleStatus === "CHARGED" && (
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-start text-red-700 hover:bg-red-100 hover:text-red-800 rounded-card"
+                            onClick={() => setScrapTarget(b)}
+                          >
+                            Scrap
+                          </Button>
+                        )}
+                      </PopoverContent>
+                    </Popover>
                   </>
                 )}
               </div>
             </div>
+
+            {/* Reference profile - compact */}
             {b.status === "PENDING" && (
               <button
                 type="button"
-                className="flex items-center justify-between rounded-card bg-copper-soft px-3 py-2 text-left text-xs text-copper-strong"
+                className="flex items-center justify-between rounded-card bg-copper-soft px-2.5 py-1.5 text-left text-[10px] text-copper-strong"
                 onClick={() => {
                   setReferenceTarget(b);
                   setReferenceSearch("");
                 }}
               >
-                <span className="flex items-center gap-1.5 font-semibold"><Target size={13} /> Kurva acuan</span>
-                <span className="max-w-44 truncate">{b.referenceProfile?.title ?? "Atur dari web"}</span>
+                <span className="flex items-center gap-1 font-semibold"><Target size={11} /> Kurva acuan</span>
+                <span className="max-w-36 truncate text-[10px] font-normal">{b.referenceProfile?.title ?? "Atur dari web"}</span>
               </button>
             )}
           </div>

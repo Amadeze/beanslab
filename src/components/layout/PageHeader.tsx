@@ -42,11 +42,13 @@ interface PageHeaderProps {
   metrics?: PageHeaderMetric[];
   /** Tautan tahap berikutnya. */
   next?: { label: string; href: string };
+  /** Compact mode untuk mobile: sembunyikan description, kurangi padding */
+  compact?: boolean;
 }
 
 /**
- * CanvasHeader â€” header halaman pada KANVAS TERANG.
- * Hierarki: eyebrow mono copper â†’ judul tinta besar â†’ deskripsi.
+ * CanvasHeader — header halaman pada KANVAS TERANG.
+ * Hierarki: eyebrow mono copper → judul tinta besar → deskripsi.
  * Tahap ditampilkan sebagai deretan titik kecil yang tenang, bukan bar gelap.
  */
 export function PageHeader({
@@ -60,6 +62,7 @@ export function PageHeader({
   signal,
   metrics,
   next,
+  compact = false,
 }: PageHeaderProps) {
   const activeStage = stage ?? titleStages[title];
   const activeIndex = operatingStages.findIndex((item) => item.id === activeStage);
@@ -68,7 +71,7 @@ export function PageHeader({
   return (
     <header data-testid="page-header" className="shrink-0">
       {breadcrumbs && breadcrumbs.length > 0 ? (
-        <nav aria-label="Breadcrumb" className="pb-2">
+        <nav aria-label="Breadcrumb" className={compact ? "pb-1" : "pb-2"}>
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-ink-tertiary">
             {breadcrumbs.map((crumb, index) => {
               const isLast = index === breadcrumbs.length - 1;
@@ -94,7 +97,10 @@ export function PageHeader({
         </nav>
       ) : null}
 
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-4 pt-1">
+      <div className={cn(
+        "flex flex-wrap items-end justify-between",
+        compact ? "gap-x-4 gap-y-2 pb-2 pt-0.5" : "gap-x-6 gap-y-3 pb-4 pt-1"
+      )}>
         <div className="min-w-0">
           <p
             className={cn(
@@ -126,8 +132,10 @@ export function PageHeader({
           <h1 className="truncate font-heading text-[clamp(1.65rem,2.6vw,2.15rem)] font-bold leading-none tracking-[-0.04em] text-foreground">
             {title}
           </h1>
-          {description ? (
+          {description && !compact ? (
             <p className="mt-2 max-w-2xl text-sm leading-5 text-ink-secondary">{description}</p>
+          ) : compact && description ? (
+            <p className="mt-1 max-w-2xl text-[11px] leading-4 text-ink-tertiary truncate">{description}</p>
           ) : null}
         </div>
 
@@ -143,7 +151,10 @@ export function PageHeader({
       </div>
 
       {(signal || (metrics && metrics.length > 0) || next) && (
-        <div className="mb-4 hidden flex-wrap items-center gap-x-5 gap-y-2 rounded-card border border-border/70 bg-card px-4 py-2.5 shadow-elevation-soft md:flex">
+        <div className={cn(
+          "mb-4 hidden flex-wrap items-center rounded-card border border-border/70 bg-card shadow-elevation-soft md:flex",
+          compact ? "gap-x-3 gap-y-1 px-3 py-1.5" : "gap-x-5 gap-y-2 px-4 py-2.5"
+        )}>
           {signal ? (
             <button
               type="button"
@@ -154,12 +165,16 @@ export function PageHeader({
                 signal.active && "bg-surface-sunken ring-1 ring-border",
               )}
             >
-              <span className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-ink-tertiary">
+              <span className={cn(
+                "font-mono font-bold uppercase tracking-[0.16em] text-ink-tertiary",
+                compact ? "text-[7px]" : "text-[8px]"
+              )}>
                 {signal.label}
               </span>
               <span
                 className={cn(
-                  "font-heading text-sm font-bold",
+                  "font-heading font-bold",
+                  compact ? "text-xs" : "text-sm",
                   signal.tone === "critical"
                     ? "text-[var(--status-danger)]"
                     : signal.tone === "ready"
@@ -179,10 +194,16 @@ export function PageHeader({
                 {metrics.map((metric) => {
                   const metricContent = (
                     <>
-                      <span className="truncate font-mono text-[7px] font-bold uppercase tracking-[0.12em] text-ink-tertiary sm:text-[8px]">
+                      <span className={cn(
+                        "truncate font-mono font-bold uppercase tracking-[0.12em] text-ink-tertiary",
+                        compact ? "text-[6px]" : "text-[7px] sm:text-[8px]"
+                      )}>
                         {metric.label}
                       </span>
-                      <span className="max-w-full truncate font-heading text-xs font-bold tabular-nums text-foreground">
+                      <span className={cn(
+                        "max-w-full truncate font-heading font-bold tabular-nums text-foreground",
+                        compact ? "text-[11px]" : "text-xs"
+                      )}>
                         {metric.value}
                       </span>
                     </>
@@ -213,17 +234,18 @@ export function PageHeader({
             </>
           ) : null}
 
-          {next ? (
+{next ? (
             <>
               <span className="hidden h-4 w-px bg-border sm:block" aria-hidden />
               <Link
                 href={next.href}
                 className={cn(
-                  "ml-auto inline-flex items-center gap-1 text-xs font-bold transition-all hover:gap-2",
+                  "ml-auto inline-flex items-center gap-1 font-bold transition-all hover:gap-2",
+                  compact ? "text-[11px]" : "text-xs",
                   headerTone?.signal ?? "text-primary",
                 )}
               >
-                {next.label} â†’
+                {next.label} →
               </Link>
             </>
           ) : null}
