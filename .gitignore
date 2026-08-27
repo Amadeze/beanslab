@@ -90,3 +90,8 @@ desktop/test-mqtt*.js
 ros-app/.next/
 ros-app/node_modules/
 ros-app/public/uploads/
+
+# Backups
+ros-app-git-backup/
+.commandcode/
+
