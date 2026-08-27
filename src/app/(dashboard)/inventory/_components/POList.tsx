@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { NextAction } from "@/components/ui/next-action";
 import { formatRupiah, formatDate as formatDateUtil } from "@/lib/format";
 import { getPOList } from "../po-actions";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -83,6 +84,7 @@ export function POList({ onSelectPO, refreshKey, metricFilter }: POListProps) {
               <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">Status</TableHead>
               <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">Total</TableHead>
               <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">Tanggal</TableHead>
+              <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -132,6 +134,11 @@ export function POList({ onSelectPO, refreshKey, metricFilter }: POListProps) {
                   <TableCell><StatusBadge status={po.status} /></TableCell>
                   <TableCell className="text-sm font-semibold text-ink tabular-nums text-right">{formatRupiah(po.totalEstimate)}</TableCell>
                   <TableCell className="text-xs text-ink-tertiary">{formatDate(po.expectedDate)}</TableCell>
+                  <TableCell className="text-right">
+                    {(po.status === "SENT" || po.status === "PARTIAL") && (
+                      <NextAction label="Terima" tone="inventory" onClick={() => onSelectPO(po.id)} size="sm" className="h-7 px-2" />
+                    )}
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -166,14 +173,19 @@ export function POList({ onSelectPO, refreshKey, metricFilter }: POListProps) {
                 <span>{po.supplierName}</span>
                 {po.items.length > 0 && (
                   <span className="ml-1 text-ink-tertiary">
-                    · {po.items[0].productName || po.items[0].packagingName}
+                    ┬╖ {po.items[0].productName || po.items[0].packagingName}
                     {po.items.length > 1 && ` +${po.items.length - 1}`}
                   </span>
                 )}
               </div>
               <div className="flex items-center justify-between mt-0.5 text-xs">
                 <span className="text-ink-tertiary">{formatDate(po.expectedDate)}</span>
-                <span className="font-semibold text-ink tabular-nums">{formatRupiah(po.totalEstimate)}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="font-semibold text-ink tabular-nums">{formatRupiah(po.totalEstimate)}</span>
+                  {(po.status === "SENT" || po.status === "PARTIAL") && (
+                    <NextAction label="Terima" tone="inventory" onClick={() => onSelectPO(po.id)} size="sm" className="h-7 px-2" />
+                  )}
+                </span>
               </div>
             </div>
           ))
@@ -182,3 +194,4 @@ export function POList({ onSelectPO, refreshKey, metricFilter }: POListProps) {
     </div>
   );
 }
+

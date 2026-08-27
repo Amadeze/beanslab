@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -19,6 +19,7 @@ import {
 import { StandardPageLayout } from "@/components/StandardPageLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { NextAction } from "@/components/ui/next-action";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -54,7 +55,7 @@ type ScoreGroup = {
 const SCORE_GROUPS: ScoreGroup[] = [
   {
     title: "Aroma",
-    eyebrow: "01 · sebelum tegukan",
+    eyebrow: "01 ┬╖ sebelum tegukan",
     description: "Nilai kesan aromatik saat bubuk masih kering dan setelah diseduh.",
     scores: [
       { key: "FRAGRANCE", label: "Fragrance", shortLabel: "Fragrance", hint: "Aroma kering" },
@@ -63,7 +64,7 @@ const SCORE_GROUPS: ScoreGroup[] = [
   },
   {
     title: "Karakter cangkir",
-    eyebrow: "02 · saat dicicip",
+    eyebrow: "02 ┬╖ saat dicicip",
     description: "Bentuk rasa utama, tekstur, kejernihan, dan hubungan antarelemen.",
     scores: [
       { key: "FLAVOR", label: "Flavor", shortLabel: "Flavor", hint: "Kualitas rasa utama" },
@@ -76,7 +77,7 @@ const SCORE_GROUPS: ScoreGroup[] = [
   },
   {
     title: "Kebersihan & konsistensi",
-    eyebrow: "03 · validasi sampel",
+    eyebrow: "03 ┬╖ validasi sampel",
     description: "Pastikan cangkir seragam, bersih, dan memiliki kemanisan yang utuh.",
     scores: [
       { key: "UNIFORMITY", label: "Uniformity", shortLabel: "Uniformity", hint: "Keseragaman antar-cangkir" },
@@ -272,7 +273,7 @@ function HistoryCard({ session }: { session: CuppingSessionRow }) {
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
             {new Date(session.date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
-            {session.evaluatorName ? ` · ${session.evaluatorName}` : ""}
+            {session.evaluatorName ? ` ┬╖ ${session.evaluatorName}` : ""}
           </p>
         </div>
         <div className="text-right">
@@ -302,6 +303,9 @@ function HistoryCard({ session }: { session: CuppingSessionRow }) {
             >
               Lot <ChevronRight className="h-3 w-3" />
             </Link>
+          ) : null}
+          {session.batchId ? (
+            <NextAction label="Produce" tone="production" href="/produksi?mulai=1" size="sm" className="h-7 px-2" />
           ) : null}
         </div>
         <span className="inline-flex items-center gap-1 font-semibold text-foreground/70">
@@ -337,7 +341,7 @@ export default function CuppingPage() {
   );
   const averageScore = totalScore / SCORE_DEFINITIONS.length;
 
-  // Komposit SCA live (AI deterministik): Fragrance+Aroma digabung, defect −2/defect.
+  // Komposit SCA live (AI deterministik): Fragrance+Aroma digabung, defect ΓêÆ2/defect.
   const parsedDefects = Number(defectCount);
   const liveScaScore = useMemo(
     () => computeScaTotal(scores, Number.isInteger(parsedDefects) && parsedDefects >= 0 ? parsedDefects : 0),
@@ -357,7 +361,7 @@ export default function CuppingPage() {
     void refreshData();
   }, []);
 
-  // Deep-link prefill: /cupping?batchId=… / ?lotId=… (from roasting/batch recap, lot trace)
+  // Deep-link prefill: /cupping?batchId=ΓÇª / ?lotId=ΓÇª (from roasting/batch recap, lot trace)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const sp = new URLSearchParams(window.location.search);
@@ -415,7 +419,7 @@ export default function CuppingPage() {
 
     setSubmitting(false);
     if (result.success) {
-      const gradeLabel = result.scaScore != null ? ` · SCA ${result.scaScore} (${SCA_GRADE_LABEL[scaGrade(result.scaScore)].label})` : "";
+      const gradeLabel = result.scaScore != null ? ` ┬╖ SCA ${result.scaScore} (${SCA_GRADE_LABEL[scaGrade(result.scaScore)].label})` : "";
       setMessage({ type: "success", text: `Cupping ${result.code} tersimpan${gradeLabel}.` });
       setScores({ ...DEFAULT_SCORES });
       setDescriptors([]);
@@ -483,7 +487,7 @@ export default function CuppingPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Pilih produk</SelectItem>
-                          {options.products.map((product) => <SelectItem key={product.id} value={product.id}>{product.code} · {product.name}</SelectItem>)}
+                          {options.products.map((product) => <SelectItem key={product.id} value={product.id}>{product.code} ┬╖ {product.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     )}
@@ -513,7 +517,7 @@ export default function CuppingPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="defectCount" className="mb-2 flex items-center gap-1.5 text-xs"><TriangleAlert className="h-3.5 w-3.5 text-domain-roasting" /> Defect <span className="font-medium normal-case text-muted-foreground">(−2 poin/defect)</span></Label>
+                    <Label htmlFor="defectCount" className="mb-2 flex items-center gap-1.5 text-xs"><TriangleAlert className="h-3.5 w-3.5 text-domain-roasting" /> Defect <span className="font-medium normal-case text-muted-foreground">(ΓêÆ2 poin/defect)</span></Label>
                     <Input
                       id="defectCount"
                       type="number"
@@ -647,3 +651,4 @@ export default function CuppingPage() {
     </StandardPageLayout>
   );
 }
+

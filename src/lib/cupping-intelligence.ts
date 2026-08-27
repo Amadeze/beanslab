@@ -1,6 +1,6 @@
-// =============================================================================
-// CUPPING INTELLIGENCE — AI deterministik (gratis, tanpa LLM)
-// Komposit SCA 0–100 dari 11 kategori internal (Fragrance & Aroma digabung
+﻿// =============================================================================
+// CUPPING INTELLIGENCE ΓÇö AI deterministik (gratis, tanpa LLM)
+// Komposit SCA 0ΓÇô100 dari 11 kategori internal (Fragrance & Aroma digabung
 // jadi satu item 10-poin sesuai protokol SCA) + penalti defect 2 poin/defect
 // (maks 10). Grade otomatis + band bahasa Indonesia.
 // =============================================================================
@@ -40,7 +40,7 @@ export function computeScaTotal(
 
 export type ScaGrade = "OUTSTANDING" | "EXCELLENT" | "SPECIALTY" | "BELOW_SPECIALTY";
 
-/** Ambang industri: ≥80 specialty; 80-an bagus; ≥87 kelas kompetisi. */
+/** Ambang industri: ΓëÑ80 specialty; 80-an bagus; ΓëÑ87 kelas kompetisi. */
 export function scaGrade(total: number): ScaGrade {
   if (total >= 87) return "OUTSTANDING";
   if (total >= 84) return "EXCELLENT";
@@ -49,12 +49,13 @@ export function scaGrade(total: number): ScaGrade {
 }
 
 export const SCA_GRADE_LABEL: Record<ScaGrade, { label: string; className: string }> = {
-  OUTSTANDING: { label: "Istimewa (≥87)", className: "bg-purple-50 text-purple-700 border-purple-200" },
-  EXCELLENT: { label: "Sangat Baik (84–86.99)", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  SPECIALTY: { label: "Specialty (80–83.99)", className: "bg-blue-50 text-blue-700 border-blue-200" },
+  OUTSTANDING: { label: "Istimewa (ΓëÑ87)", className: "bg-purple-50 text-purple-700 border-purple-200" },
+  EXCELLENT: { label: "Sangat Baik (84ΓÇô86.99)", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  SPECIALTY: { label: "Specialty (80ΓÇô83.99)", className: "bg-blue-50 text-blue-700 border-blue-200" },
   BELOW_SPECIALTY: { label: "Di bawah specialty (<80)", className: "bg-zinc-50 text-zinc-600 border-zinc-200" },
 };
 
 function roundQuarter(value: number): number {
   return Math.round(value * 4) / 4;
 }
+

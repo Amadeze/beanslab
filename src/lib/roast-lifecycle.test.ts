@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   recordAudit: vi.fn(),
@@ -176,3 +176,4 @@ describe("chargeRoastMaterialsInTx state guards", () => {
     expect(mocks.transferLotInTx).not.toHaveBeenCalled();
   });
 });
+

@@ -1,19 +1,13 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
-  Boxes,
   CircleCheck,
-  Factory,
-  Flame,
-  ReceiptText,
   RefreshCw,
   TriangleAlert,
-  WalletCards,
-  Warehouse,
 } from "lucide-react";
 import {
   Area,
@@ -32,11 +26,9 @@ import {
 import type { ActivityItem, DashboardData, LowStockItem } from "../actions";
 import { RoasteryCopilot } from "./RoasteryCopilot";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { StageCards, type StageCardData } from "./StageCards";
 import { CoffeeFlowMini } from "./CoffeeFlowMini";
 import { ControlTowerView } from "../../control-tower/_components/ControlTowerView";
 import type { getControlTowerData } from "../../control-tower/actions";
-import type { DailyBriefPayload } from "@/lib/daily-brief";
 
 function formatTimeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -62,96 +54,6 @@ const ACTIVITY_HREF: Record<ActivityItem["type"], string> = {
   PRODUCTION: "/produksi",
   SALE: "/penjualan",
 };
-
-/**
- * StageStrip — alur 6 tahap sebagai kartu terang ringkas (Bento).
- * Status diambil dari antrian operasional, bukan metrik ganda.
- */
-function StageStrip({ data, brief }: { data: DashboardData; brief: DailyBriefPayload | null }) {
-  const stages = [
-    { number: "01", label: "Pasokan", icon: Boxes, status: data.lowStock.length > 0 ? `${data.lowStock.length} stok kritis` : data.operationalQueue.purchaseOrdersToReceive > 0 ? `${data.operationalQueue.purchaseOrdersToReceive} PO datang` : "Aman", href: "/inventory", attention: data.lowStock.length > 0 },
-    { number: "02", label: "Gudang", icon: Warehouse, status: "Lokasi & lot", href: "/gudang", attention: false },
-    { number: "03", label: "Roasting", icon: Flame, status: data.operationalQueue.roastingBatchesOpen > 0 ? `${data.operationalQueue.roastingBatchesOpen} batch aktif` : `${brief?.roasting.batchCount ?? 0} batch kemarin`, href: "/roasting", attention: false },
-    { number: "04", label: "Produksi", icon: Factory, status: data.operationalQueue.fulfillmentNeedsProduction > 0 ? `${data.operationalQueue.fulfillmentNeedsProduction} pesanan menunggu` : `${brief?.production.unitsProduced ?? 0} unit kemarin`, href: "/produksi", attention: data.operationalQueue.fulfillmentNeedsProduction > 0 },
-    { number: "05", label: "Penjualan", icon: ReceiptText, status: data.operationalQueue.overdueReceivables.count > 0 ? `${data.operationalQueue.overdueReceivables.count} jatuh tempo` : `${formatRupiah(data.kpi.revenueToday)} hari ini`, href: "/penjualan", attention: data.operationalQueue.overdueReceivables.count > 0 },
-    { number: "06", label: "Kas", icon: WalletCards, status: data.operationalQueue.paymentReviews > 0 ? `${data.operationalQueue.paymentReviews} verifikasi bukti` : `${formatRupiah(data.kpi.kasToday)} masuk`, href: "/keuangan", attention: data.operationalQueue.paymentReviews > 0 || data.operationalQueue.overdueReceivables.count > 0 },
-  ];
-
-  return (
-    <section aria-label="Alur operasional hari ini" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-      {stages.map(({ number, label, icon: Icon, status, href, attention }) => (
-        <Link
-          key={number}
-          href={href}
-          className={cn(
-            "group flex min-w-0 flex-col gap-1.5 rounded-card border bg-card p-4 shadow-elevation-soft transition-[border-color,transform] hover:-translate-y-0.5 motion-reduce:hover:transform-none",
-            attention ? "border-[color-mix(in_srgb,var(--status-danger)_45%,transparent)]" : "border-border hover:border-primary/40",
-          )}
-        >
-          <span className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-[0.16em] text-ink-tertiary">
-              <Icon size={12} aria-hidden />
-              {number}
-            </span>
-            {attention ? <span className="size-2 rounded-full bg-[var(--status-danger)]" aria-label="Perlu perhatian" /> : null}
-          </span>
-          <span className="truncate text-sm font-bold text-foreground">{label}</span>
-          <span
-            className={cn(
-              "truncate text-xs tabular-nums",
-              attention ? "font-semibold text-[var(--status-danger)]" : "text-ink-secondary",
-            )}
-          >
-            {status}
-          </span>
-        </Link>
-      ))}
-    </section>
-  );
-}
-
-/** Kartu tahap interaktif — menggabungkan status + navigasi (mantan StageStrip). */
-function buildStageCards(data: DashboardData, brief: DailyBriefPayload | null): StageCardData[] {
-  const packed = data.operationalQueue.fulfillmentPacked;
-  return [
-    {
-      number: "01", label: "Pasokan", href: "/inventory", icon: Boxes,
-      value: data.lowStock.length > 0 ? String(data.lowStock.length) : data.operationalQueue.purchaseOrdersToReceive > 0 ? String(data.operationalQueue.purchaseOrdersToReceive) : "Aman",
-      sub: data.lowStock.length > 0 ? "stok di bawah batas" : data.operationalQueue.purchaseOrdersToReceive > 0 ? "PO belum diterima" : "Pasokan aman",
-      attention: data.lowStock.length > 0,
-    },
-    {
-      number: "02", label: "Gudang", href: "/gudang", icon: Warehouse,
-      value: packed > 0 ? String(packed) : "—",
-      sub: packed > 0 ? "paket siap kirim" : "lokasi & lot terpantau",
-      attention: false,
-    },
-    {
-      number: "03", label: "Roasting", href: "/roasting", icon: Flame,
-      value: data.operationalQueue.roastingBatchesOpen > 0 ? String(data.operationalQueue.roastingBatchesOpen) : `${brief?.roasting.batchCount ?? 0}`,
-      sub: data.operationalQueue.roastingBatchesOpen > 0 ? "batch berjalan" : "batch kemarin",
-      attention: false,
-    },
-    {
-      number: "04", label: "Produksi", href: "/produksi", icon: Factory,
-      value: data.operationalQueue.fulfillmentNeedsProduction > 0 ? String(data.operationalQueue.fulfillmentNeedsProduction) : `${brief?.production.unitsProduced ?? 0}`,
-      sub: data.operationalQueue.fulfillmentNeedsProduction > 0 ? "pesanan menunggu produksi" : "unit diproduksi kemarin",
-      attention: data.operationalQueue.fulfillmentNeedsProduction > 0,
-    },
-    {
-      number: "05", label: "Penjualan", href: "/penjualan", icon: ReceiptText,
-      value: formatRupiah(data.kpi.revenueToday),
-      sub: data.operationalQueue.overdueReceivables.count > 0 ? `${data.operationalQueue.overdueReceivables.count} tagihan jatuh tempo` : "tagihan lancar",
-      attention: data.operationalQueue.overdueReceivables.count > 0,
-    },
-    {
-      number: "06", label: "Kas & Piutang", href: "/keuangan", icon: WalletCards,
-      value: data.operationalQueue.paymentReviews > 0 ? String(data.operationalQueue.paymentReviews) : formatRupiah(data.kpi.kasToday),
-      sub: data.operationalQueue.paymentReviews > 0 ? "bukti bayar diverifikasi" : "kas masuk hari ini",
-      attention: data.operationalQueue.paymentReviews > 0 || data.operationalQueue.overdueReceivables.count > 0,
-    },
-  ];
-}
 
 export function WorkQueue({ items }: { items: DashboardWorkItem[] }) {
   const [showAll, setShowAll] = useState(false);
@@ -417,7 +319,7 @@ function ActivityTable({ items, mounted }: { items: ActivityItem[]; mounted: boo
             <tbody className="divide-y divide-stone-100">
               {items.slice(0, 8).map((item) => (
                 <tr key={`${item.type}-${item.id}`} className="hover:bg-stone-50/80">
-                  <td className="whitespace-nowrap px-5 py-3 text-[11px] text-stone-500">{mounted ? formatTimeAgo(item.timestamp) : "—"}</td>
+                  <td className="whitespace-nowrap px-5 py-3 text-[11px] text-stone-500">{mounted ? formatTimeAgo(item.timestamp) : "ΓÇö"}</td>
                   <td className="px-5 py-3">
                     <Link href={ACTIVITY_HREF[item.type]} className="text-xs font-semibold text-stone-700 hover:text-stone-950">
                       {ACTIVITY_LABEL[item.type]}
@@ -431,7 +333,7 @@ function ActivityTable({ items, mounted }: { items: ActivityItem[]; mounted: boo
                     <span className="inline-flex rounded-full bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-700">{item.status}</span>
                   </td>
                   <td className="whitespace-nowrap px-5 py-3 text-right text-xs font-semibold tabular-nums text-stone-900">
-                    {item.amount === null ? "—" : formatRupiah(item.amount)}
+                    {item.amount === null ? "ΓÇö" : formatRupiah(item.amount)}
                   </td>
                 </tr>
               ))}
@@ -496,14 +398,14 @@ export function DashboardShell({
   }), [data]);
   const asOfLabel = mounted
     ? new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(data.asOf))
-    : "—";
+    : "ΓÇö";
 
   return (
     <div data-testid="operations-workbench" className="flex min-h-0 flex-1 flex-col bg-background">
       <PageHeader
         title="Hari ini"
-        eyebrow={`Owner · Live ${asOfLabel}`}
-        description="Ringkasan operasi roastery Anda hari ini — dari pasokan sampai kas."
+        eyebrow={`Owner ┬╖ Live ${asOfLabel}`}
+        description="Ringkasan operasi roastery Anda hari ini ΓÇö dari pasokan sampai kas."
         signal={{
           label: "Fokus sekarang",
           value: workItems[0]?.title ?? "Tidak ada hambatan",
@@ -520,8 +422,6 @@ export function DashboardShell({
           { label: "Yield roast", value: `${data.kpi.averageRoastYield.toFixed(1)}%` },
         ]}
       />
-
-      <StageCards stages={buildStageCards(data, data.dailyBrief)} />
 
       <main className="custom-scrollbar min-w-0 flex-1 overflow-y-auto" id="main-content">
         <div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 md:p-6 lg:p-7">
@@ -547,3 +447,4 @@ export function DashboardShell({
     </div>
   );
 }
+

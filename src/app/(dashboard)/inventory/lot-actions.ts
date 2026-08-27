@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { requireRole, requireTenantPrisma, getCurrentTenantId, getSystemUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
@@ -38,6 +38,8 @@ export type LotRow = {
   harvestDate?: string | null;
   defectCount?: number | null;
   qcStatus?: "PENDING" | "RELEASED" | "HOLD";
+  productId?: string | null;
+  productType?: string | null;
 };
 
 export type LotPlacementInfo = {
@@ -286,7 +288,7 @@ export async function getLots(filters: LotFilters = {}): Promise<{ lots: LotRow[
       tp.lot.findMany({
         where,
         include: {
-          product: { select: { name: true, code: true } },
+          product: { select: { id: true, name: true, code: true, type: true } },
           packaging: { select: { name: true, code: true } },
           supplier: { select: { name: true, code: true } },
           purchase: { select: { code: true } },
@@ -320,6 +322,8 @@ export async function getLots(filters: LotFilters = {}): Promise<{ lots: LotRow[
         batchCode: lot.batchCode,
         productName: lot.product?.name ?? null,
         productCode: lot.product?.code ?? null,
+        productId: lot.product?.id ?? null,
+        productType: lot.product?.type ?? null,
         packagingName: lot.packaging?.name ?? null,
         packagingCode: lot.packaging?.code ?? null,
         supplierName: lot.supplier?.name ?? null,
@@ -529,7 +533,7 @@ export async function traceLot(lotId: string): Promise<TraceResult | { success: 
         label: "Roasting",
         code: roast.code,
         date: roast.completedAt?.toISOString() ?? null,
-        quantity: `${Number(roast.targetWeightKg)} kg → ${Number(roast.actualOutputKg ?? 0)} kg`,
+        quantity: `${Number(roast.targetWeightKg)} kg ΓåÆ ${Number(roast.actualOutputKg ?? 0)} kg`,
         notes: roast.notes,
         url: `/roasting/batch/${roast.id}`,
       });
@@ -686,7 +690,7 @@ export async function getLotPlacement(lotId: string): Promise<LotPlacementView |
 }
 
 // =============================================================================
-// QC HOLD / RELEASE — karantina per lot
+// QC HOLD / RELEASE ΓÇö karantina per lot
 // Lot HOLD tidak dialokasikan FEFO (roast/penjualan/produksi) sampai dilepas.
 // =============================================================================
 
@@ -737,3 +741,4 @@ export async function setLotQcStatus(
     return { success: false, error: err instanceof Error ? err.message : "Gagal mengubah status QC." };
   }
 }
+

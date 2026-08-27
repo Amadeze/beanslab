@@ -1,4 +1,4 @@
-import { createElement } from "react";
+﻿import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { InvoiceTable } from "./InvoiceTable";
@@ -85,7 +85,7 @@ describe("InvoiceTable fulfillment actions", () => {
 });
 
 describe("InvoiceTable sisa tagihan (returnedAmount)", () => {
-  it("menampilkan sisa = grand − paid − returned (bukan grand − paid)", () => {
+  it("menampilkan sisa = grand ΓêÆ paid ΓêÆ returned (bukan grand ΓêÆ paid)", () => {
     const html = renderToStaticMarkup(createElement(InvoiceTable, {
       invoices: [
         invoice({
@@ -137,3 +137,4 @@ describe("InvoiceTable sisa tagihan (returnedAmount)", () => {
     expect(html).toContain(">Bayar<");
   });
 });
+

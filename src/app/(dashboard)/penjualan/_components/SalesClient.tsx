@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
@@ -55,7 +55,7 @@ const triggerSilentPrint = (url: string) => {
   iframe.src = url;
 };
 
-// ── Export dropdown (mobile header) ──
+// ΓöÇΓöÇ Export dropdown (mobile header) ΓöÇΓöÇ
 
 function ExportMenu({ invoices }: { invoices: InvoiceRow[] }) {
   const [open, setOpen] = useState(false);
@@ -198,9 +198,9 @@ export function SalesClient({
     }
   }, [searchParams]);
 
-  // ── KPI computation with sparkline trends ──
+  // ΓöÇΓöÇ KPI computation with sparkline trends ΓöÇΓöÇ
   // Basis pendapatan 2F.2: hanya nota DISERAHKAN (delivered), exclude VOID,
-  // dikurangi nilai retur. Angka operasional — P&L tetap basis GL.
+  // dikurangi nilai retur. Angka operasional ΓÇö P&L tetap basis GL.
   const { kpiCards, avgInvoice } = useMemo(() => {
     const kpis = computeSalesKpis(invoices);
     return { kpiCards: kpis, avgInvoice: kpis.avgInvoice };
@@ -213,7 +213,7 @@ export function SalesClient({
         <CompactHeader
           title="Penjualan & Pesanan"
           stage="sales"
-          description={`${kpiCards.paidCount} nota lunas · ${kpiCards.unpaidCount} nota tempo`}
+          description="Pantau pesanan, pembayaran, dan fulfillment dari satu tabel operasional."
           signal={{
             label: "Status",
             value: kpiCards.unpaidCount > 0
@@ -577,7 +577,7 @@ export function SalesClient({
           if (!isSubmitting) setDrawerOpen(open);
         }}
         title="Terbitkan Nota Baru"
-        description="Tambah item → atur harga → pilih status Lunas atau Tempo."
+        description="Tambah item ΓåÆ atur harga ΓåÆ pilih status Lunas atau Tempo."
         size="xl"
         submitButton={
           <Button
@@ -688,3 +688,4 @@ export function SalesClient({
     </>
   );
 }
+

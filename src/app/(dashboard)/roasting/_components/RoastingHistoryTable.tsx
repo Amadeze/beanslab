@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
@@ -14,8 +14,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { WorkflowState } from "@/components/ui/workflow-state";
+import type { WorkflowTone } from "@/lib/workflow";
 import { Button } from "@/components/ui/button";
+import { NextAction } from "@/components/ui/next-action";
 import { Input } from "@/components/ui/input";
 import { formatKg, formatDate } from "@/lib/format";
 import { VoidConfirmDialog } from "@/components/VoidConfirmDialog";
@@ -37,9 +39,9 @@ import { Network } from "lucide-react";
 import { useEntityPanel } from "@/components/layout/entity-panel";
 import { BatchPanelContent } from "./BatchPanelContent";
 
-// ─────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Shrinkage badge
-// ─────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 function ShrinkageBadge({ percent }: { percent: number | null }) {
   if (percent === null) {
@@ -59,9 +61,9 @@ function ShrinkageBadge({ percent }: { percent: number | null }) {
   );
 }
 
-// ─────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Cupping badge
-// ─────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 function CuppingBadge({ score }: { score: number | null }) {
   if (score === null) return null;
@@ -77,9 +79,16 @@ function CuppingBadge({ score }: { score: number | null }) {
   );
 }
 
-// ─────────────────────────────────────────────
+function roastBatchStage(status: string): { label: string; tone: WorkflowTone } {
+  if (status === "COMPLETED") return { label: "Selesai", tone: "success" };
+  if (status === "PENDING") return { label: "Proses", tone: "warning" };
+  if (status === "VOID") return { label: "Void", tone: "neutral" };
+  return { label: status, tone: "neutral" };
+}
+
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Props
-// ─────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 interface RoastingHistoryTableProps {
   batches: ParentRoastingBatchRow[];
@@ -88,9 +97,9 @@ interface RoastingHistoryTableProps {
   onStartRoasting?: () => void;
 }
 
-// ─────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Component
-// ─────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 export function RoastingHistoryTable({ batches, machineOptions, locationOptions, onStartRoasting }: RoastingHistoryTableProps) {
   const { show } = useEntityPanel();
@@ -314,7 +323,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
                   {formatDate(b.createdAt)}
                 </TableCell>
                 <TableCell className="text-center">
-                  <StatusBadge status={b.status} />
+                  <WorkflowState {...roastBatchStage(b.status)} />
                 </TableCell>
                 <TableCell>
                   {b.status === "PENDING" ? (
@@ -338,14 +347,23 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
                 </TableCell>
                 <TableCell className="text-center">
                   {b.status === "COMPLETED" && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600 rounded-card"
-                      onClick={() => setVoidTarget(b)}
-                    >
-                      Void
-                    </Button>
+                    <>
+                      <NextAction
+                        label="Cup"
+                        tone="roasting"
+                        href={`/cupping?batchId=${b.id}`}
+                        size="sm"
+                        className="h-7 px-2"
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="ml-1 h-7 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600 rounded-card"
+                        onClick={() => setVoidTarget(b)}
+                      >
+                        Void
+                      </Button>
+                    </>
                   )}
                   {b.status === "PENDING" && (
                     <>
@@ -426,7 +444,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
                   >
                     {b.code}
                   </Link>
-                  <span className="text-xs text-ink-tertiary">•</span>
+                  <span className="text-xs text-ink-tertiary">ΓÇó</span>
                   <span className="text-xs uppercase font-bold text-ink-tertiary">{b.inputProductName}</span>
                 </div>
               </div>
@@ -439,7 +457,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
             <div className="flex justify-between items-end mt-2 pt-2 border-t border-border">
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
-                  <StatusBadge status={b.status} />
+                  <WorkflowState {...roastBatchStage(b.status)} />
                   <ShrinkageBadge percent={b.totalShrinkagePercent} />
                   <CuppingBadge score={b.cuppingScore ?? null} />
                 </div>
@@ -447,9 +465,18 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
               </div>
               <div className="flex items-center gap-1.5">
                 {b.status === "COMPLETED" && (
-                  <Button size="sm" variant="ghost" onClick={() => setVoidTarget(b)} className="h-9 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600 rounded-card">
-                    Void
-                  </Button>
+                  <>
+                    <NextAction
+                      label="Cup"
+                      tone="roasting"
+                      href={`/cupping?batchId=${b.id}`}
+                      size="sm"
+                      className="h-9 px-2.5 uppercase"
+                    />
+                    <Button size="sm" variant="ghost" onClick={() => setVoidTarget(b)} className="h-9 px-2.5 text-[11px] font-bold uppercase text-red-500 hover:bg-red-50 hover:text-red-600 rounded-card">
+                      Void
+                    </Button>
+                  </>
                 )}
                 {b.status === "PENDING" && (
                   <>
@@ -547,7 +574,7 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
                   >
                     <span className="min-w-0">
                       <strong className="block truncate text-sm text-ink">{profile.title}</strong>
-                      <small className="text-xs text-ink-tertiary">{profile.machineName}{profile.duration ? ` · ${Math.round(profile.duration / 60)} menit` : ""}</small>
+                      <small className="text-xs text-ink-tertiary">{profile.machineName}{profile.duration ? ` ┬╖ ${Math.round(profile.duration / 60)} menit` : ""}</small>
                     </span>
                     <span className="ml-3 shrink-0 text-xs font-semibold uppercase text-ink-tertiary">
                       {incompatible ? "Mesin berbeda" : profile.id === referenceTarget.referenceProfile?.id ? "Terpilih" : "Pilih"}
@@ -699,3 +726,4 @@ export function RoastingHistoryTable({ batches, machineOptions, locationOptions,
     </>
   );
 }
+

@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { appendLedger } from "@/lib/stock";
@@ -84,7 +84,7 @@ export type MachineOption = {
 
 // Read-only destination projection for Roasting (OPERATOR-accessible).
 // Mirrors resolveOutputLocationInTx's canonical resolution order so the UI
-// default matches the server default: isDefault desc → createdAt asc, only
+// default matches the server default: isDefault desc ΓåÆ createdAt asc, only
 // active non-system locations of the current tenant.
 export type RoastingLocationOption = InventoryLocationOption;
 
@@ -208,6 +208,7 @@ export type CreateParentRoastingBatchInput = {
   machineId?: string;
   referenceProfileId?: string;
   destinationLocationId?: string | null;
+  lotId?: string;
 };
 
 const CreateParentRoastingBatchSchema = z.object({
@@ -226,6 +227,7 @@ const CreateParentRoastingBatchSchema = z.object({
   machineId: z.string().optional(),
   referenceProfileId: z.string().optional(),
   destinationLocationId: z.string().optional().nullable(),
+  lotId: z.string().optional(),
 });
 
 export type RoastingActionResult =
@@ -446,9 +448,9 @@ async function fetchBatchHistory(): Promise<ParentRoastingBatchRow[]> {
   }
 
   return batches.map((b) => {
-    // Rata-rata nilai cupping batch ini, diskalakan ke 0–100 (badge memakai
-    // ambang SCA 80/85; mean mentah hanya 0–10 sehingga selalu jatuh di band
-    // terendah — bug lama).
+    // Rata-rata nilai cupping batch ini, diskalakan ke 0ΓÇô100 (badge memakai
+    // ambang SCA 80/85; mean mentah hanya 0ΓÇô10 sehingga selalu jatuh di band
+    // terendah ΓÇö bug lama).
     let cuppingScore = null;
     if (b.cuppingSessions && b.cuppingSessions.length > 0) {
       const allScores = b.cuppingSessions.flatMap(s => s.scores);
@@ -935,7 +937,7 @@ export async function createParentRoastingBatch(
         }
       }
 
-      await reserveRoastMaterialsInTx(tx, { tenantId, userId, batchId: batch.id });
+      await reserveRoastMaterialsInTx(tx, { tenantId, userId, batchId: batch.id, preferredLotId: parsed.lotId ?? null });
       await chargeRoastMaterialsInTx(tx, { tenantId, userId, batchId: batch.id });
 
       if (parsed.mode === "MANUAL") {
@@ -1138,7 +1140,7 @@ export async function voidParentRoastingBatch(
         }
       }
 
-      // Phase 2D.2A — lot hasil roasting di-void tidak boleh menampakkan
+      // Phase 2D.2A ΓÇö lot hasil roasting di-void tidak boleh menampakkan
       // penempatan hantu; stok fisik kembali ke lot (unplaced) bukan lokasi.
       if (outputLotIds.length > 0) {
         await tx.lotPlacement.updateMany({
@@ -1237,7 +1239,7 @@ export async function linkRoastToBatch(
       return { success: false, error: "Roast profile tidak ditemukan." };
     }
 
-    // Link roast to batch — create a new ChildRoastingBatch for this roast
+    // Link roast to batch ΓÇö create a new ChildRoastingBatch for this roast
     await tenantPrisma.$transaction(async (tx) => {
       // Create a ChildRoastingBatch for this roast session
       await tx.childRoastingBatch.create({
@@ -1433,7 +1435,7 @@ export async function getTenantRoastLevels(): Promise<TenantRoastLevelRow[]> {
 /**
  * AI deterministik: jadikan satu roast nyata sebagai profil referensi.
  * Target profil (charge/drop temp, FC start/end, dev%) diturunkan langsung
- * dari kurva roast — bukan tebakan manual operator.
+ * dari kurva roast ΓÇö bukan tebakan manual operator.
  */
 export async function createProfileFromRoast(
   roastId: string,
@@ -1463,7 +1465,7 @@ export async function createProfileFromRoast(
     if (!isCloneableRoast(roast)) {
       return {
         success: false,
-        error: "Roast ini belum punya suhu charge & drop — tidak bisa diturunkan menjadi profil.",
+        error: "Roast ini belum punya suhu charge & drop ΓÇö tidak bisa diturunkan menjadi profil.",
       };
     }
 
@@ -1475,7 +1477,7 @@ export async function createProfileFromRoast(
         tenantId,
         name: baseName,
         machineId: roast.machineId,
-        roastLevel: "MEDIUM", // netral — operator bisa sesuaikan setelahnya
+        roastLevel: "MEDIUM", // netral ΓÇö operator bisa sesuaikan setelahnya
         beanOrigin: null,
         chargeTemp: targets.chargeTemp,
         targetFirstCrackStart: targets.targetFirstCrackStart,
@@ -1865,3 +1867,4 @@ export async function deleteTenantRoastLevel(
     };
   }
 }
+

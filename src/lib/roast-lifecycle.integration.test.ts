@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
@@ -28,7 +28,7 @@ type Fixture = {
   lotIds: string[];
 };
 
-suite("roast lifecycle — real PostgreSQL (TEST_DATABASE_URL)", () => {
+suite("roast lifecycle ΓÇö real PostgreSQL (TEST_DATABASE_URL)", () => {
   let client: PrismaClient;
   let pool: Pool;
   const tenantIds: string[] = [];
@@ -360,3 +360,4 @@ suite("roast lifecycle — real PostgreSQL (TEST_DATABASE_URL)", () => {
     expect(scrapBatch?.lifecycleStatus).toBe("ABORTED");
   });
 });
+

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import type { CuppingCategory } from "@prisma/client";
 import { computeScaTotal, scaGrade } from "./cupping-intelligence";
 
@@ -55,3 +55,4 @@ describe("scaGrade", () => {
     expect(scaGrade(79.75)).toBe("BELOW_SPECIALTY");
   });
 });
+
