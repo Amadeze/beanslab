@@ -419,17 +419,22 @@ export function AppShellV2({
       {/* Kolom utama */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Strip atas tipis — compact di mobile */}
-        <header className="hidden">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border/70 bg-surface/80 px-3 backdrop-blur-sm md:h-12 md:gap-3 md:px-4 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3 flex-1">
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
-              className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary md:hidden"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary md:hidden"
               aria-label="Buka menu"
             >
               <Menu size={16} />
             </button>
-            <p className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-ink-secondary">
+            
+            {/* Target untuk PageHeader Portal */}
+            <div id="app-top-bar-portal" className="flex-1 min-w-0" />
+            
+            {/* Fallback text */}
+            <p id="app-top-bar-fallback" className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-ink-secondary hidden">
               {activeSection ? `${activeSection.label} / ${activeItem?.label ?? ""}` : "roastd.id"}
             </p>
           </div>

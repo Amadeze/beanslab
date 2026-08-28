@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
@@ -100,11 +101,18 @@ export function PageHeader({
   // Check if mobileActions (ReactNode) is provided for backward compat
   const hasMobileActions = mobileActions !== undefined && mobileActions !== null;
 
-  return (
-    <header data-testid="page-header" className="shrink-0">
+  const [portalNode, setPortalNode] = useState<Element | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    setPortalNode(document.getElementById("app-top-bar-portal"));
+  }, []);
+
+  const content = (
+    <div data-testid="page-header" className="shrink-0">
       <div className={cn(
         "flex items-center justify-between gap-2 flex-wrap",
-        compact ? "px-2 py-1.5 md:px-3 md:py-2" : "px-3 py-2 md:px-4 md:py-2.5"
+        compact ? "py-1 w-full" : "py-1.5 w-full"
       )}>
         {/* Left: ContextStats OR Breadcrumbs + Title + Signal */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -259,8 +267,19 @@ export function PageHeader({
           {description}
         </p>
       )}
-    </header>
+    </div>
   );
+
+  if (portalNode) {
+    return createPortal(content, portalNode);
+  }
+
+  if (!mounted) {
+    return <header data-testid="page-header" className="shrink-0 hidden">{content}</header>;
+  }
+
+  // Fallback for SSR or if portal not found
+  return <header data-testid="page-header" className="shrink-0">{content}</header>;
 }
 
 export function PageHeaderSkeleton({ stage = false }: { stage?: boolean }) {
@@ -281,3 +300,4 @@ export function PageHeaderSkeleton({ stage = false }: { stage?: boolean }) {
     </div>
   );
 }
+
