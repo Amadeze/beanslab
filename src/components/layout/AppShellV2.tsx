@@ -419,7 +419,7 @@ export function AppShellV2({
       {/* Kolom utama */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Strip atas tipis — compact di mobile */}
-        <header className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border/70 bg-surface/80 px-3 backdrop-blur-sm md:h-12 md:gap-3 md:px-4 sm:px-5">
+        <header className="flex min-h-[40px] md:min-h-[48px] py-1 md:py-1.5 shrink-0 items-center justify-between gap-2 border-b border-border/70 bg-surface/80 px-3 backdrop-blur-sm md:gap-3 md:px-4 sm:px-5">
           <div className="flex min-w-0 items-center gap-3 flex-1">
             <button
               type="button"

@@ -114,11 +114,32 @@ export function PageHeader({
         "flex items-center justify-between gap-2 flex-wrap",
         compact ? "py-1 w-full" : "py-1.5 w-full"
       )}>
-        {/* Left: ContextStats OR Breadcrumbs + Title + Signal */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        {/* Left: Title + Signal + ContextStats/Breadcrumbs */}
+        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1 flex-wrap">
+          <h1 className="truncate font-heading text-base md:text-lg font-bold leading-tight tracking-[-0.03em] text-foreground min-w-[50px]">
+            {title}
+          </h1>
+
+          {/* Signal badge next to title */}
+          {signalToUse && (
+            <span className={cn(
+              "shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.1em]",
+              signalToUse.tone === "critical" ? "bg-[var(--status-danger)]/10 text-[var(--status-danger)] border border-[var(--status-danger)]/30" :
+              signalToUse.tone === "ready" ? "bg-[var(--status-success)]/10 text-[var(--status-success)] border border-[var(--status-success)]/30" :
+              "bg-surface-sunken text-ink-secondary border border-border"
+            )}>
+              {signalToUse.label} {signalToUse.value}
+            </span>
+          )}
+
+          {/* Vertical divider if there are stats/breadcrumbs */}
+          {((contextStats && contextStats.length > 0) || (!compact && (breadcrumbs?.length || showStage))) && (
+            <span className="hidden sm:inline text-border font-light">|</span>
+          )}
+
           {contextStats && contextStats.length > 0 ? (
-            // Show contextual stats instead of breadcrumbs/stage
-            <div className="flex items-center gap-2 flex-wrap">
+            // Show contextual stats
+            <div className="flex items-center gap-1.5 flex-wrap">
               {contextStats.map((stat, i) => (
                 <span
                   key={i}
@@ -136,7 +157,7 @@ export function PageHeader({
               ))}
             </div>
           ) : (
-            <>
+            <div className="flex items-center gap-1.5 flex-wrap">
               {breadcrumbs && breadcrumbs.length > 0 && !compact && (
                 <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[11px] font-medium text-ink-secondary flex-shrink-0">
                   {breadcrumbs.slice(0, 2).map((crumb, index) => {
@@ -189,23 +210,7 @@ export function PageHeader({
                   {eyebrow}
                 </span>
               )}
-            </>
-          )}
-
-          <h1 className="truncate font-heading text-[clamp(1.25rem,4vw,1.75rem)] font-bold leading-none tracking-[-0.03em] text-foreground">
-            {title}
-          </h1>
-
-          {/* Signal badge next to title */}
-          {signalToUse && (
-            <span className={cn(
-              "shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.1em]",
-              signalToUse.tone === "critical" ? "bg-[var(--status-danger)]/10 text-[var(--status-danger)] border border-[var(--status-danger)]/30" :
-              signalToUse.tone === "ready" ? "bg-[var(--status-success)]/10 text-[var(--status-success)] border border-[var(--status-success)]/30" :
-              "bg-surface-sunken text-ink-secondary border border-border"
-            )}>
-              {signalToUse.label} {signalToUse.value}
-            </span>
+            </div>
           )}
 
           {/* Description as subtitle */}
@@ -300,4 +305,6 @@ export function PageHeaderSkeleton({ stage = false }: { stage?: boolean }) {
     </div>
   );
 }
+
+
 
