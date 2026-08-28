@@ -4,13 +4,13 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader, type ContextStat, type HeaderAction } from "@/components/layout/PageHeader";
 
 interface SpeedDialItem {
   label: string;
   icon: React.ReactNode;
   onClick: () => void;
-  variant?: "primary" | "secondary";
+  tone?: "primary" | "secondary" | "danger" | "warning";
 }
 
 interface MobileFabAction {
@@ -23,7 +23,7 @@ interface MobileFabAction {
 interface StandardPageLayoutProps {
   title: string;
   description?: string;
-  actionButton?: React.ReactNode;
+  actionButton?: React.ReactNode | HeaderAction[];
   mobileFabAction?: MobileFabAction;
   mobileSpeedDialItems?: SpeedDialItem[];
   mobileHeaderActions?: React.ReactNode;
@@ -32,6 +32,7 @@ interface StandardPageLayoutProps {
   stage?: "inventory" | "roasting" | "production" | "sales" | "finance";
   compact?: boolean;
   showHeader?: boolean;
+  contextStats?: ContextStat[];
 }
 
 export function StandardPageLayout({
@@ -46,6 +47,7 @@ export function StandardPageLayout({
   stage,
   compact = false,
   showHeader = true,
+  contextStats,
 }: StandardPageLayoutProps) {
   const [speedDialOpen, setSpeedDialOpen] = useState(false);
   const fabRef = useRef<HTMLButtonElement>(null);
@@ -150,6 +152,7 @@ export function StandardPageLayout({
             mobileActions={mobileHeaderActions}
             stage={stage}
             compact={compact}
+            contextStats={contextStats}
           />
         )}
 

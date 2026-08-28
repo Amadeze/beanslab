@@ -425,7 +425,6 @@ export function InventoryClient({
   const [pkgDrawerOpen, setPkgDrawerOpen] = useState(false);
   const [supDrawerOpen, setSupDrawerOpen] = useState(false);
   const [adjDrawerOpen, setAdjDrawerOpen] = useState(false);
-  const [barangDatangOpen, setBarangDatangOpen] = useState(false);
   const [poDrawerOpen, setPoDrawerOpen] = useState(false);
   const [poDetailOpen, setPoDetailOpen] = useState(false);
   const [receiptDrawerOpen, setReceiptDrawerOpen] = useState(false);
@@ -714,16 +713,59 @@ export function InventoryClient({
       description="Pembelian, penerimaan, posisi stok, supplier, dan seluruh jejak pergerakannya"
       stage="inventory"
       compact
-      showHeader={false}
+      showHeader={true}
+      actionButton={primaryAction ? [{
+        label: primaryAction.label,
+        icon: primaryAction.icon,
+        onClick: () => {
+          if (activeView === "stock") {
+            switch(activeCategory) {
+              case "gb": return setGbDrawerOpen(true);
+              case "rb": return setRbDrawerOpen(true);
+              case "pkg": return setPkgDrawerOpen(true);
+              case "supply": return setSupDrawerOpen(true);
+              default: return setGbDrawerOpen(true);
+            }
+          } else {
+            primaryAction.onClick();
+          }
+        },
+        variant: "primary" as const,
+      }] : []}
+      contextStats={[
+        { label: "Total Item", value: gbStocks.length + rbStocks.length + fgStocks.length + supplyStocks.length },
+        { label: "Habis", value: stockMetrics.outOfStockCount, tone: stockMetrics.outOfStockCount > 0 ? "critical" : "neutral" },
+        { label: "Perlu Pesan", value: stockMetrics.needsOrderCount, tone: stockMetrics.needsOrderCount > 0 ? "critical" : "neutral" },
+      ]}
       mobileFabAction={primaryAction ? {
         label: primaryAction.label,
         icon: primaryAction.icon,
-        onClick: primaryAction.onClick,
+        onClick: () => {
+          if (activeView === "stock") {
+            switch(activeCategory) {
+              case "gb": return setGbDrawerOpen(true);
+              case "rb": return setRbDrawerOpen(true);
+              case "pkg": return setPkgDrawerOpen(true);
+              case "supply": return setSupDrawerOpen(true);
+              default: return setGbDrawerOpen(true);
+            }
+          } else {
+            primaryAction.onClick();
+          }
+        },
         "aria-label": primaryAction.label,
       } : undefined}
       mobileSpeedDialItems={
         activeView === "stock" ? [
-          { label: "Barang Datang", icon: <Plus size={17} />, onClick: () => setBarangDatangOpen(true), variant: "primary" as const },
+          { label: "Barang Datang", icon: <Plus size={17} />, onClick: () => {
+            switch(activeCategory) {
+              case "gb": return setGbDrawerOpen(true);
+              case "rb": return setRbDrawerOpen(true);
+              case "pkg": return setPkgDrawerOpen(true);
+              case "supply": return setSupDrawerOpen(true);
+              default: return setGbDrawerOpen(true);
+            }
+          }, variant: "primary" as const },
           ...(poSuggestions.length > 0 ? [{ label: "Saran PO", icon: <ClipboardList size={17} />, onClick: () => setPoDrawerOpen(true), variant: "secondary" as const }] : []),
           { label: "Penyesuaian Stok", icon: <Settings2 size={17} />, onClick: () => setAdjDrawerOpen(true) },
         ] : activeView === "po" ? [
@@ -733,25 +775,6 @@ export function InventoryClient({
         ] : []
       }
     >
-      <PageHeader
-        title="Pasokan & Stok"
-        description="Pembelian, penerimaan, posisi stok, supplier, dan seluruh jejak pergerakannya"
-        stage="inventory"
-        compact
-        actions={primaryAction ? [{
-          label: primaryAction.label,
-          icon: primaryAction.icon,
-          onClick: primaryAction.onClick,
-          variant: "primary" as const,
-        }] : []}
-        metric={stockMetrics.totalValue > 0 ? { label: "Nilai Stok", value: formatRupiah(stockMetrics.totalValue) } : undefined}
-        contextStats={[
-          { label: "Total Item", value: gbStocks.length + rbStocks.length + fgStocks.length + supplyStocks.length },
-          { label: "Nilai Stok", value: formatRupiah(stockMetrics.totalValue) },
-          { label: "Habis", value: stockMetrics.outOfStockCount, tone: stockMetrics.outOfStockCount > 0 ? "critical" : "neutral" },
-          { label: "Perlu Pesan", value: stockMetrics.needsOrderCount, tone: stockMetrics.needsOrderCount > 0 ? "critical" : "neutral" },
-        ]}
-      />
       <div className="flex flex-col gap-2 md:gap-3">
         <WorkspaceNav kind="supply" />
         <div className="relative z-10">
@@ -766,7 +789,15 @@ export function InventoryClient({
               metricFilter={metricParam}
               lotsByProduct={lotsByProduct}
               supplyLotsByItem={supplyLotsByItem}
-              onEmptyAction={() => setBarangDatangOpen(true)}
+              onEmptyAction={() => {
+                switch(activeCategory) {
+                  case "gb": return setGbDrawerOpen(true);
+                  case "rb": return setRbDrawerOpen(true);
+                  case "pkg": return setPkgDrawerOpen(true);
+                  case "supply": return setSupDrawerOpen(true);
+                  default: return setGbDrawerOpen(true);
+                }
+              }}
             />
           )}
           {activeView === "po" && (

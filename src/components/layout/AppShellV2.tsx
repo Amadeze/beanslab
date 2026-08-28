@@ -33,14 +33,18 @@ import type { PlanTier } from "@/lib/plans";
 const ALL_NAV_ITEMS = APP_NAV_SECTIONS.flatMap((section) => section.items);
 const MOBILE_PRIMARY_HREFS = ["/dashboard", "/inventory", "/kasir", "/roasting"];
 
-// â”€â”€ Rail (ikon selalu bersama teks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ––– Rail (ikon selalu bersama teks) –––––––––––––––––––––––––––––––––––––––––
 
 function Rail({
   userRole,
   subscriptionTier,
+  panelOpen,
+  togglePanel,
 }: {
   userRole: string;
   subscriptionTier: PlanTier;
+  panelOpen: boolean;
+  togglePanel: () => void;
 }) {
   const pathname = usePathname();
   const visibleItems = ALL_NAV_ITEMS.filter((item) =>
@@ -96,6 +100,15 @@ function Rail({
           <Search size={16} />
           <span className="text-[8.5px] font-semibold leading-none">Cari</span>
         </button>
+        <button
+          type="button"
+          onClick={togglePanel}
+          title={panelOpen ? "Sembunyikan panel konteks" : "Tampilkan panel konteks"}
+          className="flex w-full flex-col items-center gap-0.5 rounded-lg py-1.5 text-white/45 transition-colors hover:text-white/85"
+        >
+          {panelOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+          <span className="text-[8.5px] font-semibold leading-none">Panel</span>
+        </button>
         <form action={logoutAction} className="w-full">
           <button
             type="submit"
@@ -103,7 +116,7 @@ function Rail({
             title="Keluar"
             className="mx-auto flex w-full flex-col items-center gap-0.5 rounded-lg py-1.5 text-white/35 transition-colors hover:bg-[var(--stage-roasting)]/10 hover:text-[var(--stage-system-soft)]"
           >
-            <LogOut size={15} />
+            <LogOut size={16} />
             <span className="text-[8.5px] font-semibold leading-none">Keluar</span>
           </button>
         </form>
@@ -307,30 +320,31 @@ function MobileDock({
 }
 
 // â”€â”€ Shell utama â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——— Shell utama ——————————————————————————————————————————————————————
 
 export function AppShellV2({
   children,
   userRole,
   subscriptionTier,
-  pendingPaymentReviews,
+  pendingPaymentReviews = 0,
   lowStockCount = 0,
   unfulfilledOrders = 0,
 }: {
   children: React.ReactNode;
   userRole: string;
   subscriptionTier: PlanTier;
-  pendingPaymentReviews: number;
+  pendingPaymentReviews?: number;
   lowStockCount?: number;
   unfulfilledOrders?: number;
 }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => setIsMobileMenuOpen(false), [pathname]);
   useEffect(() => {
     const saved = window.localStorage.getItem("ros-context-panel");
-    if (saved === "closed") setPanelOpen(false);
+    if (saved === "open") setPanelOpen(true);
   }, []);
   const togglePanel = () => {
     setPanelOpen((v) => {
@@ -405,7 +419,7 @@ export function AppShellV2({
       {/* Kolom utama */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Strip atas tipis — compact di mobile */}
-        <header className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border/70 bg-surface/80 px-3 backdrop-blur-sm md:h-12 md:gap-3 md:px-4 sm:px-5">
+        <header className="hidden">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -423,12 +437,10 @@ export function AppShellV2({
             <button
               type="button"
               onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
-              className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-medium text-ink-secondary transition-colors hover:border-primary/40 hover:text-foreground"
-              aria-label="Cari halaman (Ctrl K)"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary transition-colors hover:text-foreground"
+              aria-label="Cari halaman"
             >
-              <Search size={12} />
-              <span className="hidden sm:inline">Cari…</span>
-              <kbd className="rounded border border-border px-1 font-mono text-[9px]">⌘K</kbd>
+              <Search size={15} />
             </button>
             <button
               type="button"
