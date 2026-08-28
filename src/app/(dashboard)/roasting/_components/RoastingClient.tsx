@@ -98,6 +98,12 @@ export function RoastingClient({
         stage="roasting"
         compact
         actions={headerActions}
+        contextStats={[
+          { label: "Batch Pending", value: batches.filter(b => b.status === "PENDING").length },
+          { label: "Batch Selesai", value: batches.filter(b => b.status === "COMPLETED").length },
+          { label: "Kg Masuk", value: batches.reduce((sum, b) => sum + b.targetWeightKg, 0).toFixed(1) },
+          { label: "Kg Keluar", value: batches.filter(b => b.status === "COMPLETED").reduce((sum, b) => sum + (b.actualOutputKg || 0), 0).toFixed(1) },
+        ]}
       />
       <div className="flex flex-col gap-2 md:gap-3">
         <WorkspaceNav kind="roastery" />

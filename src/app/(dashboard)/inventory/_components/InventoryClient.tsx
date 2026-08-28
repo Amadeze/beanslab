@@ -745,6 +745,12 @@ export function InventoryClient({
           variant: "primary" as const,
         }] : []}
         metric={stockMetrics.totalValue > 0 ? { label: "Nilai Stok", value: formatRupiah(stockMetrics.totalValue) } : undefined}
+        contextStats={[
+          { label: "Total Item", value: gbStocks.length + rbStocks.length + fgStocks.length + supplyStocks.length },
+          { label: "Nilai Stok", value: formatRupiah(stockMetrics.totalValue) },
+          { label: "Habis", value: stockMetrics.outOfStockCount, tone: stockMetrics.outOfStockCount > 0 ? "critical" : "neutral" },
+          { label: "Perlu Pesan", value: stockMetrics.needsOrderCount, tone: stockMetrics.needsOrderCount > 0 ? "critical" : "neutral" },
+        ]}
       />
       <div className="flex flex-col gap-2 md:gap-3">
         <WorkspaceNav kind="supply" />

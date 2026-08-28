@@ -31,6 +31,13 @@ export interface HeaderMetric {
   value: string | number;
 }
 
+export interface ContextStat {
+  label: string;
+  value: string | number;
+  tone?: "critical" | "ready" | "neutral";
+  icon?: React.ReactNode;
+}
+
 export interface Breadcrumb {
   label: string;
   href?: string;
@@ -56,6 +63,8 @@ interface PageHeaderProps {
   compact?: boolean;
   /** Next step link (backward compat) */
   next?: { label: string; href: string };
+  /** Contextual stats to show instead of breadcrumbs/stage */
+  contextStats?: ContextStat[];
 }
 
 export function PageHeader({
@@ -71,6 +80,7 @@ export function PageHeader({
   metrics,
   breadcrumbs,
   compact = false,
+  contextStats,
 }: PageHeaderProps) {
   const activeStage = stage ?? titleStages[title];
   const activeIndex = operatingStages.findIndex((item) => item.id === activeStage);
@@ -96,59 +106,82 @@ export function PageHeader({
         "flex items-center justify-between gap-2 flex-wrap",
         compact ? "px-2 py-1.5 md:px-3 md:py-2" : "px-3 py-2 md:px-4 md:py-2.5"
       )}>
-        {/* Left: Breadcrumbs + Title + Signal */}
+        {/* Left: ContextStats OR Breadcrumbs + Title + Signal */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          {breadcrumbs && breadcrumbs.length > 0 && !compact && (
-            <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[11px] font-medium text-ink-secondary flex-shrink-0">
-              {breadcrumbs.slice(0, 2).map((crumb, index) => {
-                const isLast = index === breadcrumbs.length - 1 || index === 1;
-                return (
-                  <span key={crumb.label} className="flex items-center gap-1.5 truncate">
-                    {crumb.href && !isLast ? (
-                      <Link href={crumb.href} className="transition-colors hover:text-foreground truncate max-w-[80px]">
-                        {crumb.label}
-                      </Link>
-                    ) : (
-                      <span
-                        className={isLast ? "font-semibold text-ink-secondary truncate max-w-[100px]" : "truncate max-w-[60px]"}
-                        aria-current={isLast ? "page" : undefined}
-                      >
-                        {crumb.label}
-                      </span>
-                    )}
-                    {!isLast && <span aria-hidden className="text-ink-secondary/50">/</span>}
-                  </span>
-                );
-              })}
-              {breadcrumbs.length > 2 && (
-                <span className="text-ink-tertiary">…</span>
-              )}
-            </nav>
-          )}
-
-          {/* Stage badge */}
-          {showStage && activeIndex >= 0 && (
-            <span className={cn(
-              "inline-flex items-center gap-1 font-mono text-[8px] font-bold uppercase tracking-[0.2em] rounded-full px-1.5 py-0.5 shrink-0",
-              headerTone?.eyebrow ?? "text-copper bg-copper-soft"
-            )}>
-              {operatingStages.slice(0, activeIndex + 1).map((s, i) => (
+          {contextStats && contextStats.length > 0 ? (
+            // Show contextual stats instead of breadcrumbs/stage
+            <div className="flex items-center gap-2 flex-wrap">
+              {contextStats.map((stat, i) => (
                 <span
-                  key={s.id}
-                  className={cn("rounded-full", i === activeIndex
-                    ? "size-1.5 bg-current"
-                    : "size-1.5 bg-ink-tertiary")}
-                />
+                  key={i}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold leading-none",
+                    stat.tone === "critical" ? "bg-[var(--status-danger)]/10 text-[var(--status-danger)] border border-[var(--status-danger)]/30" :
+                    stat.tone === "ready" ? "bg-[var(--status-success)]/10 text-[var(--status-success)] border border-[var(--status-success)]/30" :
+                    "bg-surface-sunken text-ink-secondary border border-border"
+                  )}
+                >
+                  {stat.icon && <span>{stat.icon}</span>}
+                  <span className="text-ink-secondary">{stat.label}</span>
+                  <span className="font-heading font-bold tabular-nums text-foreground">{stat.value}</span>
+                </span>
               ))}
-              <span className="ml-0.5">T{activeIndex + 1}</span>
-            </span>
-          )}
+            </div>
+          ) : (
+            <>
+              {breadcrumbs && breadcrumbs.length > 0 && !compact && (
+                <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[11px] font-medium text-ink-secondary flex-shrink-0">
+                  {breadcrumbs.slice(0, 2).map((crumb, index) => {
+                    const isLast = index === breadcrumbs.length - 1 || index === 1;
+                    return (
+                      <span key={crumb.label} className="flex items-center gap-1.5 truncate">
+                        {crumb.href && !isLast ? (
+                          <Link href={crumb.href} className="transition-colors hover:text-foreground truncate max-w-[80px]">
+                            {crumb.label}
+                          </Link>
+                        ) : (
+                          <span
+                            className={isLast ? "font-semibold text-ink-secondary truncate max-w-[100px]" : "truncate max-w-[60px]"}
+                            aria-current={isLast ? "page" : undefined}
+                          >
+                            {crumb.label}
+                          </span>
+                        )}
+                        {!isLast && <span aria-hidden className="text-ink-secondary/50">/</span>}
+                      </span>
+                    );
+                  })}
+                  {breadcrumbs.length > 2 && (
+                    <span className="text-ink-tertiary">…</span>
+                  )}
+                </nav>
+              )}
 
-          {/* Eyebrow (backward compat) */}
-          {eyebrow && (
-            <span className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-copper">
-              {eyebrow}
-            </span>
+              {/* Stage badge */}
+              {showStage && activeIndex >= 0 && (
+                <span className={cn(
+                  "inline-flex items-center gap-1 font-mono text-[8px] font-bold uppercase tracking-[0.2em] rounded-full px-1.5 py-0.5 shrink-0",
+                  headerTone?.eyebrow ?? "text-copper bg-copper-soft"
+                )}>
+                  {operatingStages.slice(0, activeIndex + 1).map((s, i) => (
+                    <span
+                      key={s.id}
+                      className={cn("rounded-full", i === activeIndex
+                        ? "size-1.5 bg-current"
+                        : "size-1.5 bg-ink-tertiary")}
+                    />
+                  ))}
+                  <span className="ml-0.5">T{activeIndex + 1}</span>
+                </span>
+              )}
+
+              {/* Eyebrow (backward compat) */}
+              {eyebrow && (
+                <span className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-copper">
+                  {eyebrow}
+                </span>
+              )}
+            </>
           )}
 
           <h1 className="truncate font-heading text-[clamp(1.25rem,4vw,1.75rem)] font-bold leading-none tracking-[-0.03em] text-foreground">
@@ -228,32 +261,6 @@ export function PageHeader({
       )}
     </header>
   );
-}
-
-export interface HeaderAction {
-  label: string;
-  onClick: () => void;
-  variant?: "primary" | "secondary" | "ghost";
-  icon?: React.ReactNode;
-  mobileOnly?: boolean;
-  desktopOnly?: boolean;
-}
-
-export interface HeaderSignal {
-  label: string;
-  value: string | number;
-  tone?: "critical" | "ready" | "neutral";
-  onClick?: () => void;
-}
-
-export interface HeaderMetric {
-  label: string;
-  value: string | number;
-}
-
-export interface Breadcrumb {
-  label: string;
-  href?: string;
 }
 
 export function PageHeaderSkeleton({ stage = false }: { stage?: boolean }) {
