@@ -13,6 +13,7 @@ import { RoastingHistoryTable } from "./RoastingHistoryTable";
 import { RoastingForm } from "./RoastingForm";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import { RoastsClient } from "../roasts/_components/RoastsClient";
+import { PageHeader } from "@/components/layout/PageHeader";
 import type {
   GBStockOption,
   RBProductOption,
@@ -54,12 +55,28 @@ export function RoastingClient({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const headerActions = activeTab === "batches" ? [
+    {
+      label: "Mulai Roasting",
+      icon: <Flame size={17} />,
+      onClick: () => setDrawerOpen(true),
+      variant: "primary" as const,
+    },
+    {
+      label: "Impor Artisan",
+      icon: <Upload size={17} />,
+      onClick: () => router.push("/roasting?tab=profiles&import=1"),
+      variant: "secondary" as const,
+    },
+  ] : [];
+
   return (
     <StandardPageLayout
       title="Roasting"
       description="Batch roasting, profil hasil Artisan, dan produksi lanjutan berada dalam satu konteks kerja."
       stage="roasting"
       compact
+      showHeader={false}
       mobileFabAction={
         activeTab === "batches" ? {
           label: "Mulai Roasting",
@@ -75,6 +92,13 @@ export function RoastingClient({
         ] : undefined
       }
     >
+      <PageHeader
+        title="Roasting"
+        description="Batch roasting, profil hasil Artisan, dan produksi lanjutan berada dalam satu konteks kerja."
+        stage="roasting"
+        compact
+        actions={headerActions}
+      />
       <div className="flex flex-col gap-2 md:gap-3">
         <WorkspaceNav kind="roastery" />
         {activeTab === "batches" ? (

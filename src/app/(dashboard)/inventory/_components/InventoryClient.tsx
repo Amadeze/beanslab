@@ -21,8 +21,8 @@ import { PODetail } from "./PODetail";
 import { POForm } from "./POForm";
 import { ReceivingList } from "./ReceivingList";
 import { QuickReceivePO } from "./QuickReceivePO";
-import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { SupplierForm } from "../../master-data/_components/SupplierForm";
 import type {
   GBProductOption,
@@ -714,6 +714,7 @@ export function InventoryClient({
       description="Pembelian, penerimaan, posisi stok, supplier, dan seluruh jejak pergerakannya"
       stage="inventory"
       compact
+      showHeader={false}
       mobileFabAction={primaryAction ? {
         label: primaryAction.label,
         icon: primaryAction.icon,
@@ -732,6 +733,19 @@ export function InventoryClient({
         ] : []
       }
     >
+      <PageHeader
+        title="Pasokan & Stok"
+        description="Pembelian, penerimaan, posisi stok, supplier, dan seluruh jejak pergerakannya"
+        stage="inventory"
+        compact
+        actions={primaryAction ? [{
+          label: primaryAction.label,
+          icon: primaryAction.icon,
+          onClick: primaryAction.onClick,
+          variant: "primary" as const,
+        }] : []}
+        metric={stockMetrics.totalValue > 0 ? { label: "Nilai Stok", value: formatRupiah(stockMetrics.totalValue) } : undefined}
+      />
       <div className="flex flex-col gap-2 md:gap-3">
         <WorkspaceNav kind="supply" />
         <div className="relative z-10">

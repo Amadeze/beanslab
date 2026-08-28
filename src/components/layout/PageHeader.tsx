@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   operatingStages,
@@ -11,270 +10,250 @@ import {
   type OperatingStage,
 } from "@/components/layout/operating-stages";
 
-interface PageHeaderBreadcrumb {
+export interface HeaderAction {
+  label: string;
+  onClick: () => void;
+  variant?: "primary" | "secondary" | "ghost";
+  icon?: React.ReactNode;
+  mobileOnly?: boolean;
+  desktopOnly?: boolean;
+}
+
+export interface HeaderSignal {
+  label: string;
+  value: string | number;
+  tone?: "critical" | "ready" | "neutral";
+  onClick?: () => void;
+}
+
+export interface HeaderMetric {
+  label: string;
+  value: string | number;
+}
+
+export interface Breadcrumb {
   label: string;
   href?: string;
 }
 
-export interface PageHeaderMetric {
-  label: string;
-  value: React.ReactNode;
-  onClick?: () => void;
-  active?: boolean;
-}
-
-export interface PageHeaderSignal {
-  label: string;
-  value: React.ReactNode;
-  tone?: "critical" | "ready" | "neutral";
-  onClick?: () => void;
-  active?: boolean;
-}
+// Backward compatible types
+export type PageHeaderSignal = HeaderSignal;
+export type PageHeaderMetric = HeaderMetric;
 
 interface PageHeaderProps {
   title: string;
   description?: string;
-  actions?: React.ReactNode;
-  mobileActions?: React.ReactNode;
   stage?: OperatingStage;
+  showStage?: boolean;
   eyebrow?: string;
-  breadcrumbs?: PageHeaderBreadcrumb[];
-  /** Sinyal status modul (opsional). */
-  signal?: PageHeaderSignal;
-  /** Metrik ringkas di baris bawah judul. */
-  metrics?: PageHeaderMetric[];
-  /** Tautan tahap berikutnya. */
-  next?: { label: string; href: string };
-  /** Compact mode untuk mobile: sembunyikan description, kurangi padding */
+  signal?: HeaderSignal;
+  metric?: HeaderMetric;
+  actions?: HeaderAction[] | React.ReactNode;
+  mobileActions?: React.ReactNode;
+  metrics?: HeaderMetric[];
+  breadcrumbs?: Breadcrumb[];
+  /** Compact mode: tighter spacing, smaller text */
   compact?: boolean;
+  /** Next step link (backward compat) */
+  next?: { label: string; href: string };
 }
 
-/**
- * CanvasHeader — header halaman pada KANVAS TERANG.
- * Hierarki: eyebrow mono copper → judul tinta besar → deskripsi.
- * Tahap ditampilkan sebagai deretan titik kecil yang tenang, bukan bar gelap.
- */
 export function PageHeader({
   title,
   description,
+  stage,
+  showStage = true,
+  eyebrow,
+  signal,
+  metric,
   actions,
   mobileActions,
-  stage,
-  eyebrow,
-  breadcrumbs,
-  signal,
   metrics,
-  next,
+  breadcrumbs,
   compact = false,
 }: PageHeaderProps) {
-  const [descOpen, setDescOpen] = useState(false);
   const activeStage = stage ?? titleStages[title];
   const activeIndex = operatingStages.findIndex((item) => item.id === activeStage);
   const headerTone = activeStage ? operatingStageTones[activeStage] : undefined;
 
+  // Handle both old (ReactNode) and new (HeaderAction[]) actions format
+  const actionsArray = Array.isArray(actions) ? actions : [];
+  const desktopActions = actionsArray.filter((a) => !a.mobileOnly);
+  const mobileActionsFromArray = actionsArray.filter((a) => !a.desktopOnly);
+
+  // Backward compat: support old metrics array
+  const metricToUse = metric || (metrics && metrics[0]);
+
+  // Backward compat: support old signal format
+  const signalToUse = signal;
+
+  // Check if mobileActions (ReactNode) is provided for backward compat
+  const hasMobileActions = mobileActions !== undefined && mobileActions !== null;
+
   return (
     <header data-testid="page-header" className="shrink-0">
-      {breadcrumbs && breadcrumbs.length > 0 ? (
-        <nav aria-label="Breadcrumb" className={compact ? "pb-1" : "pb-2"}>
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-ink-secondary">
-            {breadcrumbs.map((crumb, index) => {
-              const isLast = index === breadcrumbs.length - 1;
-              return (
-                <span key={crumb.label} className="flex items-center gap-1.5">
-                  {crumb.href && !isLast ? (
-                    <Link href={crumb.href} className="transition-colors hover:text-foreground">
-                      {crumb.label}
-                    </Link>
-                  ) : (
-                    <span
-                      className={isLast ? "font-semibold text-ink-secondary" : undefined}
-                      aria-current={isLast ? "page" : undefined}
-                    >
-                      {crumb.label}
-                    </span>
-                  )}
-                  {!isLast && <span aria-hidden className="text-ink-secondary/50">/</span>}
-                </span>
-              );
-            })}
-          </div>
-        </nav>
-      ) : null}
-
       <div className={cn(
-        "flex flex-wrap items-end justify-between",
-        compact ? "gap-x-3 gap-y-1 pb-1.5 pt-0.5 md:gap-x-4 md:gap-y-2 md:pb-2" : "gap-x-6 gap-y-3 pb-4 pt-1"
+        "flex items-center justify-between gap-2 flex-wrap",
+        compact ? "px-2 py-1.5 md:px-3 md:py-2" : "px-3 py-2 md:px-4 md:py-2.5"
       )}>
-        <div className="min-w-0">
-          <p
-            className={cn(
-              "mb-1 flex items-center gap-2 font-mono text-[8px] font-bold uppercase tracking-[0.2em] md:mb-1.5 md:text-[9px]",
-              headerTone?.eyebrow ?? "text-copper",
-            )}
-          >
-            {activeIndex >= 0 ? (
-              <span className="inline-flex items-center gap-[3px]" aria-hidden>
-                {operatingStages.map((s, i) => (
-                  <span
-                    key={s.id}
-                    title={`${s.number} ${s.label}`}
-                    className={cn(
-                      "rounded-full",
-                      i === activeIndex
-                        ? "size-2 bg-current"
-                        : i < activeIndex
-                          ? "size-1.5 bg-ink-tertiary"
-                          : "size-1.5 border border-border-strong",
+        {/* Left: Breadcrumbs + Title + Signal */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {breadcrumbs && breadcrumbs.length > 0 && !compact && (
+            <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[11px] font-medium text-ink-secondary flex-shrink-0">
+              {breadcrumbs.slice(0, 2).map((crumb, index) => {
+                const isLast = index === breadcrumbs.length - 1 || index === 1;
+                return (
+                  <span key={crumb.label} className="flex items-center gap-1.5 truncate">
+                    {crumb.href && !isLast ? (
+                      <Link href={crumb.href} className="transition-colors hover:text-foreground truncate max-w-[80px]">
+                        {crumb.label}
+                      </Link>
+                    ) : (
+                      <span
+                        className={isLast ? "font-semibold text-ink-secondary truncate max-w-[100px]" : "truncate max-w-[60px]"}
+                        aria-current={isLast ? "page" : undefined}
+                      >
+                        {crumb.label}
+                      </span>
                     )}
-                  />
-                ))}
-                <span className="ml-1.5">TAHAP {activeIndex + 1}</span>
-              </span>
-            ) : null}
-            {eyebrow ?? (activeStage ? "Roastery flow" : "Workspace")}
-          </p>
-          <h1 className="truncate font-heading text-[clamp(1.35rem,5vw,2.15rem)] font-bold leading-none tracking-[-0.04em] text-foreground">
+                    {!isLast && <span aria-hidden className="text-ink-secondary/50">/</span>}
+                  </span>
+                );
+              })}
+              {breadcrumbs.length > 2 && (
+                <span className="text-ink-tertiary">…</span>
+              )}
+            </nav>
+          )}
+
+          {/* Stage badge */}
+          {showStage && activeIndex >= 0 && (
+            <span className={cn(
+              "inline-flex items-center gap-1 font-mono text-[8px] font-bold uppercase tracking-[0.2em] rounded-full px-1.5 py-0.5 shrink-0",
+              headerTone?.eyebrow ?? "text-copper bg-copper-soft"
+            )}>
+              {operatingStages.slice(0, activeIndex + 1).map((s, i) => (
+                <span
+                  key={s.id}
+                  className={cn("rounded-full", i === activeIndex
+                    ? "size-1.5 bg-current"
+                    : "size-1.5 bg-ink-tertiary")}
+                />
+              ))}
+              <span className="ml-0.5">T{activeIndex + 1}</span>
+            </span>
+          )}
+
+          {/* Eyebrow (backward compat) */}
+          {eyebrow && (
+            <span className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-copper">
+              {eyebrow}
+            </span>
+          )}
+
+          <h1 className="truncate font-heading text-[clamp(1.25rem,4vw,1.75rem)] font-bold leading-none tracking-[-0.03em] text-foreground">
             {title}
           </h1>
-          {description && !compact ? (
-            <p className="mt-2 max-w-2xl text-sm leading-5 text-ink-secondary">{description}</p>
-          ) : compact && description ? (
-            <>
-              <p className="mt-1 hidden max-w-2xl truncate text-[11px] leading-4 text-ink-secondary md:block">{description}</p>
-              <div className="md:hidden">
-                <button
-                  type="button"
-                  onClick={() => setDescOpen((v) => !v)}
-                  aria-expanded={descOpen}
-                  className="mt-1 inline-flex min-h-9 items-center gap-1 rounded-full border border-border bg-card px-3 py-2 text-[11px] font-medium leading-none text-ink-secondary shadow-sm"
-                >
-                  Info
-                  <ChevronDown size={12} className={cn("transition-transform", descOpen && "rotate-180")} />
-                </button>
-                {descOpen && (
-                  <p className="mt-1.5 max-w-2xl rounded-lg border border-border bg-surface px-2.5 py-2 text-xs leading-4 text-ink shadow-sm">
-                    {description}
-                  </p>
-                )}
-              </div>
-            </>
-          ) : null}
+
+          {/* Signal badge next to title */}
+          {signalToUse && (
+            <span className={cn(
+              "shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.1em]",
+              signalToUse.tone === "critical" ? "bg-[var(--status-danger)]/10 text-[var(--status-danger)] border border-[var(--status-danger)]/30" :
+              signalToUse.tone === "ready" ? "bg-[var(--status-success)]/10 text-[var(--status-success)] border border-[var(--status-success)]/30" :
+              "bg-surface-sunken text-ink-secondary border border-border"
+            )}>
+              {signalToUse.label} {signalToUse.value}
+            </span>
+          )}
+
+          {/* Description as subtitle */}
+          {description && (
+            <p className="hidden md:block truncate text-[11px] leading-4 text-ink-secondary max-w-[300px]" title={description}>
+              {description}
+            </p>
+          )}
         </div>
 
-        {(actions || mobileActions) && (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {actions ? (
-              <div className="hidden items-center gap-2 md:flex">{actions}</div>
-            ) : null}
-            {mobileActions ? <div className="flex items-center gap-2 md:hidden">{mobileActions}</div> : null}
-            {actions && !mobileActions ? <div className="flex items-center gap-2 md:hidden">{actions}</div> : null}
+        {/* Right: Metric + Actions */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {metricToUse && (
+            <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[10px] font-semibold leading-none">
+              <span className="text-ink-secondary">{metricToUse.label}</span>
+              <span className="font-heading font-bold tabular-nums text-foreground">{metricToUse.value}</span>
+            </span>
+          )}
+
+          {/* Desktop actions */}
+          <div className="hidden md:flex items-center gap-1">
+            {desktopActions.map((action, i) => (
+              <button
+                key={action.label}
+                type="button"
+                onClick={action.onClick}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold leading-none transition-colors min-h-9",
+                  action.variant === "primary" ? "bg-primary text-primary-foreground hover:bg-primary/90" :
+                  action.variant === "secondary" ? "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20" :
+                  "bg-card text-ink-secondary border border-border hover:bg-surface-sunken"
+                )}
+              >
+                {action.icon}
+                <span>{action.label}</span>
+              </button>
+            ))}
           </div>
-        )}
+
+          {/* Mobile: overflow menu button */}
+          <div className="md:hidden">
+            {hasMobileActions ? (
+              mobileActions
+            ) : mobileActionsFromArray.length > 0 ? (
+              <button
+                type="button"
+                className="flex min-h-9 items-center justify-center rounded-full border border-border bg-card px-3 text-ink-secondary shadow-sm"
+              >
+                <span className="text-[11px] font-medium">Aksi</span>
+              </button>
+            ) : null}
+          </div>
+        </div>
       </div>
 
-      {(signal || (metrics && metrics.length > 0) || next) && (
-        <div className={cn(
-          "mb-4 hidden flex-wrap items-center rounded-card border border-border/70 bg-card shadow-elevation-soft md:flex",
-          compact ? "gap-x-3 gap-y-1 px-3 py-1.5" : "gap-x-5 gap-y-2 px-4 py-2.5"
-        )}>
-          {signal ? (
-            <button
-              type="button"
-              onClick={signal.onClick}
-              className={cn(
-                "flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1 transition-colors sm:w-auto sm:justify-start",
-                signal.onClick && "cursor-pointer hover:bg-surface-sunken",
-                signal.active && "bg-surface-sunken ring-1 ring-border",
-              )}
-            >
-              <span className={cn(
-                "font-mono font-bold uppercase tracking-[0.16em] text-ink-secondary",
-                compact ? "text-[7px]" : "text-[8px]"
-              )}>
-                {signal.label}
-              </span>
-              <span
-                className={cn(
-                  "font-heading font-bold",
-                  compact ? "text-xs" : "text-sm",
-                  signal.tone === "critical"
-                    ? "text-[var(--status-danger)]"
-                    : signal.tone === "ready"
-                      ? headerTone?.signal ?? "text-foreground"
-                      : "text-foreground",
-                )}
-              >
-                {signal.value}
-              </span>
-            </button>
-          ) : null}
-
-          {metrics && metrics.length > 0 ? (
-            <>
-              <span className="hidden h-4 w-px bg-border sm:block" aria-hidden />
-              <div className="grid w-full min-w-0 grid-cols-4 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-4">
-                {metrics.map((metric) => {
-                  const metricContent = (
-                    <>
-                      <span className={cn(
-                        "truncate font-mono font-bold uppercase tracking-[0.12em] text-ink-secondary",
-                        compact ? "text-[6px]" : "text-[7px] sm:text-[8px]"
-                      )}>
-                        {metric.label}
-                      </span>
-                      <span className={cn(
-                        "max-w-full truncate font-heading font-bold tabular-nums text-foreground",
-                        compact ? "text-[11px]" : "text-xs"
-                      )}>
-                        {metric.value}
-                      </span>
-                    </>
-                  );
-                  if (metric.onClick) {
-                    return (
-                      <button
-                        type="button"
-                        key={metric.label}
-                        onClick={metric.onClick}
-                        aria-pressed={metric.active ?? false}
-                        className={cn(
-                          "-mx-1 flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-lg px-1 py-0.5 text-left transition-colors sm:flex-row sm:items-center sm:gap-1.5",
-                          metric.active ? "bg-surface-sunken ring-1 ring-border" : "hover:bg-surface-sunken",
-                        )}
-                      >
-                        {metricContent}
-                      </button>
-                    );
-                  }
-                  return (
-                    <div key={metric.label} className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-1.5">
-                      {metricContent}
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          ) : null}
-
-{next ? (
-            <>
-              <span className="hidden h-4 w-px bg-border sm:block" aria-hidden />
-              <Link
-                href={next.href}
-                className={cn(
-                  "ml-auto inline-flex items-center gap-1 font-bold transition-all hover:gap-2",
-                  compact ? "text-[11px]" : "text-xs",
-                  headerTone?.signal ?? "text-primary",
-                )}
-              >
-                {next.label} →
-              </Link>
-            </>
-          ) : null}
-        </div>
+      {/* Mobile description line */}
+      {description && compact && (
+        <p className="md:hidden mt-1 truncate text-[11px] leading-4 text-ink-secondary" title={description}>
+          {description}
+        </p>
       )}
     </header>
   );
+}
+
+export interface HeaderAction {
+  label: string;
+  onClick: () => void;
+  variant?: "primary" | "secondary" | "ghost";
+  icon?: React.ReactNode;
+  mobileOnly?: boolean;
+  desktopOnly?: boolean;
+}
+
+export interface HeaderSignal {
+  label: string;
+  value: string | number;
+  tone?: "critical" | "ready" | "neutral";
+  onClick?: () => void;
+}
+
+export interface HeaderMetric {
+  label: string;
+  value: string | number;
+}
+
+export interface Breadcrumb {
+  label: string;
+  href?: string;
 }
 
 export function PageHeaderSkeleton({ stage = false }: { stage?: boolean }) {
