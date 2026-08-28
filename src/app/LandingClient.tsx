@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -45,7 +45,7 @@ import { PLAN_CATALOG } from "@/lib/plans";
 import { useHydratedReducedMotion } from "@/lib/use-reduced-motion";
 import type { LandingSocialProofItem } from "./_actions/landing-social-proof";
 
-// ─── Design tokens (CSS custom properties) ────────────────────────────────────
+// â”€â”€â”€ Design tokens (CSS custom properties) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TOKENS = {
   carbon: "var(--obsidian)",
   carbonSoft: "var(--obsidian-soft)",
@@ -65,7 +65,7 @@ const TOKENS = {
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-// ─── Static data ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Static data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TRACE = [
   { id: "lot", number: "01", label: "Lot", value: "ETH-2407", icon: Boxes, color: TOKENS.green },
   { id: "roast", number: "02", label: "Roast", value: "16,7 kg", icon: Flame, color: TOKENS.copper },
@@ -77,52 +77,52 @@ const TRACE = [
 const AUTOMATIONS = [
   { label: "Green bean", before: "120 kg", after: "100 kg", color: TOKENS.green },
   { label: "Roasted bean", before: "0 kg", after: "16,7 kg", color: TOKENS.copper },
-  { label: "Susut roasting", before: "—", after: "16,5%", color: TOKENS.brass },
-  { label: "HPP batch", before: "—", after: "Rp 105.500/kg", color: TOKENS.moss },
+  { label: "Susut roasting", before: "â€”", after: "16,5%", color: TOKENS.brass },
+  { label: "HPP batch", before: "â€”", after: "Rp 105.500/kg", color: TOKENS.moss },
 ] as const;
 
 const MODULES = [
   {
     title: "Pasokan & lot",
-    description: "Owner tahu stok green bean tersisa berapa, lot mana yang harus dipakai duluan, dan nilai persediaan hari ini — dari satu penerimaan.",
+    description: "Owner tahu stok green bean tersisa berapa, lot mana yang harus dipakai duluan, dan nilai persediaan hari ini â€” dari satu penerimaan.",
     icon: Boxes,
     color: TOKENS.green,
-    meta: "FEFO · ledger · label",
+    meta: "FEFO Â· ledger Â· label",
   },
   {
     title: "Roasting & profile",
-    description: "Setiap batch punya konteks penuh: kurva .alog, susut, profile matching, dan riwayat child batch — tanpa harus buka Artisan secara terpisah.",
+    description: "Setiap batch punya konteks penuh: kurva .alog, susut, profile matching, dan riwayat child batch â€” tanpa harus buka Artisan secara terpisah.",
     icon: Flame,
     color: TOKENS.copper,
-    meta: "Studio · Artisan · .alog",
+    meta: "Studio Â· Artisan Â· .alog",
   },
   {
     title: "Produksi & packing",
     description: "Roasted bean dan kemasan berubah menjadi barang jadi. HPP dihitung otomatis dari bahan yang terpakai, bukan estimasi.",
     icon: Factory,
     color: TOKENS.brass,
-    meta: "recipe · output · HPP",
+    meta: "recipe Â· output Â· HPP",
   },
   {
     title: "Penjualan & kasir",
     description: "Nota, storefront, sample, dan pembayaran menarik dari stok dan pelanggan yang sama. Kasir tetap bisa dipakai saat koneksi tidak ideal.",
     icon: ReceiptText,
     color: TOKENS.plum,
-    meta: "invoice · POS · offline-aware",
+    meta: "invoice Â· POS Â· offline-aware",
   },
   {
     title: "Keuangan",
-    description: "Piutang, hutang supplier, pengeluaran, dan jurnal mengikuti transaksi operasional secara otomatis — bukan input manual setelah hari selesai.",
+    description: "Piutang, hutang supplier, pengeluaran, dan jurnal mengikuti transaksi operasional secara otomatis â€” bukan input manual setelah hari selesai.",
     icon: CircleDollarSign,
     color: TOKENS.moss,
-    meta: "ledger · aging · GL",
+    meta: "ledger Â· aging Â· GL",
   },
   {
     title: "Laporan keputusan",
-    description: "Daily Brief menampilkan apa yang perlu diselesaikan hari ini: lot hampir habis, piutang jatuh tempo, dan ringkasan produksi — bukan sekadar grafik.",
+    description: "Daily Brief menampilkan apa yang perlu diselesaikan hari ini: lot hampir habis, piutang jatuh tempo, dan ringkasan produksi â€” bukan sekadar grafik.",
     icon: Layers3,
     color: TOKENS.cyan,
-    meta: "daily brief · audit · export",
+    meta: "daily brief Â· audit Â· export",
   },
 ] as const;
 
@@ -142,13 +142,13 @@ const PAIN_POINTS = [
   {
     icon: HelpCircle,
     title: "Owner harus bertanya ke operator",
-    body: "\"Stok masih ada berapa?\" \"Susut tadi berapa persen?\" \"HPP batch ini sudah dihitung?\" — pertanyaan yang harusnya sudah terjawab otomatis.",
+    body: "\"Stok masih ada berapa?\" \"Susut tadi berapa persen?\" \"HPP batch ini sudah dihitung?\" â€” pertanyaan yang harusnya sudah terjawab otomatis.",
     color: TOKENS.plum,
   },
   {
     icon: Clock,
     title: "Laporan keuangan sering lag",
-    body: "Piutang, hutang, dan pengeluaran baru terhitung saat ada yang sempat memasukkannya — bukan saat transaksi terjadi.",
+    body: "Piutang, hutang, dan pengeluaran baru terhitung saat ada yang sempat memasukkannya â€” bukan saat transaksi terjadi.",
     color: TOKENS.moss,
   },
   {
@@ -192,7 +192,7 @@ const FAQS = [
   },
 ] as const;
 
-// ─── Shared primitives ────────────────────────────────────────────────────────
+// â”€â”€â”€ Shared primitives â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Reveal({
   children,
   className,
@@ -231,9 +231,9 @@ function Kicker({ children, color = TOKENS.cyan }: { children: ReactNode; color?
 function Brand({ inverse = false }: { inverse?: boolean }) {
   return (
     <span className="inline-flex items-center gap-2.5">
-      <span className="relative grid size-9 place-items-center rounded-[9px] bg-[#C6542F] text-white" aria-hidden="true">
+      <span className="relative grid size-9 place-items-center rounded-[9px] bg-[var(--copper)] text-white" aria-hidden="true">
         <Coffee className="size-4" strokeWidth={2.3} aria-hidden="true" />
-        <span className="absolute -right-1 -top-1 size-2 rounded-full bg-[#25D9E8] shadow-[0_0_12px_#25D9E8]" aria-hidden="true" />
+        <span className="absolute -right-1 -top-1 size-2 rounded-full bg-[var(--instrument)] shadow-[0_0_12px_var(--instrument)]" aria-hidden="true" />
       </span>
       <span>
         <span className="block font-heading text-[15px] font-bold leading-none tracking-[-0.04em]">
@@ -247,7 +247,7 @@ function Brand({ inverse = false }: { inverse?: boolean }) {
   );
 }
 
-// ─── Hero visual: Roastd Studio mockup ───────────────────────────────────────
+// â”€â”€â”€ Hero visual: Roastd Studio mockup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function RoastScope() {
   const reduceMotion = useHydratedReducedMotion();
   const x = useMotionValue(0);
@@ -279,26 +279,26 @@ function RoastScope() {
       initial={reduceMotion ? false : { opacity: 0, y: 28, scale: 0.975 }}
       animate={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.72, delay: 0.28, ease: EASE }}
-      className="relative overflow-hidden rounded-[18px] border border-white/14 bg-[#081014] shadow-[0_38px_100px_rgba(0,0,0,.42)]"
+      className="relative overflow-hidden rounded-[18px] border border-white/14 bg-[var(--obsidian-soft)] shadow-[0_38px_100px_rgba(0,0,0,.42)]"
     >
       <div className="instrument-grid-dark flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-5">
         <div className="flex items-center gap-2.5">
           <span className="signal-dot" aria-hidden="true" />
           <div>
-            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-[#92F3FA]">Roastd Studio · Live</p>
+            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-[var(--stage-dock-system-soft)]">Roastd Studio Â· Live</p>
             <p className="mt-1 text-xs text-white/35">Parent batch RST-0728-01</p>
           </div>
         </div>
-        <span className="rounded-[7px] border border-[#2D7A69]/60 bg-[#2D7A69]/15 px-2.5 py-1.5 font-mono text-[7px] uppercase tracking-[0.14em] text-[#A1D8CA]">
-          Pratter 1.5 · connected
+        <span className="rounded-[7px] border border-[var(--domain-inventory)]/60 bg-[var(--domain-inventory)]/15 px-2.5 py-1.5 font-mono text-[7px] uppercase tracking-[0.14em] text-[var(--stage-inventory-soft)]">
+          Pratter 1.5 Â· connected
         </span>
       </div>
 
       <div className="grid grid-cols-2 border-b border-white/10 sm:grid-cols-4">
         {[
-          ["BT", "198.4°", TOKENS.cyan],
-          ["ET", "216.1°", TOKENS.copperSoft],
-          ["RoR", "+8.7°", TOKENS.cyanSoft],
+          ["BT", "198.4Â°", TOKENS.cyan],
+          ["ET", "216.1Â°", TOKENS.copperSoft],
+          ["RoR", "+8.7Â°", TOKENS.cyanSoft],
           ["Elapsed", "08:42", "#FFFFFF"],
         ].map(([label, value, color]) => (
           <div key={label} className="border-b border-r border-white/10 px-4 py-3 last:border-r-0 sm:border-b-0">
@@ -360,16 +360,16 @@ function RoastScope() {
       </div>
 
       <div className="grid gap-px bg-white/10 sm:grid-cols-[1fr_auto]">
-        <div className="bg-[#081014] px-4 py-3 sm:px-5">
+        <div className="bg-[var(--obsidian-soft)] px-4 py-3 sm:px-5">
           <p className="font-mono text-[7px] uppercase tracking-[0.15em] text-white/25">Profile match</p>
           <div className="mt-2 flex items-center gap-3">
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={94} aria-valuemin={0} aria-valuemax={100} aria-label="Profile match 94%">
-              <motion.span className="block h-full origin-left bg-[#25D9E8]" initial={reduceMotion ? false : { scaleX: 0 }} whileInView={reduceMotion ? undefined : { scaleX: 0.94 }} viewport={{ once: true }} transition={{ duration: 0.8, delay: 1, ease: EASE }} />
+              <motion.span className="block h-full origin-left bg-[var(--instrument)]" initial={reduceMotion ? false : { scaleX: 0 }} whileInView={reduceMotion ? undefined : { scaleX: 0.94 }} viewport={{ once: true }} transition={{ duration: 0.8, delay: 1, ease: EASE }} />
             </div>
-            <span className="font-heading text-xl font-bold text-[#92F3FA]">94%</span>
+            <span className="font-heading text-xl font-bold text-[var(--stage-dock-system-soft)]">94%</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-[#081014] px-5 py-3 font-mono text-[8px] uppercase tracking-[0.12em] text-[#F2A17F]">
+        <div className="flex items-center gap-2 bg-[var(--obsidian-soft)] px-5 py-3 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--copper-soft)]">
           <ScanLine className="size-3.5" aria-hidden="true" /> .alog siap sinkron
         </div>
       </div>
@@ -377,12 +377,12 @@ function RoastScope() {
   );
 }
 
-// ─── Section: Social Proof Bar ────────────────────────────────────────────────
+// â”€â”€â”€ Section: Social Proof Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function SocialProofBar({ items }: { items: LandingSocialProofItem[] }) {
   const hasItems = items.length > 0;
 
   return (
-    <section className="border-y border-black/10 bg-[#F5F6F3] py-10 sm:py-12" aria-labelledby="social-proof-heading">
+    <section className="border-y border-black/10 bg-[var(--surface)] py-10 sm:py-12" aria-labelledby="social-proof-heading">
       <div className="mx-auto max-w-[1350px] px-5 sm:px-8 lg:px-10">
         <p
           id="social-proof-heading"
@@ -417,7 +417,7 @@ function SocialProofBar({ items }: { items: LandingSocialProofItem[] }) {
               { label: "Multi-tenant", value: "Terisolasi" },
             ].map(({ label, value }) => (
               <div key={label} className="text-center">
-                <p className="font-heading text-sm font-bold text-[#101615]">{value}</p>
+                <p className="font-heading text-sm font-bold text-[var(--ink)]">{value}</p>
                 <p className="mt-1 font-mono text-[7px] uppercase tracking-[0.16em] text-black/32">{label}</p>
               </div>
             ))}
@@ -428,10 +428,10 @@ function SocialProofBar({ items }: { items: LandingSocialProofItem[] }) {
   );
 }
 
-// ─── Section: Pain ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Section: Pain â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function PainSection() {
   return (
-    <section className="bg-[#FCFCF7] py-20 sm:py-28" aria-labelledby="pain-heading">
+    <section className="bg-[var(--surface-raised)] py-20 sm:py-28" aria-labelledby="pain-heading">
       <div className="mx-auto max-w-[1350px] px-5 sm:px-8 lg:px-10">
         <Reveal className="max-w-2xl">
           <Kicker color={TOKENS.copper}>Masalah yang masih terjadi setiap hari</Kicker>
@@ -473,7 +473,7 @@ function PainSection() {
           {/* Resolution card */}
           <Reveal
             delay={PAIN_POINTS.length * 0.05}
-            className="flex flex-col items-start justify-between rounded-[14px] border border-[#C6542F]/30 bg-[#C6542F] p-6 shadow-[0_4px_24px_-12px_rgba(198,84,47,.35)] sm:col-span-2 lg:col-span-1"
+            className="flex flex-col items-start justify-between rounded-[14px] border border-[var(--copper)]/30 bg-[var(--copper)] p-6 shadow-[0_4px_24px_-12px_rgba(198,84,47,.35)] sm:col-span-2 lg:col-span-1"
           >
             <div>
               <span className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-white/55">
@@ -483,12 +483,12 @@ function PainSection() {
                 Satu transaksi roast menyelesaikan sisanya.
               </p>
               <p className="mt-3 text-sm leading-6 text-white/70">
-                Stok, HPP, produksi, dan laporan diperbarui otomatis — bukan setelah shift, tapi saat transaksi terjadi.
+                Stok, HPP, produksi, dan laporan diperbarui otomatis â€” bukan setelah shift, tapi saat transaksi terjadi.
               </p>
             </div>
             <Link
               href="/register"
-              className="mt-8 inline-flex min-h-10 items-center gap-2 rounded-[8px] bg-[#05090D] px-5 text-xs font-bold text-white transition hover:bg-[#0B141B]"
+              className="mt-8 inline-flex min-h-11 items-center gap-2 rounded-[8px] bg-[var(--obsidian)] px-5 text-xs font-bold text-white transition hover:bg-[var(--obsidian-soft)]"
               aria-label="Mulai uji coba 21 hari gratis di roastd.id"
             >
               Coba 21 hari gratis <ArrowRight className="size-3.5" aria-hidden="true" />
@@ -500,24 +500,24 @@ function PainSection() {
   );
 }
 
-// ─── Section: Trace Rail ──────────────────────────────────────────────────────
+// â”€â”€â”€ Section: Trace Rail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function TraceRail() {
   return (
-    <section className="border-y border-black/12 bg-[#FCFCF7]" aria-labelledby="trace-heading">
+    <section className="border-y border-black/12 bg-[var(--surface-raised)]" aria-labelledby="trace-heading">
       <div className="mx-auto max-w-[1500px] px-5 sm:px-8 lg:px-10">
         <div className="grid sm:grid-cols-5">
           {TRACE.map((item, index) => {
             const Icon = item.icon;
             return (
               <Reveal key={item.id} delay={index * 0.05} className="relative border-b border-black/10 px-1 py-5 last:border-b-0 sm:border-b-0 sm:border-r sm:px-4 sm:last:border-r-0">
-                {index > 0 ? <span className="absolute -left-1.5 top-1/2 hidden size-3 -translate-y-1/2 rotate-45 border-r border-t border-black/20 bg-[#FCFCF7] sm:block" aria-hidden="true" /> : null}
+                {index > 0 ? <span className="absolute -left-1.5 top-1/2 hidden size-3 -translate-y-1/2 rotate-45 border-r border-t border-black/20 bg-[var(--surface-raised)] sm:block" aria-hidden="true" /> : null}
                 <div className="flex items-center gap-3 sm:block">
                   <span className="grid size-9 shrink-0 place-items-center rounded-[8px] border" style={{ color: item.color, borderColor: `${item.color}55`, backgroundColor: `${item.color}10` }} aria-hidden="true">
                     <Icon className="size-4" aria-hidden="true" />
                   </span>
                   <div className="min-w-0 sm:mt-4">
-                    <p className="font-mono text-[7px] font-bold uppercase tracking-[0.16em] text-black/35">{item.number} · {item.label}</p>
-                    <p className="mt-1 font-heading text-sm font-bold text-[#101615]">{item.value}</p>
+                    <p className="font-mono text-[7px] font-bold uppercase tracking-[0.16em] text-black/35">{item.number} Â· {item.label}</p>
+                    <p className="mt-1 font-heading text-sm font-bold text-[var(--ink)]">{item.value}</p>
                   </div>
                 </div>
               </Reveal>
@@ -532,7 +532,7 @@ function TraceRail() {
   );
 }
 
-// ─── Section: Pricing Card (with billing toggle) ─────────────────────────────
+// â”€â”€â”€ Section: Pricing Card (with billing toggle) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function PricingCard({
   pro,
   formatPrice,
@@ -546,14 +546,14 @@ function PricingCard({
   const savings = pro.yearlyPrice ? pro.monthlyPrice * 12 - pro.yearlyPrice : 0;
 
   return (
-    <Reveal delay={0.08} className="relative flex flex-col rounded-[18px] border border-[#C6542F] bg-[#0B141B] p-7 text-white shadow-[0_30px_100px_-40px_rgba(5,9,13,.75)] sm:p-9">
-      <span className="absolute inset-x-8 top-0 h-[3px] rounded-b-full bg-[#C6542F]" aria-hidden="true" />
+    <Reveal delay={0.08} className="relative flex flex-col rounded-[18px] border border-[var(--copper)] bg-[var(--obsidian-soft)] p-7 text-white shadow-[0_30px_100px_-40px_rgba(5,9,13,.75)] sm:p-9">
+      <span className="absolute inset-x-8 top-0 h-[3px] rounded-b-full bg-[var(--copper)]" aria-hidden="true" />
 
       {/* Header row */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <span className="rounded-[6px] border border-[#C6542F]/45 bg-[#C6542F]/14 px-2.5 py-1 font-mono text-[7px] uppercase tracking-[0.15em] text-[#F2A17F]">
-            Semua fitur · Satu paket
+          <span className="rounded-[6px] border border-[var(--copper)]/45 bg-[var(--copper)]/14 px-2.5 py-1 font-mono text-[7px] uppercase tracking-[0.15em] text-[var(--copper-soft)]">
+            Semua fitur Â· Satu paket
           </span>
           <h3 className="mt-3 font-heading text-xl font-bold">{pro.label}</h3>
         </div>
@@ -584,7 +584,7 @@ function PricingCard({
           >
             Tahunan
             {pro.yearlyPrice ? (
-              <span className="rounded-[5px] bg-[#2D7A69] px-1.5 py-0.5 text-[9px] font-bold text-white">
+              <span className="rounded-[5px] bg-[var(--domain-inventory)] px-1.5 py-0.5 text-[9px] font-bold text-white">
                 Hemat {formatPrice(savings)}
               </span>
             ) : null}
@@ -608,7 +608,7 @@ function PricingCard({
                 <p className="mb-1 text-[11px] text-white/32">/tahun</p>
               </div>
               <p className="mt-1 text-xs text-white/40">
-                ≈ {formatPrice(yearlyPerMonth)}/bulan · <span className="text-[#A1D8CA]">hemat {formatPrice(savings)} vs bulanan</span>
+                â‰ˆ {formatPrice(yearlyPerMonth)}/bulan Â· <span className="text-[var(--stage-inventory-soft)]">hemat {formatPrice(savings)} vs bulanan</span>
               </p>
             </motion.div>
           ) : (
@@ -625,8 +625,8 @@ function PricingCard({
               </div>
               {pro.yearlyPrice ? (
                 <p className="mt-1 text-xs text-white/40">
-                  Atau {formatPrice(pro.yearlyPrice)}/tahun —{" "}
-                  <button type="button" onClick={() => setYearly(true)} className="text-[#A1D8CA] underline underline-offset-2">
+                  Atau {formatPrice(pro.yearlyPrice)}/tahun â€”{" "}
+                  <button type="button" onClick={() => setYearly(true)} className="text-[var(--stage-inventory-soft)] underline underline-offset-2">
                     hemat {formatPrice(savings)}
                   </button>
                 </p>
@@ -649,7 +649,7 @@ function PricingCard({
           "Midtrans & custom domain",
         ].map((point) => (
           <li key={point} className="flex items-start gap-2 text-[13px] leading-5 text-white/62">
-            <Check className="mt-0.5 size-3.5 shrink-0 text-[#C6542F]" aria-hidden="true" />
+            <Check className="mt-0.5 size-3.5 shrink-0 text-[var(--copper)]" aria-hidden="true" />
             {point}
           </li>
         ))}
@@ -658,14 +658,14 @@ function PricingCard({
       {/* Trial highlight */}
       <div className="mt-5 rounded-[10px] border border-white/10 bg-white/[0.05] px-4 py-3">
         <p className="text-xs text-white/45">Trial aktif selama</p>
-        <p className="mt-0.5 font-heading text-2xl font-bold text-[#92F3FA]">21 hari</p>
-        <p className="mt-0.5 text-xs text-white/35">tanpa kartu kredit · mulai sekarang</p>
+        <p className="mt-0.5 font-heading text-2xl font-bold text-[var(--stage-dock-system-soft)]">21 hari</p>
+        <p className="mt-0.5 text-xs text-white/35">tanpa kartu kredit Â· mulai sekarang</p>
       </div>
 
       <Link
         href="/register"
-        className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] bg-[#C6542F] px-8 text-sm font-bold text-white transition hover:bg-[#A94628] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D9E8]"
-        aria-label="Mulai uji coba 21 hari gratis — roastd.id Pro"
+        className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] bg-[var(--copper)] px-8 text-sm font-bold text-white transition hover:bg-[var(--copper)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--instrument)]"
+        aria-label="Mulai uji coba 21 hari gratis â€” roastd.id Pro"
       >
         Mulai 21 hari gratis <ArrowRight className="size-4" aria-hidden="true" />
       </Link>
@@ -673,7 +673,7 @@ function PricingCard({
   );
 }
 
-// ─── Section: FAQ ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Section: FAQ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function FaqList() {
   const [open, setOpen] = useState(0);
   return (
@@ -683,7 +683,7 @@ function FaqList() {
           <button
             type="button"
             onClick={() => setOpen(open === index ? -1 : index)}
-            className="flex w-full items-center justify-between gap-6 py-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#C6542F]"
+            className="flex w-full items-center justify-between gap-6 py-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--copper)]"
             aria-expanded={open === index}
             aria-controls={`faq-answer-${index}`}
             id={`faq-btn-${index}`}
@@ -715,7 +715,7 @@ function FaqList() {
   );
 }
 
-// ─── Main: LandingClient ──────────────────────────────────────────────────────
+// â”€â”€â”€ Main: LandingClient â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function LandingClient({ socialProof }: { socialProof: LandingSocialProofItem[] }) {
   const reduceMotion = useHydratedReducedMotion();
   const { scrollYProgress } = useScroll();
@@ -739,34 +739,34 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
         }).format(price);
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-[#E9EDE9] font-sans text-[#101615] selection:bg-[#25D9E8]/30">
+    <div className="min-h-screen overflow-x-clip bg-[var(--paper)] font-sans text-[var(--ink)] selection:bg-[var(--instrument)]/30">
       {/* Scroll progress */}
       <motion.div
-        className="fixed inset-x-0 top-0 z-[80] h-[2px] origin-left bg-[#25D9E8]"
+        className="fixed inset-x-0 top-0 z-[80] h-[2px] origin-left bg-[var(--instrument)]"
         style={{ scaleX: progress }}
         aria-hidden="true"
       />
 
-      {/* ── Navbar ─────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#05090D]/96 text-white backdrop-blur-xl">
+      {/* â”€â”€ Navbar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[var(--obsidian)]/96 text-white backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1500px] items-center justify-between px-4 sm:px-8 lg:px-10">
-          <Link href="/" aria-label="roastd.id — Beranda">
+          <Link href="/" aria-label="roastd.id â€” Beranda">
             <Brand inverse />
           </Link>
           <nav className="hidden items-center gap-7 font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-white/42 lg:flex" aria-label="Navigasi utama">
-            <a href="#pain" className="transition-colors hover:text-[#F2A17F]">Masalah</a>
-            <a href="#automation" className="transition-colors hover:text-[#A1D8CA]">Otomatisasi</a>
-            <a href="#studio" className="transition-colors hover:text-[#F2A17F]">Roastd Studio</a>
-            <a href="#system" className="transition-colors hover:text-[#92F3FA]">Sistem</a>
+            <a href="#pain" className="transition-colors hover:text-[var(--copper-soft)]">Masalah</a>
+            <a href="#automation" className="transition-colors hover:text-[var(--stage-inventory-soft)]">Otomatisasi</a>
+            <a href="#studio" className="transition-colors hover:text-[var(--copper-soft)]">Roastd Studio</a>
+            <a href="#system" className="transition-colors hover:text-[var(--stage-dock-system-soft)]">Sistem</a>
             <a href="#pricing" className="transition-colors hover:text-white">Harga</a>
           </nav>
           <div className="flex items-center gap-1.5">
-            <Link href="/login" className="inline-flex min-h-10 items-center px-3 text-xs font-bold text-white/55 hover:text-white">
+            <Link href="/login" className="inline-flex min-h-11 items-center px-3 text-xs font-bold text-white/55 hover:text-white">
               Masuk
             </Link>
             <Link
               href="/register"
-              className="inline-flex min-h-10 items-center gap-2 rounded-[8px] bg-[#C6542F] px-4 text-xs font-bold text-white transition hover:bg-[#A94628] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D9E8]"
+              className="inline-flex min-h-11 items-center gap-2 rounded-[8px] bg-[var(--copper)] px-4 text-xs font-bold text-white transition hover:bg-[var(--copper)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--instrument)]"
               aria-label="Mulai uji coba 21 hari gratis"
             >
               Coba gratis <ArrowRight className="size-3.5" aria-hidden="true" />
@@ -776,12 +776,12 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
       </header>
 
       <main>
-        {/* ── Hero ───────────────────────────────────────────────────────────── */}
-        <section className="instrument-grid-dark relative overflow-hidden bg-[#05090D] text-white" aria-labelledby="hero-heading">
+        {/* â”€â”€ Hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        <section className="instrument-grid-dark relative overflow-hidden bg-[var(--obsidian)] text-white" aria-labelledby="hero-heading">
           {!reduceMotion ? (
             <motion.div
               data-testid="landing-ambient-scan"
-              className="pointer-events-none absolute inset-y-0 z-0 w-52 bg-gradient-to-r from-transparent via-[#25D9E8]/[0.045] to-transparent blur-2xl"
+              className="pointer-events-none absolute inset-y-0 z-0 w-52 bg-gradient-to-r from-transparent via-[var(--instrument)]/[0.045] to-transparent blur-2xl"
               animate={{ x: ["-25vw", "115vw"] }}
               transition={{ duration: 8.5, repeat: Infinity, repeatDelay: 2.5, ease: "linear" }}
               aria-hidden="true"
@@ -796,8 +796,8 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   transition={{ duration: 0.55, delay: 0.06, ease: EASE }}
                   className="flex flex-wrap items-center gap-3"
                 >
-                  <Kicker>roastd.id · Roastery Operating System · Sistem aktif</Kicker>
-                  <span className="h-px w-9 bg-[#25D9E8]" aria-hidden="true" />
+                  <Kicker>roastd.id Â· Roastery Operating System Â· Sistem aktif</Kicker>
+                  <span className="h-px w-9 bg-[var(--instrument)]" aria-hidden="true" />
                   <span className="inline-flex items-center gap-2 font-mono text-[8px] uppercase tracking-[0.14em] text-white/35">
                     <span className="signal-dot" aria-hidden="true" /> Sistem aktif
                   </span>
@@ -810,7 +810,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   <motion.span className="block" initial={reduceMotion ? false : { opacity: 0, y: 35 }} animate={reduceMotion ? undefined : { opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.13, ease: EASE }}>
                     Roasting selesai.
                   </motion.span>
-                  <motion.span className="mt-2 block text-[#F2A17F]" initial={reduceMotion ? false : { opacity: 0, y: 35 }} animate={reduceMotion ? undefined : { opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.22, ease: EASE }}>
+                  <motion.span className="mt-2 block text-[var(--copper-soft)]" initial={reduceMotion ? false : { opacity: 0, y: 35 }} animate={reduceMotion ? undefined : { opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.22, ease: EASE }}>
                     Operasional ikut bergerak.
                   </motion.span>
                 </h1>
@@ -822,7 +822,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   transition={{ duration: 0.58, delay: 0.33, ease: EASE }}
                 >
                   Berhenti gabungin Excel, Artisan, dan nota manual setiap akhir shift.
-                  Satu alur dari lot green bean → roasting → produksi → penjualan → HPP & laporan.
+                  Satu alur dari lot green bean â†’ roasting â†’ produksi â†’ penjualan â†’ HPP & laporan.
                 </motion.p>
 
                 <motion.div
@@ -833,7 +833,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                 >
                   <Link
                     href="/register"
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[9px] bg-[#C6542F] px-6 text-sm font-bold text-white transition hover:bg-[#A94628]"
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[9px] bg-[var(--copper)] px-6 text-sm font-bold text-white transition hover:bg-[var(--copper)]"
                     aria-label="Mulai uji coba 21 hari gratis di roastd.id"
                   >
                     Mulai 21 hari gratis <ArrowRight className="size-4" aria-hidden="true" />
@@ -876,22 +876,22 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
           </div>
         </section>
 
-        {/* ── Social Proof Bar ───────────────────────────────────────────────── */}
+        {/* â”€â”€ Social Proof Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <SocialProofBar items={socialProof} />
 
-        {/* ── Pain Section ───────────────────────────────────────────────────── */}
+        {/* â”€â”€ Pain Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div id="pain">
           <PainSection />
         </div>
 
-        {/* ── Trace Rail ─────────────────────────────────────────────────────── */}
+        {/* â”€â”€ Trace Rail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <TraceRail />
 
-        {/* ── Automation Section ─────────────────────────────────────────────── */}
+        {/* â”€â”€ Automation Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <section id="automation" className="scroll-mt-16 py-20 sm:py-28" aria-labelledby="automation-heading">
           <div className="mx-auto grid max-w-[1350px] gap-12 px-5 sm:px-8 lg:grid-cols-[.82fr_1.18fr] lg:gap-20 lg:px-10">
             <Reveal>
-              <Kicker color={TOKENS.green}>Satu input · banyak pembaruan</Kicker>
+              <Kicker color={TOKENS.green}>Satu input Â· banyak pembaruan</Kicker>
               <h2 id="automation-heading" className="mt-4 max-w-xl font-heading text-[clamp(2.2rem,4vw,3.8rem)] font-bold leading-[0.94] tracking-[-0.055em]">
                 Operator mencatat hasil roast. Sistem menyelesaikan sisanya.
               </h2>
@@ -899,13 +899,13 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                 Lot yang digunakan, berat keluar, susut, stok roasted bean, dan nilai batch tetap berada di transaksi yang sama. Owner tidak perlu menyatukan spreadsheet setelah shift selesai.
               </p>
             </Reveal>
-            <Reveal delay={0.08} className="rounded-[16px] border border-black/14 bg-[#FCFCF7] shadow-[0_24px_70px_-42px_rgba(5,9,13,.45)]">
+            <Reveal delay={0.08} className="rounded-[16px] border border-black/14 bg-[var(--surface-raised)] shadow-[0_24px_70px_-42px_rgba(5,9,13,.45)]">
               <div className="flex items-center justify-between border-b border-black/10 px-5 py-4">
                 <div>
                   <Kicker color={TOKENS.copper}>Batch RST-0728-01</Kicker>
-                  <p className="mt-1.5 font-heading text-base font-bold">Ethiopia Hambela · Medium</p>
+                  <p className="mt-1.5 font-heading text-base font-bold">Ethiopia Hambela Â· Medium</p>
                 </div>
-                <span className="rounded-[7px] border border-[#2D7A69]/30 bg-[#2D7A69]/10 px-2.5 py-1.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[#2D7A69]">Selesai</span>
+                <span className="rounded-[7px] border border-[var(--domain-inventory)]/30 bg-[var(--domain-inventory)]/10 px-2.5 py-1.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--domain-inventory)]">Selesai</span>
               </div>
               <div className="divide-y divide-black/10 px-5">
                 {AUTOMATIONS.map((item, index) => (
@@ -923,15 +923,15 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   </motion.div>
                 ))}
               </div>
-              <div className="flex items-center gap-3 border-t border-black/10 bg-[#F1F3EF] px-5 py-4 text-xs text-black/55">
-                <Check className="size-4 text-[#2D7A69]" aria-hidden="true" /> Empat pembaruan dicatat dalam satu transaksi audit.
+              <div className="flex items-center gap-3 border-t border-black/10 bg-[var(--surface)] px-5 py-4 text-xs text-black/55">
+                <Check className="size-4 text-[var(--domain-inventory)]" aria-hidden="true" /> Empat pembaruan dicatat dalam satu transaksi audit.
               </div>
             </Reveal>
           </div>
         </section>
 
-        {/* ── Roastd Studio ──────────────────────────────────────────────────── */}
-        <section id="studio" className="scroll-mt-16 overflow-hidden bg-[#0B141B] py-20 text-white sm:py-28" aria-labelledby="studio-heading">
+        {/* â”€â”€ Roastd Studio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        <section id="studio" className="scroll-mt-16 overflow-hidden bg-[var(--obsidian-soft)] py-20 text-white sm:py-28" aria-labelledby="studio-heading">
           <div className="mx-auto max-w-[1350px] px-5 sm:px-8 lg:px-10">
             <Reveal className="grid gap-7 lg:grid-cols-[.8fr_1.2fr] lg:items-end">
               <div>
@@ -941,19 +941,19 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                 </h2>
               </div>
               <p className="max-w-2xl text-sm leading-7 text-white/48">
-                Studio memindai perangkat serial yang didukung, merekam BT/ET/RoR, menyimpan .alog, membandingkan profil, dan menyambungkan hasil ke batch SaaS. Kontrol mesin tetap read-only — aman untuk environment produksi.
+                Studio memindai perangkat serial yang didukung, merekam BT/ET/RoR, menyimpan .alog, membandingkan profil, dan menyambungkan hasil ke batch SaaS. Kontrol mesin tetap read-only â€” aman untuk environment produksi.
               </p>
             </Reveal>
-            <div className="mt-12 grid overflow-hidden rounded-[18px] border border-white/12 bg-[#05090D] lg:grid-cols-[1.5fr_.5fr]">
+            <div className="mt-12 grid overflow-hidden rounded-[18px] border border-white/12 bg-[var(--obsidian)] lg:grid-cols-[1.5fr_.5fr]">
               <Reveal className="instrument-grid-dark min-h-[430px] border-b border-white/10 p-5 lg:border-b-0 lg:border-r sm:p-7">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-mono text-[8px] uppercase tracking-[0.16em] text-white/25">Artisan roast telemetry</p>
                     <h3 className="mt-2 font-heading text-xl font-bold">Reference vs child batch</h3>
                   </div>
-                  <span className="font-heading text-3xl font-bold text-[#92F3FA]">94%</span>
+                  <span className="font-heading text-3xl font-bold text-[var(--stage-dock-system-soft)]">94%</span>
                 </div>
-                <div className="relative mt-7 h-64 overflow-hidden rounded-[12px] border border-white/10 bg-[#071015]">
+                <div className="relative mt-7 h-64 overflow-hidden rounded-[12px] border border-white/10 bg-[var(--obsidian-soft)]">
                   <div className="absolute inset-0 bg-[linear-gradient(rgba(37,217,232,.06)_1px,transparent_1px),linear-gradient(90deg,rgba(37,217,232,.06)_1px,transparent_1px)] bg-[size:42px_42px]" aria-hidden="true" />
                   <svg className="relative h-full w-full" viewBox="0 0 700 260" aria-label="Perbandingan profil acuan dan child batch roasting">
                     <path d="M0 235 C120 226 135 190 225 156 C318 121 360 132 442 84 C526 34 602 44 700 20" fill="none" stroke="rgba(255,255,255,.25)" strokeDasharray="6 8" strokeWidth="2"/>
@@ -981,14 +981,14 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
               </Reveal>
               <Reveal delay={0.08} className="p-5 sm:p-7">
                 <Kicker color={TOKENS.greenSoft}>Perangkat roasting</Kicker>
-                <div className="mt-5 rounded-[12px] border border-[#2D7A69]/50 bg-[#2D7A69]/12 p-4">
+                <div className="mt-5 rounded-[12px] border border-[var(--domain-inventory)]/50 bg-[var(--domain-inventory)]/12 p-4">
                   <div className="flex items-center gap-3">
-                    <span className="grid size-9 place-items-center rounded-[8px] border border-[#2D7A69]/50 text-[#A1D8CA]">
+                    <span className="grid size-9 place-items-center rounded-[8px] border border-[var(--domain-inventory)]/50 text-[var(--stage-inventory-soft)]">
                       <Usb className="size-4" aria-hidden="true" />
                     </span>
                     <div>
                       <p className="text-sm font-bold">Pratter 1.5</p>
-                      <p className="mt-1 font-mono text-[7px] uppercase tracking-[0.12em] text-[#A1D8CA]">COM3 · connected</p>
+                      <p className="mt-1 font-mono text-[7px] uppercase tracking-[0.12em] text-[var(--stage-inventory-soft)]">COM3 Â· connected</p>
                     </div>
                   </div>
                 </div>
@@ -996,7 +996,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   {["Auto-scan perangkat", "Buat parent batch", "Pilih lot dengan FEFO", "Rekam dan simpan .alog", "Sinkron ke SaaS"].map((item, index) => (
                     <div key={item} className="flex items-center gap-3 border-b border-white/8 pb-3">
                       <span className="font-mono text-[8px] text-white/20">0{index + 1}</span>
-                      <Check className="size-3.5 text-[#92F3FA]" aria-hidden="true" />
+                      <Check className="size-3.5 text-[var(--stage-dock-system-soft)]" aria-hidden="true" />
                       {item}
                     </div>
                   ))}
@@ -1004,7 +1004,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                 <a
                   href="/downloads/RoastdStudio-0.10.2-x64-setup.exe"
                   download
-                  className="mt-7 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[9px] bg-[#C6542F] px-4 text-xs font-bold text-white hover:bg-[#A94628]"
+                  className="mt-7 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[9px] bg-[var(--copper)] px-4 text-xs font-bold text-white hover:bg-[var(--copper)]"
                   aria-label="Download Roastd Studio untuk Windows"
                 >
                   <ArrowDownToLine className="size-4" aria-hidden="true" /> Download untuk Windows
@@ -1014,8 +1014,8 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
           </div>
         </section>
 
-        {/* ── Modules ────────────────────────────────────────────────────────── */}
-        <section id="system" className="scroll-mt-16 bg-[#FCFCF7] py-20 sm:py-28" aria-labelledby="system-heading">
+        {/* â”€â”€ Modules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        <section id="system" className="scroll-mt-16 bg-[var(--surface-raised)] py-20 sm:py-28" aria-labelledby="system-heading">
           <div className="mx-auto max-w-[1350px] px-5 sm:px-8 lg:px-10">
             <Reveal className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
               <div>
@@ -1049,8 +1049,8 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
           </div>
         </section>
 
-        {/* ── Security strip ─────────────────────────────────────────────────── */}
-        <section className="border-y border-black/12 bg-[#DDE2DD] py-16 sm:py-20" aria-labelledby="security-heading">
+        {/* â”€â”€ Security strip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        <section className="border-y border-black/12 bg-[var(--surface)] py-16 sm:py-20" aria-labelledby="security-heading">
           <h2 id="security-heading" className="sr-only">Keamanan dan ketersediaan</h2>
           <div className="mx-auto grid max-w-[1350px] gap-8 px-5 sm:px-8 lg:grid-cols-3 lg:px-10">
             {[
@@ -1061,7 +1061,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
               const Icon = item.icon;
               return (
                 <Reveal key={item.title} delay={index * .06} className="flex gap-4">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-[9px] border border-black/12 bg-[#FCFCF7]" aria-hidden="true">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-[9px] border border-black/12 bg-[var(--surface-raised)]" aria-hidden="true">
                     <Icon className="size-4" aria-hidden="true" />
                   </span>
                   <div>
@@ -1074,18 +1074,18 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
           </div>
         </section>
 
-        {/* ── Pricing ────────────────────────────────────────────────────────── */}
+        {/* â”€â”€ Pricing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <section id="pricing" className="scroll-mt-16 py-20 sm:py-28" aria-labelledby="pricing-heading">
           <div className="mx-auto grid max-w-[1350px] gap-12 px-5 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:gap-16 lg:px-10">
 
-            {/* Left — heading + trust signals */}
+            {/* Left â€” heading + trust signals */}
             <Reveal className="flex flex-col justify-center">
               <Kicker color={TOKENS.plum}>Satu harga, semua fitur</Kicker>
               <h2 id="pricing-heading" className="mt-4 font-heading text-[clamp(2.2rem,4vw,3.7rem)] font-bold leading-[0.94] tracking-[-0.055em]">
                 Mulai dari operasi yang perlu dibereskan hari ini.
               </h2>
               <p className="mt-5 max-w-md text-sm leading-7 text-black/55">
-                Satu paket mencakup semua — dari lot green bean sampai laporan keuangan. Tidak ada tier yang dibatasi fitur.
+                Satu paket mencakup semua â€” dari lot green bean sampai laporan keuangan. Tidak ada tier yang dibatasi fitur.
               </p>
               <div className="mt-8 space-y-3">
                 {([
@@ -1094,7 +1094,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   ["Data bisa diekspor", "Excel & CSV, kapan saja"],
                 ] as const).map(([label, sub]) => (
                   <div key={label} className="flex items-center gap-3">
-                    <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#C6542F]/12 text-[#C6542F]" aria-hidden="true">
+                    <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[var(--copper)]/12 text-[var(--copper)]" aria-hidden="true">
                       <Check className="size-3" aria-hidden="true" />
                     </span>
                     <span className="text-sm">
@@ -1110,15 +1110,15 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
               </p>
             </Reveal>
 
-            {/* Right — Pro card with billing toggle */}
+            {/* Right â€” Pro card with billing toggle */}
             <PricingCard pro={pro} formatPrice={formatPrice} />
 
           </div>
         </section>
 
-        {/* ── FAQ ────────────────────────────────────────────────────────────── */}
+        {/* â”€â”€ FAQ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
 
-        <section className="border-y border-black/12 bg-[#FCFCF7] py-16 sm:py-20" aria-labelledby="faq-heading">
+        <section className="border-y border-black/12 bg-[var(--surface-raised)] py-16 sm:py-20" aria-labelledby="faq-heading">
           <div className="mx-auto grid max-w-[1150px] gap-10 px-5 sm:px-8 lg:grid-cols-[.55fr_1.45fr] lg:px-10">
             <Reveal>
               <Kicker color={TOKENS.copper}>Pertanyaan nyata</Kicker>
@@ -1128,11 +1128,11 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
           </div>
         </section>
 
-        {/* ── Final CTA ──────────────────────────────────────────────────────── */}
-        <section className="instrument-grid-dark relative overflow-hidden bg-[#C6542F] text-white" aria-labelledby="cta-heading">
+        {/* â”€â”€ Final CTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        <section className="instrument-grid-dark relative overflow-hidden bg-[var(--copper)] text-white" aria-labelledby="cta-heading">
           <div className="mx-auto flex max-w-[1350px] flex-col justify-between gap-8 px-5 py-16 sm:px-8 lg:flex-row lg:items-end lg:px-10 lg:py-20">
             <Reveal>
-              <Kicker color="#FFD0BC">Satu roast. Satu jejak.</Kicker>
+              <Kicker color="var(--copper-soft)">Satu roast. Satu jejak.</Kicker>
               <h2 id="cta-heading" className="mt-4 max-w-3xl font-heading text-[clamp(2.3rem,4vw,3.8rem)] font-bold leading-[0.94] tracking-[-0.055em]">
                 Berhenti menyatukan operasional setelah hari selesai.
               </h2>
@@ -1143,8 +1143,8 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
             <Reveal delay={.08} className="flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/register"
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[9px] bg-[#05090D] px-6 text-sm font-bold text-white hover:bg-[#0B141B]"
-                aria-label="Buat ruang kerja roastd.id — mulai 21 hari gratis"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[9px] bg-[var(--obsidian)] px-6 text-sm font-bold text-white hover:bg-[var(--obsidian-soft)]"
+                aria-label="Buat ruang kerja roastd.id â€” mulai 21 hari gratis"
               >
                 Buat ruang kerja <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
@@ -1161,8 +1161,8 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
         </section>
       </main>
 
-      {/* ── Footer ───────────────────────────────────────────────────────────── */}
-      <footer className="bg-[#05090D] py-10 text-white">
+      {/* â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <footer className="bg-[var(--obsidian)] py-10 text-white">
         <div className="mx-auto flex max-w-[1350px] flex-col gap-8 px-5 sm:px-8 lg:flex-row lg:items-end lg:justify-between lg:px-10">
           <div>
             <Brand inverse />
@@ -1175,7 +1175,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
             <Link href="/register" className="hover:text-white">Daftar</Link>
             <a href="#studio" className="hover:text-white">Studio</a>
             <a href="#pricing" className="hover:text-white">Harga</a>
-            <span className="font-mono text-[8px] uppercase tracking-[0.14em] text-white/24">© {new Date().getFullYear()} roastd.id</span>
+            <span className="font-mono text-[8px] uppercase tracking-[0.14em] text-white/24">Â© {new Date().getFullYear()} roastd.id</span>
           </nav>
         </div>
       </footer>
