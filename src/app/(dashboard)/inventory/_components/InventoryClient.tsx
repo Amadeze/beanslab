@@ -613,9 +613,24 @@ export function InventoryClient({
 
   // ── Context-aware primary action ──
 
+  // ── Stock export follows the active category (URL-synced `?category=`) ──
+
+  const activeCategory: CategoryId =
+    categoryParam === "rb" || categoryParam === "fg" || categoryParam === "pkg" || categoryParam === "supply"
+      ? categoryParam
+      : "gb";
+
   const primaryAction = useMemo(() => {
     switch (activeView) {
-      case "stock": return { label: "Barang Datang", icon: <Plus size={14} />, onClick: () => setBarangDatangOpen(true) };
+      case "stock": return { label: "Barang Datang", icon: <Plus size={14} />, onClick: () => {
+        switch(activeCategory) {
+          case "gb": return setGbDrawerOpen(true);
+          case "rb": return setRbDrawerOpen(true);
+          case "pkg": return setPkgDrawerOpen(true);
+          case "supply": return setSupDrawerOpen(true);
+          default: return setGbDrawerOpen(true);
+        }
+      } };
       case "po": return { label: "Buat PO", icon: <Plus size={14} />, onClick: () => setPoDrawerOpen(true) };
       case "receiving": return {
         label: "Catat Penerimaan",
@@ -624,14 +639,7 @@ export function InventoryClient({
       };
       case "mutations": return null;
     }
-  }, [activeView]);
-
-  // ── Stock export follows the active category (URL-synced `?category=`) ──
-
-  const activeCategory: CategoryId =
-    categoryParam === "rb" || categoryParam === "fg" || categoryParam === "pkg" || categoryParam === "supply"
-      ? categoryParam
-      : "gb";
+  }, [activeView, activeCategory]);
 
   const stockExportData = useMemo(
     () => buildStockExportData(activeCategory, gbStocks, rbStocks, fgStocks, supplyPackagingItems, supplyNonPackagingItems),
