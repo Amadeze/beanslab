@@ -231,13 +231,6 @@ export function SalesClient({
           next={{ label: "Lanjut ke Kas & Piutang", href: "/keuangan" }}
           actions={
             <>
-              <Link
-                href="/kasir"
-                className="inline-flex h-9 items-center gap-2 rounded-lg border border-border px-4 text-sm font-semibold transition hover:bg-surface-sunken"
-              >
-                <ShoppingCart size={16} />
-                Buka Kasir
-              </Link>
               <Button
                 size="default"
                 variant="outline"
@@ -440,34 +433,7 @@ export function SalesClient({
                           </div>
                         </CardContent>
                       </Card>
-                      <Card>
-                        <CardHeader>
-                          <Eyebrow tone="muted">Aksi Cepat</Eyebrow>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setWorkspace("samples");
-                                setSampleDrawerOpen(true);
-                              }}
-                              className="flex items-center gap-2 rounded-card border border-border bg-surface-sunken px-3 py-2.5 text-xs font-semibold text-ink-secondary transition-all hover:bg-border"
-                            >
-                              <Gift size={14} />
-                              Kasih Sample
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDrawerOpen(true)}
-                              className="flex items-center gap-2 rounded-card bg-domain-sales px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-domain-sales/90"
-                            >
-                              <ReceiptText size={14} />
-                              Nota Baru
-                            </button>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      
                     </div>
                   </div>
                 </TabsContent>
@@ -513,21 +479,7 @@ export function SalesClient({
                           </div>
                         </CardContent>
                       </Card>
-                      <Card>
-                        <CardHeader>
-                          <Eyebrow tone="muted">Aksi Cepat</Eyebrow>
-                        </CardHeader>
-                        <CardContent>
-                          <button
-                            type="button"
-                            onClick={() => setSampleDrawerOpen(true)}
-                            className="mt-0 flex w-full items-center justify-center gap-2 rounded-card bg-domain-sales px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-domain-sales/90"
-                          >
-                            <Gift size={14} />
-                            Sample Baru
-                          </button>
-                        </CardContent>
-                      </Card>
+                      
                     </div>
                   </div>
                 </TabsContent>
@@ -688,3 +640,5 @@ export function SalesClient({
     </>
   );
 }
+
+
