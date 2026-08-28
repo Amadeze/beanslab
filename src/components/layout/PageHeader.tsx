@@ -115,8 +115,8 @@ export function PageHeader({
         compact ? "py-1 w-full" : "py-1.5 w-full"
       )}>
         {/* Left: Title + Signal + ContextStats/Breadcrumbs */}
-        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1 overflow-x-auto no-scrollbar">
-          <h1 className="truncate font-heading text-base md:text-lg font-bold leading-tight tracking-[-0.03em] text-foreground shrink-0">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+          <h1 className="truncate font-heading text-base md:text-lg font-bold leading-tight tracking-[-0.03em] text-foreground">
             {title}
           </h1>
 
@@ -132,14 +132,14 @@ export function PageHeader({
             </span>
           )}
 
-          {/* Vertical divider if there are stats/breadcrumbs */}
+          {/* Vertical divider if there are stats/breadcrumbs (desktop only) */}
           {((contextStats && contextStats.length > 0) || (!compact && (breadcrumbs?.length || showStage))) && (
             <span className="hidden sm:inline text-border font-light">|</span>
           )}
 
           {contextStats && contextStats.length > 0 ? (
-            // Show contextual stats
-            <div className="flex items-center gap-1.5 shrink-0">
+            // Show contextual stats (hidden on mobile)
+              <div className="hidden md:flex items-center gap-1.5 shrink-0">
               {contextStats.map((stat, i) => (
                 <span
                   key={i}
@@ -157,7 +157,7 @@ export function PageHeader({
               ))}
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="hidden md:flex items-center gap-1.5 shrink-0">
               {breadcrumbs && breadcrumbs.length > 0 && !compact && (
                 <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[11px] font-medium text-ink-secondary flex-shrink-0">
                   {breadcrumbs.slice(0, 2).map((crumb, index) => {
@@ -312,6 +312,9 @@ export function PageHeaderSkeleton({ stage = false }: { stage?: boolean }) {
     </div>
   );
 }
+
+
+
 
 
 
