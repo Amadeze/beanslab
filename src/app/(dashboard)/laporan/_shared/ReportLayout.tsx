@@ -27,6 +27,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export type ReportTab =
   | "keuangan"
@@ -126,78 +129,87 @@ export function ReportLayout({ activeTab, children, actions, title }: ReportLayo
     return t.id === activeTab;
   });
 
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <header className="instrument-grid-dark shrink-0 border-b border-white/10 bg-[var(--obsidian)] text-white">
-        <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-3 px-3 py-2 sm:px-6 sm:py-2.5 lg:px-8">
-          <div>
-            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--chrome-instrument-soft)]">
-              Report Center
-            </p>
-            <h1 className="mt-0.5 font-heading text-lg font-bold tracking-[-0.035em] text-white">
-              {title || currentMain?.label || "Laporan"}
-            </h1>
-          </div>
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
+  const [portalNode, setPortalNode] = useState<Element | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    setPortalNode(document.getElementById("app-top-bar-bottom-portal"));
+  }, []);
+
+  const tabsContent = (
+    <div className="w-full shrink-0">
+      <nav className="border-b border-border bg-card">
+        <div className="flex w-full overflow-x-auto no-scrollbar mask-fade-right">
+          {SUPER_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = tab.id === activeTab ||
+              (tab.id === "keuangan" && isKeuangan) ||
+              (tab.id === "inventory" && isInventory) ||
+              (tab.id === "analisa/alur-kopi" && isAnalisa) ||
+              (tab.id === "akuntansi" && isAkuntansi);
+            return (
+              <Link
+                key={tab.id}
+                href={tab.href}
+                className={cn(
+                  "flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-[11px] font-semibold transition-colors sm:px-4",
+                  isActive
+                    ? "border-foreground text-foreground"
+                    : "border-transparent text-ink-secondary hover:border-border hover:text-foreground active:border-foreground active:text-foreground",
+                )}
+              >
+                <Icon size={14} />
+                {tab.label}
+              </Link>
+            );
+          })}
         </div>
-        <nav className="border-t border-white/[0.08] bg-[var(--chrome-panel)]/72">
-          <div className="mx-auto flex w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
-            {SUPER_TABS.map((tab) => {
+      </nav>
+      {subTabs.length > 0 && (
+        <nav className="border-b border-border bg-surface-sunken">
+          <div className="flex w-full overflow-x-auto no-scrollbar mask-fade-right">
+            {subTabs.map((tab) => {
               const Icon = tab.icon;
-              const isActive = tab.id === activeTab ||
-                (tab.id === "keuangan" && isKeuangan) ||
-                (tab.id === "inventory" && isInventory) ||
-                (tab.id === "analisa/alur-kopi" && isAnalisa) ||
-                (tab.id === "akuntansi" && isAkuntansi);
+              const isActive = tab.id === activeTab;
               return (
                 <Link
                   key={tab.id}
                   href={tab.href}
                   className={cn(
-                    "flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap",
+                    "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-1.5 text-[10px] font-medium transition-colors sm:px-4",
                     isActive
-                      ? "border-[var(--instrument)] text-[var(--chrome-instrument-soft)]"
-                      : "border-transparent text-white/60 hover:border-white/25 hover:text-white/85",
+                      ? "border-primary text-primary"
+                      : "border-transparent text-ink-secondary hover:border-border hover:text-foreground",
                   )}
                 >
-                  <Icon size={15} />
+                  <Icon size={12} />
                   {tab.label}
                 </Link>
               );
             })}
           </div>
         </nav>
-        {subTabs.length > 0 && (
-          <nav className="border-t border-white/[0.06] bg-[var(--chrome-panel)]">
-            <div className="mx-auto flex w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
-              {subTabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = tab.id === activeTab;
-                return (
-                  <Link
-                    key={tab.id}
-                    href={tab.href}
-                    className={cn(
-                      "flex items-center gap-1.5 border-b-2 px-3 py-2 text-[11px] font-medium transition-colors whitespace-nowrap",
-                      isActive
-                        ? "border-[var(--stage-production)] text-[color-mix(in srgb, var(--stage-production-soft) 80%, white)]"
-                        : "border-transparent text-white/60 hover:border-white/20 hover:text-white/85",
-                    )}
-                  >
-                    <Icon size={13} />
-                    {tab.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        )}
-      </header>
-      <main className="custom-scrollbar min-w-0 flex-1 overflow-y-auto bg-transparent">
-        <div className="mx-auto w-full max-w-[1600px] p-2.5 sm:p-3 md:p-4 lg:p-5">
-          {children}
-        </div>
-      </main>
+      )}
     </div>
   );
+
+  return (
+    <>
+      <PageHeader
+        title={title || currentMain?.label || "Laporan"}
+        eyebrow="Report Center"
+        actions={actions}
+      />
+      {mounted && portalNode && createPortal(tabsContent, portalNode)}
+      <div className="flex min-h-0 flex-1 flex-col">
+        {(!mounted || !portalNode) && tabsContent}
+        <main className="custom-scrollbar min-w-0 flex-1 overflow-y-auto bg-transparent">
+          <div className="mx-auto w-full max-w-[1600px] p-2.5 sm:p-3 md:p-4 lg:p-5">
+            {children}
+          </div>
+        </main>
+      </div>
+    </>
+  );
 }
+
