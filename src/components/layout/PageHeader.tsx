@@ -111,12 +111,12 @@ export function PageHeader({
   const content = (
     <div data-testid="page-header" className="shrink-0">
       <div className={cn(
-        "flex items-center justify-between gap-2 flex-wrap",
+        "flex items-center justify-between gap-2",
         compact ? "py-1 w-full" : "py-1.5 w-full"
       )}>
         {/* Left: Title + Signal + ContextStats/Breadcrumbs */}
-        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1 flex-wrap">
-          <h1 className="truncate font-heading text-base md:text-lg font-bold leading-tight tracking-[-0.03em] text-foreground min-w-[50px]">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1 overflow-x-auto no-scrollbar">
+          <h1 className="truncate font-heading text-base md:text-lg font-bold leading-tight tracking-[-0.03em] text-foreground shrink-0">
             {title}
           </h1>
 
@@ -139,7 +139,7 @@ export function PageHeader({
 
           {contextStats && contextStats.length > 0 ? (
             // Show contextual stats
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5 shrink-0">
               {contextStats.map((stat, i) => (
                 <span
                   key={i}
@@ -157,7 +157,7 @@ export function PageHeader({
               ))}
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5 shrink-0">
               {breadcrumbs && breadcrumbs.length > 0 && !compact && (
                 <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[11px] font-medium text-ink-secondary flex-shrink-0">
                   {breadcrumbs.slice(0, 2).map((crumb, index) => {
@@ -250,28 +250,35 @@ export function PageHeader({
             ))}
           </div>
 
-          {/* Mobile: overflow menu button */}
-          <div className="md:hidden">
+          {/* Mobile actions */}
+          <div className="flex md:hidden items-center gap-1">
             {hasMobileActions ? (
               mobileActions
-            ) : mobileActionsFromArray.length > 0 ? (
-              <button
-                type="button"
-                className="flex min-h-9 items-center justify-center rounded-full border border-border bg-card px-3 text-ink-secondary shadow-sm"
-              >
-                <span className="text-[11px] font-medium">Aksi</span>
-              </button>
-            ) : null}
+            ) : (
+              mobileActionsFromArray.map((action, i) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={action.onClick}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors min-h-8",
+                    action.variant === "primary" ? "bg-primary text-primary-foreground hover:bg-primary/90" :
+                    action.variant === "secondary" ? "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20" :
+                    "bg-card text-ink-secondary border border-border hover:bg-surface-sunken"
+                  )}
+                  title={action.label}
+                >
+                  {action.icon}
+                  <span className="max-w-[70px] truncate">{action.label}</span>
+                </button>
+              ))
+            )}
           </div>
         </div>
       </div>
 
-      {/* Mobile description line */}
-      {description && compact && (
-        <p className="md:hidden mt-1 truncate text-[11px] leading-4 text-ink-secondary" title={description}>
-          {description}
-        </p>
-      )}
+      {/* Description line removed to keep top bar strictly 1-line and compact */}
+      
     </div>
   );
 
@@ -305,6 +312,9 @@ export function PageHeaderSkeleton({ stage = false }: { stage?: boolean }) {
     </div>
   );
 }
+
+
+
 
 
 
