@@ -61,12 +61,14 @@ export function RoastingClient({
       icon: <Flame size={17} />,
       onClick: () => setDrawerOpen(true),
       variant: "primary" as const,
+      desktopOnly: true,
     },
     {
       label: "Impor Artisan",
       icon: <Upload size={17} />,
       onClick: () => router.push("/roasting?tab=profiles&import=1"),
       variant: "secondary" as const,
+      desktopOnly: true,
     },
   ] : [];
 
@@ -183,3 +185,4 @@ export function RoastingClient({
     </StandardPageLayout>
   );
 }
+

@@ -739,7 +739,8 @@ export function InventoryClient({
           }
         },
         variant: "primary" as const,
-      }] : []}
+          desktopOnly: true,
+        }] : []}
       contextStats={[
         { label: "Total Item", value: gbStocks.length + rbStocks.length + fgStocks.length + supplyStocks.length },
         { label: "Habis", value: stockMetrics.outOfStockCount, tone: stockMetrics.outOfStockCount > 0 ? "critical" : "neutral" },
@@ -970,3 +971,4 @@ export function InventoryClient({
     </StandardPageLayout>
   );
 }
+

@@ -88,7 +88,9 @@ export function PageHeader({
   const headerTone = activeStage ? operatingStageTones[activeStage] : undefined;
 
   // Handle both old (ReactNode) and new (HeaderAction[]) actions format
-  const actionsArray = Array.isArray(actions) ? actions : [];
+  const isActionsArray = Array.isArray(actions);
+  const actionsArray = isActionsArray ? actions : [];
+  const customActionsNode = !isActionsArray ? (actions as React.ReactNode) : null;
   const desktopActions = actionsArray.filter((a) => !a.mobileOnly);
   const mobileActionsFromArray = actionsArray.filter((a) => !a.desktopOnly);
 
@@ -126,7 +128,7 @@ export function PageHeader({
       )}
 
       <div className="ml-auto hidden md:flex items-center gap-1 shrink-0">
-        {desktopActions.map((action, i) => (
+        {actionsArray.length > 0 && desktopActions.map((action, i) => (
           <button
             key={action.label}
             type="button"
@@ -140,6 +142,27 @@ export function PageHeader({
           >
             {action.icon}
             <span>{action.label}</span>
+          </button>
+        ))}
+        {actionsArray.length === 0 && (actions as React.ReactNode)}
+      </div>
+
+      <div className="ml-auto flex md:hidden items-center gap-1 shrink-0">
+        {hasMobileActions ? mobileActions : mobileActionsFromArray.map((action, i) => (
+          <button
+            key={action.label}
+            type="button"
+            onClick={action.onClick}
+            className={cn(
+              "inline-flex items-center justify-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors min-h-8",
+              action.variant === "primary" ? "bg-primary text-primary-foreground hover:bg-primary/90" :
+              action.variant === "secondary" ? "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20" :
+              "bg-card text-ink-secondary border border-border hover:bg-surface-sunken"
+            )}
+            title={action.label}
+          >
+            {action.icon}
+            <span className="max-w-[70px] truncate">{action.label}</span>
           </button>
         ))}
       </div>
@@ -277,6 +300,14 @@ export function PageHeaderSkeleton({ stage = false }: { stage?: boolean }) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
 
 
 
