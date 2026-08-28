@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Boxes,
@@ -89,6 +91,12 @@ const WORKSPACES = {
 } as const;
 
 export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
+  const [portalNode, setPortalNode] = useState<Element | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    setPortalNode(document.getElementById("app-top-bar-bottom-portal"));
+  }, []);
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -148,8 +156,10 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
   };
 
   const activeHref = itemHref(items.find(itemIsActive) ?? items[0]);
+  
+  if (!mounted) return null; // Prevent hydration mismatch
 
-  return (
+  const content = (
     <nav
       className="border-b border-white/10 bg-obsidian"
       aria-label={`Navigasi workspace ${kind}`}
@@ -231,4 +241,13 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
       </div>
     </nav>
   );
+
+  if (portalNode) {
+    return createPortal(content, portalNode);
+  }
+  return content;
 }
+
+
+
+

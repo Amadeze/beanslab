@@ -419,43 +419,42 @@ export function AppShellV2({
       {/* Kolom utama */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Strip atas tipis — compact di mobile */}
-        <header className="flex h-10 md:h-12 shrink-0 items-center justify-between gap-2 border-b border-border/70 bg-surface/80 px-3 backdrop-blur-sm md:gap-3 md:px-4 sm:px-5">
-          <div className="flex min-w-0 items-center gap-3 flex-1">
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary md:hidden"
-              aria-label="Buka menu"
-            >
-              <Menu size={16} />
-            </button>
-            
-            {/* Target untuk PageHeader Portal */}
-            <div id="app-top-bar-portal" className="flex-1 min-w-0" />
-            
-            {/* Fallback text */}
-            <p id="app-top-bar-fallback" className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-ink-secondary hidden">
-              {activeSection ? `${activeSection.label} / ${activeItem?.label ?? ""}` : "roastd.id"}
-            </p>
+        <header className="flex flex-col shrink-0 border-b border-border/70 bg-surface/80 backdrop-blur-sm z-20">
+          <div className="flex h-10 md:h-12 items-center justify-between gap-2 px-3 md:gap-3 md:px-4 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3 flex-1">
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary md:hidden"
+                aria-label="Buka menu"
+              >
+                <Menu size={16} />
+              </button>
+              
+              {/* Target untuk PageHeader Portal (Row Atas) */}
+              <div id="app-top-bar-portal" className="flex-1 min-w-0" />
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary transition-colors hover:text-foreground"
+                aria-label="Cari halaman"
+              >
+                <Search size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={togglePanel}
+                aria-label={panelOpen ? "Sembunyikan panel konteks" : "Tampilkan panel konteks"}
+                className="hidden h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary transition-colors hover:text-foreground xl:flex"
+              >
+                {panelOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
+              </button>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary transition-colors hover:text-foreground"
-              aria-label="Cari halaman"
-            >
-              <Search size={15} />
-            </button>
-            <button
-              type="button"
-              onClick={togglePanel}
-              aria-label={panelOpen ? "Sembunyikan panel konteks" : "Tampilkan panel konteks"}
-              className="hidden h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary transition-colors hover:text-foreground xl:flex"
-            >
-              {panelOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
-            </button>
-          </div>
+          {/* Target untuk PageHeader Portal (Row Bawah / Controls) */}
+          <div id="app-top-bar-bottom-portal" className="w-full empty:hidden" />
         </header>
 
         <div className="dashboard-canvas custom-scrollbar relative z-0 min-h-0 flex-1 overflow-y-auto">
