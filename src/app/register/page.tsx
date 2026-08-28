@@ -71,9 +71,10 @@ function RegisterForm() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nama Roastery</label>
+        <label htmlFor="reg-roastery" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nama Roastery</label>
         <div className="relative">
           <input
+            id="reg-roastery"
             type="text"
             placeholder="e.g. Senja Roastery"
             value={roasteryName}
@@ -91,12 +92,13 @@ function RegisterForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Portal Subdomain</label>
+        <label htmlFor="reg-subdomain" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Portal Subdomain</label>
         <div className="flex overflow-hidden rounded-[10px] border border-input bg-card transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
           <div className="border-r border-border bg-muted/55 py-3 pl-4 pr-2 text-sm font-medium text-muted-foreground">
             https://
           </div>
           <input
+            id="reg-subdomain"
             type="text"
             placeholder="senja"
             value={subdomain}
@@ -114,9 +116,10 @@ function RegisterForm() {
       {!isGoogleMode && (
         <>
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email kerja</label>
+            <label htmlFor="reg-email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email kerja</label>
             <div className="relative">
               <input
+                id="reg-email"
                 type="email"
                 placeholder="admin@senjaroastery.com"
                 value={email}
@@ -129,9 +132,10 @@ function RegisterForm() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Password</label>
+            <label htmlFor="reg-password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Password</label>
             <div className="relative">
               <input
+                id="reg-password"
                 type={showPass ? "text" : "password"}
                 placeholder="••••••••"
                 value={password}
@@ -143,6 +147,7 @@ function RegisterForm() {
               <button
                 type="button"
                 onClick={() => setShowPass(!showPass)}
+                aria-label={showPass ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
                 className="absolute right-2 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-[8px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}

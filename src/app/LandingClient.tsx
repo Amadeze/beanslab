@@ -45,40 +45,40 @@ import { PLAN_CATALOG } from "@/lib/plans";
 import { useHydratedReducedMotion } from "@/lib/use-reduced-motion";
 import type { LandingSocialProofItem } from "./_actions/landing-social-proof";
 
-// ─── Design tokens ───────────────────────────────────────────────────────────
-const COLORS = {
-  carbon: "#05090D",
-  carbonSoft: "#0B141B",
-  workshop: "#E9EDE9",
-  porcelain: "#FCFCF7",
-  line: "#C9CEC8",
-  copper: "#C6542F",
-  copperSoft: "#F2A17F",
-  cyan: "#25D9E8",
-  cyanSoft: "#92F3FA",
-  green: "#2D7A69",
-  greenSoft: "#A1D8CA",
-  brass: "#A76C10",
-  plum: "#76506F",
-  moss: "#527141",
+// ─── Design tokens (CSS custom properties) ────────────────────────────────────
+const TOKENS = {
+  carbon: "var(--obsidian)",
+  carbonSoft: "var(--obsidian-soft)",
+  workshop: "var(--paper)",
+  porcelain: "var(--surface-raised)",
+  line: "var(--border)",
+  copper: "var(--copper)",
+  copperSoft: "var(--copper-soft)",
+  cyan: "var(--instrument)",
+  cyanSoft: "var(--stage-dock-system-soft)",
+  green: "var(--domain-inventory)",
+  greenSoft: "var(--stage-inventory-soft)",
+  brass: "var(--domain-production)",
+  plum: "var(--domain-sales)",
+  moss: "var(--domain-finance)",
 } as const;
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 // ─── Static data ─────────────────────────────────────────────────────────────
 const TRACE = [
-  { id: "lot", number: "01", label: "Lot", value: "ETH-2407", icon: Boxes, color: COLORS.green },
-  { id: "roast", number: "02", label: "Roast", value: "16,7 kg", icon: Flame, color: COLORS.copper },
-  { id: "match", number: "03", label: "Match", value: "94%", icon: Gauge, color: COLORS.cyan },
-  { id: "output", number: "04", label: "Output", value: "10 pack", icon: PackageCheck, color: COLORS.brass },
-  { id: "ledger", number: "05", label: "Nilai", value: "Rp 1,68 jt", icon: WalletCards, color: COLORS.moss },
+  { id: "lot", number: "01", label: "Lot", value: "ETH-2407", icon: Boxes, color: TOKENS.green },
+  { id: "roast", number: "02", label: "Roast", value: "16,7 kg", icon: Flame, color: TOKENS.copper },
+  { id: "match", number: "03", label: "Match", value: "94%", icon: Gauge, color: TOKENS.cyan },
+  { id: "output", number: "04", label: "Output", value: "10 pack", icon: PackageCheck, color: TOKENS.brass },
+  { id: "ledger", number: "05", label: "Nilai", value: "Rp 1,68 jt", icon: WalletCards, color: TOKENS.moss },
 ] as const;
 
 const AUTOMATIONS = [
-  { label: "Green bean", before: "120 kg", after: "100 kg", color: COLORS.green },
-  { label: "Roasted bean", before: "0 kg", after: "16,7 kg", color: COLORS.copper },
-  { label: "Susut roasting", before: "—", after: "16,5%", color: COLORS.brass },
-  { label: "HPP batch", before: "—", after: "Rp 105.500/kg", color: COLORS.moss },
+  { label: "Green bean", before: "120 kg", after: "100 kg", color: TOKENS.green },
+  { label: "Roasted bean", before: "0 kg", after: "16,7 kg", color: TOKENS.copper },
+  { label: "Susut roasting", before: "—", after: "16,5%", color: TOKENS.brass },
+  { label: "HPP batch", before: "—", after: "Rp 105.500/kg", color: TOKENS.moss },
 ] as const;
 
 const MODULES = [
@@ -86,42 +86,42 @@ const MODULES = [
     title: "Pasokan & lot",
     description: "Owner tahu stok green bean tersisa berapa, lot mana yang harus dipakai duluan, dan nilai persediaan hari ini — dari satu penerimaan.",
     icon: Boxes,
-    color: COLORS.green,
+    color: TOKENS.green,
     meta: "FEFO · ledger · label",
   },
   {
     title: "Roasting & profile",
     description: "Setiap batch punya konteks penuh: kurva .alog, susut, profile matching, dan riwayat child batch — tanpa harus buka Artisan secara terpisah.",
     icon: Flame,
-    color: COLORS.copper,
+    color: TOKENS.copper,
     meta: "Studio · Artisan · .alog",
   },
   {
     title: "Produksi & packing",
     description: "Roasted bean dan kemasan berubah menjadi barang jadi. HPP dihitung otomatis dari bahan yang terpakai, bukan estimasi.",
     icon: Factory,
-    color: COLORS.brass,
+    color: TOKENS.brass,
     meta: "recipe · output · HPP",
   },
   {
     title: "Penjualan & kasir",
     description: "Nota, storefront, sample, dan pembayaran menarik dari stok dan pelanggan yang sama. Kasir tetap bisa dipakai saat koneksi tidak ideal.",
     icon: ReceiptText,
-    color: COLORS.plum,
+    color: TOKENS.plum,
     meta: "invoice · POS · offline-aware",
   },
   {
     title: "Keuangan",
     description: "Piutang, hutang supplier, pengeluaran, dan jurnal mengikuti transaksi operasional secara otomatis — bukan input manual setelah hari selesai.",
     icon: CircleDollarSign,
-    color: COLORS.moss,
+    color: TOKENS.moss,
     meta: "ledger · aging · GL",
   },
   {
     title: "Laporan keputusan",
     description: "Daily Brief menampilkan apa yang perlu diselesaikan hari ini: lot hampir habis, piutang jatuh tempo, dan ringkasan produksi — bukan sekadar grafik.",
     icon: Layers3,
-    color: COLORS.cyan,
+    color: TOKENS.cyan,
     meta: "daily brief · audit · export",
   },
 ] as const;
@@ -131,31 +131,31 @@ const PAIN_POINTS = [
     icon: FileSpreadsheet,
     title: "Data tersebar di banyak tempat",
     body: "Stok green bean di satu spreadsheet, HPP di tabel lain, laporan roasting di Artisan. Tidak ada yang nyambung.",
-    color: COLORS.copper,
+    color: TOKENS.copper,
   },
   {
     icon: RefreshCw,
     title: "Input ulang setiap selesai roasting",
     body: "Operator selesai roast, lalu harus input manual ke stok, ke produksi, ke laporan. Tiga kali kerja untuk satu kejadian.",
-    color: COLORS.brass,
+    color: TOKENS.brass,
   },
   {
     icon: HelpCircle,
     title: "Owner harus bertanya ke operator",
     body: "\"Stok masih ada berapa?\" \"Susut tadi berapa persen?\" \"HPP batch ini sudah dihitung?\" — pertanyaan yang harusnya sudah terjawab otomatis.",
-    color: COLORS.plum,
+    color: TOKENS.plum,
   },
   {
     icon: Clock,
     title: "Laporan keuangan sering lag",
     body: "Piutang, hutang, dan pengeluaran baru terhitung saat ada yang sempat memasukkannya — bukan saat transaksi terjadi.",
-    color: COLORS.moss,
+    color: TOKENS.moss,
   },
   {
     icon: GitBranch,
     title: "Profil roast tidak terhubung ke stok",
     body: "Kurva di Artisan bagus. Tapi hasilnya tidak otomatis memengaruhi nilai batch, stok roasted bean, atau catatan produksi.",
-    color: COLORS.green,
+    color: TOKENS.green,
   },
 ] as const;
 
@@ -216,7 +216,7 @@ function Reveal({
   );
 }
 
-function Kicker({ children, color = COLORS.cyan }: { children: ReactNode; color?: string }) {
+function Kicker({ children, color = TOKENS.cyan }: { children: ReactNode; color?: string }) {
   return (
     <p
       className="font-mono text-[9px] font-bold uppercase tracking-[0.22em]"
@@ -296,9 +296,9 @@ function RoastScope() {
 
       <div className="grid grid-cols-2 border-b border-white/10 sm:grid-cols-4">
         {[
-          ["BT", "198.4°", COLORS.cyan],
-          ["ET", "216.1°", COLORS.copperSoft],
-          ["RoR", "+8.7°", COLORS.cyanSoft],
+          ["BT", "198.4°", TOKENS.cyan],
+          ["ET", "216.1°", TOKENS.copperSoft],
+          ["RoR", "+8.7°", TOKENS.cyanSoft],
           ["Elapsed", "08:42", "#FFFFFF"],
         ].map(([label, value, color]) => (
           <div key={label} className="border-b border-r border-white/10 px-4 py-3 last:border-r-0 sm:border-b-0">
@@ -318,8 +318,8 @@ function RoastScope() {
         >
           <defs>
             <linearGradient id="scope-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={COLORS.cyan} stopOpacity=".22" />
-              <stop offset="100%" stopColor={COLORS.cyan} stopOpacity="0" />
+              <stop offset="0%" stopColor={TOKENS.cyan} stopOpacity=".22" />
+              <stop offset="100%" stopColor={TOKENS.cyan} stopOpacity="0" />
             </linearGradient>
           </defs>
           <path d="M0 262 C70 254 105 242 150 214 C212 176 238 120 310 106 C395 89 446 118 515 77 C580 38 632 31 720 23" fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="2" strokeDasharray="5 8" />
@@ -335,7 +335,7 @@ function RoastScope() {
           <motion.path
             d="M0 267 C72 260 112 246 154 218 C220 174 245 128 313 110 C392 89 452 122 518 81 C583 40 646 34 720 28"
             fill="none"
-            stroke={COLORS.cyan}
+            stroke={TOKENS.cyan}
             strokeWidth="3"
             initial={reduceMotion ? false : { pathLength: 0 }}
             whileInView={reduceMotion ? undefined : { pathLength: 1 }}
@@ -343,10 +343,10 @@ function RoastScope() {
             transition={{ duration: 1.4, delay: 0.35, ease: EASE }}
           />
           {[
-            [154, 218, "TP", COLORS.greenSoft],
-            [313, 110, "DE", COLORS.brass],
-            [518, 81, "FC", COLORS.copperSoft],
-            [682, 35, "DROP", COLORS.cyanSoft],
+            [154, 218, "TP", TOKENS.greenSoft],
+            [313, 110, "DE", TOKENS.brass],
+            [518, 81, "FC", TOKENS.copperSoft],
+            [682, 35, "DROP", TOKENS.cyanSoft],
           ].map(([cx, cy, label, color], index) => (
             <motion.g key={String(label)} initial={reduceMotion ? false : { opacity: 0, scale: 0 }} whileInView={reduceMotion ? undefined : { opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: 0.85 + index * 0.12, ease: EASE }}>
               <circle cx={Number(cx)} cy={Number(cy)} r="5" fill={String(color)} />
@@ -434,7 +434,7 @@ function PainSection() {
     <section className="bg-[#FCFCF7] py-20 sm:py-28" aria-labelledby="pain-heading">
       <div className="mx-auto max-w-[1350px] px-5 sm:px-8 lg:px-10">
         <Reveal className="max-w-2xl">
-          <Kicker color={COLORS.copper}>Masalah yang masih terjadi setiap hari</Kicker>
+          <Kicker color={TOKENS.copper}>Masalah yang masih terjadi setiap hari</Kicker>
           <h2
             id="pain-heading"
             className="mt-4 font-heading text-[clamp(2rem,3.8vw,3.4rem)] font-bold leading-[0.94] tracking-[-0.052em]"
@@ -723,7 +723,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
   const pro = PLAN_CATALOG.PRO;
 
   useEffect(() => {
-    document.documentElement.style.setProperty("--landing-accent", COLORS.copper);
+    document.documentElement.style.setProperty("--landing-accent", TOKENS.copper);
     return () => {
       document.documentElement.style.removeProperty("--landing-accent");
     };
@@ -891,7 +891,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
         <section id="automation" className="scroll-mt-16 py-20 sm:py-28" aria-labelledby="automation-heading">
           <div className="mx-auto grid max-w-[1350px] gap-12 px-5 sm:px-8 lg:grid-cols-[.82fr_1.18fr] lg:gap-20 lg:px-10">
             <Reveal>
-              <Kicker color={COLORS.green}>Satu input · banyak pembaruan</Kicker>
+              <Kicker color={TOKENS.green}>Satu input · banyak pembaruan</Kicker>
               <h2 id="automation-heading" className="mt-4 max-w-xl font-heading text-[clamp(2.2rem,4vw,3.8rem)] font-bold leading-[0.94] tracking-[-0.055em]">
                 Operator mencatat hasil roast. Sistem menyelesaikan sisanya.
               </h2>
@@ -902,7 +902,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
             <Reveal delay={0.08} className="rounded-[16px] border border-black/14 bg-[#FCFCF7] shadow-[0_24px_70px_-42px_rgba(5,9,13,.45)]">
               <div className="flex items-center justify-between border-b border-black/10 px-5 py-4">
                 <div>
-                  <Kicker color={COLORS.copper}>Batch RST-0728-01</Kicker>
+                  <Kicker color={TOKENS.copper}>Batch RST-0728-01</Kicker>
                   <p className="mt-1.5 font-heading text-base font-bold">Ethiopia Hambela · Medium</p>
                 </div>
                 <span className="rounded-[7px] border border-[#2D7A69]/30 bg-[#2D7A69]/10 px-2.5 py-1.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[#2D7A69]">Selesai</span>
@@ -935,7 +935,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
           <div className="mx-auto max-w-[1350px] px-5 sm:px-8 lg:px-10">
             <Reveal className="grid gap-7 lg:grid-cols-[.8fr_1.2fr] lg:items-end">
               <div>
-                <Kicker color={COLORS.copperSoft}>Roastd Studio</Kicker>
+                <Kicker color={TOKENS.copperSoft}>Roastd Studio</Kicker>
                 <h2 id="studio-heading" className="mt-4 font-heading text-[clamp(2.3rem,4.4vw,4rem)] font-bold leading-[0.92] tracking-[-0.058em]">
                   Mesin di floor. Konteks tetap sampai kantor.
                 </h2>
@@ -961,7 +961,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                       data-testid="roast-curve-primary"
                       d="M0 238 C120 229 145 196 228 160 C314 123 373 137 448 88 C530 35 611 48 700 24"
                       fill="none"
-                      stroke={COLORS.cyan}
+                      stroke={TOKENS.cyan}
                       strokeWidth="3"
                       initial={reduceMotion ? false : { pathLength: 0 }}
                       whileInView={reduceMotion ? undefined : { pathLength: 1 }}
@@ -980,7 +980,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                 </div>
               </Reveal>
               <Reveal delay={0.08} className="p-5 sm:p-7">
-                <Kicker color={COLORS.greenSoft}>Perangkat roasting</Kicker>
+                <Kicker color={TOKENS.greenSoft}>Perangkat roasting</Kicker>
                 <div className="mt-5 rounded-[12px] border border-[#2D7A69]/50 bg-[#2D7A69]/12 p-4">
                   <div className="flex items-center gap-3">
                     <span className="grid size-9 place-items-center rounded-[8px] border border-[#2D7A69]/50 text-[#A1D8CA]">
@@ -1019,7 +1019,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
           <div className="mx-auto max-w-[1350px] px-5 sm:px-8 lg:px-10">
             <Reveal className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
               <div>
-                <Kicker color={COLORS.copper}>Satu sistem kerja</Kicker>
+                <Kicker color={TOKENS.copper}>Satu sistem kerja</Kicker>
                 <h2 id="system-heading" className="mt-4 max-w-2xl font-heading text-[clamp(2.2rem,4vw,3.7rem)] font-bold leading-[0.94] tracking-[-0.055em]">
                   Tidak ada modul yang hidup sendirian.
                 </h2>
@@ -1080,7 +1080,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
 
             {/* Left — heading + trust signals */}
             <Reveal className="flex flex-col justify-center">
-              <Kicker color={COLORS.plum}>Satu harga, semua fitur</Kicker>
+              <Kicker color={TOKENS.plum}>Satu harga, semua fitur</Kicker>
               <h2 id="pricing-heading" className="mt-4 font-heading text-[clamp(2.2rem,4vw,3.7rem)] font-bold leading-[0.94] tracking-[-0.055em]">
                 Mulai dari operasi yang perlu dibereskan hari ini.
               </h2>
@@ -1121,7 +1121,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
         <section className="border-y border-black/12 bg-[#FCFCF7] py-16 sm:py-20" aria-labelledby="faq-heading">
           <div className="mx-auto grid max-w-[1150px] gap-10 px-5 sm:px-8 lg:grid-cols-[.55fr_1.45fr] lg:px-10">
             <Reveal>
-              <Kicker color={COLORS.copper}>Pertanyaan nyata</Kicker>
+              <Kicker color={TOKENS.copper}>Pertanyaan nyata</Kicker>
               <h2 id="faq-heading" className="mt-4 font-heading text-3xl font-bold tracking-[-0.045em]">Sebelum mulai.</h2>
             </Reveal>
             <FaqList />

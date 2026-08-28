@@ -53,7 +53,7 @@ export function StandardDrawer({
         ].join(" ")}
       >
         {/* ── Modal Header ── */}
-        <DialogHeader className="instrument-grid-dark flex shrink-0 flex-row items-start justify-between gap-4 border-b border-white/10 bg-[#0B141B] px-5 py-4 sm:px-6">
+        <DialogHeader className="instrument-grid-dark flex shrink-0 flex-row items-start justify-between gap-4 border-b border-white/10 bg-[var(--chrome-panel)] px-5 py-4 sm:px-6">
           <div className="min-w-0 pt-0.5 text-left">
             <DialogTitle className="truncate font-heading text-lg font-bold tracking-[-0.035em] text-white sm:text-xl">
               {title}

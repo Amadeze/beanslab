@@ -7,7 +7,6 @@ import { Eye, EyeOff, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { AuthFrame } from "@/components/auth/AuthFrame";
-import { Eyebrow } from "@/components/ui/eyebrow";
 
 function LoginForm() {
   const router = useRouter();
@@ -70,8 +69,9 @@ function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <Eyebrow tone="neutral" as="label" className="block">Email</Eyebrow>
+        <label htmlFor="login-email" className="block font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-secondary">Email</label>
         <input
+          id="login-email"
           type="email"
           autoComplete="email"
           placeholder="admin@roasteryos.com"
@@ -84,13 +84,14 @@ function LoginForm() {
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <Eyebrow tone="neutral" as="label" className="block">Password</Eyebrow>
+          <label htmlFor="login-password" className="block font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-secondary">Password</label>
           <Link href="/forgot-password" className="text-xs font-semibold text-primary transition-colors hover:text-primary/75">
             Lupa password?
           </Link>
         </div>
         <div className="relative">
           <input
+            id="login-password"
             type={showPass ? "text" : "password"}
             autoComplete="current-password"
             placeholder="••••••••"
@@ -102,6 +103,7 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPass(!showPass)}
+            aria-label={showPass ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
             className="absolute right-2 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-[8px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             {showPass ? <EyeOff size={16} /> : <Eye size={16} />}

@@ -107,7 +107,7 @@ export function StandardPageLayout({
                       "flex min-h-11 items-center gap-2.5 rounded-[10px] border px-4 py-2.5 text-sm font-semibold shadow-lg",
                       item.variant === "primary"
                         ? "border-primary bg-primary text-primary-foreground"
-                        : "border-white/10 bg-[#0B141B] text-white",
+                        : "border-white/10 bg-[var(--chrome-panel)] text-white",
                     )}
                   >
                     {item.icon}<span>{item.label}</span>
@@ -119,7 +119,7 @@ export function StandardPageLayout({
               ref={fabRef}
               type="button"
               onClick={() => setSpeedDialOpen((open) => !open)}
-              className="flex min-h-[44px] items-center gap-2 rounded-full border border-primary/45 bg-[#080B0C] px-4 py-2.5 text-sm font-semibold text-[#F0AC8C] shadow-[0_12px_28px_rgba(5,9,13,.38)] pointer-events-auto"
+              className="flex min-h-[44px] items-center gap-2 rounded-full border border-primary/45 bg-[var(--obsidian)] px-4 py-2.5 text-sm font-semibold text-[#F0AC8C] shadow-[0_12px_28px_rgba(5,9,13,.38)] pointer-events-auto"
               aria-label={speedDialOpen ? "Tutup menu aksi" : "Buka menu aksi"}
               aria-expanded={speedDialOpen}
               aria-controls={panelId}

@@ -93,7 +93,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sheet-header"
       // Header dibuat lengket (sticky) bergaya kaca
-      className={cn("instrument-grid-dark flex shrink-0 flex-col gap-1 border-b border-white/10 bg-[#0B141B] p-5 pr-14 text-white", className)}
+      className={cn("instrument-grid-dark flex shrink-0 flex-col gap-1 border-b border-white/10 bg-[var(--chrome-panel)] p-5 pr-14 text-white", className)}
       {...props}
     />
   )
