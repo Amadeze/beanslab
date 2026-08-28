@@ -192,7 +192,7 @@ export function PageHeader({
               );
             })}
             {breadcrumbs.length > 2 && (
-              <span className="text-ink-tertiary">…</span>
+              <span className="text-ink-tertiary">...</span>
             )}
           </nav>
         )}
