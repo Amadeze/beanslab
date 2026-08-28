@@ -10,7 +10,7 @@ interface SpeedDialItem {
   label: string;
   icon: React.ReactNode;
   onClick: () => void;
-  tone?: "primary" | "secondary" | "danger" | "warning";
+  variant?: "primary" | "secondary";
 }
 
 interface MobileFabAction {

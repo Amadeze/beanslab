@@ -413,7 +413,7 @@ export function AppShellV2({
 
       {/* Rail desktop */}
       <div className="hidden md:flex">
-        <Rail userRole={userRole} subscriptionTier={subscriptionTier} />
+        <Rail userRole={userRole} subscriptionTier={subscriptionTier} panelOpen={panelOpen} togglePanel={togglePanel} />
       </div>
 
       {/* Kolom utama */}
