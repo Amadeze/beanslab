@@ -1684,7 +1684,6 @@ export async function updateSupplyItem(input: UpdateSupplyItemInput): Promise<Ac
 export async function renameRbProducts(): Promise<{ success: boolean; renamed: number; skipped: number; error?: string }> {
   try {
     await requireRole("OWNER");
-    const tenantId = await getCurrentTenantId();
     const tp = await requireTenantPrisma();
 
     // Find all RB products that don't have "·" in their name (not following convention)

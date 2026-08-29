@@ -459,7 +459,7 @@ async function resolveCreditNoteAccounts(
   };
   if (!options.tx) return fallback;
   const tenantId = options.tenantId ?? await getCurrentTenantId();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const tx = options.tx as any;
   const sale = await tx.journalEntry.findFirst({
     where: { tenantId, refType: "INVOICE", reference: invoiceId, voidAt: null },

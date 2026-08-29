@@ -329,7 +329,7 @@ export async function updateDraftPO(
   // Update PO + items in transaction
   await prisma.$transaction(async (tx) => {
     // Update PO header
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const updateData: Record<string, any> = {};
     if (input.supplierId) updateData.supplierId = input.supplierId;
     if (input.expectedDate !== undefined) {
@@ -868,7 +868,7 @@ export async function getPOList(
 ): Promise<{ items: POListItem[]; total: number }> {
   const { status, search, page = 1, limit = 20 } = filters;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const where: Record<string, any> = {};
   if (status) where.status = status;
   if (search) {

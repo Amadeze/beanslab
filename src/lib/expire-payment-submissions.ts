@@ -1,8 +1,7 @@
-import { Prisma, type PrismaClient } from "@prisma/client";
+import { type PrismaClient } from "@prisma/client";
 import { releaseInvoiceReservations } from "./storefront-commerce";
 import { getCurrentDate } from "./date-utils";
 import { postVoidReversal } from "./posting";
-import { appendLedger } from "./stock";
 
 export async function expirePaymentSubmissions(
   prisma: PrismaClient,

@@ -1,11 +1,11 @@
 import { requireTenantPrisma } from "./auth";
 
 // Use a flexible type that works with both base and tenant-scoped Prisma clients
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 type TransactionClient = any;
 
 // Prisma Decimal is accepted as number | string for convenience
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 type FlexibleNumber = number | string | { toNumber(): number } | null | undefined;
 
 export interface LedgerEntryData {

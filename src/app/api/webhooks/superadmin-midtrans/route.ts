@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { Prisma, PaymentStatus } from "@prisma/client";
 import { claimWebhookEvent, timingSafeEqualText } from "@/lib/webhook-inbox";
-import { addMonthsClamped, addMonthsPreservingBillingDay, getCurrentDate } from "@/lib/date-utils";
+import { addMonthsPreservingBillingDay, getCurrentDate } from "@/lib/date-utils";
 import {
   getRequestId,
   internalErrorResponse,
