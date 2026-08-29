@@ -39,7 +39,7 @@ export function AuthFrame({
 
       <motion.div
         className="relative mx-auto grid min-h-[calc(100dvh-1.5rem)] max-w-[1180px] overflow-hidden rounded-[20px] border border-white/10 bg-[var(--obsidian-soft)] shadow-[0_32px_120px_rgba(0,0,0,.42)] sm:min-h-[calc(100dvh-2.5rem)] lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[minmax(0,.9fr)_minmax(440px,.65fr)]"
-        initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.992 }}
+        initial={reduceMotion ? false : { y: 18, scale: 0.992 }}
         animate={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.68, ease }}
       >
@@ -54,7 +54,7 @@ export function AuthFrame({
 
           <div className="relative z-10">
             <motion.div
-              initial={reduceMotion ? false : { opacity: 0, x: -16 }}
+              initial={reduceMotion ? false : { x: -16 }}
               animate={reduceMotion ? undefined : { opacity: 1, x: 0 }}
               transition={{ duration: 0.58, delay: 0.12, ease }}
             >
@@ -75,7 +75,7 @@ export function AuthFrame({
             <div className="mt-20 max-w-lg">
               <motion.p
                 className="font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-[var(--instrument)]"
-                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                initial={reduceMotion ? false : { y: 10 }}
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.52, delay: 0.2, ease }}
               >
@@ -93,7 +93,7 @@ export function AuthFrame({
               </h2>
               <motion.p
                 className="mt-6 max-w-md text-[15px] leading-7 text-white/50"
-                initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+                initial={reduceMotion ? false : { y: 14 }}
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.58, delay: 0.36, ease }}
               >
@@ -125,7 +125,7 @@ export function AuthFrame({
 
         <motion.section
           className="flex min-w-0 flex-col bg-[var(--surface)] text-[var(--ink)]"
-          initial={reduceMotion ? false : { opacity: 0, x: 24 }}
+          initial={reduceMotion ? false : { x: 24 }}
           animate={reduceMotion ? undefined : { opacity: 1, x: 0 }}
           transition={{ duration: 0.62, delay: 0.16, ease }}
         >
@@ -153,7 +153,7 @@ export function AuthFrame({
             <div className="mx-auto w-full max-w-md">
               <motion.p
                 className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-primary"
-                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                initial={reduceMotion ? false : { y: 8 }}
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.26, ease }}
               >
@@ -161,7 +161,7 @@ export function AuthFrame({
               </motion.p>
               <motion.h1
                 className="mt-3 text-[clamp(1.85rem,3.4vw,2.5rem)] font-black leading-[0.98] tracking-[-0.05em]"
-                initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+                initial={reduceMotion ? false : { y: 12 }}
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.56, delay: 0.3, ease }}
               >
@@ -169,7 +169,7 @@ export function AuthFrame({
               </motion.h1>
               <motion.p
                 className="mt-3 text-sm leading-6 text-muted-foreground"
-                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                initial={reduceMotion ? false : { y: 10 }}
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.54, delay: 0.36, ease }}
               >
@@ -178,7 +178,7 @@ export function AuthFrame({
 
               <motion.div
                 className="mt-8"
-                initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+                initial={reduceMotion ? false : { y: 16 }}
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.42, ease }}
               >
@@ -188,7 +188,7 @@ export function AuthFrame({
               {footer ? (
                 <motion.div
                   className="mt-8 border-t border-border pt-5 text-sm text-muted-foreground"
-                  initial={reduceMotion ? false : { opacity: 0 }}
+                  initial={reduceMotion ? false : false}
                   animate={reduceMotion ? undefined : { opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.52 }}
                 >

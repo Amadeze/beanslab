@@ -1251,7 +1251,7 @@ export async function voidExpense(expenseId: string, reason: string) {
     const userId = await getSystemUserId();
     const tenantPrisma = await requireTenantPrisma();
     await tenantPrisma.$transaction(async (tx) => {
-      const expense = await tx.expense.findUnique({ where: { id: expenseId } });
+      const expense = await tx.expense.findFirst({ where: { id: expenseId, tenantId } });
       if (!expense) throw new Error("Pengeluaran tidak ditemukan.");
       if (expense.voidAt) throw new Error("Pengeluaran sudah di-void.");
       await tx.expense.update({

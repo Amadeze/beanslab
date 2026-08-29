@@ -33,14 +33,18 @@ import type { PlanTier } from "@/lib/plans";
 const ALL_NAV_ITEMS = APP_NAV_SECTIONS.flatMap((section) => section.items);
 const MOBILE_PRIMARY_HREFS = ["/dashboard", "/inventory", "/kasir", "/roasting"];
 
-// â”€â”€ Rail (ikon selalu bersama teks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ––– Rail (ikon selalu bersama teks) –––––––––––––––––––––––––––––––––––––––––
 
 function Rail({
   userRole,
   subscriptionTier,
+  panelOpen,
+  togglePanel,
 }: {
   userRole: string;
   subscriptionTier: PlanTier;
+  panelOpen: boolean;
+  togglePanel: () => void;
 }) {
   const pathname = usePathname();
   const visibleItems = ALL_NAV_ITEMS.filter((item) =>
@@ -96,6 +100,15 @@ function Rail({
           <Search size={16} />
           <span className="text-[8.5px] font-semibold leading-none">Cari</span>
         </button>
+        <button
+          type="button"
+          onClick={togglePanel}
+          title={panelOpen ? "Sembunyikan panel konteks" : "Tampilkan panel konteks"}
+          className="flex w-full flex-col items-center gap-0.5 rounded-lg py-1.5 text-white/45 transition-colors hover:text-white/85"
+        >
+          {panelOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+          <span className="text-[8.5px] font-semibold leading-none">Panel</span>
+        </button>
         <form action={logoutAction} className="w-full">
           <button
             type="submit"
@@ -103,7 +116,7 @@ function Rail({
             title="Keluar"
             className="mx-auto flex w-full flex-col items-center gap-0.5 rounded-lg py-1.5 text-white/35 transition-colors hover:bg-[var(--stage-roasting)]/10 hover:text-[var(--stage-system-soft)]"
           >
-            <LogOut size={15} />
+            <LogOut size={16} />
             <span className="text-[8.5px] font-semibold leading-none">Keluar</span>
           </button>
         </form>
@@ -123,7 +136,7 @@ function PanelEntityBody() {
       <button
         type="button"
         onClick={clear}
-        className="inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-ink-tertiary transition-colors hover:bg-surface-sunken hover:text-foreground"
+        className="inline-flex w-fit items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-foreground"
       >
         â† Ringkasan
       </button>
@@ -171,9 +184,9 @@ function ContextPanel({
       ) : (
         <>
       <div className="rounded-card border border-border bg-card p-4 shadow-elevation-soft">
-        <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-ink-tertiary">Workspace</p>
+        <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-ink-secondary">Workspace</p>
         <p className="mt-1 text-sm font-semibold capitalize text-foreground">{userRole.toLowerCase()}</p>
-        <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-tertiary">
+        <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-secondary">
           {subscriptionTier}
         </p>
       </div>
@@ -195,7 +208,7 @@ function ContextPanel({
       <button
         type="button"
         onClick={onClose}
-        className="mx-auto mt-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-ink-tertiary transition-colors hover:text-foreground"
+        className="mx-auto mt-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-ink-secondary transition-colors hover:text-foreground"
       >
         <ChevronRight size={13} /> Sembunyikan panel
       </button>
@@ -231,7 +244,7 @@ function MobileDock({
 }) {
   return (
     <nav
-      className="grid h-[60px] shrink-0 border-t border-white/10 bg-obsidian px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_40px_rgba(5,9,13,.18)] md:hidden"
+      className="grid h-[56px] shrink-0 border-t border-white/10 bg-obsidian px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_40px_rgba(5,9,13,.18)] md:hidden"
       style={{ gridTemplateColumns: `repeat(${items.length + 1}, minmax(0, 1fr))` }}
       aria-label="Navigasi utama mobile"
     >
@@ -247,7 +260,7 @@ function MobileDock({
             aria-current={active ? "page" : undefined}
             className={cn(
               "relative flex min-w-0 flex-col items-center justify-center gap-0.5 text-[8px] font-semibold transition",
-              active ? tone.text : "text-white/45",
+              active ? tone.text : "text-white/60",
               prominent && "-mt-1.5",
             )}
           >
@@ -265,7 +278,7 @@ function MobileDock({
               <span
                 className={cn(
                   "flex h-7 w-7 items-center justify-center rounded-[8px] border transition-colors",
-                  active ? tone.activeIcon : "border-transparent text-white/40",
+                  active ? tone.activeIcon : "border-white/10 bg-white/[0.04] text-white/60",
                 )}
               >
                 <Icon size={14} strokeWidth={active ? 2.2 : 1.7} />
@@ -285,7 +298,7 @@ function MobileDock({
         onClick={onOpenMore}
         className={cn(
           "relative flex min-w-0 flex-col items-center justify-center gap-0.5 text-[8px] font-semibold transition",
-          moreActive ? "text-[var(--chrome-instrument-soft)]" : "text-white/45",
+          moreActive ? "text-[var(--chrome-instrument-soft)]" : "text-white/60",
         )}
         aria-label="Buka semua menu"
       >
@@ -295,7 +308,7 @@ function MobileDock({
         <span
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-[8px] border",
-            moreActive ? "border-[var(--instrument)]/45 bg-[var(--instrument)]/15 text-[var(--instrument)]" : "border-transparent text-white/40",
+            moreActive ? "border-[var(--instrument)]/45 bg-[var(--instrument)]/15 text-[var(--instrument)]" : "border-white/10 bg-white/[0.04] text-white/60",
           )}
         >
           <MoreHorizontal size={14} />
@@ -307,30 +320,31 @@ function MobileDock({
 }
 
 // â”€â”€ Shell utama â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——— Shell utama ——————————————————————————————————————————————————————
 
 export function AppShellV2({
   children,
   userRole,
   subscriptionTier,
-  pendingPaymentReviews,
+  pendingPaymentReviews = 0,
   lowStockCount = 0,
   unfulfilledOrders = 0,
 }: {
   children: React.ReactNode;
   userRole: string;
   subscriptionTier: PlanTier;
-  pendingPaymentReviews: number;
+  pendingPaymentReviews?: number;
   lowStockCount?: number;
   unfulfilledOrders?: number;
 }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => setIsMobileMenuOpen(false), [pathname]);
   useEffect(() => {
     const saved = window.localStorage.getItem("ros-context-panel");
-    if (saved === "closed") setPanelOpen(false);
+    if (saved === "open") setPanelOpen(true);
   }, []);
   const togglePanel = () => {
     setPanelOpen((v) => {
@@ -399,46 +413,48 @@ export function AppShellV2({
 
       {/* Rail desktop */}
       <div className="hidden md:flex">
-        <Rail userRole={userRole} subscriptionTier={subscriptionTier} />
+        <Rail userRole={userRole} subscriptionTier={subscriptionTier} panelOpen={panelOpen} togglePanel={togglePanel} />
       </div>
 
       {/* Kolom utama */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* Strip atas tipis */}
-        <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-surface/80 px-4 backdrop-blur-sm sm:px-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary md:hidden"
-              aria-label="Buka menu"
-            >
-              <Menu size={15} />
-            </button>
-            <p className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-ink-tertiary">
-              {activeSection ? `${activeSection.label} / ${activeItem?.label ?? ""}` : "roastd.id"}
-            </p>
+        {/* Strip atas tipis — compact di mobile */}
+        <header className="flex flex-col shrink-0 border-b border-border/70 bg-surface/80 backdrop-blur-sm z-20">
+          <div className="flex h-10 md:h-12 items-center justify-between gap-2 px-3 md:gap-3 md:px-4 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3 flex-1">
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary md:hidden"
+                aria-label="Buka menu"
+              >
+                <Menu size={16} />
+              </button>
+              
+              {/* Target untuk PageHeader Portal (Row Atas) */}
+              <div id="app-top-bar-portal" className="flex-1 min-w-0" />
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary transition-colors hover:text-foreground"
+                aria-label="Cari halaman"
+              >
+                <Search size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={togglePanel}
+                aria-label={panelOpen ? "Sembunyikan panel konteks" : "Tampilkan panel konteks"}
+                className="hidden h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary transition-colors hover:text-foreground xl:flex"
+              >
+                {panelOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
+              </button>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
-              className="inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs font-medium text-ink-tertiary transition-colors hover:border-primary/40 hover:text-foreground"
-              aria-label="Cari halaman (Ctrl K)"
-            >
-              <Search size={12} />
-              <span className="hidden sm:inline">Cariâ€¦</span>
-              <kbd className="rounded border border-border px-1 font-mono text-[9px]">âŒ˜K</kbd>
-            </button>
-            <button
-              type="button"
-              onClick={togglePanel}
-              aria-label={panelOpen ? "Sembunyikan panel konteks" : "Tampilkan panel konteks"}
-              className="hidden h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-ink-tertiary transition-colors hover:text-foreground xl:flex"
-            >
-              {panelOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
-            </button>
-          </div>
+          {/* Target untuk PageHeader Portal (Row Bawah / Controls) */}
+          <div id="app-top-bar-bottom-portal" className="w-full empty:hidden" />
         </header>
 
         <div className="dashboard-canvas custom-scrollbar relative z-0 min-h-0 flex-1 overflow-y-auto">
@@ -463,7 +479,7 @@ export function AppShellV2({
             type="button"
             onClick={togglePanel}
             aria-label="Tampilkan panel konteks"
-            className="absolute right-3 top-16 z-30 hidden h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-ink-tertiary shadow-elevation-soft transition-colors hover:text-foreground xl:hidden"
+            className="absolute right-3 top-16 z-30 hidden h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary shadow-elevation-soft transition-colors hover:text-foreground xl:hidden"
           >
             <PanelRightOpen size={15} />
           </button>
@@ -473,7 +489,7 @@ export function AppShellV2({
           type="button"
           onClick={togglePanel}
           aria-label="Tampilkan panel konteks"
-          className="absolute right-3 top-16 z-30 hidden h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-ink-tertiary shadow-elevation-soft transition-colors hover:text-foreground xl:flex"
+          className="absolute right-3 top-16 z-30 hidden h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-ink-secondary shadow-elevation-soft transition-colors hover:text-foreground xl:flex"
         >
           <ChevronLeft size={15} />
         </button>
@@ -484,3 +500,4 @@ export function AppShellV2({
     </EntityPanelProvider>
   );
 }
+

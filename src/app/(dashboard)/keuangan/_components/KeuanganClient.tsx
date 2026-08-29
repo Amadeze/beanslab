@@ -4,9 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, HandCoins } from "lucide-react";
+import { Minus, Plus, HandCoins, Plus as PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CompactHeader } from "@/components/layout/CompactHeader";
+import { StandardPageLayout } from "@/components/StandardPageLayout";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PiutangTable } from "./PiutangTable";
 import { TerimaPaymentDialog } from "./TerimaPaymentDialog";
@@ -138,57 +139,24 @@ export function KeuanganClient({
   ];
 
   return (
-    <>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <CompactHeader
-          title="Kas & Piutang"
-          description="Piutang & penerimaan pembayaran"
-          stage="finance"
-          signal={{
-            label: "Sinyal",
-            value: overdueCount > 0 ? `${overdueCount} lewat tempo` : "Terkendali",
-            tone: overdueCount > 0 ? "critical" : "ready",
-            onClick: overdueCount > 0 ? () => setActiveTab("piutang") : undefined,
-          }}
-          metrics={[
-            { label: "1-30hr", value: kpi.agingBuckets.overdue1_30.count },
-            { label: "31-60hr", value: kpi.agingBuckets.overdue31_60.count },
-            { label: "60+hr", value: kpi.agingBuckets.overdue61Plus.count },
-          ]}
-          actions={
-            <>
-              <Link
-                href="/penjualan/pembayaran"
-                className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-border bg-card/60 px-3 text-xs font-semibold text-ink transition hover:bg-card"
-              >
-                Review Bukti Bayar →
-              </Link>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="h-8 gap-1.5 text-xs font-medium"
-                onClick={() => setExpenseOpen(true)}
-              >
-                <Minus size={14} />
-                Catat Pengeluaran
-              </Button>
-            </>
-          }
-          mobileActions={
-            <Button
-              variant="destructive"
-              size="sm"
-              className="gap-1.5 px-3 text-xs font-semibold"
-              onClick={() => setExpenseOpen(true)}
-            >
-              <Minus size={14} />
-              Pengeluaran
-            </Button>
-          }
-        />
-
-        <div className="custom-scrollbar flex-1 overflow-auto">
-          <div className="relative z-10 mx-auto max-w-[1600px] px-4 pb-8 sm:px-5 md:px-6 lg:px-8">
+    <StandardPageLayout
+      title="Kas & Piutang"
+      description="Piutang & penerimaan pembayaran"
+      stage="finance"
+      compact
+      mobileFabAction={{
+        label: "Pengeluaran",
+        icon: <Minus size={19} />,
+        onClick: () => setExpenseOpen(true),
+        "aria-label": "Catat pengeluaran",
+      }}
+      mobileSpeedDialItems={[
+        { label: "Pengeluaran", icon: <Minus size={17} />, onClick: () => setExpenseOpen(true), variant: "primary" },
+        { label: "Tambah Modal", icon: <PlusIcon size={17} />, onClick: () => setCapitalDialogType("INJECTION") },
+        { label: "Catat Prive", icon: <HandCoins size={17} />, onClick: () => setCapitalDialogType("WITHDRAWAL") },
+      ]}
+    >
+      <div className="relative z-10 mx-auto max-w-[1600px] px-4 pb-8 sm:px-5 md:px-6 lg:px-8">
             {/* Command center: ringkasan kas, piutang, hutang, arus kas */}
             <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
               {[
@@ -417,8 +385,6 @@ export function KeuanganClient({
               </div>
             </Tabs>
           </div>
-        </div>
-      </div>
 
       <TerimaPaymentDialog
         invoice={selectedInvoice}
@@ -518,6 +484,6 @@ export function KeuanganClient({
               })
         }
       />
-    </>
+    </StandardPageLayout>
   );
 }

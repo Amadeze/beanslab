@@ -24,6 +24,16 @@ export type LoginResult =
   | { success: true; role: string }
   | { success: false; error: string; code?: "EmailNotVerified" };
 
+// Timeout wrapper for server-side operations
+async function withServerTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Operasi timeout")), ms)
+    ),
+  ]);
+}
+
 export async function loginAction(email: string, password: string): Promise<LoginResult> {
   try {
     const requestHeaders = await headers();
@@ -35,23 +45,26 @@ export async function loginAction(email: string, password: string): Promise<Logi
       windowSeconds: 15 * 60,
     });
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        password: true,
-        isActive: true,
-        tenantId: true,
-        failedLoginAttempts: true,
-        lockedUntil: true,
-        sessionVersion: true,
-        emailVerifiedAt: true,
-        tenant: { select: { isActive: true } },
-      },
-    });
+    const user = await withServerTimeout(
+      prisma.user.findUnique({
+        where: { email: email.toLowerCase().trim() },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          password: true,
+          isActive: true,
+          tenantId: true,
+          failedLoginAttempts: true,
+          lockedUntil: true,
+          sessionVersion: true,
+          emailVerifiedAt: true,
+          tenant: { select: { isActive: true } },
+        },
+      }),
+      8000
+    );
 
     if (!user || !user.isActive || !user.tenant.isActive) {
       return { success: false, error: "Email atau password salah." };

@@ -715,8 +715,9 @@ export async function updateSupplier(input: UpdateSupplierInput): Promise<Action
     await requireRole("OWNER", "MANAGER", "OPERATOR");
     const parsed = supplierInputSchema.safeParse(input);
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data supplier tidak valid." };
+    const tenantId = await getCurrentTenantId();
     const tp = await requireTenantPrisma();
-    const existing = await tp.supplier.findUnique({ where: { id: input.id }, select: { code: true } });
+    const existing = await tp.supplier.findFirst({ where: { id: input.id, tenantId }, select: { code: true } });
     if (!existing) return { success: false, error: "Supplier tidak ditemukan." };
     const data = {
       name: parsed.data.name,
@@ -810,8 +811,9 @@ export async function updateCustomer(input: UpdateCustomerInput): Promise<Action
     await requireRole("OWNER", "MANAGER", "OPERATOR", "CASHIER");
     const parsed = customerInputSchema.safeParse(input);
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "Data pelanggan tidak valid." };
+    const tenantId = await getCurrentTenantId();
     const tp = await requireTenantPrisma();
-    const existing = await tp.customer.findUnique({ where: { id: input.id }, select: { code: true } });
+    const existing = await tp.customer.findFirst({ where: { id: input.id, tenantId }, select: { code: true } });
     if (!existing) return { success: false, error: "Pelanggan tidak ditemukan." };
     const data = {
       name: parsed.data.name,
@@ -1682,7 +1684,6 @@ export async function updateSupplyItem(input: UpdateSupplyItemInput): Promise<Ac
 export async function renameRbProducts(): Promise<{ success: boolean; renamed: number; skipped: number; error?: string }> {
   try {
     await requireRole("OWNER");
-    const tenantId = await getCurrentTenantId();
     const tp = await requireTenantPrisma();
 
     // Find all RB products that don't have "·" in their name (not following convention)

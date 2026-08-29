@@ -7,18 +7,31 @@ import { planHasFeature, type PlanFeature } from "./plans";
 import { cache } from "react";
 import { canAccessTenantRole } from "./roles";
 
+function withDbTimeout<T>(promise: Promise<T>, ms: number = 10000, context: string = "Operasi"): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${context} timeout setelah ${ms}ms.`)), ms)
+    ),
+  ]);
+}
+
 export const getTenantAccessRecord = cache(async (tenantId: string) =>
-  prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: {
-      isActive: true,
-      subscriptionTier: true,
-      subscriptionStatus: true,
-      trialEndsAt: true,
-      nextBillingDate: true,
-      setupCompletedAt: true,
-    },
-  }),
+  withDbTimeout(
+    prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        isActive: true,
+        subscriptionTier: true,
+        subscriptionStatus: true,
+        trialEndsAt: true,
+        nextBillingDate: true,
+        setupCompletedAt: true,
+      },
+    }),
+    12000,
+    "Gagal memuat tenant: database"
+  )
 );
 
 /**
@@ -31,21 +44,25 @@ export const getTenantAccessRecord = cache(async (tenantId: string) =>
 export async function validateSessionUser(
   sessionUser: SessionUser,
 ): Promise<SessionUser | null> {
-  const currentUser = await prisma.user.findFirst({
-    where: {
-      id: sessionUser.id,
-      tenantId: sessionUser.tenantId,
-      isActive: true,
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      tenantId: true,
-      sessionVersion: true,
-    },
-  });
+  const currentUser = await withDbTimeout(
+    prisma.user.findFirst({
+      where: {
+        id: sessionUser.id,
+        tenantId: sessionUser.tenantId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        tenantId: true,
+        sessionVersion: true,
+      },
+    }),
+    12000,
+    "Validasi sesi: database"
+  );
   if (!currentUser) return null;
   if (currentUser.sessionVersion !== sessionUser.sessionVersion) return null;
 
@@ -75,7 +92,7 @@ export const getValidatedCurrentUser = cache(async (): Promise<SessionUser | nul
 export async function requireCurrentUser() {
   const user = await getValidatedCurrentUser();
   if (!user) {
-    redirect("/login");
+    redirect("/login?error=InvalidState");
   }
   return user;
 }
@@ -89,12 +106,12 @@ export async function requireTenantPrisma() {
   const tenant = await getTenantAccessRecord(user.tenantId);
 
   if (!tenant || !tenant.isActive) {
-    redirect("/login");
+    redirect("/login?error=AccountDisabled");
   }
 
   const accessState = getTenantAccessState(tenant);
   if (accessState === "INACTIVE") {
-    redirect("/login");
+    redirect("/login?error=AccountDisabled");
   }
   if (accessState === "SUBSCRIPTION_REQUIRED") {
     redirect("/billing");
@@ -119,11 +136,11 @@ export async function requireFeature(feature: PlanFeature) {
   const user = await requireCurrentUser();
   const tenant = await getTenantAccessRecord(user.tenantId);
   if (!tenant || !tenant.isActive) {
-    redirect("/login");
+    redirect("/login?error=AccountDisabled");
   }
   const accessState = getTenantAccessState(tenant);
   if (accessState === "INACTIVE") {
-    redirect("/login");
+    redirect("/login?error=AccountDisabled");
   }
   if (accessState === "SUBSCRIPTION_REQUIRED") {
     redirect("/billing");

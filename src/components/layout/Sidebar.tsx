@@ -19,6 +19,7 @@ import {
   ShoppingCart,
   WalletCards,
   Warehouse,
+  Search,
 } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
 import { cn } from "@/lib/utils";
@@ -357,6 +358,22 @@ export function Sidebar({
           </div>
         </div>
       ) : null}
+
+      {!isCollapsed && (
+        <div className="mx-4 mt-4">
+          <button
+            type="button"
+            onClick={() => {
+              window.dispatchEvent(new Event("open-command-palette"));
+              // Dispatch event to close mobile menu if it's open (AppShellV2 handles this on pathname change, but we want it immediate)
+            }}
+            className="flex w-full items-center gap-2.5 rounded-[10px] border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 text-white/45 transition hover:bg-white/[0.05] hover:text-white"
+          >
+            <Search size={15} />
+            <span className="text-[13px] font-medium">Pencarian (Ctrl+K)</span>
+          </button>
+        </div>
+      )}
 
       <nav
         className={cn(

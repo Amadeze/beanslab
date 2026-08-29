@@ -108,6 +108,9 @@ describe("MANUAL creation/completion passes the selected destination through", (
         findUnique: vi.fn(async ({ where }: any) =>
           where.id === "gb-1" ? gb : where.id === "rb-1" ? rb : null,
         ),
+        findFirst: vi.fn(async ({ where }: any) =>
+          where.id === "gb-1" ? gb : where.id === "rb-1" ? rb : null,
+        ),
       },
       parentRoastingBatch: {
         create: vi.fn(async (args: any) => ({ id: "batch-1", code: args.data.code })),

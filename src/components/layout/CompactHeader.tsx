@@ -22,6 +22,8 @@ interface CompactHeaderProps {
     label: string;
     href: string;
   };
+  /** Compact mode untuk mobile: sembunyikan description, kurangi padding */
+  compact?: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export function CompactHeader({
   signal,
   metrics,
   next,
+  compact = false,
 }: CompactHeaderProps) {
   return (
     <PageHeader
@@ -49,6 +52,7 @@ export function CompactHeader({
       signal={signal}
       metrics={metrics}
       next={next}
+      compact={compact}
     />
   );
 }

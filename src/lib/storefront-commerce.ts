@@ -1,5 +1,18 @@
-import { appendFefoLedgerOut } from "./stock";
-import { postSalesInvoice } from "./posting";
+import { appendFefoLedgerOut, appendLedger } from "./stock";
+import { postSalesInvoice, postVoidReversal } from "./posting";
+import { Prisma } from "@prisma/client";
+
+// GrindSize is not directly exported from Prisma namespace, use string type
+// The actual enum values are: WHOLE_BEAN, COARSE, MEDIUM_COARSE, MEDIUM, MEDIUM_FINE, FINE, ESPRESSO, CUSTOM
+type GrindSize = 
+  | "WHOLE_BEAN" 
+  | "COARSE" 
+  | "MEDIUM_COARSE" 
+  | "MEDIUM" 
+  | "MEDIUM_FINE" 
+  | "FINE" 
+  | "ESPRESSO" 
+  | "CUSTOM";
 
 // Kept structural so the helper works with both PrismaClient and a transaction client.
 type StorefrontTx = any;
@@ -68,7 +81,7 @@ export async function fulfillWalkInSaleStock(
     invoiceId: string;
     invoiceCode: string;
     createdById: string;
-    items: Array<{ productId: string; quantity: number }>;
+    items: Array<{ productId: string; quantity: number; quantityKg?: number | null }>;
   },
 ) {
   const items = [...input.items].sort((left, right) => left.productId.localeCompare(right.productId));
@@ -80,27 +93,63 @@ export async function fulfillWalkInSaleStock(
     const product = await lockProductForUpdate(tx, input.tenantId, item.productId);
     if (!product) throw new Error("Produk tidak ditemukan.");
     const reserved = await aggregateActiveReservations(tx, input.tenantId, item.productId);
-    const availableUnits = Math.max(0, Number(product.stockUnit ?? 0) - reserved.units);
-    if (item.quantity > availableUnits) {
-      if (reserved.units > 0) {
-        throw new Error(
-          `Stok tersedia untuk kasir tidak cukup. ${reserved.units} unit sedang dicadangkan untuk pesanan lain.`,
-        );
+
+    const isKgBased = isKgBasedProductType(product.type);
+    if (isKgBased) {
+      if (!Number.isFinite(item.quantityKg ?? NaN)) {
+        throw new Error("quantityKg wajib diisi untuk produk berbasis kg.");
       }
-      throw new Error("Stok produk tidak cukup untuk menyelesaikan transaksi.");
+      const requestedKg = Number(item.quantityKg);
+      if (requestedKg <= 0) {
+        throw new Error("Berat penjualan harus lebih dari 0 kg.");
+      }
+      const availableKg = Math.max(0, Number(product.stockKg ?? 0) - reserved.kg);
+      if (requestedKg > availableKg) {
+        if (reserved.kg > 0) {
+          throw new Error(
+            `Stok tersedia untuk kasir tidak cukup. ${reserved.kg.toFixed(3)} kg sedang dicadangkan untuk pesanan lain.`,
+          );
+        }
+        throw new Error("Stok produk tidak cukup untuk menyelesaikan transaksi.");
+      }
+    } else {
+      const availableUnits = Math.max(0, Number(product.stockUnit ?? 0) - reserved.units);
+      if (item.quantity > availableUnits) {
+        if (reserved.units > 0) {
+          throw new Error(
+            `Stok tersedia untuk kasir tidak cukup. ${reserved.units} unit sedang dicadangkan untuk pesanan lain.`,
+          );
+        }
+        throw new Error("Stok produk tidak cukup untuk menyelesaikan transaksi.");
+      }
     }
   }
 
   for (const item of items) {
-    await appendFefoLedgerOut(tx, {
-      tenantId: input.tenantId,
-      productId: item.productId,
-      refType: "SALE_FG_OUT",
-      refId: input.invoiceId,
-      quantityUnit: item.quantity,
-      notes: `Penjualan walk-in ${input.invoiceCode}`,
-      createdById: input.createdById,
-    });
+    const product = await lockProductForUpdate(tx, input.tenantId, item.productId);
+    if (!product) throw new Error("Produk tidak ditemukan.");
+    const isKgBased = isKgBasedProductType(product.type);
+    if (isKgBased) {
+      await appendFefoLedgerOut(tx, {
+        tenantId: input.tenantId,
+        productId: item.productId,
+        refType: "SALE_FG_OUT",
+        refId: input.invoiceId,
+        quantityKg: Number(item.quantityKg),
+        notes: `Penjualan walk-in ${input.invoiceCode}`,
+        createdById: input.createdById,
+      });
+    } else {
+      await appendFefoLedgerOut(tx, {
+        tenantId: input.tenantId,
+        productId: item.productId,
+        refType: "SALE_FG_OUT",
+        refId: input.invoiceId,
+        quantityUnit: item.quantity,
+        notes: `Penjualan walk-in ${input.invoiceCode}`,
+        createdById: input.createdById,
+      });
+    }
   }
 }
 
@@ -110,7 +159,7 @@ export async function reserveInvoiceStock(
     tenantId: string;
     invoiceId: string;
     expiresAt: Date;
-    items: Array<{ productId: string; quantity: number; quantityKg?: number | null }>;
+    items: Array<{ productId: string; quantity: number; quantityKg?: number | null; grindSize?: GrindSize | null; customGrindLabel?: string | null }>;
   },
 ) {
   let hasShortage = false;
@@ -124,8 +173,12 @@ export async function reserveInvoiceStock(
     if (isKgBased) {
       // Ketersediaan KG berasal dari stockKg (cache ledger) dikurangi
       // reservasi ACTIVE dalam kg — bukan dari stockUnit.
-      const requestedKg = Number.isFinite(item.quantityKg ?? NaN) ? Number(item.quantityKg) : item.quantity;
-      if (!Number.isFinite(requestedKg) || requestedKg <= 0) {
+      // quantityKg WAJIB diisi untuk produk berbasis kg (ROASTED_BEAN/GREEN_BEAN).
+      if (!Number.isFinite(item.quantityKg ?? NaN)) {
+        throw new Error("quantityKg wajib diisi untuk produk berbasis kg.");
+      }
+      const requestedKg = Number(item.quantityKg);
+      if (requestedKg <= 0) {
         throw new Error("Berat reservasi harus lebih dari 0 kg.");
       }
       const availableKg = Math.max(0, Number(product.stockKg ?? 0) - reserved.kg);
@@ -143,6 +196,8 @@ export async function reserveInvoiceStock(
             // kg-backed product, quantityKg is the authoritative stock value.
             quantity: item.quantity,
             quantityKg: reservedKg,
+            grindSize: item.grindSize ?? null,
+            customGrindLabel: item.customGrindLabel ?? null,
             expiresAt: input.expiresAt,
           },
         });
@@ -179,6 +234,8 @@ export async function reserveInvoiceStock(
           productId: item.productId,
           quantity: reservedUnits,
           quantityKg: null,
+          grindSize: item.grindSize ?? null,
+          customGrindLabel: item.customGrindLabel ?? null,
           expiresAt: input.expiresAt,
         },
       });
@@ -326,6 +383,45 @@ export async function releaseInvoiceReservations(
   status: "RELEASED" | "EXPIRED" = "RELEASED",
   now = new Date(),
 ) {
+  const invoice = await tx.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { id: true, tenantId: true, status: true, paidAmount: true, fulfillmentStatus: true, createdById: true, code: true },
+  });
+  if (!invoice) throw new Error("Invoice tidak ditemukan.");
+
+  if (invoice.status === "PAID" || invoice.status === "PARTIAL" || Number(invoice.paidAmount) > 0) {
+    throw new Error("Invoice yang sudah dibayar tidak dapat dibatalkan otomatis. Batalkan pembayaran terlebih dahulu.");
+  }
+
+  const saleEntries = await tx.inventoryLedger.findMany({
+    where: { tenantId: invoice.tenantId, refId: invoiceId, refType: "SALE_FG_OUT", entryType: "OUT" },
+  });
+
+  if (saleEntries.length > 0) {
+    for (const entry of saleEntries) {
+      await appendLedger(tx, {
+        data: {
+          tenantId: invoice.tenantId,
+          productId: entry.productId,
+          entryType: "IN",
+          refType: "VOID_REVERSAL",
+          refId: invoiceId,
+          reversalOfLedgerId: entry.id,
+          quantityUnit: entry.quantityUnit,
+          lotId: entry.lotId,
+          lotNumber: entry.lotNumber,
+          expiryDate: entry.expiryDate,
+          notes: `VOID reversal: ${invoice.code}`,
+          createdById: invoice.createdById,
+        },
+      });
+      if (entry.lotId) {
+        await tx.lot.update({ where: { id: entry.lotId }, data: { consumedAt: null } });
+      }
+    }
+    await postVoidReversal("INVOICE", invoiceId, `Reservation ${status.toLowerCase()}`, { tx, tenantId: invoice.tenantId, userId: invoice.createdById, date: now });
+  }
+
   await tx.stockReservation.updateMany({
     where: { invoiceId, status: "ACTIVE" },
     data: { status, releasedAt: now },

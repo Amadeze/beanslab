@@ -19,30 +19,27 @@ interface CategoryTabsProps {
 
 export function CategoryTabs({ tabs, active, onChange }: CategoryTabsProps) {
   return (
-    <div className="flex gap-0 border-b border-border">
+    <div className="flex items-center gap-1 overflow-x-auto border-b border-border pb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={cn(
-            "relative flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs font-semibold transition-colors",
+            "relative flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-3 py-2 text-[11px] font-semibold leading-none transition-colors min-h-9",
             active === tab.id
-              ? "text-copper"
-              : "text-ink-tertiary hover:text-ink-secondary"
+              ? "border-copper bg-copper text-white shadow-sm"
+              : "border-border bg-card text-ink-secondary hover:border-border-strong hover:text-ink"
           )}
         >
           <span>{tab.label}</span>
           <span className={cn(
-            "rounded-full px-1.5 py-px text-xs font-bold tabular-nums",
-            active === tab.id ? "bg-copper-soft text-copper" : "bg-surface-sunken text-ink-tertiary"
+            "rounded-full px-1 py-px text-[10px] font-bold tabular-nums",
+            active === tab.id ? "bg-white/20 text-white" : "bg-surface-sunken text-ink-tertiary"
           )}>
             {tab.count}
           </span>
           {tab.hasIssues && active !== tab.id && (
-            <span className="absolute right-0 top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--status-warning)]" />
-          )}
-          {active === tab.id && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t bg-copper" />
+            <span className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full border border-card bg-[var(--status-warning)]" />
           )}
         </button>
       ))}

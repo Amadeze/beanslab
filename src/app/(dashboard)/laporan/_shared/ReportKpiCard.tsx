@@ -57,50 +57,52 @@ export function ReportKpiCard({
   })();
 
   return (
-    <Card className="p-5">
-      <div className="flex items-start justify-between gap-3">
+    <Card className="p-2.5 sm:p-3">
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <Eyebrow tone="muted" className="flex items-center gap-1.5">
-            {label}
+          <Eyebrow tone="muted" className="flex items-center gap-1 text-[8px] sm:text-[9px]">
+            <span className="truncate">{label}</span>
             {help && (
               <span
-                className="inline-flex cursor-help align-middle text-ink-tertiary hover:text-ink-secondary"
+                className="hidden shrink-0 cursor-help align-middle text-ink-tertiary hover:text-ink-secondary sm:inline-flex"
                 title={help}
                 aria-label={help}
               >
-                <Info size={12} />
+                <Info size={11} />
               </span>
             )}
           </Eyebrow>
-          <p className="mt-2 font-heading text-2xl font-bold tracking-[-0.04em] text-ink tabular-nums">{value}</p>
-          {subtitle && <p className="mt-0.5 text-xs text-ink-secondary">{subtitle}</p>}
-          {target && <p className="mt-0.5 text-xs text-ink-tertiary">Target: {target}</p>}
+          <p className="mt-1 font-heading text-[15px] font-bold leading-none tracking-[-0.04em] text-ink tabular-nums sm:mt-1.5 sm:text-xl">{value}</p>
+          {subtitle && <p className="mt-0.5 hidden text-xs text-ink-secondary sm:block">{subtitle}</p>}
+          {target && <p className="mt-0.5 hidden text-xs text-ink-tertiary sm:block">Target: {target}</p>}
         </div>
-        <div className="flex flex-col items-end gap-1.5">
+        <div className="flex shrink-0 flex-col items-end gap-1">
           {Icon && (
-            <div className={cn("flex size-9 items-center justify-center rounded-[9px] ring-1", c.bg, c.icon, c.ring)}>
-              <Icon size={16} />
+            <div className={cn("hidden size-7 items-center justify-center rounded-[8px] ring-1 sm:flex", c.bg, c.icon, c.ring)}>
+              <Icon size={13} />
             </div>
           )}
-          {sparkline && <MiniSparkline data={sparkline} color={c} />}
+          {sparkline && <span className="hidden sm:block"><MiniSparkline data={sparkline} color={c} /></span>}
         </div>
       </div>
       {trend !== undefined && trend !== null && (
-        <div className="mt-3 flex items-center gap-1.5 border-t border-border/70 pt-2.5">
-          {trend > 0 ? <TrendingUp size={12} className={trendColor} />
-            : trend < 0 ? <TrendingDown size={12} className={trendColor} />
-            : <Minus size={12} className={trendColor} />}
-          <span className={cn("text-xs font-semibold tabular-nums", trendColor)}>
+        <div className="mt-2 flex items-center gap-1 border-t border-border/60 pt-1.5 sm:mt-3 sm:gap-1.5 sm:pt-2.5">
+          {trend > 0 ? <TrendingUp size={11} className={trendColor} />
+            : trend < 0 ? <TrendingDown size={11} className={trendColor} />
+            : <Minus size={11} className={trendColor} />}
+          <span className={cn("text-[11px] font-semibold tabular-nums sm:text-xs", trendColor)}>
             {trend > 0 ? "+" : ""}{trend.toFixed(1)}%
           </span>
-          <span className="text-xs text-ink-tertiary">vs periode lalu</span>
+          <span className="hidden text-[11px] text-ink-tertiary sm:inline sm:text-xs">vs periode lalu</span>
+          <span className="text-[11px] text-ink-tertiary sm:hidden">vs lalu</span>
         </div>
       )}
       {trend === null && (
-        <div className="mt-3 flex items-center gap-1.5 border-t border-border/70 pt-2.5">
-          <Minus size={12} className="text-ink-tertiary" />
-          <span className="text-xs font-semibold tabular-nums text-ink-tertiary">—</span>
-          <span className="text-xs text-ink-tertiary">Periode baru</span>
+        <div className="mt-2 flex items-center gap-1 border-t border-border/60 pt-1.5 sm:mt-3 sm:gap-1.5 sm:pt-2.5">
+          <Minus size={11} className="text-ink-tertiary" />
+          <span className="text-[11px] font-semibold tabular-nums text-ink-tertiary sm:text-xs">—</span>
+          <span className="hidden text-[11px] text-ink-tertiary sm:inline sm:text-xs">Periode baru</span>
+          <span className="text-[11px] text-ink-tertiary sm:hidden">baru</span>
         </div>
       )}
     </Card>

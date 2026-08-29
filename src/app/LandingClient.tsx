@@ -45,40 +45,40 @@ import { PLAN_CATALOG } from "@/lib/plans";
 import { useHydratedReducedMotion } from "@/lib/use-reduced-motion";
 import type { LandingSocialProofItem } from "./_actions/landing-social-proof";
 
-// ─── Design tokens ───────────────────────────────────────────────────────────
-const COLORS = {
-  carbon: "#05090D",
-  carbonSoft: "#0B141B",
-  workshop: "#E9EDE9",
-  porcelain: "#FCFCF7",
-  line: "#C9CEC8",
-  copper: "#C6542F",
-  copperSoft: "#F2A17F",
-  cyan: "#25D9E8",
-  cyanSoft: "#92F3FA",
-  green: "#2D7A69",
-  greenSoft: "#A1D8CA",
-  brass: "#A76C10",
-  plum: "#76506F",
-  moss: "#527141",
+// ─── Design tokens (CSS custom properties) ────────────────────────────────────
+const TOKENS = {
+  carbon: "var(--obsidian)",
+  carbonSoft: "var(--obsidian-soft)",
+  workshop: "var(--paper)",
+  porcelain: "var(--surface-raised)",
+  line: "var(--border)",
+  copper: "var(--copper)",
+  copperSoft: "var(--copper-soft)",
+  cyan: "var(--instrument)",
+  cyanSoft: "var(--stage-dock-system-soft)",
+  green: "var(--domain-inventory)",
+  greenSoft: "var(--stage-inventory-soft)",
+  brass: "var(--domain-production)",
+  plum: "var(--domain-sales)",
+  moss: "var(--domain-finance)",
 } as const;
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 // ─── Static data ─────────────────────────────────────────────────────────────
 const TRACE = [
-  { id: "lot", number: "01", label: "Lot", value: "ETH-2407", icon: Boxes, color: COLORS.green },
-  { id: "roast", number: "02", label: "Roast", value: "16,7 kg", icon: Flame, color: COLORS.copper },
-  { id: "match", number: "03", label: "Match", value: "94%", icon: Gauge, color: COLORS.cyan },
-  { id: "output", number: "04", label: "Output", value: "10 pack", icon: PackageCheck, color: COLORS.brass },
-  { id: "ledger", number: "05", label: "Nilai", value: "Rp 1,68 jt", icon: WalletCards, color: COLORS.moss },
+  { id: "lot", number: "01", label: "Lot", value: "ETH-2407", icon: Boxes, color: TOKENS.green },
+  { id: "roast", number: "02", label: "Roast", value: "16,7 kg", icon: Flame, color: TOKENS.copper },
+  { id: "match", number: "03", label: "Match", value: "94%", icon: Gauge, color: TOKENS.cyan },
+  { id: "output", number: "04", label: "Output", value: "10 pack", icon: PackageCheck, color: TOKENS.brass },
+  { id: "ledger", number: "05", label: "Nilai", value: "Rp 1,68 jt", icon: WalletCards, color: TOKENS.moss },
 ] as const;
 
 const AUTOMATIONS = [
-  { label: "Green bean", before: "120 kg", after: "100 kg", color: COLORS.green },
-  { label: "Roasted bean", before: "0 kg", after: "16,7 kg", color: COLORS.copper },
-  { label: "Susut roasting", before: "—", after: "16,5%", color: COLORS.brass },
-  { label: "HPP batch", before: "—", after: "Rp 105.500/kg", color: COLORS.moss },
+  { label: "Green bean", before: "120 kg", after: "100 kg", color: TOKENS.green },
+  { label: "Roasted bean", before: "0 kg", after: "16,7 kg", color: TOKENS.copper },
+  { label: "Susut roasting", before: "—", after: "16,5%", color: TOKENS.brass },
+  { label: "HPP batch", before: "—", after: "Rp 105.500/kg", color: TOKENS.moss },
 ] as const;
 
 const MODULES = [
@@ -86,42 +86,42 @@ const MODULES = [
     title: "Pasokan & lot",
     description: "Owner tahu stok green bean tersisa berapa, lot mana yang harus dipakai duluan, dan nilai persediaan hari ini — dari satu penerimaan.",
     icon: Boxes,
-    color: COLORS.green,
+    color: TOKENS.green,
     meta: "FEFO · ledger · label",
   },
   {
     title: "Roasting & profile",
     description: "Setiap batch punya konteks penuh: kurva .alog, susut, profile matching, dan riwayat child batch — tanpa harus buka Artisan secara terpisah.",
     icon: Flame,
-    color: COLORS.copper,
+    color: TOKENS.copper,
     meta: "Studio · Artisan · .alog",
   },
   {
     title: "Produksi & packing",
     description: "Roasted bean dan kemasan berubah menjadi barang jadi. HPP dihitung otomatis dari bahan yang terpakai, bukan estimasi.",
     icon: Factory,
-    color: COLORS.brass,
+    color: TOKENS.brass,
     meta: "recipe · output · HPP",
   },
   {
     title: "Penjualan & kasir",
     description: "Nota, storefront, sample, dan pembayaran menarik dari stok dan pelanggan yang sama. Kasir tetap bisa dipakai saat koneksi tidak ideal.",
     icon: ReceiptText,
-    color: COLORS.plum,
+    color: TOKENS.plum,
     meta: "invoice · POS · offline-aware",
   },
   {
     title: "Keuangan",
     description: "Piutang, hutang supplier, pengeluaran, dan jurnal mengikuti transaksi operasional secara otomatis — bukan input manual setelah hari selesai.",
     icon: CircleDollarSign,
-    color: COLORS.moss,
+    color: TOKENS.moss,
     meta: "ledger · aging · GL",
   },
   {
     title: "Laporan keputusan",
     description: "Daily Brief menampilkan apa yang perlu diselesaikan hari ini: lot hampir habis, piutang jatuh tempo, dan ringkasan produksi — bukan sekadar grafik.",
     icon: Layers3,
-    color: COLORS.cyan,
+    color: TOKENS.cyan,
     meta: "daily brief · audit · export",
   },
 ] as const;
@@ -131,31 +131,31 @@ const PAIN_POINTS = [
     icon: FileSpreadsheet,
     title: "Data tersebar di banyak tempat",
     body: "Stok green bean di satu spreadsheet, HPP di tabel lain, laporan roasting di Artisan. Tidak ada yang nyambung.",
-    color: COLORS.copper,
+    color: TOKENS.copper,
   },
   {
     icon: RefreshCw,
     title: "Input ulang setiap selesai roasting",
     body: "Operator selesai roast, lalu harus input manual ke stok, ke produksi, ke laporan. Tiga kali kerja untuk satu kejadian.",
-    color: COLORS.brass,
+    color: TOKENS.brass,
   },
   {
     icon: HelpCircle,
     title: "Owner harus bertanya ke operator",
     body: "\"Stok masih ada berapa?\" \"Susut tadi berapa persen?\" \"HPP batch ini sudah dihitung?\" — pertanyaan yang harusnya sudah terjawab otomatis.",
-    color: COLORS.plum,
+    color: TOKENS.plum,
   },
   {
     icon: Clock,
     title: "Laporan keuangan sering lag",
     body: "Piutang, hutang, dan pengeluaran baru terhitung saat ada yang sempat memasukkannya — bukan saat transaksi terjadi.",
-    color: COLORS.moss,
+    color: TOKENS.moss,
   },
   {
     icon: GitBranch,
     title: "Profil roast tidak terhubung ke stok",
     body: "Kurva di Artisan bagus. Tapi hasilnya tidak otomatis memengaruhi nilai batch, stok roasted bean, atau catatan produksi.",
-    color: COLORS.green,
+    color: TOKENS.green,
   },
 ] as const;
 
@@ -197,26 +197,29 @@ function Reveal({
   children,
   className,
   delay = 0,
+  critical = false,
 }: {
   children: ReactNode;
   className?: string;
   delay?: number;
+  critical?: boolean;
 }) {
   const reduceMotion = useHydratedReducedMotion();
   return (
     <motion.div
       className={className}
-      initial={reduceMotion ? false : { opacity: 0, y: 22 }}
+      initial={reduceMotion || critical ? false : { opacity: 0, y: 22 }}
       whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.18 }}
       transition={{ duration: 0.65, delay, ease: EASE }}
+      style={{ opacity: critical ? 1 : undefined }}
     >
       {children}
     </motion.div>
   );
 }
 
-function Kicker({ children, color = COLORS.cyan }: { children: ReactNode; color?: string }) {
+function Kicker({ children, color = TOKENS.cyan }: { children: ReactNode; color?: string }) {
   return (
     <p
       className="font-mono text-[9px] font-bold uppercase tracking-[0.22em]"
@@ -231,9 +234,9 @@ function Kicker({ children, color = COLORS.cyan }: { children: ReactNode; color?
 function Brand({ inverse = false }: { inverse?: boolean }) {
   return (
     <span className="inline-flex items-center gap-2.5">
-      <span className="relative grid size-9 place-items-center rounded-[9px] bg-[#C6542F] text-white" aria-hidden="true">
+      <span className="relative grid size-9 place-items-center rounded-[9px] bg-[var(--copper)] text-white" aria-hidden="true">
         <Coffee className="size-4" strokeWidth={2.3} aria-hidden="true" />
-        <span className="absolute -right-1 -top-1 size-2 rounded-full bg-[#25D9E8] shadow-[0_0_12px_#25D9E8]" aria-hidden="true" />
+        <span className="absolute -right-1 -top-1 size-2 rounded-full bg-[var(--instrument)] shadow-[0_0_12px_var(--instrument)]" aria-hidden="true" />
       </span>
       <span>
         <span className="block font-heading text-[15px] font-bold leading-none tracking-[-0.04em]">
@@ -276,29 +279,29 @@ function RoastScope() {
         transformPerspective: 1500,
         transformStyle: "preserve-3d",
       }}
-      initial={reduceMotion ? false : { opacity: 0, y: 28, scale: 0.975 }}
+      initial={reduceMotion ? false : { y: 28, scale: 0.975 }}
       animate={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.72, delay: 0.28, ease: EASE }}
-      className="relative overflow-hidden rounded-[18px] border border-white/14 bg-[#081014] shadow-[0_38px_100px_rgba(0,0,0,.42)]"
+      className="relative overflow-hidden rounded-[18px] border border-white/14 bg-[var(--obsidian-soft)] shadow-[0_38px_100px_rgba(0,0,0,.42)]"
     >
       <div className="instrument-grid-dark flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-5">
         <div className="flex items-center gap-2.5">
           <span className="signal-dot" aria-hidden="true" />
           <div>
-            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-[#92F3FA]">Roastd Studio · Live</p>
+            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-[var(--stage-dock-system-soft)]">Roastd Studio · Live</p>
             <p className="mt-1 text-xs text-white/35">Parent batch RST-0728-01</p>
           </div>
         </div>
-        <span className="rounded-[7px] border border-[#2D7A69]/60 bg-[#2D7A69]/15 px-2.5 py-1.5 font-mono text-[7px] uppercase tracking-[0.14em] text-[#A1D8CA]">
+        <span className="rounded-[7px] border border-[var(--domain-inventory)]/60 bg-[var(--domain-inventory)]/15 px-2.5 py-1.5 font-mono text-[7px] uppercase tracking-[0.14em] text-[var(--stage-inventory-soft)]">
           Pratter 1.5 · connected
         </span>
       </div>
 
       <div className="grid grid-cols-2 border-b border-white/10 sm:grid-cols-4">
         {[
-          ["BT", "198.4°", COLORS.cyan],
-          ["ET", "216.1°", COLORS.copperSoft],
-          ["RoR", "+8.7°", COLORS.cyanSoft],
+          ["BT", "198.4°", TOKENS.cyan],
+          ["ET", "216.1°", TOKENS.copperSoft],
+          ["RoR", "+8.7°", TOKENS.cyanSoft],
           ["Elapsed", "08:42", "#FFFFFF"],
         ].map(([label, value, color]) => (
           <div key={label} className="border-b border-r border-white/10 px-4 py-3 last:border-r-0 sm:border-b-0">
@@ -318,8 +321,8 @@ function RoastScope() {
         >
           <defs>
             <linearGradient id="scope-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={COLORS.cyan} stopOpacity=".22" />
-              <stop offset="100%" stopColor={COLORS.cyan} stopOpacity="0" />
+              <stop offset="0%" stopColor={TOKENS.cyan} stopOpacity=".22" />
+              <stop offset="100%" stopColor={TOKENS.cyan} stopOpacity="0" />
             </linearGradient>
           </defs>
           <path d="M0 262 C70 254 105 242 150 214 C212 176 238 120 310 106 C395 89 446 118 515 77 C580 38 632 31 720 23" fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="2" strokeDasharray="5 8" />
@@ -335,7 +338,7 @@ function RoastScope() {
           <motion.path
             d="M0 267 C72 260 112 246 154 218 C220 174 245 128 313 110 C392 89 452 122 518 81 C583 40 646 34 720 28"
             fill="none"
-            stroke={COLORS.cyan}
+            stroke={TOKENS.cyan}
             strokeWidth="3"
             initial={reduceMotion ? false : { pathLength: 0 }}
             whileInView={reduceMotion ? undefined : { pathLength: 1 }}
@@ -343,10 +346,10 @@ function RoastScope() {
             transition={{ duration: 1.4, delay: 0.35, ease: EASE }}
           />
           {[
-            [154, 218, "TP", COLORS.greenSoft],
-            [313, 110, "DE", COLORS.brass],
-            [518, 81, "FC", COLORS.copperSoft],
-            [682, 35, "DROP", COLORS.cyanSoft],
+            [154, 218, "TP", TOKENS.greenSoft],
+            [313, 110, "DE", TOKENS.brass],
+            [518, 81, "FC", TOKENS.copperSoft],
+            [682, 35, "DROP", TOKENS.cyanSoft],
           ].map(([cx, cy, label, color], index) => (
             <motion.g key={String(label)} initial={reduceMotion ? false : { opacity: 0, scale: 0 }} whileInView={reduceMotion ? undefined : { opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: 0.85 + index * 0.12, ease: EASE }}>
               <circle cx={Number(cx)} cy={Number(cy)} r="5" fill={String(color)} />
@@ -360,16 +363,16 @@ function RoastScope() {
       </div>
 
       <div className="grid gap-px bg-white/10 sm:grid-cols-[1fr_auto]">
-        <div className="bg-[#081014] px-4 py-3 sm:px-5">
+        <div className="bg-[var(--obsidian-soft)] px-4 py-3 sm:px-5">
           <p className="font-mono text-[7px] uppercase tracking-[0.15em] text-white/25">Profile match</p>
           <div className="mt-2 flex items-center gap-3">
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={94} aria-valuemin={0} aria-valuemax={100} aria-label="Profile match 94%">
-              <motion.span className="block h-full origin-left bg-[#25D9E8]" initial={reduceMotion ? false : { scaleX: 0 }} whileInView={reduceMotion ? undefined : { scaleX: 0.94 }} viewport={{ once: true }} transition={{ duration: 0.8, delay: 1, ease: EASE }} />
+              <motion.span className="block h-full origin-left bg-[var(--instrument)]" initial={reduceMotion ? false : { scaleX: 0 }} whileInView={reduceMotion ? undefined : { scaleX: 0.94 }} viewport={{ once: true }} transition={{ duration: 0.8, delay: 1, ease: EASE }} />
             </div>
-            <span className="font-heading text-xl font-bold text-[#92F3FA]">94%</span>
+            <span className="font-heading text-xl font-bold text-[var(--stage-dock-system-soft)]">94%</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-[#081014] px-5 py-3 font-mono text-[8px] uppercase tracking-[0.12em] text-[#F2A17F]">
+        <div className="flex items-center gap-2 bg-[var(--obsidian-soft)] px-5 py-3 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--copper-soft)]">
           <ScanLine className="size-3.5" aria-hidden="true" /> .alog siap sinkron
         </div>
       </div>
@@ -382,7 +385,7 @@ function SocialProofBar({ items }: { items: LandingSocialProofItem[] }) {
   const hasItems = items.length > 0;
 
   return (
-    <section className="border-y border-black/10 bg-[#F5F6F3] py-10 sm:py-12" aria-labelledby="social-proof-heading">
+    <section className="border-y border-black/10 bg-[var(--surface)] py-10 sm:py-12" aria-labelledby="social-proof-heading">
       <div className="mx-auto max-w-[1350px] px-5 sm:px-8 lg:px-10">
         <p
           id="social-proof-heading"
@@ -417,7 +420,7 @@ function SocialProofBar({ items }: { items: LandingSocialProofItem[] }) {
               { label: "Multi-tenant", value: "Terisolasi" },
             ].map(({ label, value }) => (
               <div key={label} className="text-center">
-                <p className="font-heading text-sm font-bold text-[#101615]">{value}</p>
+                <p className="font-heading text-sm font-bold text-[var(--ink)]">{value}</p>
                 <p className="mt-1 font-mono text-[7px] uppercase tracking-[0.16em] text-black/32">{label}</p>
               </div>
             ))}
@@ -431,10 +434,10 @@ function SocialProofBar({ items }: { items: LandingSocialProofItem[] }) {
 // ─── Section: Pain ────────────────────────────────────────────────────────────
 function PainSection() {
   return (
-    <section className="bg-[#FCFCF7] py-20 sm:py-28" aria-labelledby="pain-heading">
+    <section className="bg-[var(--surface-raised)] py-20 sm:py-28" aria-labelledby="pain-heading">
       <div className="mx-auto max-w-[1350px] px-5 sm:px-8 lg:px-10">
         <Reveal className="max-w-2xl">
-          <Kicker color={COLORS.copper}>Masalah yang masih terjadi setiap hari</Kicker>
+          <Kicker color={TOKENS.copper}>Masalah yang masih terjadi setiap hari</Kicker>
           <h2
             id="pain-heading"
             className="mt-4 font-heading text-[clamp(2rem,3.8vw,3.4rem)] font-bold leading-[0.94] tracking-[-0.052em]"
@@ -473,7 +476,7 @@ function PainSection() {
           {/* Resolution card */}
           <Reveal
             delay={PAIN_POINTS.length * 0.05}
-            className="flex flex-col items-start justify-between rounded-[14px] border border-[#C6542F]/30 bg-[#C6542F] p-6 shadow-[0_4px_24px_-12px_rgba(198,84,47,.35)] sm:col-span-2 lg:col-span-1"
+            className="flex flex-col items-start justify-between rounded-[14px] border border-[var(--copper)]/30 bg-[var(--copper)] p-6 shadow-[0_4px_24px_-12px_rgba(198,84,47,.35)] sm:col-span-2 lg:col-span-1"
           >
             <div>
               <span className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-white/55">
@@ -488,7 +491,7 @@ function PainSection() {
             </div>
             <Link
               href="/register"
-              className="mt-8 inline-flex min-h-10 items-center gap-2 rounded-[8px] bg-[#05090D] px-5 text-xs font-bold text-white transition hover:bg-[#0B141B]"
+              className="mt-8 inline-flex min-h-11 items-center gap-2 rounded-[8px] bg-[var(--obsidian)] px-5 text-xs font-bold text-white transition hover:bg-[var(--obsidian-soft)]"
               aria-label="Mulai uji coba 21 hari gratis di roastd.id"
             >
               Coba 21 hari gratis <ArrowRight className="size-3.5" aria-hidden="true" />
@@ -503,21 +506,21 @@ function PainSection() {
 // ─── Section: Trace Rail ──────────────────────────────────────────────────────
 function TraceRail() {
   return (
-    <section className="border-y border-black/12 bg-[#FCFCF7]" aria-labelledby="trace-heading">
+    <section className="border-y border-black/12 bg-[var(--surface-raised)]" aria-labelledby="trace-heading">
       <div className="mx-auto max-w-[1500px] px-5 sm:px-8 lg:px-10">
         <div className="grid sm:grid-cols-5">
           {TRACE.map((item, index) => {
             const Icon = item.icon;
             return (
               <Reveal key={item.id} delay={index * 0.05} className="relative border-b border-black/10 px-1 py-5 last:border-b-0 sm:border-b-0 sm:border-r sm:px-4 sm:last:border-r-0">
-                {index > 0 ? <span className="absolute -left-1.5 top-1/2 hidden size-3 -translate-y-1/2 rotate-45 border-r border-t border-black/20 bg-[#FCFCF7] sm:block" aria-hidden="true" /> : null}
+                {index > 0 ? <span className="absolute -left-1.5 top-1/2 hidden size-3 -translate-y-1/2 rotate-45 border-r border-t border-black/20 bg-[var(--surface-raised)] sm:block" aria-hidden="true" /> : null}
                 <div className="flex items-center gap-3 sm:block">
                   <span className="grid size-9 shrink-0 place-items-center rounded-[8px] border" style={{ color: item.color, borderColor: `${item.color}55`, backgroundColor: `${item.color}10` }} aria-hidden="true">
                     <Icon className="size-4" aria-hidden="true" />
                   </span>
                   <div className="min-w-0 sm:mt-4">
                     <p className="font-mono text-[7px] font-bold uppercase tracking-[0.16em] text-black/35">{item.number} · {item.label}</p>
-                    <p className="mt-1 font-heading text-sm font-bold text-[#101615]">{item.value}</p>
+                    <p className="mt-1 font-heading text-sm font-bold text-[var(--ink)]">{item.value}</p>
                   </div>
                 </div>
               </Reveal>
@@ -546,13 +549,13 @@ function PricingCard({
   const savings = pro.yearlyPrice ? pro.monthlyPrice * 12 - pro.yearlyPrice : 0;
 
   return (
-    <Reveal delay={0.08} className="relative flex flex-col rounded-[18px] border border-[#C6542F] bg-[#0B141B] p-7 text-white shadow-[0_30px_100px_-40px_rgba(5,9,13,.75)] sm:p-9">
-      <span className="absolute inset-x-8 top-0 h-[3px] rounded-b-full bg-[#C6542F]" aria-hidden="true" />
+    <Reveal delay={0.08} className="relative flex flex-col rounded-[18px] border border-[var(--copper)] bg-[var(--obsidian-soft)] p-7 text-white shadow-[0_30px_100px_-40px_rgba(5,9,13,.75)] sm:p-9">
+      <span className="absolute inset-x-8 top-0 h-[3px] rounded-b-full bg-[var(--copper)]" aria-hidden="true" />
 
       {/* Header row */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <span className="rounded-[6px] border border-[#C6542F]/45 bg-[#C6542F]/14 px-2.5 py-1 font-mono text-[7px] uppercase tracking-[0.15em] text-[#F2A17F]">
+          <span className="rounded-[6px] border border-[var(--copper)]/45 bg-[var(--copper)]/14 px-2.5 py-1 font-mono text-[7px] uppercase tracking-[0.15em] text-[var(--copper-soft)]">
             Semua fitur · Satu paket
           </span>
           <h3 className="mt-3 font-heading text-xl font-bold">{pro.label}</h3>
@@ -584,7 +587,7 @@ function PricingCard({
           >
             Tahunan
             {pro.yearlyPrice ? (
-              <span className="rounded-[5px] bg-[#2D7A69] px-1.5 py-0.5 text-[9px] font-bold text-white">
+              <span className="rounded-[5px] bg-[var(--domain-inventory)] px-1.5 py-0.5 text-[9px] font-bold text-white">
                 Hemat {formatPrice(savings)}
               </span>
             ) : null}
@@ -608,7 +611,7 @@ function PricingCard({
                 <p className="mb-1 text-[11px] text-white/32">/tahun</p>
               </div>
               <p className="mt-1 text-xs text-white/40">
-                ≈ {formatPrice(yearlyPerMonth)}/bulan · <span className="text-[#A1D8CA]">hemat {formatPrice(savings)} vs bulanan</span>
+                ≈ {formatPrice(yearlyPerMonth)}/bulan · <span className="text-[var(--stage-inventory-soft)]">hemat {formatPrice(savings)} vs bulanan</span>
               </p>
             </motion.div>
           ) : (
@@ -626,7 +629,7 @@ function PricingCard({
               {pro.yearlyPrice ? (
                 <p className="mt-1 text-xs text-white/40">
                   Atau {formatPrice(pro.yearlyPrice)}/tahun —{" "}
-                  <button type="button" onClick={() => setYearly(true)} className="text-[#A1D8CA] underline underline-offset-2">
+                  <button type="button" onClick={() => setYearly(true)} className="text-[var(--stage-inventory-soft)] underline underline-offset-2">
                     hemat {formatPrice(savings)}
                   </button>
                 </p>
@@ -649,7 +652,7 @@ function PricingCard({
           "Midtrans & custom domain",
         ].map((point) => (
           <li key={point} className="flex items-start gap-2 text-[13px] leading-5 text-white/62">
-            <Check className="mt-0.5 size-3.5 shrink-0 text-[#C6542F]" aria-hidden="true" />
+            <Check className="mt-0.5 size-3.5 shrink-0 text-[var(--copper)]" aria-hidden="true" />
             {point}
           </li>
         ))}
@@ -658,13 +661,13 @@ function PricingCard({
       {/* Trial highlight */}
       <div className="mt-5 rounded-[10px] border border-white/10 bg-white/[0.05] px-4 py-3">
         <p className="text-xs text-white/45">Trial aktif selama</p>
-        <p className="mt-0.5 font-heading text-2xl font-bold text-[#92F3FA]">21 hari</p>
+        <p className="mt-0.5 font-heading text-2xl font-bold text-[var(--stage-dock-system-soft)]">21 hari</p>
         <p className="mt-0.5 text-xs text-white/35">tanpa kartu kredit · mulai sekarang</p>
       </div>
 
       <Link
         href="/register"
-        className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] bg-[#C6542F] px-8 text-sm font-bold text-white transition hover:bg-[#A94628] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D9E8]"
+        className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] bg-[var(--copper)] px-8 text-sm font-bold text-white transition hover:bg-[var(--copper)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--instrument)]"
         aria-label="Mulai uji coba 21 hari gratis — roastd.id Pro"
       >
         Mulai 21 hari gratis <ArrowRight className="size-4" aria-hidden="true" />
@@ -683,7 +686,7 @@ function FaqList() {
           <button
             type="button"
             onClick={() => setOpen(open === index ? -1 : index)}
-            className="flex w-full items-center justify-between gap-6 py-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#C6542F]"
+            className="flex w-full items-center justify-between gap-6 py-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--copper)]"
             aria-expanded={open === index}
             aria-controls={`faq-answer-${index}`}
             id={`faq-btn-${index}`}
@@ -723,7 +726,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
   const pro = PLAN_CATALOG.PRO;
 
   useEffect(() => {
-    document.documentElement.style.setProperty("--landing-accent", COLORS.copper);
+    document.documentElement.style.setProperty("--landing-accent", TOKENS.copper);
     return () => {
       document.documentElement.style.removeProperty("--landing-accent");
     };
@@ -739,34 +742,34 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
         }).format(price);
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-[#E9EDE9] font-sans text-[#101615] selection:bg-[#25D9E8]/30">
+    <div className="min-h-screen overflow-x-clip bg-[var(--paper)] font-sans text-[var(--ink)] selection:bg-[var(--instrument)]/30">
       {/* Scroll progress */}
       <motion.div
-        className="fixed inset-x-0 top-0 z-[80] h-[2px] origin-left bg-[#25D9E8]"
+        className="fixed inset-x-0 top-0 z-[80] h-[2px] origin-left bg-[var(--instrument)]"
         style={{ scaleX: progress }}
         aria-hidden="true"
       />
 
       {/* ── Navbar ─────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#05090D]/96 text-white backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[var(--obsidian)]/96 text-white backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1500px] items-center justify-between px-4 sm:px-8 lg:px-10">
           <Link href="/" aria-label="roastd.id — Beranda">
             <Brand inverse />
           </Link>
           <nav className="hidden items-center gap-7 font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-white/42 lg:flex" aria-label="Navigasi utama">
-            <a href="#pain" className="transition-colors hover:text-[#F2A17F]">Masalah</a>
-            <a href="#automation" className="transition-colors hover:text-[#A1D8CA]">Otomatisasi</a>
-            <a href="#studio" className="transition-colors hover:text-[#F2A17F]">Roastd Studio</a>
-            <a href="#system" className="transition-colors hover:text-[#92F3FA]">Sistem</a>
+            <a href="#pain" className="transition-colors hover:text-[var(--copper-soft)]">Masalah</a>
+            <a href="#automation" className="transition-colors hover:text-[var(--stage-inventory-soft)]">Otomatisasi</a>
+            <a href="#studio" className="transition-colors hover:text-[var(--copper-soft)]">Roastd Studio</a>
+            <a href="#system" className="transition-colors hover:text-[var(--stage-dock-system-soft)]">Sistem</a>
             <a href="#pricing" className="transition-colors hover:text-white">Harga</a>
           </nav>
           <div className="flex items-center gap-1.5">
-            <Link href="/login" className="inline-flex min-h-10 items-center px-3 text-xs font-bold text-white/55 hover:text-white">
+            <Link href="/login" className="inline-flex min-h-11 items-center px-3 text-xs font-bold text-white/55 hover:text-white">
               Masuk
             </Link>
             <Link
               href="/register"
-              className="inline-flex min-h-10 items-center gap-2 rounded-[8px] bg-[#C6542F] px-4 text-xs font-bold text-white transition hover:bg-[#A94628] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D9E8]"
+              className="inline-flex min-h-11 items-center gap-2 rounded-[8px] bg-[var(--copper)] px-4 text-xs font-bold text-white transition hover:bg-[var(--copper)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--instrument)]"
               aria-label="Mulai uji coba 21 hari gratis"
             >
               Coba gratis <ArrowRight className="size-3.5" aria-hidden="true" />
@@ -777,11 +780,11 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
 
       <main>
         {/* ── Hero ───────────────────────────────────────────────────────────── */}
-        <section className="instrument-grid-dark relative overflow-hidden bg-[#05090D] text-white" aria-labelledby="hero-heading">
+        <section className="instrument-grid-dark relative overflow-hidden bg-[var(--obsidian)] text-white" aria-labelledby="hero-heading" data-landing-hero>
           {!reduceMotion ? (
             <motion.div
               data-testid="landing-ambient-scan"
-              className="pointer-events-none absolute inset-y-0 z-0 w-52 bg-gradient-to-r from-transparent via-[#25D9E8]/[0.045] to-transparent blur-2xl"
+              className="pointer-events-none absolute inset-y-0 z-0 w-52 bg-gradient-to-r from-transparent via-[var(--instrument)]/[0.045] to-transparent blur-2xl"
               animate={{ x: ["-25vw", "115vw"] }}
               transition={{ duration: 8.5, repeat: Infinity, repeatDelay: 2.5, ease: "linear" }}
               aria-hidden="true"
@@ -789,51 +792,41 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
           ) : null}
           <div className="relative mx-auto grid min-h-[calc(100dvh-4rem)] max-w-[1500px] lg:grid-cols-[minmax(0,.86fr)_minmax(560px,1.14fr)]">
             <div className="flex flex-col justify-between border-b border-white/10 px-5 py-12 sm:px-8 sm:py-16 lg:border-b-0 lg:border-r lg:px-10 lg:py-14 xl:px-14">
-              <div>
-                <motion.div
-                  initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-                  animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                  transition={{ duration: 0.55, delay: 0.06, ease: EASE }}
-                  className="flex flex-wrap items-center gap-3"
-                >
-                  <Kicker>roastd.id · Roastery Operating System · Sistem aktif</Kicker>
-                  <span className="h-px w-9 bg-[#25D9E8]" aria-hidden="true" />
-                  <span className="inline-flex items-center gap-2 font-mono text-[8px] uppercase tracking-[0.14em] text-white/35">
-                    <span className="signal-dot" aria-hidden="true" /> Sistem aktif
+                <Reveal critical>
+                  <span className="flex flex-wrap items-center gap-3">
+                    <Kicker>roastd.id  Roastery Operating System  Sistem aktif</Kicker>
+                    <span className="h-px w-9 bg-[var(--instrument)]" aria-hidden="true" />
+                    <span className="inline-flex items-center gap-2 font-mono text-[8px] uppercase tracking-[0.14em] text-white/35">
+                      <span className="signal-dot" aria-hidden="true" /> Sistem aktif
+                    </span>
                   </span>
-                </motion.div>
+                </Reveal>
 
                 <h1
                   id="hero-heading"
                   className="mt-7 max-w-2xl font-heading text-[clamp(2.7rem,5vw,4.8rem)] font-bold leading-[0.9] tracking-[-0.065em]"
                 >
-                  <motion.span className="block" initial={reduceMotion ? false : { opacity: 0, y: 35 }} animate={reduceMotion ? undefined : { opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.13, ease: EASE }}>
-                    Roasting selesai.
-                  </motion.span>
-                  <motion.span className="mt-2 block text-[#F2A17F]" initial={reduceMotion ? false : { opacity: 0, y: 35 }} animate={reduceMotion ? undefined : { opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.22, ease: EASE }}>
-                    Operasional ikut bergerak.
-                  </motion.span>
+                  <Reveal critical>
+                    <span className="block">Roasting selesai.</span>
+                  </Reveal>
+                  <Reveal critical>
+                    <span className="mt-2 block text-[var(--copper-soft)]">Operasional ikut bergerak.</span>
+                  </Reveal>
                 </h1>
 
-                <motion.p
-                  className="mt-7 max-w-xl text-[15px] leading-7 text-white/52 sm:text-base"
-                  initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-                  animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                  transition={{ duration: 0.58, delay: 0.33, ease: EASE }}
-                >
-                  Berhenti gabungin Excel, Artisan, dan nota manual setiap akhir shift.
-                  Satu alur dari lot green bean → roasting → produksi → penjualan → HPP & laporan.
-                </motion.p>
+                <Reveal critical>
+                  <p
+                    className="mt-7 max-w-xl text-[15px] leading-7 text-white/52 sm:text-base"
+                  >
+                    Berhenti gabungin Excel, Artisan, dan nota manual setiap akhir shift.
+                    Satu alur dari lot green bean → roasting → produksi → penjualan → HPP & laporan.
+                  </p>
+                </Reveal>
 
-                <motion.div
-                  className="mt-8 flex flex-col gap-3 sm:flex-row"
-                  initial={reduceMotion ? false : { opacity: 0, y: 16 }}
-                  animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                  transition={{ duration: 0.58, delay: 0.42, ease: EASE }}
-                >
+                <Reveal critical className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <Link
                     href="/register"
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[9px] bg-[#C6542F] px-6 text-sm font-bold text-white transition hover:bg-[#A94628]"
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[9px] bg-[var(--copper)] px-6 text-sm font-bold text-white transition hover:bg-[var(--copper)]"
                     aria-label="Mulai uji coba 21 hari gratis di roastd.id"
                   >
                     Mulai 21 hari gratis <ArrowRight className="size-4" aria-hidden="true" />
@@ -846,17 +839,9 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   >
                     <ArrowDownToLine className="size-4" aria-hidden="true" /> Download Studio
                   </a>
-                </motion.div>
-              </div>
+              </Reveal>
 
-              {/* Trust micro-signals */}
-              <motion.div
-                className="mt-14 grid grid-cols-3 gap-4 border-t border-white/10 pt-5"
-                initial={reduceMotion ? false : { opacity: 0 }}
-                animate={reduceMotion ? undefined : { opacity: 1 }}
-                transition={{ delay: 0.52 }}
-                aria-label="Keunggulan utama"
-              >
+              <Reveal delay={0.52} className="mt-14 grid grid-cols-3 gap-4 border-t border-white/10 pt-5" aria-label="Keunggulan utama">
                 {[
                   ["Read-only", "aman untuk mesin"],
                   [".alog", "format roast"],
@@ -867,7 +852,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                     <p className="mt-1 font-mono text-[7px] uppercase tracking-[0.11em] text-white/25">{label}</p>
                   </div>
                 ))}
-              </motion.div>
+              </Reveal>
             </div>
 
             <div className="flex min-w-0 items-center px-5 py-12 sm:px-8 lg:px-10">
@@ -891,7 +876,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
         <section id="automation" className="scroll-mt-16 py-20 sm:py-28" aria-labelledby="automation-heading">
           <div className="mx-auto grid max-w-[1350px] gap-12 px-5 sm:px-8 lg:grid-cols-[.82fr_1.18fr] lg:gap-20 lg:px-10">
             <Reveal>
-              <Kicker color={COLORS.green}>Satu input · banyak pembaruan</Kicker>
+              <Kicker color={TOKENS.green}>Satu input · banyak pembaruan</Kicker>
               <h2 id="automation-heading" className="mt-4 max-w-xl font-heading text-[clamp(2.2rem,4vw,3.8rem)] font-bold leading-[0.94] tracking-[-0.055em]">
                 Operator mencatat hasil roast. Sistem menyelesaikan sisanya.
               </h2>
@@ -899,13 +884,13 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                 Lot yang digunakan, berat keluar, susut, stok roasted bean, dan nilai batch tetap berada di transaksi yang sama. Owner tidak perlu menyatukan spreadsheet setelah shift selesai.
               </p>
             </Reveal>
-            <Reveal delay={0.08} className="rounded-[16px] border border-black/14 bg-[#FCFCF7] shadow-[0_24px_70px_-42px_rgba(5,9,13,.45)]">
+            <Reveal delay={0.08} className="rounded-[16px] border border-black/14 bg-[var(--surface-raised)] shadow-[0_24px_70px_-42px_rgba(5,9,13,.45)]">
               <div className="flex items-center justify-between border-b border-black/10 px-5 py-4">
                 <div>
-                  <Kicker color={COLORS.copper}>Batch RST-0728-01</Kicker>
+                  <Kicker color={TOKENS.copper}>Batch RST-0728-01</Kicker>
                   <p className="mt-1.5 font-heading text-base font-bold">Ethiopia Hambela · Medium</p>
                 </div>
-                <span className="rounded-[7px] border border-[#2D7A69]/30 bg-[#2D7A69]/10 px-2.5 py-1.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[#2D7A69]">Selesai</span>
+                <span className="rounded-[7px] border border-[var(--domain-inventory)]/30 bg-[var(--domain-inventory)]/10 px-2.5 py-1.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--domain-inventory)]">Selesai</span>
               </div>
               <div className="divide-y divide-black/10 px-5">
                 {AUTOMATIONS.map((item, index) => (
@@ -923,19 +908,19 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   </motion.div>
                 ))}
               </div>
-              <div className="flex items-center gap-3 border-t border-black/10 bg-[#F1F3EF] px-5 py-4 text-xs text-black/55">
-                <Check className="size-4 text-[#2D7A69]" aria-hidden="true" /> Empat pembaruan dicatat dalam satu transaksi audit.
+              <div className="flex items-center gap-3 border-t border-black/10 bg-[var(--surface)] px-5 py-4 text-xs text-black/55">
+                <Check className="size-4 text-[var(--domain-inventory)]" aria-hidden="true" /> Empat pembaruan dicatat dalam satu transaksi audit.
               </div>
             </Reveal>
           </div>
         </section>
 
         {/* ── Roastd Studio ──────────────────────────────────────────────────── */}
-        <section id="studio" className="scroll-mt-16 overflow-hidden bg-[#0B141B] py-20 text-white sm:py-28" aria-labelledby="studio-heading">
+        <section id="studio" className="scroll-mt-16 overflow-hidden bg-[var(--obsidian-soft)] py-20 text-white sm:py-28" aria-labelledby="studio-heading">
           <div className="mx-auto max-w-[1350px] px-5 sm:px-8 lg:px-10">
             <Reveal className="grid gap-7 lg:grid-cols-[.8fr_1.2fr] lg:items-end">
               <div>
-                <Kicker color={COLORS.copperSoft}>Roastd Studio</Kicker>
+                <Kicker color={TOKENS.copperSoft}>Roastd Studio</Kicker>
                 <h2 id="studio-heading" className="mt-4 font-heading text-[clamp(2.3rem,4.4vw,4rem)] font-bold leading-[0.92] tracking-[-0.058em]">
                   Mesin di floor. Konteks tetap sampai kantor.
                 </h2>
@@ -944,16 +929,16 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                 Studio memindai perangkat serial yang didukung, merekam BT/ET/RoR, menyimpan .alog, membandingkan profil, dan menyambungkan hasil ke batch SaaS. Kontrol mesin tetap read-only — aman untuk environment produksi.
               </p>
             </Reveal>
-            <div className="mt-12 grid overflow-hidden rounded-[18px] border border-white/12 bg-[#05090D] lg:grid-cols-[1.5fr_.5fr]">
+            <div className="mt-12 grid overflow-hidden rounded-[18px] border border-white/12 bg-[var(--obsidian)] lg:grid-cols-[1.5fr_.5fr]">
               <Reveal className="instrument-grid-dark min-h-[430px] border-b border-white/10 p-5 lg:border-b-0 lg:border-r sm:p-7">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-mono text-[8px] uppercase tracking-[0.16em] text-white/25">Artisan roast telemetry</p>
                     <h3 className="mt-2 font-heading text-xl font-bold">Reference vs child batch</h3>
                   </div>
-                  <span className="font-heading text-3xl font-bold text-[#92F3FA]">94%</span>
+                  <span className="font-heading text-3xl font-bold text-[var(--stage-dock-system-soft)]">94%</span>
                 </div>
-                <div className="relative mt-7 h-64 overflow-hidden rounded-[12px] border border-white/10 bg-[#071015]">
+                <div className="relative mt-7 h-64 overflow-hidden rounded-[12px] border border-white/10 bg-[var(--obsidian-soft)]">
                   <div className="absolute inset-0 bg-[linear-gradient(rgba(37,217,232,.06)_1px,transparent_1px),linear-gradient(90deg,rgba(37,217,232,.06)_1px,transparent_1px)] bg-[size:42px_42px]" aria-hidden="true" />
                   <svg className="relative h-full w-full" viewBox="0 0 700 260" aria-label="Perbandingan profil acuan dan child batch roasting">
                     <path d="M0 235 C120 226 135 190 225 156 C318 121 360 132 442 84 C526 34 602 44 700 20" fill="none" stroke="rgba(255,255,255,.25)" strokeDasharray="6 8" strokeWidth="2"/>
@@ -961,7 +946,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                       data-testid="roast-curve-primary"
                       d="M0 238 C120 229 145 196 228 160 C314 123 373 137 448 88 C530 35 611 48 700 24"
                       fill="none"
-                      stroke={COLORS.cyan}
+                      stroke={TOKENS.cyan}
                       strokeWidth="3"
                       initial={reduceMotion ? false : { pathLength: 0 }}
                       whileInView={reduceMotion ? undefined : { pathLength: 1 }}
@@ -980,15 +965,15 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                 </div>
               </Reveal>
               <Reveal delay={0.08} className="p-5 sm:p-7">
-                <Kicker color={COLORS.greenSoft}>Perangkat roasting</Kicker>
-                <div className="mt-5 rounded-[12px] border border-[#2D7A69]/50 bg-[#2D7A69]/12 p-4">
+                <Kicker color={TOKENS.greenSoft}>Perangkat roasting</Kicker>
+                <div className="mt-5 rounded-[12px] border border-[var(--domain-inventory)]/50 bg-[var(--domain-inventory)]/12 p-4">
                   <div className="flex items-center gap-3">
-                    <span className="grid size-9 place-items-center rounded-[8px] border border-[#2D7A69]/50 text-[#A1D8CA]">
+                    <span className="grid size-9 place-items-center rounded-[8px] border border-[var(--domain-inventory)]/50 text-[var(--stage-inventory-soft)]">
                       <Usb className="size-4" aria-hidden="true" />
                     </span>
                     <div>
                       <p className="text-sm font-bold">Pratter 1.5</p>
-                      <p className="mt-1 font-mono text-[7px] uppercase tracking-[0.12em] text-[#A1D8CA]">COM3 · connected</p>
+                      <p className="mt-1 font-mono text-[7px] uppercase tracking-[0.12em] text-[var(--stage-inventory-soft)]">COM3 · connected</p>
                     </div>
                   </div>
                 </div>
@@ -996,7 +981,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   {["Auto-scan perangkat", "Buat parent batch", "Pilih lot dengan FEFO", "Rekam dan simpan .alog", "Sinkron ke SaaS"].map((item, index) => (
                     <div key={item} className="flex items-center gap-3 border-b border-white/8 pb-3">
                       <span className="font-mono text-[8px] text-white/20">0{index + 1}</span>
-                      <Check className="size-3.5 text-[#92F3FA]" aria-hidden="true" />
+                      <Check className="size-3.5 text-[var(--stage-dock-system-soft)]" aria-hidden="true" />
                       {item}
                     </div>
                   ))}
@@ -1004,7 +989,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                 <a
                   href="/downloads/RoastdStudio-0.10.2-x64-setup.exe"
                   download
-                  className="mt-7 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[9px] bg-[#C6542F] px-4 text-xs font-bold text-white hover:bg-[#A94628]"
+                  className="mt-7 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[9px] bg-[var(--copper)] px-4 text-xs font-bold text-white hover:bg-[var(--copper)]"
                   aria-label="Download Roastd Studio untuk Windows"
                 >
                   <ArrowDownToLine className="size-4" aria-hidden="true" /> Download untuk Windows
@@ -1015,11 +1000,11 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
         </section>
 
         {/* ── Modules ────────────────────────────────────────────────────────── */}
-        <section id="system" className="scroll-mt-16 bg-[#FCFCF7] py-20 sm:py-28" aria-labelledby="system-heading">
+        <section id="system" className="scroll-mt-16 bg-[var(--surface-raised)] py-20 sm:py-28" aria-labelledby="system-heading">
           <div className="mx-auto max-w-[1350px] px-5 sm:px-8 lg:px-10">
             <Reveal className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
               <div>
-                <Kicker color={COLORS.copper}>Satu sistem kerja</Kicker>
+                <Kicker color={TOKENS.copper}>Satu sistem kerja</Kicker>
                 <h2 id="system-heading" className="mt-4 max-w-2xl font-heading text-[clamp(2.2rem,4vw,3.7rem)] font-bold leading-[0.94] tracking-[-0.055em]">
                   Tidak ada modul yang hidup sendirian.
                 </h2>
@@ -1050,7 +1035,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
         </section>
 
         {/* ── Security strip ─────────────────────────────────────────────────── */}
-        <section className="border-y border-black/12 bg-[#DDE2DD] py-16 sm:py-20" aria-labelledby="security-heading">
+        <section className="border-y border-black/12 bg-[var(--surface)] py-16 sm:py-20" aria-labelledby="security-heading">
           <h2 id="security-heading" className="sr-only">Keamanan dan ketersediaan</h2>
           <div className="mx-auto grid max-w-[1350px] gap-8 px-5 sm:px-8 lg:grid-cols-3 lg:px-10">
             {[
@@ -1061,7 +1046,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
               const Icon = item.icon;
               return (
                 <Reveal key={item.title} delay={index * .06} className="flex gap-4">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-[9px] border border-black/12 bg-[#FCFCF7]" aria-hidden="true">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-[9px] border border-black/12 bg-[var(--surface-raised)]" aria-hidden="true">
                     <Icon className="size-4" aria-hidden="true" />
                   </span>
                   <div>
@@ -1080,7 +1065,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
 
             {/* Left — heading + trust signals */}
             <Reveal className="flex flex-col justify-center">
-              <Kicker color={COLORS.plum}>Satu harga, semua fitur</Kicker>
+              <Kicker color={TOKENS.plum}>Satu harga, semua fitur</Kicker>
               <h2 id="pricing-heading" className="mt-4 font-heading text-[clamp(2.2rem,4vw,3.7rem)] font-bold leading-[0.94] tracking-[-0.055em]">
                 Mulai dari operasi yang perlu dibereskan hari ini.
               </h2>
@@ -1094,7 +1079,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   ["Data bisa diekspor", "Excel & CSV, kapan saja"],
                 ] as const).map(([label, sub]) => (
                   <div key={label} className="flex items-center gap-3">
-                    <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#C6542F]/12 text-[#C6542F]" aria-hidden="true">
+                    <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[var(--copper)]/12 text-[var(--copper)]" aria-hidden="true">
                       <Check className="size-3" aria-hidden="true" />
                     </span>
                     <span className="text-sm">
@@ -1118,10 +1103,10 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
 
         {/* ── FAQ ────────────────────────────────────────────────────────────── */}
 
-        <section className="border-y border-black/12 bg-[#FCFCF7] py-16 sm:py-20" aria-labelledby="faq-heading">
+        <section className="border-y border-black/12 bg-[var(--surface-raised)] py-16 sm:py-20" aria-labelledby="faq-heading">
           <div className="mx-auto grid max-w-[1150px] gap-10 px-5 sm:px-8 lg:grid-cols-[.55fr_1.45fr] lg:px-10">
             <Reveal>
-              <Kicker color={COLORS.copper}>Pertanyaan nyata</Kicker>
+              <Kicker color={TOKENS.copper}>Pertanyaan nyata</Kicker>
               <h2 id="faq-heading" className="mt-4 font-heading text-3xl font-bold tracking-[-0.045em]">Sebelum mulai.</h2>
             </Reveal>
             <FaqList />
@@ -1129,10 +1114,10 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
         </section>
 
         {/* ── Final CTA ──────────────────────────────────────────────────────── */}
-        <section className="instrument-grid-dark relative overflow-hidden bg-[#C6542F] text-white" aria-labelledby="cta-heading">
+        <section className="instrument-grid-dark relative overflow-hidden bg-[var(--copper)] text-white" aria-labelledby="cta-heading">
           <div className="mx-auto flex max-w-[1350px] flex-col justify-between gap-8 px-5 py-16 sm:px-8 lg:flex-row lg:items-end lg:px-10 lg:py-20">
             <Reveal>
-              <Kicker color="#FFD0BC">Satu roast. Satu jejak.</Kicker>
+              <Kicker color="var(--copper-soft)">Satu roast. Satu jejak.</Kicker>
               <h2 id="cta-heading" className="mt-4 max-w-3xl font-heading text-[clamp(2.3rem,4vw,3.8rem)] font-bold leading-[0.94] tracking-[-0.055em]">
                 Berhenti menyatukan operasional setelah hari selesai.
               </h2>
@@ -1143,7 +1128,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
             <Reveal delay={.08} className="flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/register"
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[9px] bg-[#05090D] px-6 text-sm font-bold text-white hover:bg-[#0B141B]"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[9px] bg-[var(--obsidian)] px-6 text-sm font-bold text-white hover:bg-[var(--obsidian-soft)]"
                 aria-label="Buat ruang kerja roastd.id — mulai 21 hari gratis"
               >
                 Buat ruang kerja <ArrowRight className="size-4" aria-hidden="true" />
@@ -1162,7 +1147,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
       </main>
 
       {/* ── Footer ───────────────────────────────────────────────────────────── */}
-      <footer className="bg-[#05090D] py-10 text-white">
+      <footer className="bg-[var(--obsidian)] py-10 text-white">
         <div className="mx-auto flex max-w-[1350px] flex-col gap-8 px-5 sm:px-8 lg:flex-row lg:items-end lg:justify-between lg:px-10">
           <div>
             <Brand inverse />

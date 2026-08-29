@@ -88,6 +88,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
 
+    // Midtrans status_code "200" means the notification was delivered successfully.
+    // Only process payment notifications with status_code 200.
+    if (statusCode !== "200") {
+      return NextResponse.json({ success: true, ignored: "status_code_not_200" });
+    }
+
     const eventId = `${orderId}:${transactionStatus || "unknown"}:${data.transaction_id || statusCode}`;
     const claim = await claimWebhookEvent(prisma, {
       tenantId: invoice.tenantId,
@@ -272,11 +278,16 @@ export async function POST(req: Request) {
           where: { id: invoice.id },
           data: { status: "VOID", fulfillmentStatus: "CANCELLED", voidReason: reason, voidAt: getCurrentDate() },
         });
-        await postVoidReversal("INVOICE", invoice.id, reason, {
-          tx,
-          tenantId: invoice.tenantId,
-          userId: invoice.createdById,
+        const existingJournal = await tx.journalEntry.findFirst({
+          where: { tenantId: invoice.tenantId, refType: "INVOICE", reference: invoice.id, voidAt: null },
         });
+        if (existingJournal) {
+          await postVoidReversal("INVOICE", invoice.id, reason, {
+            tx,
+            tenantId: invoice.tenantId,
+            userId: invoice.createdById,
+          });
+        }
         await recordAudit(tx, {
           tenantId: invoice.tenantId,
           userId: invoice.createdById,

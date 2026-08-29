@@ -508,7 +508,7 @@ export async function voidSampleUsage(sampleId: string, reason: string) {
     ]);
 
     await tp.$transaction(async (tx) => {
-      const sample = await tx.sampleUsage.findUnique({ where: { id: sampleId } });
+      const sample = await tx.sampleUsage.findFirst({ where: { id: sampleId, tenantId } });
       if (!sample) throw new Error("Transaksi sample tidak ditemukan.");
       if (sample.status === "VOID") throw new Error("Transaksi sample sudah di-void.");
       const sourceEntries = await tx.inventoryLedger.findMany({

@@ -149,11 +149,47 @@ export async function postVoidReversal(
       },
     },
   });
-  if (sources.length === 0) {
-    throw new Error(`Jurnal sumber ${sourceRefType}/${sourceReference} tidak ditemukan atau sudah dibatalkan.`);
-  }
 
   let firstCode = "";
+  if (sources.length === 0) {
+    // Also check for legacy "SALE" refType
+    const legacySources = await tx.journalEntry.findMany({
+      where: {
+        tenantId,
+        refType: "SALE",
+        reference: sourceReference,
+        voidAt: null,
+      },
+      include: {
+        lines: {
+          orderBy: { sideId: "asc" },
+          include: { account: { select: { code: true } } },
+        },
+      },
+    });
+    if (legacySources.length === 0) {
+      throw new Error(`Jurnal sumber ${sourceRefType}/${sourceReference} tidak ditemukan atau sudah dibatalkan.`);
+    }
+
+    // Create reversal for legacy SALE entries
+    for (const source of legacySources) {
+      const reversalCode = await postJournalEntry({
+        date: options.date ?? getCurrentDate(),
+        description: `Pembatalan: ${source.description}`,
+        reference: `${sourceReference}:${source.id}`,
+        refType: "VOID_REVERSAL",
+        lines: source.lines.map((line) => ({
+          accountCode: line.account.code,
+          debit: Number(line.credit),
+          credit: Number(line.debit),
+        })),
+      }, { tx, tenantId, userId });
+      if (!firstCode) firstCode = reversalCode;
+    }
+    if (firstCode) return firstCode;
+  }
+
+  // Process main sources (refType matches sourceRefType)
   for (const source of sources) {
     const reversalCode = await postJournalEntry({
       date: options.date ?? getCurrentDate(),
@@ -423,7 +459,7 @@ async function resolveCreditNoteAccounts(
   };
   if (!options.tx) return fallback;
   const tenantId = options.tenantId ?? await getCurrentTenantId();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const tx = options.tx as any;
   const sale = await tx.journalEntry.findFirst({
     where: { tenantId, refType: "INVOICE", reference: invoiceId, voidAt: null },

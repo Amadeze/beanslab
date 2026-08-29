@@ -1,4 +1,7 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
@@ -8,228 +11,274 @@ import {
   type OperatingStage,
 } from "@/components/layout/operating-stages";
 
-interface PageHeaderBreadcrumb {
+export interface HeaderAction {
+  label: string;
+  onClick: () => void;
+  variant?: "primary" | "secondary" | "ghost";
+  icon?: React.ReactNode;
+  mobileOnly?: boolean;
+  desktopOnly?: boolean;
+}
+
+export interface HeaderSignal {
+  label: string;
+  value: string | number;
+  tone?: "critical" | "ready" | "neutral";
+  onClick?: () => void;
+}
+
+export interface HeaderMetric {
+  label: string;
+  value: string | number;
+}
+
+export interface ContextStat {
+  label: string;
+  value: string | number;
+  tone?: "critical" | "ready" | "neutral";
+  icon?: React.ReactNode;
+}
+
+export interface Breadcrumb {
   label: string;
   href?: string;
 }
 
-export interface PageHeaderMetric {
-  label: string;
-  value: React.ReactNode;
-  onClick?: () => void;
-  active?: boolean;
-}
-
-export interface PageHeaderSignal {
-  label: string;
-  value: React.ReactNode;
-  tone?: "critical" | "ready" | "neutral";
-  onClick?: () => void;
-  active?: boolean;
-}
+// Backward compatible types
+export type PageHeaderSignal = HeaderSignal;
+export type PageHeaderMetric = HeaderMetric;
 
 interface PageHeaderProps {
   title: string;
   description?: string;
-  actions?: React.ReactNode;
-  mobileActions?: React.ReactNode;
   stage?: OperatingStage;
+  showStage?: boolean;
   eyebrow?: string;
-  breadcrumbs?: PageHeaderBreadcrumb[];
-  /** Sinyal status modul (opsional). */
-  signal?: PageHeaderSignal;
-  /** Metrik ringkas di baris bawah judul. */
-  metrics?: PageHeaderMetric[];
-  /** Tautan tahap berikutnya. */
+  signal?: HeaderSignal;
+  metric?: HeaderMetric;
+  actions?: HeaderAction[] | React.ReactNode;
+  mobileActions?: React.ReactNode;
+  metrics?: HeaderMetric[];
+  breadcrumbs?: Breadcrumb[];
+  /** Compact mode: tighter spacing, smaller text */
+  compact?: boolean;
+  /** Next step link (backward compat) */
   next?: { label: string; href: string };
+  /** Contextual stats to show instead of breadcrumbs/stage */
+  contextStats?: ContextStat[];
 }
 
-/**
- * CanvasHeader â€” header halaman pada KANVAS TERANG.
- * Hierarki: eyebrow mono copper â†’ judul tinta besar â†’ deskripsi.
- * Tahap ditampilkan sebagai deretan titik kecil yang tenang, bukan bar gelap.
- */
 export function PageHeader({
   title,
   description,
+  stage,
+  showStage = true,
+  eyebrow,
+  signal,
+  metric,
   actions,
   mobileActions,
-  stage,
-  eyebrow,
-  breadcrumbs,
-  signal,
   metrics,
-  next,
+  breadcrumbs,
+  compact = false,
+  contextStats,
 }: PageHeaderProps) {
   const activeStage = stage ?? titleStages[title];
   const activeIndex = operatingStages.findIndex((item) => item.id === activeStage);
   const headerTone = activeStage ? operatingStageTones[activeStage] : undefined;
 
-  return (
-    <header data-testid="page-header" className="shrink-0">
-      {breadcrumbs && breadcrumbs.length > 0 ? (
-        <nav aria-label="Breadcrumb" className="pb-2">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-ink-tertiary">
-            {breadcrumbs.map((crumb, index) => {
-              const isLast = index === breadcrumbs.length - 1;
+  // Handle both old (ReactNode) and new (HeaderAction[]) actions format
+  const isActionsArray = Array.isArray(actions);
+  const actionsArray = isActionsArray ? actions : [];
+  const customActionsNode = !isActionsArray ? (actions as React.ReactNode) : null;
+  const desktopActions = actionsArray.filter((a) => !a.mobileOnly);
+  const mobileActionsFromArray = actionsArray.filter((a) => !a.desktopOnly);
+
+  // Backward compat: support old metrics array
+  const metricToUse = metric || (metrics && metrics[0]);
+
+  // Backward compat: support old signal format
+  const signalToUse = signal;
+
+  // Check if mobileActions (ReactNode) is provided for backward compat
+  const hasMobileActions = mobileActions !== undefined && mobileActions !== null;
+
+  const [portalNode, setPortalNode] = useState<Element | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    setPortalNode(document.getElementById("app-top-bar-portal"));
+  }, []);
+
+  const topBarContent = (
+    <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1 w-full">
+      <h1 className="truncate font-heading text-base md:text-lg font-bold leading-tight tracking-[-0.03em] text-foreground shrink-0 max-w-[200px] sm:max-w-none">
+        {title}
+      </h1>
+
+      {signalToUse && (
+        <span className={cn(
+          "shrink-0 hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.1em]",
+          signalToUse.tone === "critical" ? "bg-[var(--status-danger)]/10 text-[var(--status-danger)] border border-[var(--status-danger)]/30" :
+          signalToUse.tone === "ready" ? "bg-[var(--status-success)]/10 text-[var(--status-success)] border border-[var(--status-success)]/30" :
+          "bg-surface-sunken text-ink-secondary border border-border"
+        )}>
+          {signalToUse.label} {signalToUse.value}
+        </span>
+      )}
+
+      <div className="ml-auto hidden md:flex items-center gap-1 shrink-0">
+        {actionsArray.length > 0 && desktopActions.map((action, i) => (
+          <button
+            key={action.label}
+            type="button"
+            onClick={action.onClick}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold leading-none transition-colors min-h-9",
+              action.variant === "primary" ? "bg-primary text-primary-foreground hover:bg-primary/90" :
+              action.variant === "secondary" ? "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20" :
+              "bg-card text-ink-secondary border border-border hover:bg-surface-sunken"
+            )}
+          >
+            {action.icon}
+            <span>{action.label}</span>
+          </button>
+        ))}
+        {actionsArray.length === 0 && (actions as React.ReactNode)}
+      </div>
+
+      <div className="ml-auto flex md:hidden items-center gap-1 shrink-0">
+        {hasMobileActions ? mobileActions : mobileActionsFromArray.map((action, i) => (
+          <button
+            key={action.label}
+            type="button"
+            onClick={action.onClick}
+            className={cn(
+              "inline-flex items-center justify-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors min-h-8",
+              action.variant === "primary" ? "bg-primary text-primary-foreground hover:bg-primary/90" :
+              action.variant === "secondary" ? "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20" :
+              "bg-card text-ink-secondary border border-border hover:bg-surface-sunken"
+            )}
+            title={action.label}
+          >
+            {action.icon}
+            <span className="max-w-[70px] truncate">{action.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const inPlaceContent = (
+    <div className={cn("flex flex-col gap-1.5 shrink-0", compact ? "pb-2" : "pb-3 pt-1")}>
+      <div className="flex items-center gap-3 overflow-x-auto no-scrollbar mask-fade-right">
+        {contextStats && contextStats.length > 0 && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            {contextStats.map((stat, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold leading-none",
+                  stat.tone === "critical" ? "bg-[var(--status-danger)]/10 text-[var(--status-danger)] border border-[var(--status-danger)]/30" :
+                  stat.tone === "ready" ? "bg-[var(--status-success)]/10 text-[var(--status-success)] border border-[var(--status-success)]/30" :
+                  "bg-surface-sunken text-ink-secondary border border-border"
+                )}
+              >
+                {stat.icon && <span>{stat.icon}</span>}
+                <span className="text-ink-secondary">{stat.label}</span>
+                <span className="font-heading font-bold tabular-nums text-foreground">{stat.value}</span>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {breadcrumbs && breadcrumbs.length > 0 && !compact && (
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[11px] font-medium text-ink-secondary shrink-0">
+            {breadcrumbs.slice(0, 2).map((crumb, index) => {
+              const isLast = index === breadcrumbs.length - 1 || index === 1;
               return (
-                <span key={crumb.label} className="flex items-center gap-1.5">
+                <span key={crumb.label} className="flex items-center gap-1.5 truncate">
                   {crumb.href && !isLast ? (
-                    <Link href={crumb.href} className="transition-colors hover:text-foreground">
+                    <Link href={crumb.href} className="transition-colors hover:text-foreground truncate max-w-[80px]">
                       {crumb.label}
                     </Link>
                   ) : (
                     <span
-                      className={isLast ? "font-semibold text-ink-secondary" : undefined}
+                      className={isLast ? "font-semibold text-ink-secondary truncate max-w-[100px]" : "truncate max-w-[60px]"}
                       aria-current={isLast ? "page" : undefined}
                     >
                       {crumb.label}
                     </span>
                   )}
-                  {!isLast && <span aria-hidden className="text-ink-tertiary/50">/</span>}
+                  {!isLast && <span aria-hidden className="text-ink-secondary/50">/</span>}
                 </span>
               );
             })}
-          </div>
-        </nav>
-      ) : null}
-
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-4 pt-1">
-        <div className="min-w-0">
-          <p
-            className={cn(
-              "mb-1.5 flex items-center gap-2 font-mono text-[9px] font-bold uppercase tracking-[0.2em]",
-              headerTone?.eyebrow ?? "text-copper",
+            {breadcrumbs.length > 2 && (
+              <span className="text-ink-tertiary">...</span>
             )}
-          >
-            {activeIndex >= 0 ? (
-              <span className="inline-flex items-center gap-[3px]" aria-hidden>
-                {operatingStages.map((s, i) => (
-                  <span
-                    key={s.id}
-                    title={`${s.number} ${s.label}`}
-                    className={cn(
-                      "rounded-full",
-                      i === activeIndex
-                        ? "size-2 bg-current"
-                        : i < activeIndex
-                          ? "size-1.5 bg-ink-tertiary"
-                          : "size-1.5 border border-border-strong",
-                    )}
-                  />
-                ))}
-                <span className="ml-1.5">TAHAP {activeIndex + 1}</span>
-              </span>
-            ) : null}
-            {eyebrow ?? (activeStage ? "Roastery flow" : "Workspace")}
-          </p>
-          <h1 className="truncate font-heading text-[clamp(1.65rem,2.6vw,2.15rem)] font-bold leading-none tracking-[-0.04em] text-foreground">
-            {title}
-          </h1>
-          {description ? (
-            <p className="mt-2 max-w-2xl text-sm leading-5 text-ink-secondary">{description}</p>
-          ) : null}
-        </div>
+          </nav>
+        )}
 
-        {(actions || mobileActions) && (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {actions ? (
-              <div className="hidden items-center gap-2 md:flex">{actions}</div>
-            ) : null}
-            {mobileActions ? <div className="flex items-center gap-2 md:hidden">{mobileActions}</div> : null}
-            {actions && !mobileActions ? <div className="flex items-center gap-2 md:hidden">{actions}</div> : null}
-          </div>
+        {showStage && activeIndex >= 0 && (
+          <span className={cn(
+            "inline-flex items-center gap-1 font-mono text-[8px] font-bold uppercase tracking-[0.2em] rounded-full px-1.5 py-0.5 shrink-0",
+            headerTone?.eyebrow ?? "text-copper bg-copper-soft"
+          )}>
+            {operatingStages.slice(0, activeIndex + 1).map((s, i) => (
+              <span
+                key={s.id}
+                className={cn("rounded-full", i === activeIndex
+                  ? "size-1.5 bg-current"
+                  : "size-1.5 bg-ink-tertiary")}
+              />
+            ))}
+            <span className="ml-0.5">T{activeIndex + 1}</span>
+          </span>
+        )}
+        
+        {eyebrow && (
+          <span className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-copper shrink-0">
+            {eyebrow}
+          </span>
+        )}
+
+        {metricToUse && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[10px] font-semibold leading-none shrink-0 sm:ml-auto">
+            <span className="text-ink-secondary">{metricToUse.label}</span>
+            <span className="font-heading font-bold tabular-nums text-foreground">{metricToUse.value}</span>
+          </span>
         )}
       </div>
 
-      {(signal || (metrics && metrics.length > 0) || next) && (
-        <div className="mb-4 hidden flex-wrap items-center gap-x-5 gap-y-2 rounded-card border border-border/70 bg-card px-4 py-2.5 shadow-elevation-soft md:flex">
-          {signal ? (
-            <button
-              type="button"
-              onClick={signal.onClick}
-              className={cn(
-                "flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1 transition-colors sm:w-auto sm:justify-start",
-                signal.onClick && "cursor-pointer hover:bg-surface-sunken",
-                signal.active && "bg-surface-sunken ring-1 ring-border",
-              )}
-            >
-              <span className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-ink-tertiary">
-                {signal.label}
-              </span>
-              <span
-                className={cn(
-                  "font-heading text-sm font-bold",
-                  signal.tone === "critical"
-                    ? "text-[var(--status-danger)]"
-                    : signal.tone === "ready"
-                      ? headerTone?.signal ?? "text-foreground"
-                      : "text-foreground",
-                )}
-              >
-                {signal.value}
-              </span>
-            </button>
-          ) : null}
-
-          {metrics && metrics.length > 0 ? (
-            <>
-              <span className="hidden h-4 w-px bg-border sm:block" aria-hidden />
-              <div className="grid w-full min-w-0 grid-cols-4 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-4">
-                {metrics.map((metric) => {
-                  const metricContent = (
-                    <>
-                      <span className="truncate font-mono text-[7px] font-bold uppercase tracking-[0.12em] text-ink-tertiary sm:text-[8px]">
-                        {metric.label}
-                      </span>
-                      <span className="max-w-full truncate font-heading text-xs font-bold tabular-nums text-foreground">
-                        {metric.value}
-                      </span>
-                    </>
-                  );
-                  if (metric.onClick) {
-                    return (
-                      <button
-                        type="button"
-                        key={metric.label}
-                        onClick={metric.onClick}
-                        aria-pressed={metric.active ?? false}
-                        className={cn(
-                          "-mx-1 flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-lg px-1 py-0.5 text-left transition-colors sm:flex-row sm:items-center sm:gap-1.5",
-                          metric.active ? "bg-surface-sunken ring-1 ring-border" : "hover:bg-surface-sunken",
-                        )}
-                      >
-                        {metricContent}
-                      </button>
-                    );
-                  }
-                  return (
-                    <div key={metric.label} className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-1.5">
-                      {metricContent}
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          ) : null}
-
-          {next ? (
-            <>
-              <span className="hidden h-4 w-px bg-border sm:block" aria-hidden />
-              <Link
-                href={next.href}
-                className={cn(
-                  "ml-auto inline-flex items-center gap-1 text-xs font-bold transition-all hover:gap-2",
-                  headerTone?.signal ?? "text-primary",
-                )}
-              >
-                {next.label} â†’
-              </Link>
-            </>
-          ) : null}
-        </div>
+      {description && (
+        <p className="truncate text-[11px] leading-4 text-ink-secondary" title={description}>
+          {description}
+        </p>
       )}
-    </header>
+    </div>
+  );
+
+  const hasInPlaceContent = (contextStats && contextStats.length > 0) || description || (breadcrumbs && breadcrumbs.length > 0) || showStage || metricToUse || eyebrow;
+
+  if (!mounted) {
+    return (
+      <header data-testid="page-header" className="shrink-0 hidden">
+        {topBarContent}
+        {hasInPlaceContent && inPlaceContent}
+      </header>
+    );
+  }
+
+  return (
+    <>
+      {portalNode ? createPortal(topBarContent, portalNode) : (
+        <header className="flex w-full mb-2 shrink-0">
+          {topBarContent}
+        </header>
+      )}
+      {hasInPlaceContent && inPlaceContent}
+    </>
   );
 }
 
@@ -251,3 +300,23 @@ export function PageHeaderSkeleton({ stage = false }: { stage?: boolean }) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1160,8 +1160,8 @@ export async function createPackagingPurchase(
     const purchaseCode = generatePurchaseCode(receivedAt);
     const pricePerUnit = (input.totalCost - shippingCost) / input.quantityUnits;
     const [supplier, packaging] = await Promise.all([
-      tenantPrisma.supplier.findUnique({ where: { id: input.supplierId }, select: { id: true, name: true, isActive: true } }),
-      tenantPrisma.packaging.findUnique({ where: { id: input.packagingId }, select: { id: true, name: true, isActive: true } }),
+      tenantPrisma.supplier.findFirst({ where: { id: input.supplierId, tenantId }, select: { id: true, name: true, isActive: true } }),
+      tenantPrisma.packaging.findFirst({ where: { id: input.packagingId, tenantId }, select: { id: true, name: true, isActive: true } }),
     ]);
     if (!supplier?.isActive) {
       return { success: false, error: "Supplier tidak ditemukan atau sudah nonaktif." };

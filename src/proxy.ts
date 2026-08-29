@@ -52,13 +52,29 @@ function isPublicRoute(pathname: string): boolean {
 
 function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV !== "production";
-  const scriptSrc = isDev
-    ? `'self' 'unsafe-inline' 'unsafe-eval' 'nonce-${nonce}' https://app.midtrans.com https://app.sandbox.midtrans.com`
-    : `'self' 'nonce-${nonce}' https://app.midtrans.com https://app.sandbox.midtrans.com`;
+  // Next.js 16 App Router requires 'unsafe-inline' for hydration scripts
+  // (__NEXT_DATA__, chunk preloads). Nonce-based CSP works for external
+  // scripts but inline hydration scripts need 'unsafe-inline' or a hash.
+  // Using 'unsafe-inline' with nonce as defense-in-depth.
+  const scriptSrc = `'self' 'unsafe-inline' 'nonce-${nonce}' https://app.midtrans.com https://app.sandbox.midtrans.com`;
+  if (isDev) {
+    // Allow 'unsafe-eval' in dev for React Fast Refresh / HMR
+    return [
+      "default-src 'self'",
+      `${scriptSrc} 'unsafe-eval'`,
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "connect-src 'self' https://*.supabase.co https://api.fonnte.com https://api.resend.com https://app.midtrans.com https://app.sandbox.midtrans.com",
+      "frame-src 'self' https://app.midtrans.com https://app.sandbox.midtrans.com",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ");
+  }
 
   return [
     "default-src 'self'",
-    `script-src ${scriptSrc}`,
+    scriptSrc,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com",
     "font-src 'self' https://fonts.gstatic.com",

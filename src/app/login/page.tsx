@@ -3,11 +3,20 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginAction } from "./actions";
-import { Eye, EyeOff, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { AuthFrame } from "@/components/auth/AuthFrame";
-import { Eyebrow } from "@/components/ui/eyebrow";
+
+// Timeout wrapper for async operations
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutError: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(timeoutError)), ms)
+    ),
+  ]);
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -50,7 +59,12 @@ function LoginForm() {
     setNeedsVerification(false);
     setLoading(true);
     try {
-      const result = await loginAction(email, password);
+      // Add timeout to prevent infinite loading
+      const result = await withTimeout(
+        loginAction(email, password),
+        15000,
+        "Login timeout. Server tidak merespons. Coba lagi."
+      );
       if (!result.success) {
         setError(result.error);
         setNeedsVerification(result.code === "EmailNotVerified");
@@ -62,6 +76,9 @@ function LoginForm() {
         router.push(from);
       }
       router.refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Terjadi kesalahan. Coba lagi.";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -70,8 +87,9 @@ function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <Eyebrow tone="neutral" as="label" className="block">Email</Eyebrow>
+        <label htmlFor="login-email" className="block font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-secondary">Email</label>
         <input
+          id="login-email"
           type="email"
           autoComplete="email"
           placeholder="admin@roasteryos.com"
@@ -84,13 +102,14 @@ function LoginForm() {
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <Eyebrow tone="neutral" as="label" className="block">Password</Eyebrow>
+          <label htmlFor="login-password" className="block font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-secondary">Password</label>
           <Link href="/forgot-password" className="text-xs font-semibold text-primary transition-colors hover:text-primary/75">
             Lupa password?
           </Link>
         </div>
         <div className="relative">
           <input
+            id="login-password"
             type={showPass ? "text" : "password"}
             autoComplete="current-password"
             placeholder="••••••••"
@@ -102,6 +121,7 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPass(!showPass)}
+            aria-label={showPass ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
             className="absolute right-2 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-[8px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -126,6 +146,9 @@ function LoginForm() {
             <AlertCircle size={16} className="shrink-0 text-red-500" />
             <p className="text-sm text-destructive">{error}</p>
           </div>
+          {error.includes("timeout") && (
+            <p className="pl-6 text-xs text-destructive/70">Jika masalah berlanjut, hubungi administrator.</p>
+          )}
           {needsVerification ? (
             <Link
               href={`/verify-email?email=${encodeURIComponent(email)}`}

@@ -83,13 +83,13 @@ export default function KeuanganOverviewClient() {
         />
       }
     >
-      <div className="space-y-6">
+      <div className="space-y-3">
         <ReportFilters
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
         />
 
-        {/* KPI Cards */}
+        {/* KPI Cards — grid 2 kolom di mobile */}
         <KpiRibbon>
           <ReportKpiCard
             label="Total Pendapatan"
@@ -127,7 +127,7 @@ export default function KeuanganOverviewClient() {
         </KpiRibbon>
 
         {/* Charts */}
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-3 lg:grid-cols-3">
           <ReportChart
             title={`Pendapatan vs Beban (${dateRangeLabel})`}
             type="area"
@@ -148,11 +148,11 @@ export default function KeuanganOverviewClient() {
         </div>
 
         {/* Quick Links */}
-        <div className="rounded-xl border border-stone-200 bg-white p-4">
-          <p className="mb-4 text-xs font-bold uppercase tracking-wider text-stone-500">
+        <div className="rounded-xl border border-stone-200 bg-white p-3">
+          <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-stone-500">
             Lihat Detail
           </p>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             <Link
               href="/laporan/keuangan/sales"
               className="flex items-center justify-between rounded-lg border border-stone-200 p-3 transition-colors hover:border-[var(--instrument)] hover:bg-[var(--instrument)]/5"

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Boxes,
@@ -89,6 +91,12 @@ const WORKSPACES = {
 } as const;
 
 export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
+  const [portalNode, setPortalNode] = useState<Element | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    setPortalNode(document.getElementById("app-top-bar-bottom-portal"));
+  }, []);
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -148,32 +156,54 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
   };
 
   const activeHref = itemHref(items.find(itemIsActive) ?? items[0]);
+  
+  if (!mounted) return null; // Prevent hydration mismatch
 
-  return (
+  const content = (
     <nav
       className="border-b border-white/10 bg-obsidian"
       aria-label={`Navigasi workspace ${kind}`}
     >
-      <div className="mx-auto flex min-h-12 w-full max-w-[1600px] items-center gap-3 px-4 md:hidden">
-        <label htmlFor={`workspace-${kind}`} className="shrink-0 text-xs font-semibold text-white/65">
-          {workspaceLabel}
-        </label>
-        <select
-          id={`workspace-${kind}`}
-          aria-label={`Pilih area ${workspaceLabel}`}
-          value={activeHref}
-          onChange={(event) => router.push(event.target.value)}
-          className="h-10 min-w-0 flex-1 rounded-lg border border-white/15 bg-white/[0.06] px-3 text-sm font-semibold text-white outline-none focus:border-[var(--instrument)] focus:ring-2 focus:ring-[var(--instrument)]/30"
-        >
-          {items.map((item) => (
-            <option key={itemHref(item)} value={itemHref(item)} className="bg-[var(--chrome-panel)] text-white">
-              {item.label}
-            </option>
-          ))}
-        </select>
+      <div className="mx-auto flex w-full max-w-[1600px] items-center gap-1.5 overflow-x-auto px-2 py-1.5 md:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex shrink-0 items-center gap-1.5">
+          {items.map((item) => {
+            const Icon = item.icon;
+            const active = itemIsActive(item);
+            const href = itemHref(item);
+
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "inline-flex min-h-9 h-9 shrink-0 items-center gap-1 rounded-full border px-3 text-[11px] font-semibold leading-none whitespace-nowrap transition-colors",
+                  active
+                    ? workspaceTone.active
+                    : "border-white/15 bg-white/[0.04] text-white/65 hover:border-white/20 hover:bg-white/[0.08] hover:text-white",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex size-3.5 items-center justify-center rounded-full border",
+                    active
+                      ? workspaceTone.icon
+                      : cn(
+                          "border-white/10 bg-white/[0.04]",
+                          workspaceTone.idleIcon,
+                        ),
+                  )}
+                >
+                  <Icon size={8} strokeWidth={2.1} />
+                </span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="mx-auto hidden w-max min-w-full max-w-[1600px] gap-1 overflow-x-auto px-4 py-1.5 md:flex md:px-6 lg:px-8">
+      <div className="mx-auto hidden max-w-[1600px] flex-wrap gap-1 px-4 py-1 md:flex md:px-6 lg:px-8">
         {items.map((item) => {
           const Icon = item.icon;
           const active = itemIsActive(item);
@@ -185,7 +215,7 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-[8px] border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]",
+                "inline-flex h-8 items-center gap-1.5 rounded-[8px] border px-2.5 text-xs font-semibold leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--instrument)]",
                 active
                   ? workspaceTone.active
                   : "border-transparent text-white/46 hover:border-white/10 hover:bg-white/[0.05] hover:text-white",
@@ -193,7 +223,7 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
             >
               <span
                 className={cn(
-                  "flex h-5 w-5 items-center justify-center rounded-[5px] border",
+                  "flex size-4 items-center justify-center rounded-[5px] border",
                   active
                     ? workspaceTone.icon
                     : cn(
@@ -202,7 +232,7 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
                       ),
                 )}
               >
-                <Icon size={10} strokeWidth={2} />
+                <Icon size={9} strokeWidth={2} />
               </span>
               {item.label}
             </Link>
@@ -211,4 +241,13 @@ export function WorkspaceNav({ kind }: { kind: WorkspaceKind }) {
       </div>
     </nav>
   );
+
+  if (portalNode) {
+    return createPortal(content, portalNode);
+  }
+  return content;
 }
+
+
+
+

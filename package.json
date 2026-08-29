@@ -32,6 +32,7 @@
     "maintenance:cleanup": "tsx --env-file-if-exists=.env.local scripts/cleanup-operational-data.mts",
     "maintenance:subscriptions": "tsx --env-file-if-exists=.env.local scripts/sync-subscriptions.mts",
     "maintenance:overdue-reminders": "tsx --env-file-if-exists=.env.local scripts/send-overdue-reminders.mts",
+    "maintenance:expire-payment-submissions": "tsx --env-file-if-exists=.env.local scripts/expire-payment-submissions.mts",
     "check:notifications": "tsx --env-file-if-exists=.env.local scripts/check-notification-providers.mts",
     "preflight:production": "tsx --env-file-if-exists=.env.local scripts/production-preflight.mts",
     "preflight:backfill": "node scripts/migration-recovery/backfill-preflight.mjs",

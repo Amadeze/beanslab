@@ -809,6 +809,27 @@
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255,255,255,0.05);
   }
+
+  /* ── Density Utilities (mobile-first space efficiency) ── */
+  .space-y-dense > * + * { margin-top: var(--space-2); }
+  .space-y-snug > * + * { margin-top: var(--space-3); }
+  .space-y-relaxed > * + * { margin-top: var(--space-5); }
+
+  .gap-dense { gap: var(--space-2); }
+  .gap-snug { gap: var(--space-3); }
+  .gap-relaxed { gap: var(--space-5); }
+
+  .p-dense { padding: var(--space-2); }
+  .p-snug { padding: var(--space-3); }
+  .px-dense { padding-left: var(--space-2); padding-right: var(--space-2); }
+  .px-snug { padding-left: var(--space-3); padding-right: var(--space-3); }
+  .py-dense { padding-top: var(--space-2); padding-bottom: var(--space-2); }
+  .py-snug { padding-top: var(--space-3); padding-bottom: var(--space-3); }
+
+  .mb-dense { margin-bottom: var(--space-2); }
+  .mb-snug { margin-bottom: var(--space-3); }
+  .mt-dense { margin-top: var(--space-2); }
+  .mt-snug { margin-top: var(--space-3); }
 }
 
 /* Dashboard compatibility layer.
@@ -894,4 +915,69 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Fallback: ensure content is visible even if Framer Motion fails to hydrate */
+@media (prefers-reduced-motion: no-preference) {
+  .framer-motion-fallback {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Ensure critical landing content is visible even if Framer Motion fails */
+[data-framer-motion-initial] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Fallback for motion components that fail to hydrate */
+[data-framer-motion-initial*="opacity"] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Ensure landing hero content is always visible */
+#hero-heading,
+#hero-heading > *,
+[data-landing-hero] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Force all content in hero section to be visible */
+section[aria-labelledby="hero-heading"] * {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Ensure CTA buttons are always visible */
+section[aria-labelledby="hero-heading"] a,
+section[aria-labelledby="hero-heading"] button {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Force visibility for hero section critical content */
+section[aria-labelledby="hero-heading"] [data-framer-motion-initial] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Force visibility for all Reveal components in hero */
+section[aria-labelledby="hero-heading"] [data-reveal] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Force all motion elements in hero to be visible */
+section[aria-labelledby="hero-heading"] [data-framer-motion-initial] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Force visibility for all Reveal components in hero */
+section[aria-labelledby="hero-heading"] [data-reveal] {
+  opacity: 1 !important;
+  transform: none !important;
 }

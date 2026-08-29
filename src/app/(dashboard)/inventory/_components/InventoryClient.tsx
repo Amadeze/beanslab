@@ -4,10 +4,11 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Boxes, History, ClipboardCheck, ClipboardList, Download, FileText, FileSpreadsheet, Loader2, MoreHorizontal, Package, Plus, Settings2, Truck, ArrowDownCircle, ArrowUpCircle, AlertTriangle, XCircle, Clock, CheckCircle2, CircleDot } from "lucide-react";
+import { Boxes, History, ClipboardCheck, ClipboardList, Download, FileText, FileSpreadsheet, Loader2, MoreHorizontal, Package, Plus, Settings2, Truck, ArrowDownCircle, ArrowUpCircle, AlertTriangle, XCircle, Clock, CheckCircle2, CircleDot, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { StandardDrawer } from "@/components/StandardDrawer";
+import { StandardPageLayout } from "@/components/StandardPageLayout";
 import { StockTable } from "./StockTable";
 import type { CategoryId } from "./CategoryTabs";
 import { CoffeePurchaseForm } from "./CoffeePurchaseForm";
@@ -20,8 +21,8 @@ import { PODetail } from "./PODetail";
 import { POForm } from "./POForm";
 import { ReceivingList } from "./ReceivingList";
 import { QuickReceivePO } from "./QuickReceivePO";
-import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { SupplierForm } from "../../master-data/_components/SupplierForm";
 import type {
   GBProductOption,
@@ -424,7 +425,6 @@ export function InventoryClient({
   const [pkgDrawerOpen, setPkgDrawerOpen] = useState(false);
   const [supDrawerOpen, setSupDrawerOpen] = useState(false);
   const [adjDrawerOpen, setAdjDrawerOpen] = useState(false);
-  const [barangDatangOpen, setBarangDatangOpen] = useState(false);
   const [poDrawerOpen, setPoDrawerOpen] = useState(false);
   const [poDetailOpen, setPoDetailOpen] = useState(false);
   const [receiptDrawerOpen, setReceiptDrawerOpen] = useState(false);
@@ -613,9 +613,24 @@ export function InventoryClient({
 
   // ── Context-aware primary action ──
 
+  // ── Stock export follows the active category (URL-synced `?category=`) ──
+
+  const activeCategory: CategoryId =
+    categoryParam === "rb" || categoryParam === "fg" || categoryParam === "pkg" || categoryParam === "supply"
+      ? categoryParam
+      : "gb";
+
   const primaryAction = useMemo(() => {
     switch (activeView) {
-      case "stock": return { label: "Barang Datang", icon: <Plus size={14} />, onClick: () => setBarangDatangOpen(true) };
+      case "stock": return { label: "Barang Datang", icon: <Plus size={14} />, onClick: () => {
+        switch(activeCategory) {
+          case "gb": return setGbDrawerOpen(true);
+          case "rb": return setRbDrawerOpen(true);
+          case "pkg": return setPkgDrawerOpen(true);
+          case "supply": return setSupDrawerOpen(true);
+          default: return setGbDrawerOpen(true);
+        }
+      } };
       case "po": return { label: "Buat PO", icon: <Plus size={14} />, onClick: () => setPoDrawerOpen(true) };
       case "receiving": return {
         label: "Catat Penerimaan",
@@ -624,14 +639,7 @@ export function InventoryClient({
       };
       case "mutations": return null;
     }
-  }, [activeView]);
-
-  // ── Stock export follows the active category (URL-synced `?category=`) ──
-
-  const activeCategory: CategoryId =
-    categoryParam === "rb" || categoryParam === "fg" || categoryParam === "pkg" || categoryParam === "supply"
-      ? categoryParam
-      : "gb";
+  }, [activeView, activeCategory]);
 
   const stockExportData = useMemo(
     () => buildStockExportData(activeCategory, gbStocks, rbStocks, fgStocks, supplyPackagingItems, supplyNonPackagingItems),
@@ -708,84 +716,77 @@ export function InventoryClient({
   const isMutations = activeView === "mutations";
 
   return (
-    <>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <CompactHeader
-          title="Pasokan & Stok"
-          description="Pembelian, penerimaan, posisi stok, supplier, dan seluruh jejak pergerakannya"
-          stage="inventory"
-          signal={headerSignal}
-          metrics={headerMetrics}
-          next={{ label: "Lanjut ke Roasting", href: "/roasting" }}
-          actions={
-            <>
-              {!isMutations && (
-                <ExportMenu
-                  onExportPDF={() => exportPDF(stockExportData)}
-                  onExportExcel={() => exportExcel(stockExportData)}
-                />
-              )}
-              {isMutations && (
-                <ExportMenu
-                  onExportPDF={() => exportLedgerPDF(filteredLedger)}
-                  onExportExcel={() => exportLedgerExcel(filteredLedger)}
-                />
-              )}
-              {activeView === "stock" ? (
-                <>
-                  {poSuggestions.length > 0 && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 gap-1.5 rounded-[8px] text-xs font-bold shadow-sm"
-                      onClick={() => setPoDrawerOpen(true)}
-                    >
-                      <ClipboardList size={13} />
-                      Saran PO ({poSuggestions.length})
-                    </Button>
-                  )}
-                  <ActionsDropdown onStockOpname={() => setAdjDrawerOpen(true)} />
-                  <BarangDatangPopup onGBDatang={() => setGbDrawerOpen(true)} onRBDatang={() => setRbDrawerOpen(true)} onKemasanDatang={() => setPkgDrawerOpen(true)} onSupplyDatang={() => setSupDrawerOpen(true)} onTerimaPO={() => router.push("/inventory?view=receiving", { scroll: false })} waitingCount={receivingMetrics.waitingToReceive} open={barangDatangOpen} onOpenChange={setBarangDatangOpen} />
-                </>
-              ) : (
-                <>
-                  {activeView !== "mutations" && <ActionsDropdown onStockOpname={() => setAdjDrawerOpen(true)} />}
-                  {primaryAction && (
-                    <Button size="sm" className="h-8 gap-1.5 rounded-[8px] text-xs font-bold shadow-md" onClick={primaryAction.onClick}>
-                      {primaryAction.icon}
-                      {primaryAction.label}
-                    </Button>
-                  )}
-                </>
-              )}
-            </>
+    <StandardPageLayout
+      title="Pasokan & Stok"
+      description="Pembelian, penerimaan, posisi stok, supplier, dan seluruh jejak pergerakannya"
+      stage="inventory"
+      compact
+      showHeader={true}
+      actionButton={primaryAction ? [{
+        label: primaryAction.label,
+        icon: primaryAction.icon,
+        onClick: () => {
+          if (activeView === "stock") {
+            switch(activeCategory) {
+              case "gb": return setGbDrawerOpen(true);
+              case "rb": return setRbDrawerOpen(true);
+              case "pkg": return setPkgDrawerOpen(true);
+              case "supply": return setSupDrawerOpen(true);
+              default: return setGbDrawerOpen(true);
+            }
+          } else {
+            primaryAction.onClick();
           }
-          mobileActions={
-            activeView === "mutations" ? (
-              <Button size="sm" variant="outline" className="gap-1.5 px-3" onClick={() => setAdjDrawerOpen(true)}>
-                <Settings2 size={14} />
-                Penyesuaian
-              </Button>
-            ) : (
-              <>
-                <ActionsDropdown onStockOpname={() => setAdjDrawerOpen(true)} />
-                {primaryAction && (
-                  <Button size="sm" className="gap-1.5 px-3" onClick={primaryAction.onClick}>
-                    {primaryAction.icon}
-                    {primaryAction.label}
-                  </Button>
-                )}
-              </>
-            )
+        },
+        variant: "primary" as const,
+          desktopOnly: true,
+        }] : []}
+      contextStats={[
+        { label: "Total Item", value: gbStocks.length + rbStocks.length + fgStocks.length + supplyStocks.length },
+        { label: "Habis", value: stockMetrics.outOfStockCount, tone: stockMetrics.outOfStockCount > 0 ? "critical" : "neutral" },
+        { label: "Perlu Pesan", value: stockMetrics.needsOrderCount, tone: stockMetrics.needsOrderCount > 0 ? "critical" : "neutral" },
+      ]}
+      mobileFabAction={primaryAction ? {
+        label: primaryAction.label,
+        icon: primaryAction.icon,
+        onClick: () => {
+          if (activeView === "stock") {
+            switch(activeCategory) {
+              case "gb": return setGbDrawerOpen(true);
+              case "rb": return setRbDrawerOpen(true);
+              case "pkg": return setPkgDrawerOpen(true);
+              case "supply": return setSupDrawerOpen(true);
+              default: return setGbDrawerOpen(true);
+            }
+          } else {
+            primaryAction.onClick();
           }
-        />
-
-        <div className="custom-scrollbar flex-1 overflow-auto">
-          <WorkspaceNav kind="supply" />
-
-        {/* ── Workspace Content ── */}
-        <div className="mx-auto max-w-[1600px] px-4 md:px-6 lg:px-8 pb-8 relative z-10">
-        <div>
+        },
+        "aria-label": primaryAction.label,
+      } : undefined}
+      mobileSpeedDialItems={
+        activeView === "stock" ? [
+          { label: "Barang Datang", icon: <Plus size={17} />, onClick: () => {
+            switch(activeCategory) {
+              case "gb": return setGbDrawerOpen(true);
+              case "rb": return setRbDrawerOpen(true);
+              case "pkg": return setPkgDrawerOpen(true);
+              case "supply": return setSupDrawerOpen(true);
+              default: return setGbDrawerOpen(true);
+            }
+          }, variant: "primary" as const },
+          ...(poSuggestions.length > 0 ? [{ label: "Saran PO", icon: <ClipboardList size={17} />, onClick: () => setPoDrawerOpen(true), variant: "secondary" as const }] : []),
+          { label: "Penyesuaian Stok", icon: <Settings2 size={17} />, onClick: () => setAdjDrawerOpen(true) },
+        ] : activeView === "po" ? [
+          { label: "Buat PO", icon: <Plus size={17} />, onClick: () => setPoDrawerOpen(true), variant: "primary" as const },
+        ] : activeView === "receiving" ? [
+          { label: "Catat Penerimaan", icon: <Truck size={17} />, onClick: () => { setSelectedReceivingPoId(null); setReceiptDrawerOpen(true); }, variant: "primary" as const },
+        ] : []
+      }
+    >
+      <div className="flex flex-col gap-2 md:gap-3">
+        <WorkspaceNav kind="supply" />
+        <div className="relative z-10">
           {activeView === "stock" && (
             <StockTable
               gbStocks={gbStocks}
@@ -797,7 +798,15 @@ export function InventoryClient({
               metricFilter={metricParam}
               lotsByProduct={lotsByProduct}
               supplyLotsByItem={supplyLotsByItem}
-              onEmptyAction={() => setBarangDatangOpen(true)}
+              onEmptyAction={() => {
+                switch(activeCategory) {
+                  case "gb": return setGbDrawerOpen(true);
+                  case "rb": return setRbDrawerOpen(true);
+                  case "pkg": return setPkgDrawerOpen(true);
+                  case "supply": return setSupDrawerOpen(true);
+                  default: return setGbDrawerOpen(true);
+                }
+              }}
             />
           )}
           {activeView === "po" && (
@@ -823,7 +832,7 @@ export function InventoryClient({
 
         {/* ── Sample Consumption Summary (Stock tab only, lower emphasis) ── */}
         {activeView === "stock" && (sampleConsumption.rbConsumedKg > 0 || sampleConsumption.fgConsumedUnits > 0 || sampleConsumption.pkgConsumedUnits > 0) && (
-          <div className="page-surface relative mt-5 overflow-hidden px-5 py-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="page-surface relative overflow-hidden px-3 py-3 animate-in fade-in slide-in-from-top-2 duration-300">
             <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5 pointer-events-none" />
             <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -846,8 +855,6 @@ export function InventoryClient({
             </div>
           </div>
         )}
-          </div>
-        </div>
       </div>
 
       {/* ── Drawers ── */}
@@ -961,6 +968,7 @@ export function InventoryClient({
           }}
         />
       </StandardDrawer>
-    </>
+    </StandardPageLayout>
   );
 }
+
