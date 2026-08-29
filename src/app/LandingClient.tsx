@@ -208,8 +208,8 @@ function Reveal({
   return (
     <motion.div
       className={className}
-      initial={reduceMotion || critical ? false : { opacity: 0, y: 22 }}
-      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+      initial={reduceMotion || critical ? false : { y: 22 }}
+      whileInView={reduceMotion ? undefined : { y: 0 }}
       viewport={{ once: true, amount: 0.18 }}
       transition={{ duration: 0.65, delay, ease: EASE }}
       style={{ opacity: critical ? 1 : undefined }}
@@ -279,8 +279,8 @@ function RoastScope() {
         transformPerspective: 1500,
         transformStyle: "preserve-3d",
       }}
-      initial={reduceMotion ? false : { opacity: 0, y: 28, scale: 0.975 }}
-      animate={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
+      initial={reduceMotion ? false : { y: 28, scale: 0.975 }}
+      animate={reduceMotion ? undefined : { y: 0, scale: 1 }}
       transition={{ duration: 0.72, delay: 0.28, ease: EASE }}
       className="relative overflow-hidden rounded-[18px] border border-white/14 bg-[var(--obsidian-soft)] shadow-[0_38px_100px_rgba(0,0,0,.42)]"
     >
@@ -894,8 +894,8 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                 {AUTOMATIONS.map((item, index) => (
                   <motion.div
                     key={item.label}
-                    initial={reduceMotion ? false : { opacity: 0, x: 18 }}
-                    whileInView={reduceMotion ? undefined : { opacity: 1, x: 0 }}
+                    initial={reduceMotion ? false : { x: 18 }}
+                    whileInView={reduceMotion ? undefined : { x: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: 0.1 + index * 0.07, ease: EASE }}
                     className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-4"

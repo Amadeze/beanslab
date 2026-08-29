@@ -18,7 +18,7 @@ export default async function DashboardLayout({
   const pathname = headerList.get("x-pathname") || "/dashboard";
 
   if (!tenant || !tenant.isActive) {
-    redirect("/login");
+    redirect("/login?error=AccountDisabled");
   }
 
   const accessState = getTenantAccessState(tenant);
