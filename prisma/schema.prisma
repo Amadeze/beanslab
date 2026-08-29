@@ -1685,26 +1685,29 @@ model InvoiceTracking {
 // Units promised to a storefront order but not yet posted as physical stock-out.
 // Shortages remain visible as FulfillmentTask rows and can be allocated later.
 model StockReservation {
-  id         String                 @id @default(cuid())
-  tenantId   String
-  invoiceId  String
-  productId  String
-  quantity   Int
+  id               String                 @id @default(cuid())
+  tenantId         String
+  invoiceId        String
+  productId        String
+  quantity         Int
   // Berat terjanji (kg) untuk reservasi berbasis kg (penawaran kopi:
   // jalur RB yang sama dikonsumsi dalam kg). NULL = reservasi unit legacy.
-  quantityKg Decimal?               @db.Decimal(10, 3)
-  status     StockReservationStatus @default(ACTIVE)
-  expiresAt  DateTime
-  consumedAt DateTime?
-  releasedAt DateTime?
-  createdAt  DateTime               @default(now())
-  updatedAt  DateTime               @updatedAt
+  quantityKg       Decimal?               @db.Decimal(10, 3)
+  // Grind size untuk produk kopi (nullable untuk non-kopi).
+  grindSize        GrindSize?
+  customGrindLabel String?
+  status           StockReservationStatus @default(ACTIVE)
+  expiresAt        DateTime
+  consumedAt       DateTime?
+  releasedAt       DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
 
-  @@unique([invoiceId, productId])
+  @@unique([invoiceId, productId, grindSize])
   @@index([tenantId, status, expiresAt])
   @@index([tenantId, productId, status])
   @@map("stock_reservations")
@@ -1890,10 +1893,10 @@ model PaymentSubmission {
   duplicateCandidates    PaymentSubmission[]           @relation("PaymentSubmissionDuplicate")
   notificationDeliveries PaymentNotificationDelivery[]
 
+  @@unique([tenantId, proofSha256])
   @@index([tenantId, status, submittedAt])
   @@index([tenantId, invoiceId])
   @@index([tenantId, reference, submittedAt])
-  @@index([tenantId, proofSha256, submittedAt])
   @@index([status, expiresAt])
   @@map("payment_submissions")
 }
