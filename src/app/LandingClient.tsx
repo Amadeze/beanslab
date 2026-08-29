@@ -208,8 +208,8 @@ function Reveal({
   return (
     <motion.div
       className={className}
-      initial={reduceMotion || critical ? false : { y: 22 }}
-      whileInView={reduceMotion ? undefined : { y: 0 }}
+      initial={reduceMotion || critical ? false : { opacity: 0, y: 22 }}
+      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.18 }}
       transition={{ duration: 0.65, delay, ease: EASE }}
       style={{ opacity: critical ? 1 : undefined }}
@@ -280,7 +280,7 @@ function RoastScope() {
         transformStyle: "preserve-3d",
       }}
       initial={reduceMotion ? false : { y: 28, scale: 0.975 }}
-      animate={reduceMotion ? undefined : { y: 0, scale: 1 }}
+      animate={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.72, delay: 0.28, ease: EASE }}
       className="relative overflow-hidden rounded-[18px] border border-white/14 bg-[var(--obsidian-soft)] shadow-[0_38px_100px_rgba(0,0,0,.42)]"
     >
@@ -794,7 +794,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
             <div className="flex flex-col justify-between border-b border-white/10 px-5 py-12 sm:px-8 sm:py-16 lg:border-b-0 lg:border-r lg:px-10 lg:py-14 xl:px-14">
                 <Reveal critical>
                   <span className="flex flex-wrap items-center gap-3">
-                    <Kicker>roastd.id � Roastery Operating System � Sistem aktif</Kicker>
+                    <Kicker>roastd.id  Roastery Operating System  Sistem aktif</Kicker>
                     <span className="h-px w-9 bg-[var(--instrument)]" aria-hidden="true" />
                     <span className="inline-flex items-center gap-2 font-mono text-[8px] uppercase tracking-[0.14em] text-white/35">
                       <span className="signal-dot" aria-hidden="true" /> Sistem aktif
@@ -814,14 +814,16 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   </Reveal>
                 </h1>
 
-<p
-                  className="mt-7 max-w-xl text-[15px] leading-7 text-white/52 sm:text-base"
-                >
-                  Berhenti gabungin Excel, Artisan, dan nota manual setiap akhir shift.
-                  Satu alur dari lot green bean ? roasting ? produksi ? penjualan ? HPP & laporan.
-                </p>
+                <Reveal critical>
+                  <p
+                    className="mt-7 max-w-xl text-[15px] leading-7 text-white/52 sm:text-base"
+                  >
+                    Berhenti gabungin Excel, Artisan, dan nota manual setiap akhir shift.
+                    Satu alur dari lot green bean → roasting → produksi → penjualan → HPP & laporan.
+                  </p>
+                </Reveal>
 
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Reveal critical className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <Link
                     href="/register"
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[9px] bg-[var(--copper)] px-6 text-sm font-bold text-white transition hover:bg-[var(--copper)]"
@@ -837,7 +839,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   >
                     <ArrowDownToLine className="size-4" aria-hidden="true" /> Download Studio
                   </a>
-              </div>
+              </Reveal>
 
               <Reveal delay={0.52} className="mt-14 grid grid-cols-3 gap-4 border-t border-white/10 pt-5" aria-label="Keunggulan utama">
                 {[
@@ -894,8 +896,8 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                 {AUTOMATIONS.map((item, index) => (
                   <motion.div
                     key={item.label}
-                    initial={reduceMotion ? false : { x: 18 }}
-                    whileInView={reduceMotion ? undefined : { x: 0 }}
+                    initial={reduceMotion ? false : { opacity: 0, x: 18 }}
+                    whileInView={reduceMotion ? undefined : { opacity: 1, x: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: 0.1 + index * 0.07, ease: EASE }}
                     className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-4"
