@@ -29,30 +29,32 @@ export default async function DashboardLayout({
     redirect("/billing");
   }
 
-  const pendingPaymentReviews =
+  // Run all dashboard counts in parallel for performance
+  const [pendingPaymentReviews, lowStockCount, unfulfilledOrders] =
     accessState === "ACTIVE"
-      ? await prisma.paymentSubmission.count({
-          where: { status: "AWAITING_VERIFICATION", tenantId: user.tenantId },
-        })
-      : 0;
+      ? await Promise.all([
+          prisma.paymentSubmission.count({
+            where: { status: "AWAITING_VERIFICATION", tenantId: user.tenantId },
+          }),
+          prisma.product.count({
+            where: {
+              tenantId: user.tenantId,
+              stockKg: { lt: prisma.product.fields.safetyStockQuantity },
+              isActive: true,
+            },
+          }),
+          prisma.invoice.count({
+            where: {
+              tenantId: user.tenantId,
+              fulfillmentStatus: {
+                in: ["PAID", "NEEDS_PRODUCTION", "READY_TO_PACK", "PACKED"],
+              },
+              status: { not: "VOID" },
+            },
+          }),
+        ])
+      : [0, 0, 0];
 
-  const lowStockCount =
-    accessState === "ACTIVE"
-      ? await prisma.product.count({
-          where: { tenantId: user.tenantId, stockKg: { lt: prisma.product.fields.safetyStockQuantity }, isActive: true },
-        })
-      : 0;
-      
-  const unfulfilledOrders =
-    accessState === "ACTIVE"
-      ? await prisma.invoice.count({
-          where: { 
-            tenantId: user.tenantId, 
-            fulfillmentStatus: { in: ["PAID", "NEEDS_PRODUCTION", "READY_TO_PACK", "PACKED"] },
-            status: { not: "VOID" }
-          },
-        })
-      : 0;
   if (
     !tenant?.setupCompletedAt &&
     !pathname.startsWith("/onboarding") &&
