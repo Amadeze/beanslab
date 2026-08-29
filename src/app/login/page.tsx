@@ -3,10 +3,20 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginAction } from "./actions";
-import { Eye, EyeOff, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { AuthFrame } from "@/components/auth/AuthFrame";
+
+// Timeout wrapper for async operations
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutError: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(timeoutError)), ms)
+    ),
+  ]);
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -49,7 +59,12 @@ function LoginForm() {
     setNeedsVerification(false);
     setLoading(true);
     try {
-      const result = await loginAction(email, password);
+      // Add timeout to prevent infinite loading
+      const result = await withTimeout(
+        loginAction(email, password),
+        15000,
+        "Login timeout. Server tidak merespons. Coba lagi."
+      );
       if (!result.success) {
         setError(result.error);
         setNeedsVerification(result.code === "EmailNotVerified");
@@ -61,6 +76,9 @@ function LoginForm() {
         router.push(from);
       }
       router.refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Terjadi kesalahan. Coba lagi.";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -128,6 +146,9 @@ function LoginForm() {
             <AlertCircle size={16} className="shrink-0 text-red-500" />
             <p className="text-sm text-destructive">{error}</p>
           </div>
+          {error.includes("timeout") && (
+            <p className="pl-6 text-xs text-destructive/70">Jika masalah berlanjut, hubungi administrator.</p>
+          )}
           {needsVerification ? (
             <Link
               href={`/verify-email?email=${encodeURIComponent(email)}`}

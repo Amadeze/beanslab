@@ -916,3 +916,29 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Fallback: ensure content is visible even if Framer Motion fails to hydrate */
+@media (prefers-reduced-motion: no-preference) {
+  .framer-motion-fallback {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Ensure critical landing content is visible even if Framer Motion fails */
+[data-framer-motion-initial] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Fallback for motion components that fail to hydrate */
+[data-framer-motion-initial*="opacity"] {
+  opacity: 1 !important;
+}
+
+/* Ensure landing hero content is always visible */
+#hero-heading,
+[data-landing-hero] {
+  opacity: 1 !important;
+  transform: none !important;
+}

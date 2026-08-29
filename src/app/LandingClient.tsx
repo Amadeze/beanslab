@@ -197,19 +197,22 @@ function Reveal({
   children,
   className,
   delay = 0,
+  critical = false,
 }: {
   children: ReactNode;
   className?: string;
   delay?: number;
+  critical?: boolean;
 }) {
   const reduceMotion = useHydratedReducedMotion();
   return (
     <motion.div
       className={className}
-      initial={reduceMotion ? false : { opacity: 0, y: 22 }}
+      initial={reduceMotion || critical ? false : { opacity: 0, y: 22 }}
       whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.18 }}
       transition={{ duration: 0.65, delay, ease: EASE }}
+      style={{ opacity: critical ? 1 : undefined }}
     >
       {children}
     </motion.div>
@@ -789,48 +792,40 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
           ) : null}
           <div className="relative mx-auto grid min-h-[calc(100dvh-4rem)] max-w-[1500px] lg:grid-cols-[minmax(0,.86fr)_minmax(560px,1.14fr)]">
             <div className="flex flex-col justify-between border-b border-white/10 px-5 py-12 sm:px-8 sm:py-16 lg:border-b-0 lg:border-r lg:px-10 lg:py-14 xl:px-14">
-              <div>
-                <motion.div
-                  initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-                  animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                  transition={{ duration: 0.55, delay: 0.06, ease: EASE }}
-                  className="flex flex-wrap items-center gap-3"
-                >
-                  <Kicker>roastd.id Â· Roastery Operating System Â· Sistem aktif</Kicker>
-                  <span className="h-px w-9 bg-[var(--instrument)]" aria-hidden="true" />
-                  <span className="inline-flex items-center gap-2 font-mono text-[8px] uppercase tracking-[0.14em] text-white/35">
-                    <span className="signal-dot" aria-hidden="true" /> Sistem aktif
+<div>
+                <Reveal critical>
+                  <span className="flex flex-wrap items-center gap-3">
+                    <Kicker>roastd.id · Roastery Operating System · Sistem aktif</Kicker>
+                    <span className="h-px w-9 bg-[var(--instrument)]" aria-hidden="true" />
+                    <span className="inline-flex items-center gap-2 font-mono text-[8px] uppercase tracking-[0.14em] text-white/35">
+                      <span className="signal-dot" aria-hidden="true" /> Sistem aktif
+                    </span>
                   </span>
-                </motion.div>
+                </Reveal>
 
                 <h1
                   id="hero-heading"
                   className="mt-7 max-w-2xl font-heading text-[clamp(2.7rem,5vw,4.8rem)] font-bold leading-[0.9] tracking-[-0.065em]"
                 >
-                  <motion.span className="block" initial={reduceMotion ? false : { opacity: 0, y: 35 }} animate={reduceMotion ? undefined : { opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.13, ease: EASE }}>
-                    Roasting selesai.
-                  </motion.span>
-                  <motion.span className="mt-2 block text-[var(--copper-soft)]" initial={reduceMotion ? false : { opacity: 0, y: 35 }} animate={reduceMotion ? undefined : { opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.22, ease: EASE }}>
-                    Operasional ikut bergerak.
-                  </motion.span>
+                  <Reveal critical>
+                    <span className="block">Roasting selesai.</span>
+                  </Reveal>
+                  <Reveal critical>
+                    <span className="mt-2 block text-[var(--copper-soft)]">Operasional ikut bergerak.</span>
+                  </Reveal>
                 </h1>
 
-                <motion.p
+<motion.p
                   className="mt-7 max-w-xl text-[15px] leading-7 text-white/52 sm:text-base"
                   initial={reduceMotion ? false : { opacity: 0, y: 18 }}
                   animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                   transition={{ duration: 0.58, delay: 0.33, ease: EASE }}
                 >
                   Berhenti gabungin Excel, Artisan, dan nota manual setiap akhir shift.
-                  Satu alur dari lot green bean â†’ roasting â†’ produksi â†’ penjualan â†’ HPP & laporan.
+                  Satu alur dari lot green bean → roasting → produksi → penjualan → HPP & laporan.
                 </motion.p>
 
-                <motion.div
-                  className="mt-8 flex flex-col gap-3 sm:flex-row"
-                  initial={reduceMotion ? false : { opacity: 0, y: 16 }}
-                  animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                  transition={{ duration: 0.58, delay: 0.42, ease: EASE }}
-                >
+                <Reveal delay={0.42} className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <Link
                     href="/register"
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[9px] bg-[var(--copper)] px-6 text-sm font-bold text-white transition hover:bg-[var(--copper)]"
@@ -846,17 +841,10 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                   >
                     <ArrowDownToLine className="size-4" aria-hidden="true" /> Download Studio
                   </a>
-                </motion.div>
+                </Reveal>
               </div>
 
-              {/* Trust micro-signals */}
-              <motion.div
-                className="mt-14 grid grid-cols-3 gap-4 border-t border-white/10 pt-5"
-                initial={reduceMotion ? false : { opacity: 0 }}
-                animate={reduceMotion ? undefined : { opacity: 1 }}
-                transition={{ delay: 0.52 }}
-                aria-label="Keunggulan utama"
-              >
+              <Reveal delay={0.52} className="mt-14 grid grid-cols-3 gap-4 border-t border-white/10 pt-5" aria-label="Keunggulan utama">
                 {[
                   ["Read-only", "aman untuk mesin"],
                   [".alog", "format roast"],
@@ -867,7 +855,7 @@ export function LandingClient({ socialProof }: { socialProof: LandingSocialProof
                     <p className="mt-1 font-mono text-[7px] uppercase tracking-[0.11em] text-white/25">{label}</p>
                   </div>
                 ))}
-              </motion.div>
+              </Reveal>
             </div>
 
             <div className="flex min-w-0 items-center px-5 py-12 sm:px-8 lg:px-10">
