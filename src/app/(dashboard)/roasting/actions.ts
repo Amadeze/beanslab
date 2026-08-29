@@ -768,7 +768,7 @@ export async function createParentRoastingBatch(
 
       let outputProduct: any;
       if (parsed.outputMode === "existing" && parsed.outputProductId) {
-        outputProduct = await tx.product.findUnique({ where: { id: parsed.outputProductId } });
+        outputProduct = await tx.product.findFirst({ where: { id: parsed.outputProductId, tenantId } });
         if (!outputProduct) throw new Error("Roasted Bean tujuan tidak valid.");
       } else if (parsed.outputMode === "new") {
         if (!parsed.outputProductName) throw new Error("Nama produk baru harus diisi.");
@@ -919,7 +919,7 @@ export async function createParentRoastingBatch(
                   tenantId,
                   roastDuration: null,
                   dropTemp: null,
-                  recordedAt: new Date(),
+                  recordedAt: getCurrentDate(),
                 },
               });
             }
@@ -1247,7 +1247,7 @@ export async function linkRoastToBatch(
           roastId: roastId,
           roastDuration: roast.duration,
           dropTemp: roast.dropTemperature,
-          recordedAt: new Date(),
+          recordedAt: getCurrentDate(),
         },
       });
 
@@ -1334,7 +1334,7 @@ export async function splitBatchByCapacity(
             tenantId,
             roastDuration: null,
             dropTemp: null,
-            recordedAt: new Date(),
+            recordedAt: getCurrentDate(),
           },
         });
       }

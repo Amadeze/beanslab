@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { appendFefoLedgerOut, appendLedger, recomputeProductCostInTx } from "@/lib/stock";
+import { appendFefoLedgerOut, appendLedger, recomputeProductCostInTx, recomputeSupplyCostInTx } from "@/lib/stock";
 import { allocateProducedStockToDemand } from "@/lib/storefront-commerce";
 import { getCurrentTenantId, getSystemUserId, requireRole, requireTenantPrisma } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
@@ -1147,7 +1147,7 @@ export async function voidProductionBatch(
     const tenantPrisma = await requireTenantPrisma();
 
     await tenantPrisma.$transaction(async (tx) => {
-      const batch = await tx.productionBatch.findUnique({ where: { id: batchId } });
+      const batch = await tx.productionBatch.findFirst({ where: { id: batchId, tenantId } });
       if (!batch) throw new Error("Batch tidak ditemukan.");
       if (batch.status === "VOID") throw new Error("Batch sudah di-void.");
       const ledgerEntries = await tx.inventoryLedger.findMany({
@@ -1211,16 +1211,31 @@ export async function voidProductionBatch(
 
       // Phase 2D.2A — pulihkan WAC (avgCostPerKg / lastHpp) dari ledger efektif
       const productRows = new Map<string, Array<(typeof ledgerEntries)[number]>>();
+      const supplyRows = new Map<string, Array<(typeof ledgerEntries)[number]>>();
       for (const entry of ledgerEntries) {
-        if (!entry.productId) continue;
-        const list = productRows.get(entry.productId) ?? [];
-        list.push(entry);
-        productRows.set(entry.productId, list);
+        if (entry.productId) {
+          const list = productRows.get(entry.productId) ?? [];
+          list.push(entry);
+          productRows.set(entry.productId, list);
+        }
+        if (entry.supplyItemId) {
+          const list = supplyRows.get(entry.supplyItemId) ?? [];
+          list.push(entry);
+          supplyRows.set(entry.supplyItemId, list);
+        }
       }
       for (const [productId, rows] of productRows) {
         await recomputeProductCostInTx(tx, {
           tenantId,
           productId,
+          voidedRefId: batchId,
+          originalRows: rows,
+        });
+      }
+      for (const [supplyItemId, rows] of supplyRows) {
+        await recomputeSupplyCostInTx(tx, {
+          tenantId,
+          supplyItemId,
           voidedRefId: batchId,
           originalRows: rows,
         });

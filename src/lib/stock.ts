@@ -219,7 +219,6 @@ export async function appendLedger(tx: TransactionClient, data: LedgerEntryData 
           stockUnit: isInbound
             ? { increment: quantityUnit }
             : { decrement: quantityUnit },
-          ...(newAvgCostUnit !== undefined ? { avgCostPerKg: newAvgCostUnit } : {}),
           ...(newLastHppUnit !== undefined ? { lastHpp: newLastHppUnit } : {}),
         },
       });
@@ -334,15 +333,20 @@ export async function recomputeProductCostInTx(
       quantityKg: FlexibleNumber;
       quantityUnit: FlexibleNumber;
       incomingPrice: FlexibleNumber;
+      entryType?: "IN" | "OUT";
     }>;
   },
 ): Promise<void> {
   const { tenantId, productId, originalRows } = opts;
 
-  const originalTotalKg = originalRows.reduce((sum, row) => sum + Number(row.quantityKg ?? 0), 0);
-  const originalTotalUnit = originalRows.reduce((sum, row) => sum + Number(row.quantityUnit ?? 0), 0);
-  const isKgStream = originalTotalKg > 0 && originalTotalUnit === 0;
-  const voidedQty = isKgStream ? originalTotalKg : originalTotalUnit;
+  const originalInKg = originalRows
+    .filter((row) => (row.entryType ?? "IN") === "IN")
+    .reduce((sum, row) => sum + Number(row.quantityKg ?? 0), 0);
+  const originalInUnit = originalRows
+    .filter((row) => (row.entryType ?? "IN") === "IN")
+    .reduce((sum, row) => sum + Number(row.quantityUnit ?? 0), 0);
+  const isKgStream = originalInKg > 0 && originalInUnit === 0;
+  const voidedQty = isKgStream ? originalInKg : originalInUnit;
   if (voidedQty <= 0) return;
 
   const product = await tx.product.findUnique({
@@ -403,7 +407,8 @@ export async function recomputeProductCostInTx(
   };
 
   const candidateSnapshot = async (): Promise<boolean> => {
-    const allPriced = originalRows.every(
+    const inOriginalRows = originalRows.filter((row) => (row.entryType ?? "IN") === "IN");
+    const allPriced = inOriginalRows.every(
       (row) => row.incomingPrice != null && Number(row.incomingPrice) >= 0,
     );
     if (!allPriced) return false;
@@ -414,7 +419,7 @@ export async function recomputeProductCostInTx(
     const currentAvg = isKgStream
       ? Number(product.avgCostPerKg ?? 0)
       : Number(product.lastHpp ?? 0);
-    const voidedValue = originalRows.reduce((sum, row) => {
+    const voidedValue = inOriginalRows.reduce((sum, row) => {
       const quantity = isKgStream ? Number(row.quantityKg ?? 0) : Number(row.quantityUnit ?? 0);
       return sum + quantity * Number(row.incomingPrice);
     }, 0);
@@ -448,6 +453,131 @@ export async function recomputeProductCostInTx(
     }
     const tolerance = isKgStream ? 1e-6 : 0;
     if (Math.abs(qty - currentStock) > tolerance) {
+      await candidateSnapshot();
+      return;
+    }
+    await writeCost(avg);
+    return;
+  }
+
+  await candidateSnapshot();
+}
+
+/**
+ * Phase 2D.2A — Recompute WAC untuk InventorySupplyItem setelah transaksi di-void.
+ * Mirip recomputeProductCostInTx tapi untuk supply item (supplyQuantity stream).
+ */
+export async function recomputeSupplyCostInTx(
+  tx: TransactionClient,
+  opts: {
+    tenantId: string;
+    supplyItemId: string;
+    voidedRefId: string;
+    originalRows: Array<{
+      supplyQuantity: FlexibleNumber;
+      incomingPrice: FlexibleNumber;
+      entryType?: "IN" | "OUT";
+    }>;
+  },
+): Promise<void> {
+  const { tenantId, supplyItemId, originalRows } = opts;
+
+  const originalInQty = originalRows
+    .filter((row) => (row.entryType ?? "IN") === "IN")
+    .reduce((sum, row) => sum + Number(row.supplyQuantity ?? 0), 0);
+  if (originalInQty <= 0) return;
+
+  const item = await tx.inventorySupplyItem.findUnique({
+    where: { id: supplyItemId },
+    select: { stockQuantity: true, avgCostPerUnit: true },
+  });
+  if (!item) return;
+
+  const rows: Array<{
+    refId: string;
+    refType: string;
+    entryType: string;
+    supplyQuantity: FlexibleNumber;
+    incomingPrice: FlexibleNumber;
+    reversalOfLedgerId: string | null;
+  }> = await tx.inventoryLedger.findMany({
+    where: { tenantId, supplyItemId },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: {
+      refId: true,
+      refType: true,
+      entryType: true,
+      supplyQuantity: true,
+      incomingPrice: true,
+      reversalOfLedgerId: true,
+    },
+  });
+
+  const voidedRefIds = new Set<string>();
+  for (const row of rows) {
+    if (row.refType === "VOID_REVERSAL") voidedRefIds.add(row.refId);
+  }
+
+  const effective = rows.filter(
+    (row) =>
+      row.refType !== "VOID_REVERSAL" &&
+      row.reversalOfLedgerId == null &&
+      !voidedRefIds.has(row.refId),
+  );
+
+  const streamRows = effective.filter((row) => Number(row.supplyQuantity ?? 0) > 0);
+
+  const inRows = streamRows.filter((row) => row.entryType === "IN");
+  const pricedInCount = inRows.filter((row) => row.incomingPrice != null).length;
+  const currentStock = Number(item.stockQuantity ?? 0);
+
+  const writeCost = async (avg: number) => {
+    await tx.inventorySupplyItem.update({
+      where: { id: supplyItemId },
+      data: { avgCostPerUnit: avg },
+    });
+  };
+
+  const candidateSnapshot = async (): Promise<boolean> => {
+    const inOriginalRows = originalRows.filter((row) => (row.entryType ?? "IN") === "IN");
+    const allPriced = inOriginalRows.every(
+      (row) => row.incomingPrice != null && Number(row.incomingPrice) >= 0,
+    );
+    if (!allPriced) return false;
+    if (currentStock <= 1e-6) {
+      await writeCost(0);
+      return true;
+    }
+    const currentAvg = Number(item.avgCostPerUnit ?? 0);
+    const voidedValue = inOriginalRows.reduce((sum, row) => {
+      const quantity = Number(row.supplyQuantity ?? 0);
+      return sum + quantity * Number(row.incomingPrice);
+    }, 0);
+    const preVoidStock = currentStock + originalInQty;
+    const restored = (preVoidStock * currentAvg - voidedValue) / currentStock;
+    await writeCost(restored);
+    return true;
+  };
+
+  if (inRows.length === 0) {
+    if (currentStock <= 1e-6) await writeCost(0);
+    return;
+  }
+
+  if (pricedInCount === inRows.length) {
+    let qty = 0;
+    let avg = 0;
+    for (const row of streamRows) {
+      const q = Number(row.supplyQuantity);
+      if (row.entryType === "IN") {
+        const price = Number(row.incomingPrice);
+        avg = qty + q > 0 ? (avg * qty + q * price) / (qty + q) : price;
+        qty += q;
+      } else {
+        qty -= q;
+      }
+    }
+    if (Math.abs(qty - currentStock) > 1e-6) {
       await candidateSnapshot();
       return;
     }
@@ -554,7 +684,10 @@ export async function appendFefoLedgerOut(tx: TransactionClient, data: FefoLedge
           quantityKg: FlexibleNumber;
           quantityUnit: FlexibleNumber;
           supplyQuantity: FlexibleNumber;
+          refType: string;
+          reversalOfLedgerId: string | null;
         }) => {
+          if (entry.refType === "VOID_REVERSAL" || entry.reversalOfLedgerId != null) return balance;
           const amount = Number(entry[quantityField] ?? 0);
           return balance + (entry.entryType === "IN" ? amount : -amount);
         },

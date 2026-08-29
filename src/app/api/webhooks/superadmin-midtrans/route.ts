@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { Prisma, PaymentStatus } from "@prisma/client";
 import { claimWebhookEvent, timingSafeEqualText } from "@/lib/webhook-inbox";
-import { addMonthsClamped, getCurrentDate } from "@/lib/date-utils";
+import { addMonthsClamped, addMonthsPreservingBillingDay, getCurrentDate } from "@/lib/date-utils";
 import {
   getRequestId,
   internalErrorResponse,
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
 
     const payment = await prisma.subscriptionPayment.findUnique({
       where: { midtransOrderId: orderId },
-      include: { tenant: { select: { nextBillingDate: true } } },
+      include: { tenant: { select: { nextBillingDate: true, trialEndsAt: true, createdAt: true } } },
     });
 
     if (!payment) {
@@ -122,15 +122,20 @@ export async function POST(req: Request) {
       }
 
       const now = getCurrentDate();
-      // Kebijakan siklus bulanan: hari dipertahankan, clamp ke hari terakhir
-      // bulan tujuan (31 Jan → 28/29 Feb, bukan 3 Mar) agar tanggal tagihan
-      // tidak menggeser diri ke depan dan menyebabkan under-billing.
-      const nextBilling = addMonthsClamped(
-        payment.tenant.nextBillingDate && payment.tenant.nextBillingDate > now
-          ? new Date(payment.tenant.nextBillingDate)
-          : now,
-        1,
+      // Kebijakan siklus bulanan: hari dipertahankan, anchor ke trialEndsAt/createdAt
+      // agar tanggal tagihan tidak menggeser (31 Jan → 28 Feb → 31 Mar, bukan 28 Mar).
+      const tenant = payment.tenant;
+      const anchorDate = tenant.trialEndsAt
+        ? new Date(tenant.trialEndsAt)
+        : tenant.createdAt
+        ? new Date(tenant.createdAt)
+        : now;
+      // Hitung berapa bulan sudah lewat sejak anchor
+      const monthsElapsed = Math.max(1, 
+        (now.getFullYear() - anchorDate.getFullYear()) * 12 +
+        (now.getMonth() - anchorDate.getMonth())
       );
+      const nextBilling = addMonthsPreservingBillingDay(anchorDate, monthsElapsed + 1);
 
       await tx.tenant.update({
         where: { id: payment.tenantId },

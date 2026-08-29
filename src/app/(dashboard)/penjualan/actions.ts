@@ -829,6 +829,7 @@ export async function voidInvoice(
     const tenantPrisma = await requireTenantPrisma();
 
     await withSerializableRetry(tenantPrisma, async (tx) => {
+      // Lock invoice row first (consistent lock order: invoice → product via appendLedger)
       const lockedRows = await tx.$queryRaw`
         SELECT "id" FROM "invoices"
         WHERE "id" = ${invoiceId} AND "tenantId" = ${tenantId}
@@ -846,17 +847,15 @@ export async function voidInvoice(
         throw new Error("Void semua pembayaran nota terlebih dahulu sebelum membatalkan nota.");
       }
 
-      const alreadyReversed = await tx.inventoryLedger.count({
-        where: { tenantId, refId: invoiceId, refType: "VOID_REVERSAL" },
+      const saleEntries = await tx.inventoryLedger.findMany({
+        where: { refId: invoiceId, refType: "SALE_FG_OUT", entryType: "OUT" },
       });
 
-      if (alreadyReversed === 0) {
-        const saleEntries = await tx.inventoryLedger.findMany({
-          where: { refId: invoiceId, refType: "SALE_FG_OUT", entryType: "OUT" },
-        });
-        if (saleEntries.length > 0) {
-          // Kembalikan stok ke lot asal agar traceability tidak terputus.
-          for (const entry of saleEntries) {
+      if (saleEntries.length > 0) {
+        // Reversal is per-source-entry using unique constraint on reversalOfLedgerId.
+        // Attempt to create reversal for each source entry; unique constraint prevents double-reversal.
+        for (const entry of saleEntries) {
+          try {
             await appendLedger(tx, {
               data: {
                 tenantId,
@@ -876,11 +875,22 @@ export async function voidInvoice(
             if (entry.lotId) {
               await tx.lot.update({ where: { id: entry.lotId }, data: { consumedAt: null } });
             }
+          } catch (err) {
+            // Unique constraint violation (P2002) = already reversed, skip
+            if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+              continue;
+            }
+            throw err;
           }
-          await postVoidReversal("INVOICE", invoiceId, reason, { tx, tenantId, userId });
-        } else {
-          await releaseInvoiceReservations(tx, invoiceId, "RELEASED", getCurrentDate());
         }
+        const existingJournal = await tx.journalEntry.findFirst({
+          where: { tenantId, refType: "INVOICE", reference: invoiceId, voidAt: null },
+        });
+        if (existingJournal) {
+          await postVoidReversal("INVOICE", invoiceId, reason, { tx, tenantId, userId });
+        }
+      } else {
+        await releaseInvoiceReservations(tx, invoiceId, "RELEASED", getCurrentDate());
       }
 
       await tx.invoice.update({
@@ -1546,11 +1556,12 @@ export async function createCreditNote(input: CreditNoteInput) {
       // Alokasikan retur antara Piutang (porsi tagihan yang masih outstanding)
       // dan liabilitas Refund Pelanggan (porsi uang muka pelanggan). Kas TIDAK
       // berubah di sini — pengembalian kas dilakukan di fase terpisah.
+      // Gunakan netReturnedAmount (tanpa pajak) untuk alokasi AR/Refund.
       const round2 = (n: number) => Math.round(n * 100) / 100;
-      const originalOutstanding = Number(inv.grandTotal) - Number(inv.paidAmount);
+      const originalOutstandingNet = Number(inv.grandTotal) - Number(inv.tax) - Number(inv.shippingCost) - Number(inv.paidAmount);
       const cumulativeReturnBefore = Number(inv.returnedAmount);
-      const arPortion = round2(Math.max(0, Math.min(totalReturnedAmount, originalOutstanding - cumulativeReturnBefore)));
-      const refundPortion = round2(Math.max(0, totalReturnedAmount - arPortion));
+      const arPortion = round2(Math.max(0, Math.min(netReturnedAmount, originalOutstandingNet - cumulativeReturnBefore)));
+      const refundPortion = round2(Math.max(0, netReturnedAmount - arPortion));
 
       await postCreditNote(
         creditNote.id,

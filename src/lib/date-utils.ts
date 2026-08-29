@@ -190,6 +190,9 @@ export function getDateStringDaysAgo(days: number, timezone?: string | null): st
  * di-clamp ke hari terakhir bulan tujuan (28/29 Feb) — bukan meluber ke
  * bulan berikutnya (3 Mar) yang menggeser siklus tagihan tanpa sengaja.
  * Jam/menit/detik dipertahankan.
+ * 
+ * @deprecated Use addMonthsPreservingBillingDay with an anchor date instead.
+ * Chaining addMonthsClamped causes billing day drift (31 Jan → 28 Feb → 28 Mar).
  */
 export function addMonthsClamped(date: Date, months: number): Date {
   const year = date.getFullYear();
@@ -208,4 +211,32 @@ export function addMonthsClamped(date: Date, months: number): Date {
   // Overflow (hari tidak ada di bulan tujuan): ambil hari terakhir bulan
   // tujuan. day=0 pada bulan (month+months+1) = hari terakhir bulan sebelumnya.
   return new Date(year, month + months + 1, 0, ...time);
+}
+
+/**
+ * Add months to an ANCHOR date (subscription start), preserving the billing day.
+ * If the day doesn't exist in the target month, uses the last day of that month.
+ * 
+ * Use this for billing cycles: addMonthsPreservingBillingDay(anchor, monthsElapsed)
+ * instead of chaining addMonthsClamped.
+ */
+export function addMonthsPreservingBillingDay(
+  anchorDate: Date,
+  monthsElapsed: number,
+): Date {
+  const year = anchorDate.getFullYear();
+  const month = anchorDate.getMonth();
+  const day = anchorDate.getDate();
+  const time = [
+    anchorDate.getHours(),
+    anchorDate.getMinutes(),
+    anchorDate.getSeconds(),
+    anchorDate.getMilliseconds(),
+  ] as const;
+
+  const candidate = new Date(year, month + monthsElapsed, day, ...time);
+  if (candidate.getDate() === day) return candidate;
+
+  // Overflow: use last day of target month
+  return new Date(year, month + monthsElapsed + 1, 0, ...time);
 }
