@@ -934,11 +934,50 @@
 /* Fallback for motion components that fail to hydrate */
 [data-framer-motion-initial*="opacity"] {
   opacity: 1 !important;
+  transform: none !important;
 }
 
 /* Ensure landing hero content is always visible */
 #hero-heading,
+#hero-heading > *,
 [data-landing-hero] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Force all content in hero section to be visible */
+section[aria-labelledby="hero-heading"] * {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Ensure CTA buttons are always visible */
+section[aria-labelledby="hero-heading"] a,
+section[aria-labelledby="hero-heading"] button {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Force visibility for hero section critical content */
+section[aria-labelledby="hero-heading"] [data-framer-motion-initial] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Force visibility for all Reveal components in hero */
+section[aria-labelledby="hero-heading"] [data-reveal] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Force all motion elements in hero to be visible */
+section[aria-labelledby="hero-heading"] [data-framer-motion-initial] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Force visibility for all Reveal components in hero */
+section[aria-labelledby="hero-heading"] [data-reveal] {
   opacity: 1 !important;
   transform: none !important;
 }
