@@ -1,18 +1,22 @@
 # HANDOFF — Final QA / Production Readiness
 
-Last updated: 2026-08-22
+Last updated: 2026-09-01
+
+> See `docs/AUDIT_INDEX.md` for the current authoritative document set. Stale audits from 2026-07-29 live in `docs/archive/2026-07-29/`.
 
 ## Current state
 
 | Field | Value |
 |---|---|
-| Branch | `wip/non-kopi-commit3` |
+| Branch | `wip/non-kopi-commit3` (referenced by prior handoff; current local branch is `main`) |
 | Local commits ahead of origin | 0 after release synchronization |
 | Batch 6.5 / 7 / 8 | **CLOSED + PUSHED** |
 | Final Product Coherence | **CLOSED + PUSHED** |
 | Final QA closure | **APPLICATION + LIVE TARGET GATES CLOSED** |
 | Application release candidate | **DEPLOYED TO PRODUCTION** |
-| Production deployment | **RECOVERY GATE NO-GO — SUPABASE FREE HAS NO MANAGED BACKUP/PITR** |
+| Production deployment | **RECOVERY GATE PARTIALLY EVIDENCED — full evidence still requires repository secrets** |
+| Workspace cleanup (2026-08-31) | **APPLIED — stray files removed, .gitignore + tsconfig + eslint tightened, stale docs archived** |
+| Local restore-drill (2026-09-01) | **PASS — pipeline executed end-to-end on a self-contained local PG 17 cluster** |
 
 The release branch is pushed and deployed. Live readiness, migrations, storage, Supabase Data API isolation, and scheduled operations have target evidence. Production approval is withheld solely because recovery and destructive-pilot evidence are incomplete on the Supabase Free plan.
 
@@ -80,13 +84,28 @@ Database-backed audits on the disposable target:
 
 ## Remaining no-go blocker
 
-- Supabase organization plan is Free. The repository now supplies a free off-site logical backup and automated restore-drill workflow, but `BACKUP_DATABASE_URL` and `BACKUP_ENCRYPTION_PASSPHRASE` still need to be configured in GitHub Actions and the first artifact needs independent restore evidence.
-- Do not execute the destructive golden pilot until recovery evidence exists. After backup/upgrade, run the pilot and provider transaction smoke, then record final approval.
+- `BACKUP_DATABASE_URL` and `BACKUP_ENCRYPTION_PASSPHRASE` are still not configured in GitHub Actions. The cryptographic and restore contracts have now been exercised end-to-end on a self-contained local cluster (`docs/DATABASE_RECOVERY.md` "Local restore-drill evidence (2026-09-01)" and `docs/recovery-evidence/2026-09-01-local-drill/run.md`); what remains is the *production* evidence, which requires the two repository secrets and one workflow run against the Supabase URL.
+- Do not execute the destructive golden pilot until production recovery evidence exists. After backup/upgrade, run the pilot and provider transaction smoke, then record final approval.
 
 ## Go/no-go interpretation
 
 - **Code/application:** deployed and accepted.
 - **Production target:** live health/storage/migration/security/scheduler gates pass; final approval is withheld until backup/restore and the post-backup pilot pass.
+
+## Workspace cleanup (2026-08-31)
+
+An audit pass was applied without touching migrations, secrets, or any deployed code path:
+
+- Removed `__dream_query.py` and `system_prompt.txt` from the repo root.
+- Added `/desktop/dist/`, `/desktop/src-tauri/target/`, stray scratch files, `/tools/pending-merge-from-roastd-main/`, and `/docs/recovery-evidence/*/` to `.gitignore`. Removed the existing `desktop/dist/` from the working tree.
+- Excluded `roastd-studio-gpl/` and Tauri build output from `tsconfig.json` and `eslint.config.mjs` so Qt translator `.ts` files and Tauri codegen assets no longer pollute typecheck and lint.
+- Archived the 2026-07-29 audit documents to `docs/archive/2026-07-29/` and added `docs/AUDIT_INDEX.md` as the index of authoritative vs historical docs.
+- Verified the three previously open P0 risks against current code: `src/lib/midtrans-environment.ts` uses the `SB-` prefix for sandbox detection; `src/proxy.ts` keeps `'unsafe-inline'` in `script-src` for development only and uses nonce-only in production; Studio quit lifecycle uses an `isQuitting` flag in the bundled output. No code change was required for those items.
+- The sibling folder `F:\programming\roastd-main` is **not** a duplicate. It is the `refactor/ux-operational-workflows` working tree (unique commit `dc9ed98`, 23 files, +553/−435). It was left in place with `DO_NOT_DELETE.txt`. Four files unique to that branch that `main` does not import were copied to `tools/pending-merge-from-roastd-main/` for review.
+
+## Local restore-drill (2026-09-01)
+
+See `docs/DATABASE_RECOVERY.md` (section “Local restore-drill evidence”) and `docs/recovery-evidence/2026-09-01-local-drill/run.md`. The pipeline ran against a fresh PostgreSQL 17 cluster, applied migrations 000–012, produced a custom-format dump, verified the catalogue, restored with `--exit-on-error`, ran the canonical verification queries, encrypted with AES-256-CBC + PBKDF2 (250k iterations), decrypted, and restored from the decrypted dump into a second target. All steps passed.
 
 ## Do not
 
@@ -94,3 +113,4 @@ Database-backed audits on the disposable target:
 - Modify migrations 000–004.
 - Push without explicit authorization.
 - Treat the test-only local storage root or E2E provider secret as production configuration.
+- Delete `F:\programming\roastd-main`. It is a feature-branch working tree, not a stale clone.

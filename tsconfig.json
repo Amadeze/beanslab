@@ -30,5 +30,11 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "scratch"]
+  "exclude": [
+    "node_modules",
+    "scratch",
+    "roastd-studio-gpl",
+    "desktop/src-tauri/target",
+    "desktop/dist"
+  ]
 }

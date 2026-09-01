@@ -34,6 +34,15 @@ const eslintConfig = defineConfig([
     "*.js",
     ".codex/**",
     ".ua/**",
+    // Vendored GPL fork of Roastd Studio — Qt translator .ts files, not JS/TS source.
+    "roastd-studio-gpl/**",
+    // Tauri build output (binary codegen-assets, .pdb, etc).
+    "desktop/src-tauri/target/**",
+    // Compiled desktop bundles.
+    "desktop/dist/**",
+    // Ad-hoc MQTT probe scripts, not application source.
+    "desktop/test-mqtt.js",
+    "desktop/test-mqtt-simple.js",
   ]),
 ]);
 

@@ -69,3 +69,37 @@ next-env.d.ts
 /public/downloads/RoastdStudio-*.exe
 !/public/downloads/RoastdStudio-0.10.2-x64-setup.exe
 /public/downloads/ArtisanSync-*.exe
+
+# Desktop app build output (Tauri/Electron renderer + main bundles)
+/desktop/dist/
+/desktop/src-tauri/target/
+
+# Stray LLM/diagnostic scratch files (regenerable from external tooling)
+/__dream_query.py
+/.dream_query.py
+/system_prompt.txt
+
+# Pending merge from deleted roastd-main clone — human review required before commit
+/tools/pending-merge-from-roastd-main/
+
+# Local restore-drill artifacts. The encrypted dump + sha256 + catalogue are
+# rotated by the daily backup workflow; only run.md (no plaintext) is allowed.
+/docs/recovery-evidence/*/
+!/docs/recovery-evidence/README.md
+
+# pnpm store accidentally created inside repo (global store is elsewhere)
+/.pnpm-store/
+
+# Local tool / diagnostic caches
+/.commandcode/
+/.playwright-cli/
+
+# Desktop release artifacts (installers, unpacked Electron, blockmaps)
+# Keep only the current production installer in /public/downloads.
+/desktop/release/
+
+# Regenerable LLM/graphify scratch scripts (not application source)
+chunk_files.py
+run_*.py
+graphify_step1.ps1
+merge_and_build.py
