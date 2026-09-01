@@ -35,6 +35,7 @@
     "scratch",
     "roastd-studio-gpl",
     "desktop/src-tauri/target",
-    "desktop/dist"
+    "desktop/dist",
+    "tools/pending-merge-from-roastd-main"
   ]
 }
