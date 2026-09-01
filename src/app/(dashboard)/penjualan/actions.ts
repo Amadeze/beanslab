@@ -532,8 +532,8 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<SalesAct
       return { success: false, error: "Nota lunas (PAID) tidak dapat memakai metode pembayaran kredit." };
     }
 
-    // ── ACID transaction ──
-    const invoice = await tenantPrisma.$transaction(async (tx) => {
+    // ── ACID transaction — Serializable to prevent concurrent oversell (phantom read on stock) ──
+    const invoice = await withSerializableRetry(tenantPrisma, async (tx) => {
       const inv = await tx.invoice.create({
         data: {
           tenantId,
