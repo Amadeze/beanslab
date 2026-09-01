@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
@@ -48,6 +48,8 @@ export function RoastingClient({
   const searchParams = useSearchParams();
   const requestedOutputProductId = searchParams.get("productId") ?? "";
   const requestedOutput = rbOptions.find((product) => product.id === requestedOutputProductId);
+  const requestedGbId = searchParams.get("gb") ?? "";
+  const requestedLotId = searchParams.get("lotId") ?? "";
   const requestedTargetKg = Number(searchParams.get("targetKg") ?? 0);
   const [drawerOpen, setDrawerOpen] = useState(
     (searchParams.get("mulai") === "1" || Boolean(requestedOutput)) && activeTab === "batches",
@@ -66,7 +68,7 @@ export function RoastingClient({
     return { count: batches.length, totalGB, totalRB, avgLoss };
   }, [batches]);
 
-  // ── Compact header signal ──
+  // ΓöÇΓöÇ Compact header signal ΓöÇΓöÇ
   const headerSignal = useMemo(() => {
     if (activeTab === "batches") {
       return gbOptions.length > 0 && machineOptions.length > 0
@@ -184,7 +186,7 @@ export function RoastingClient({
                 href="/inventory?view=receiving"
                 className="inline-flex h-9 items-center gap-2 rounded-card bg-[var(--chrome-panel)] px-4 text-xs font-bold text-white transition hover:bg-[var(--chrome-accent)]"
               >
-                Catat Barang Datang →
+                Catat Barang Datang ΓåÆ
               </Link>
             }
           />
@@ -197,9 +199,10 @@ export function RoastingClient({
             batches={batches}
             reusableProfiles={reusableProfiles}
             locationOptions={locationOptions}
-            initialInputProductId={requestedOutput?.sourceGreenBeanId ?? ""}
+            initialInputProductId={requestedGbId || requestedOutput?.sourceGreenBeanId || ""}
             initialRoastLevel={requestedOutput?.roastLevel ?? ""}
             initialTargetWeightKg={Number.isFinite(requestedTargetKg) && requestedTargetKg > 0 ? requestedTargetKg : 0}
+            prefillLotId={requestedLotId}
             onSuccess={() => {
               setDrawerOpen(false);
               router.refresh();
@@ -211,3 +214,4 @@ export function RoastingClient({
     </>
   );
 }
+

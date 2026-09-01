@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import Link from "next/link";
@@ -13,13 +13,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowUpDown, ChevronDown, ChevronRight, MapPin, Flame, FlaskConical, Factory, ShoppingCart, ClipboardList } from "lucide-react";
+import { Search, ArrowUpDown, ChevronDown, ChevronRight, MapPin } from "lucide-react";
 import { formatKg, formatRupiah, formatUnit } from "@/lib/format";
 import type { ProductStockRow, FGStockRow, ProductLotRow, SupplyLotRow, SupplyStockRow, LotPlacementRow } from "../types";
 import { SUPPLY_CATEGORY_LABEL } from "../types";
 import type { ReorderSummary } from "@/lib/reorder";
 import { CategoryTabs, type CategoryId } from "./CategoryTabs";
 import { InventoryStatusBadge } from "./InventoryStatusBadge";
+import { NextAction } from "@/components/ui/next-action";
+import { productionExecutionHref } from "@/lib/operations-execution";
 import { EmptyState } from "@/components/shared/EmptyState";
 import {
   getDisplayStatus,
@@ -29,7 +31,7 @@ import {
 } from "@/lib/inventory-utils";
 import type { LotOperationalStatus } from "@/lib/lot";
 
-// ─── Unified row type ───
+// ΓöÇΓöÇΓöÇ Unified row type ΓöÇΓöÇΓöÇ
 
 type UnifiedRow = {
   id: string;
@@ -45,7 +47,7 @@ type UnifiedRow = {
   _status: DisplayStatus;
 };
 
-// ─── Sort ───
+// ΓöÇΓöÇΓöÇ Sort ΓöÇΓöÇΓöÇ
 
 type SortKey = "name" | "stock" | "hpp" | "value" | "status";
 
@@ -56,7 +58,7 @@ const STATUS_ORDER: Record<DisplayStatus, number> = {
   aman: 3,
 };
 
-// ─── Props ───
+// ΓöÇΓöÇΓöÇ Props ΓöÇΓöÇΓöÇ
 
 interface StockTableProps {
   gbStocks: ProductStockRow[];
@@ -71,12 +73,7 @@ interface StockTableProps {
   onEmptyAction?: () => void;
 }
 
-const LOT_STATUS_META: Record<LotOperationalStatus, { label: string; className: string }> = {
-  ok: { label: "Aktif", className: "bg-[var(--status-success)]/10 text-[var(--status-success)] border-[var(--status-success)]/30" },
-  expiring_soon: { label: "Segera Kadaluarsa", className: "bg-[var(--status-warning)]/10 text-[var(--status-warning)] border-[var(--status-warning)]/30" },
-  expired: { label: "Kadaluarsa", className: "bg-[var(--status-danger)]/10 text-[var(--status-danger)] border-[var(--status-danger)]/30" },
-  consumed: { label: "Habis", className: "bg-surface-sunken text-ink-tertiary border-border" },
-};
+import { LOT_STATUS_META, lotStatusClasses } from "@/lib/lot-status";
 
 type LotPlacementDisplay = {
   key: string;
@@ -108,8 +105,8 @@ function formatSupplyPlacement(p: LotPlacementRow, supplyUnit: string | null): s
 
 function toPlacementDisplays(placements: LotPlacementRow[], formatQty: (p: LotPlacementRow) => string): LotPlacementDisplay[] {
   return placements.map((p) => ({
-    key: `${p.warehouseName}·${p.locationName}`,
-    label: `${p.warehouseName} · ${p.locationName}`,
+    key: `${p.warehouseName}┬╖${p.locationName}`,
+    label: `${p.warehouseName} ┬╖ ${p.locationName}`,
     qtyText: formatQty(p),
   }));
 }
@@ -144,7 +141,7 @@ function toLotDisplayRows(
 function LotStatusBadge({ status }: { status: LotOperationalStatus }) {
   const meta = LOT_STATUS_META[status];
   return (
-    <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium", meta.className)}>
+    <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium", lotStatusClasses(status))}>
       {meta.label}
     </span>
   );
@@ -165,7 +162,7 @@ function LotBreakdown({ lots, unit }: { lots: LotDisplayRow[]; unit: string | nu
       </div>
       {locationCount > 0 && (
         <p className="pb-1 pt-1.5 text-[11px] font-medium text-ink-tertiary">
-          {lots.length} lot · {locationCount} lokasi
+          {lots.length} lot ┬╖ {locationCount} lokasi
         </p>
       )}
       {lots.map((lot) => (
@@ -181,9 +178,9 @@ function LotBreakdown({ lots, unit }: { lots: LotDisplayRow[]; unit: string | nu
               </Link>
               <LotStatusBadge status={lot.status} />
             </span>
-            <span className="truncate text-xs text-ink-secondary">{lot.supplierName ?? "—"}</span>
+            <span className="truncate text-xs text-ink-secondary">{lot.supplierName ?? "ΓÇö"}</span>
             <span className="pr-2 text-xs tabular-nums text-ink-secondary">
-              {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "—"}
+              {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "ΓÇö"}
             </span>
             <span className="w-24 text-right text-xs font-semibold tabular-nums text-ink">
               {lot.remainingText}
@@ -199,7 +196,7 @@ function LotBreakdown({ lots, unit }: { lots: LotDisplayRow[]; unit: string | nu
                   className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-sunken px-1.5 py-0.5 text-[11px] text-ink-secondary"
                 >
                   <MapPin size={10} className="text-ink-tertiary" />
-                  {p.label} · {p.qtyText}
+                  {p.label} ┬╖ {p.qtyText}
                 </span>
               ))
             )}
@@ -210,7 +207,7 @@ function LotBreakdown({ lots, unit }: { lots: LotDisplayRow[]; unit: string | nu
   );
 }
 
-// ─── Interactive stock card (Kartu mode) ───
+// ΓöÇΓöÇΓöÇ Interactive stock card (Kartu mode) ΓöÇΓöÇΓöÇ
 
 const TYPE_META: Record<UnifiedRow["_type"], { label: string; chip: string; action: "roasting" | "cupping" | "kasir" | "po" | null }> = {
   GREEN_BEAN: { label: "Green Bean", chip: "bg-[var(--stage-inventory)]/12 text-[var(--stage-inventory)]", action: "roasting" },
@@ -269,38 +266,33 @@ function StockFlowCard({
           {stockText}
         </span>
         <span className="text-right text-[11px] leading-4 text-ink-secondary">
-          HPP {row._hpp != null ? formatRupiah(row._hpp) : "—"}
+          HPP {row._hpp != null ? formatRupiah(row._hpp) : "ΓÇö"}
           <br />
           <span className="text-ink-tertiary">Nilai {valueInfo.text}</span>
         </span>
       </div>
 
-      {/* Aksi alur — lanjutkan proses dari kartu */}
+      {/* Aksi alur ΓÇö lanjutkan proses dari kartu (state-aware) */}
       <span className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2.5">
         {meta.action === "roasting" ? (
-          <Link href="/roasting?mulai=1" className="inline-flex h-7 items-center gap-1 rounded-lg bg-primary px-2.5 text-[11px] font-bold text-primary-foreground transition-colors hover:bg-primary/90">
-            <Flame size={11} /> Roasting
-          </Link>
+          <NextAction label="Roast" tone="roasting" href={`/roasting?mulai=1&gb=${encodeURIComponent(row.id)}`} size="sm" className="h-7 px-2" />
         ) : null}
         {meta.action === "cupping" ? (
           <>
-            <Link href={cuppingHref ?? "/cupping"} className="inline-flex h-7 items-center gap-1 rounded-lg bg-primary/10 px-2.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary/20">
-              <FlaskConical size={11} /> Cupping
-            </Link>
-            <Link href="/produksi?mulai=1" className="inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2.5 text-[11px] font-semibold text-ink-secondary transition-colors hover:border-primary/40 hover:text-primary">
-              <Factory size={11} /> Produksi
-            </Link>
+            <NextAction label="Cup" tone="roasting" href={cuppingHref ?? "/cupping"} size="sm" className="h-7 px-2" />
+            <NextAction label="Produce" tone="production" href="/produksi?mulai=1" size="sm" className="h-7 px-2" />
           </>
         ) : null}
         {meta.action === "kasir" ? (
-          <Link href="/kasir" className="inline-flex h-7 items-center gap-1 rounded-lg bg-primary/10 px-2.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary/20">
-            <ShoppingCart size={11} /> Jual di Kasir
-          </Link>
+          <>
+            {(row._status === "rendah" || row._status === "habis") && (
+              <NextAction label="Produce" tone="production" href={productionExecutionHref(row.id, 0)} size="sm" className="h-7 px-2" />
+            )}
+            <NextAction label="Jual di Kasir" tone="sales" href="/kasir" size="sm" className="h-7 px-2" />
+          </>
         ) : null}
         {meta.action === "po" ? (
-          <Link href="/inventory?view=po" className="inline-flex h-7 items-center gap-1 rounded-lg bg-primary/10 px-2.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary/20">
-            <ClipboardList size={11} /> Buat PO
-          </Link>
+          <NextAction label="Buat PO" tone="inventory" href="/inventory?view=po" size="sm" className="h-7 px-2" />
         ) : null}
 
         <button
@@ -325,7 +317,7 @@ function isKgGlobal(row: UnifiedRow): boolean {
   return row._unit === "kg";
 }
 
-// ─── Main component ───
+// ΓöÇΓöÇΓöÇ Main component ΓöÇΓöÇΓöÇ
 
 export function StockTable({
   gbStocks,
@@ -369,7 +361,7 @@ export function StockTable({
     });
   };
 
-  // Sync URL → state on param change (e.g. browser back/forward)
+  // Sync URL ΓåÆ state on param change (e.g. browser back/forward)
   useEffect(() => {
     const cat = searchParams.get("category");
     if (cat === "gb" || cat === "rb" || cat === "fg" || cat === "pkg" || cat === "supply") setActiveTab(cat);
@@ -409,7 +401,7 @@ export function StockTable({
     [supplyStocks],
   );
 
-  // Build unified rows with status — uses shared getDisplayStatus
+  // Build unified rows with status ΓÇö uses shared getDisplayStatus
   const allRows = useMemo(() => {
     const reorderMap = activeTab === "pkg" || activeTab === "supply" ? supplyReorderMap : productReorderMap;
     const rows: UnifiedRow[] = [];
@@ -484,7 +476,7 @@ export function StockTable({
     return result;
   }, [allRows, searchQuery, statusFilter, metricFilter, sortKey, sortAsc]);
 
-  // Category tabs — uses same getDisplayStatus as table rows
+  // Category tabs ΓÇö uses same getDisplayStatus as table rows
   const categoryTabs = useMemo(() => {
     const hasIssue = (status: DisplayStatus) => status === "habis" || status === "rendah";
     return [
@@ -583,9 +575,9 @@ export function StockTable({
         </div>
       </div>
 
-      {/* Kartu mode (md+) */}
+      {/* Kartu mode ΓÇö semua ukuran layar */}
       {viewMode === "kartu" ? (
-        <div className="hidden gap-3 md:grid sm:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rows.length === 0 ? (
             <div className="sm:col-span-2 2xl:col-span-3">
               <EmptyState.CardEmptyState
@@ -698,7 +690,7 @@ export function StockTable({
                               <span className="font-mono text-[11px]">{row.code}</span>
                               {row._meta ? (
                                 <>
-                                  <span className="px-1 text-ink-tertiary">·</span>
+                                  <span className="px-1 text-ink-tertiary">┬╖</span>
                                   {row._meta}
                                 </>
                               ) : null}
@@ -715,7 +707,7 @@ export function StockTable({
                         <InventoryStatusBadge status={row._status} />
                       </TableCell>
                       <TableCell className="text-right text-xs text-ink-secondary tabular-nums">
-                        {row._hpp != null ? formatRupiah(row._hpp) : <span className="text-ink-tertiary" title="HPP belum tersedia">—</span>}
+                        {row._hpp != null ? formatRupiah(row._hpp) : <span className="text-ink-tertiary" title="HPP belum tersedia">ΓÇö</span>}
                       </TableCell>
                       <TableCell className="text-right text-xs font-semibold text-ink tabular-nums">
                         <span title={valueInfo.unavailable ? "HPP belum tersedia" : undefined}>
@@ -773,7 +765,7 @@ export function StockTable({
                       <span className="font-mono text-[11px]">{row.code}</span>
                       {row._meta ? (
                         <>
-                          <span className="px-1 text-ink-tertiary">·</span>
+                          <span className="px-1 text-ink-tertiary">┬╖</span>
                           {row._meta}
                         </>
                       ) : null}
@@ -815,7 +807,7 @@ export function StockTable({
                               {lot.batchCode}
                             </Link>
                             <p className="text-[11px] text-ink-secondary">
-                              {lot.supplierName ?? "—"} ·{" "}
+                              {lot.supplierName ?? "ΓÇö"} ┬╖{" "}
                               {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "tanpa kedaluwarsa"}
                             </p>
                             {lot.placements.length === 0 ? (
@@ -828,7 +820,7 @@ export function StockTable({
                                     className="inline-flex items-center gap-0.5 rounded border border-border bg-card px-1 py-0.5 text-[10px] text-ink-secondary"
                                   >
                                     <MapPin size={9} className="text-ink-tertiary" />
-                                    {p.label} · {p.qtyText}
+                                    {p.label} ┬╖ {p.qtyText}
                                   </span>
                                 ))}
                               </div>
@@ -853,3 +845,4 @@ export function StockTable({
     </div>
   );
 }
+

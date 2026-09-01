@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+﻿import { Prisma } from "@prisma/client";
 
 import { recordAudit } from "@/lib/audit";
 import { getCurrentDate } from "@/lib/date-utils";
@@ -20,6 +20,7 @@ type LifecycleInput = {
   tenantId: string;
   userId: string;
   batchId: string;
+  preferredLotId?: string | null;
 };
 
 export type RoastReservationResult = {
@@ -243,6 +244,13 @@ export async function reserveRoastMaterialsInTx(
   ]);
 
   placements.sort((left: any, right: any) => {
+    // Prefer the lot the operator explicitly chose to roast (continuity:
+    // "Roast this lot"). Still falls back to FEFO for the rest / shortfall.
+    if (input.preferredLotId) {
+      const lp = left.lotId === input.preferredLotId ? 0 : 1;
+      const rp = right.lotId === input.preferredLotId ? 0 : 1;
+      if (lp !== rp) return lp - rp;
+    }
     const leftExpiry = left.lot.expiryDate ? new Date(left.lot.expiryDate).getTime() : Number.MAX_SAFE_INTEGER;
     const rightExpiry = right.lot.expiryDate ? new Date(right.lot.expiryDate).getTime() : Number.MAX_SAFE_INTEGER;
     return leftExpiry - rightExpiry
@@ -737,3 +745,4 @@ export async function abortRoastInTx(
   });
   return { alreadyAborted: false };
 }
+

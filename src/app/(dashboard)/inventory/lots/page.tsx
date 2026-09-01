@@ -1,8 +1,9 @@
-import { getLots, getExpiryAlerts } from "../lot-actions";
+﻿import { getLots, getExpiryAlerts } from "../lot-actions";
 import type { LotRow } from "../lot-actions";
 import type { LotOperationalStatus } from "@/lib/lot";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LOT_STATUS_META } from "@/lib/lot-status";
+import { WorkflowState } from "@/components/ui/workflow-state";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
@@ -10,21 +11,10 @@ import { StandardPageLayout } from "@/components/StandardPageLayout";
 import { EmptyState } from "@/components/ui/state";
 import { Search, AlertTriangle, Package, ArrowRight, Printer, User } from "lucide-react";
 import Link from "next/link";
+import { deriveLotNextAction } from "@/lib/workflow";
+import { NextAction } from "@/components/ui/next-action";
 
 export const dynamic = "force-dynamic";
-
-function ExpiryBadge({ status }: { status: LotOperationalStatus }) {
-  switch (status) {
-    case "consumed":
-      return <Badge variant="outline" className="border-border text-ink-tertiary">Habis</Badge>;
-    case "expired":
-      return <Badge variant="destructive">Perlu Review</Badge>;
-    case "expiring_soon":
-      return <Badge variant="outline" className="border-[var(--status-warning)]/30 text-[var(--status-warning)]">Review Segera</Badge>;
-    case "ok":
-      return <Badge variant="secondary">OK</Badge>;
-  }
-}
 
 function LotsTable({ lots }: { lots: LotRow[] }) {
   if (lots.length === 0) {
@@ -84,8 +74,20 @@ function LotsTable({ lots }: { lots: LotRow[] }) {
                <TableCell className="text-xs">
                 {lot.expiryDate ? new Date(lot.expiryDate).toLocaleDateString("id-ID") : "-"}
               </TableCell>
-              <TableCell><ExpiryBadge status={lot.status} /></TableCell>
-              <TableCell className="flex items-center justify-end gap-1">
+               <TableCell><WorkflowState {...LOT_STATUS_META[lot.status]} /></TableCell>
+               <TableCell className="flex items-center justify-end gap-1">
+                {(() => {
+                  const next = deriveLotNextAction(lot);
+                  return next ? (
+                    <NextAction
+                      label={next.label}
+                      tone={next.tone}
+                      href={next.href}
+                      size="sm"
+                      className="h-7 px-2 uppercase"
+                    />
+                  ) : null;
+                })()}
                 <Button variant="ghost" size="sm" render={<Link href={`/inventory/lots/${lot.id}/label`} />} title="Cetak label">
                   <Printer className="h-3 w-3" />
                 </Button>
@@ -107,33 +109,20 @@ function ExpiryAlertsSection({ alerts }: { alerts: { id: string; batchCode: stri
   }
 
   return (
-    <Card className="border-[var(--status-warning)]/30 bg-[var(--status-warning)]/10">
-      <div className="flex items-center gap-2 text-[var(--status-warning)] mb-3">
+    <Link
+      href="/inventory/lots?status=expiring_soon"
+      className="flex items-center justify-between gap-3 rounded-card border border-[var(--status-warning)]/30 bg-[var(--status-warning)]/10 px-4 py-3 transition-colors hover:bg-[var(--status-warning)]/15"
+    >
+      <div className="flex items-center gap-2 text-[var(--status-warning)]">
         <AlertTriangle className="h-4 w-4" />
-        <span className="font-bold text-sm">Jadwal Review Mutu ({alerts.length})</span>
+        <span className="text-sm font-bold">
+          {alerts.length} lot perlu review mutu
+        </span>
       </div>
-      <div className="space-y-2">
-         {alerts.map((alert) => (
-           <div key={alert.id} className="flex items-center justify-between rounded-card bg-card p-3 text-sm">
-             <div className="flex items-center gap-3">
-               <Package className="h-4 w-4 text-[var(--status-warning)]" />
-              <div>
-                <div className="font-medium">{alert.batchCode}</div>
-                <div className="text-xs text-muted-foreground">
-                  {alert.productName ?? "-"} · {alert.supplierName ?? "-"}
-                </div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="font-mono text-xs">{alert.daysUntilExpiry} hari</div>
-              <div className="text-xs text-muted-foreground">
-                {new Date(alert.expiryDate).toLocaleDateString("id-ID")}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
+      <span className="text-xs font-semibold text-[var(--status-warning)]">
+        Tampilkan ΓåÆ
+      </span>
+    </Link>
   );
 }
 
@@ -214,3 +203,4 @@ export default async function LotsPage({
     </StandardPageLayout>
   );
 }
+

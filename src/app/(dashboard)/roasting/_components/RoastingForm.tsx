@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -110,9 +110,9 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-xs text-red-500">{message}</p>;
 }
 
-// ─────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // Shrinkage display
-// ─────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 function ShrinkageDisplay({
   input,
@@ -149,7 +149,7 @@ function ShrinkageDisplay({
         <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-1">Susut</p>
         <p className="text-lg font-bold tabular-nums">{formatKg(lossKg)}</p>
         <p className="mt-1 text-xs font-medium opacity-80">
-          Acuan {outcome.expectedMinPercent.toFixed(1)}–{outcome.expectedMaxPercent.toFixed(1)}%
+          Acuan {outcome.expectedMinPercent.toFixed(1)}ΓÇô{outcome.expectedMaxPercent.toFixed(1)}%
         </p>
       </div>
     </div>
@@ -171,6 +171,7 @@ interface RoastingFormProps {
   initialInputProductId?: string;
   initialRoastLevel?: string;
   initialTargetWeightKg?: number;
+  prefillLotId?: string;
   onSuccess: () => void;
   onPendingChange: (pending: boolean) => void;
 }
@@ -190,6 +191,7 @@ export function RoastingForm({
   initialInputProductId = "",
   initialRoastLevel = "",
   initialTargetWeightKg = 0,
+  prefillLotId = "",
   onSuccess,
   onPendingChange,
 }: RoastingFormProps) {
@@ -302,6 +304,7 @@ export function RoastingForm({
         machineId: values.machineId && values.machineId !== "none" ? values.machineId : undefined,
         referenceProfileId: values.referenceProfileId || undefined,
         destinationLocationId: values.destinationLocationId || undefined,
+        lotId: prefillLotId || undefined,
       });
 
       if (!result.success) {
@@ -311,7 +314,7 @@ export function RoastingForm({
 
       if (result.outcome?.status === "REVIEW") {
         toast.warning(
-          `Batch ${result.batchCode} tersimpan. Susut ${result.outcome.lossPercent.toFixed(1)}% di luar acuan ${result.outcome.expectedMinPercent.toFixed(1)}–${result.outcome.expectedMaxPercent.toFixed(1)}%; periksa timbangan atau profil.`,
+          `Batch ${result.batchCode} tersimpan. Susut ${result.outcome.lossPercent.toFixed(1)}% di luar acuan ${result.outcome.expectedMinPercent.toFixed(1)}ΓÇô${result.outcome.expectedMaxPercent.toFixed(1)}%; periksa timbangan atau profil.`,
           {
             action: {
               label: "Ke Produksi",
@@ -322,8 +325,8 @@ export function RoastingForm({
       } else {
         toast.success(
           values.mode === "ARTISAN"
-            ? `Sesi roasting dimulai — ${result.batchCode}`
-            : `Batch roasting masuk stok — ${result.batchCode}`,
+            ? `Sesi roasting dimulai ΓÇö ${result.batchCode}`
+            : `Batch roasting masuk stok ΓÇö ${result.batchCode}`,
           {
             action: {
               label: "Lanjut Produksi",
@@ -348,8 +351,8 @@ export function RoastingForm({
   return (
     <form id={id} onSubmit={handleSubmit(onSubmit)} className="space-y-5 relative">
 
-      {/* ── Mode Toggle ── */}
-      {/* ── Pilih Green Bean ── */}
+      {/* ΓöÇΓöÇ Mode Toggle ΓöÇΓöÇ */}
+      {/* ΓöÇΓöÇ Pilih Green Bean ΓöÇΓöÇ */}
       <FieldGroup>
         <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
           Green Bean <span className="text-red-500">*</span>
@@ -375,7 +378,7 @@ export function RoastingForm({
                 ) : (
                   gbOptions.map((g) => (
                     <SelectItem key={g.id} value={g.id}>
-                      {g.name}{g.origin ? ` — ${g.origin}` : ""}
+                      {g.name}{g.origin ? ` ΓÇö ${g.origin}` : ""}
                       {" "}
                       <span className="text-ink-tertiary font-normal">({formatKg(g.stockKg)})</span>
                     </SelectItem>
@@ -393,7 +396,7 @@ export function RoastingForm({
         <FieldError message={errors.inputProductId?.message} />
       </FieldGroup>
 
-      {/* ── Mesin Roasting ── */}
+      {/* ΓöÇΓöÇ Mesin Roasting ΓöÇΓöÇ */}
       <FieldGroup>
         <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
           Mesin Roasting (Opsional)
@@ -425,7 +428,7 @@ export function RoastingForm({
         <FieldError message={errors.machineId?.message} />
       </FieldGroup>
 
-      {/* ── Profil Target ── */}
+      {/* ΓöÇΓöÇ Profil Target ΓöÇΓöÇ */}
       <FieldGroup>
         <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
           Profil Target (Opsional)
@@ -444,7 +447,7 @@ export function RoastingForm({
                 <SelectItem value="none">Tanpa profil</SelectItem>
                 {reusableProfiles.filter((p) => p.isActive).map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name} — {p.roastLevel}
+                    {p.name} ΓÇö {p.roastLevel}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -454,7 +457,7 @@ export function RoastingForm({
         <FieldError message={errors.referenceProfileId?.message} />
       </FieldGroup>
 
-      {/* ── Berat Masuk ── */}
+      {/* ΓöÇΓöÇ Berat Masuk ΓöÇΓöÇ */}
       <FieldGroup>
         <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">
           Berat Green Bean masuk (kg) <span className="text-red-500">*</span>
@@ -511,7 +514,7 @@ export function RoastingForm({
             <span className="font-semibold">
               {outputRoastLevel in ROAST_LEVEL_LABELS
                 ? roastedBeanName(selectedGB.name, outputRoastLevel as RoastLevelValue)
-                : `${greenBeanIdentity(selectedGB.name)} · ${outputRoastLevel}`}
+                : `${greenBeanIdentity(selectedGB.name)} ┬╖ ${outputRoastLevel}`}
             </span>
             <span className="ml-1 text-emerald-600">
               {automaticRb ? "dipakai otomatis" : "akan dibuat otomatis"}
@@ -520,7 +523,7 @@ export function RoastingForm({
         )}
       </FieldGroup>
 
-      {/* ── Select existing RB ── */}
+      {/* ΓöÇΓöÇ Select existing RB ΓöÇΓöÇ */}
       {outputMode === "existing" && (
         <FieldGroup>
           <Label className="text-xs uppercase font-bold tracking-wider text-ink-tertiary">Pilih Roasted Bean</Label>
@@ -543,7 +546,7 @@ export function RoastingForm({
                   ) : (
                     rankedRbOptions.map((r) => (
                       <SelectItem key={r.id} value={r.id}>
-                        {r.name}{r.roastLevel ? ` — ${ROAST_LEVEL_LABELS[r.roastLevel] ?? r.roastLevel}` : ""}
+                        {r.name}{r.roastLevel ? ` ΓÇö ${ROAST_LEVEL_LABELS[r.roastLevel] ?? r.roastLevel}` : ""}
                       </SelectItem>
                     ))
                   )}
@@ -555,7 +558,7 @@ export function RoastingForm({
         </FieldGroup>
       )}
 
-      {/* ── New RB product ── */}
+      {/* ΓöÇΓöÇ New RB product ΓöÇΓöÇ */}
       {outputMode === "new" && (
         <div className={cn(glassCard, "space-y-4")}>
           <FieldGroup>
@@ -610,7 +613,7 @@ export function RoastingForm({
         </div>
       )}
 
-      {/* ── MANUAL MODE ONLY: Berat Keluar ── */}
+      {/* ΓöÇΓöÇ MANUAL MODE ONLY: Berat Keluar ΓöÇΓöÇ */}
       {mode === "MANUAL" && (
         <>
           <Separator className="bg-white/50" />
@@ -629,7 +632,7 @@ export function RoastingForm({
             <FieldError message={errors.actualOutputKg?.message} />
           </FieldGroup>
 
-          {/* ── Lokasi Hasil (opsional, default server dipilih otomatis) ── */}
+          {/* ΓöÇΓöÇ Lokasi Hasil (opsional, default server dipilih otomatis) ΓöÇΓöÇ */}
           <Controller
             control={control}
             name="destinationLocationId"
@@ -642,7 +645,7 @@ export function RoastingForm({
             )}
           />
 
-          {/* ── Shrinkage kalkulasi realtime ── */}
+          {/* ΓöÇΓöÇ Shrinkage kalkulasi realtime ΓöÇΓöÇ */}
           <ShrinkageDisplay
             input={Number(targetWeightKg) || 0}
             output={Number(actualOutputKg) || 0}
@@ -651,13 +654,13 @@ export function RoastingForm({
         </>
       )}
 
-      {/* ── Catatan ── */}
+      {/* ΓöÇΓöÇ Catatan ΓöÇΓöÇ */}
       <button
         type="button"
         onClick={() => setShowAdvanced((current) => !current)}
         className="flex w-full items-center justify-between rounded-lg px-1 py-1 text-xs font-semibold text-ink-tertiary hover:text-ink"
       >
-        Opsi lanjutan · Artisan & catatan
+        Opsi lanjutan ┬╖ Artisan & catatan
         <ChevronDown size={14} className={cn("transition-transform", showAdvanced && "rotate-180")} />
       </button>
 
@@ -722,3 +725,4 @@ export function RoastingForm({
     </form>
   );
 }
+
