@@ -42,6 +42,7 @@ export const DOMAIN_TONE_CLASSES: Record<DomainTone, string> = {
 export type InvoiceStageInput = {
   status: string;
   fulfillmentStatus: OperatorFulfillmentStatus | string;
+  salesChannel?: string;
 };
 
 export function deriveInvoiceStage(inv: InvoiceStageInput): { label: string; tone: WorkflowTone } {
@@ -89,6 +90,16 @@ export type InvoiceNextAction = {
 export function deriveInvoiceNextAction(
   inv: InvoiceStageInput & { balance: number },
 ): InvoiceNextAction {
+  // B2B manual ready-to-pack can be fulfilled even while ISSUED (unpaid) — e.g. credit or cash-on-delivery
+  if (
+    inv.salesChannel === "B2B_DIRECT" &&
+    inv.fulfillmentStatus === "READY_TO_PACK" &&
+    inv.status !== "VOID" &&
+    inv.status !== "RETURNED" &&
+    inv.status !== "DRAFT"
+  ) {
+    return { label: "Fulfillment", mode: "fulfill", tone: "production" };
+  }
   if (inv.status === "DRAFT") {
     return { label: "Approve", mode: "approve", tone: "sales" };
   }

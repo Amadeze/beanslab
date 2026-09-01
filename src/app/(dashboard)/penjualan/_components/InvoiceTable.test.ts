@@ -40,19 +40,28 @@ describe("InvoiceTable fulfillment actions", () => {
           code: "INV-B2B-READY",
           salesChannel: "B2B_DIRECT",
           fulfillmentStatus: "READY_TO_PACK",
+          status: "PAID",
+          paidAmount: 50000,
+          balance: 0,
         }),
         invoice({
           id: "waiting",
           code: "INV-WAITING",
           fulfillmentStatus: "AWAITING_PAYMENT",
+          status: "ISSUED",
+          paidAmount: 0,
+          balance: 50000,
         }),
       ],
     }));
 
-    expect(html).toContain('aria-label="Fulfillment INV-B2B-READY"');
-    expect(html).not.toContain('aria-label="Fulfillment INV-WAITING"');
-    expect(html).toContain("Siap dikemas");
-    expect(html).toContain("Menunggu bayar");
+    // B2B ready (PAID + READY_TO_PACK) → NextAction Fulfillment via deriveInvoiceNextAction
+    expect(html).toContain("INV-B2B-READY");
+    expect(html).toContain("Fulfillment");
+    expect(html).not.toContain('Fulfillment INV-WAITING');
+    // WorkflowState: PAID+READY_TO_PACK → Lunas · Siap kemas, ISSUED → Tempo
+    expect(html).toContain("Siap kemas");
+    expect(html).toContain("Tempo");
   });
 
   it("offers returns only after physical delivery", () => {
