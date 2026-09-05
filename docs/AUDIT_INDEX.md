@@ -15,17 +15,16 @@
 | `SECURITY_REVIEW.md` | Live security findings and resolved items. |
 | `TEST_REPORT.md` | Test coverage and recent run results. |
 | `USER_WORKFLOWS.md` | End-to-end user journey documentation. |
-| `IMPROVEMENT_ROADMAP_2026.md` | Forward-looking product/engineering roadmap. |
 
 ## Archive (`archive/2026-07-29/`)
 
 Point-in-time audits and superseded working notes. Kept for traceability only — do **not** read these for current status. The most current "is it done?" answer always lives in `HANDOFF.md`.
 
-- `FULL_FEATURE_AUDIT_2026-07-29.md` — P0/P1/P2 audit from the 2026-07-29 review. Status of each item is reflected in `HANDOFF.md` and `IMPROVEMENT_ROADMAP_2026.md`.
+- `FULL_FEATURE_AUDIT_2026-07-29.md` — P0/P1/P2 audit from the 2026-07-29 review. Status of each item is reflected in `HANDOFF.md`.
 - `PRODUCT_AUDIT.md` — superseded by `ROUTE_MAP.md` + `DESIGN_SYSTEM.md`.
-- `ROADMAP.md`, `REDESIGN_PLAN.md` — superseded by `IMPROVEMENT_ROADMAP_2026.md`.
+- `ROADMAP.md`, `REDESIGN_PLAN.md` — superseded; consult `HANDOFF.md` for current priorities.
 - `MIGRATION_NOTES.md`, `migration-history-recovery.md` — superseded by `DATABASE_RECOVERY.md`.
 - `COMPETITIVE_LANDSCAPE_2026.md` — research artefact, not policy.
 - `PAYMENT_OPERATIONS_ID.md`, `PRODUCTION_INTEGRATIONS_ID.md`, `artisan-integration.md` — integration design notes referenced from README.
-- `FEATURE_INVENTORY.md` — superseded by `ROUTE_MAP.md` + `IMPROVEMENT_ROADMAP_2026.md`.
+- `FEATURE_INVENTORY.md` — superseded by `ROUTE_MAP.md`.
 - `UX_AUDIT.md` — superseded by `DESIGN_SYSTEM.md` + `USER_WORKFLOWS.md`.
