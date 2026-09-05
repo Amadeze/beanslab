@@ -109,3 +109,7 @@ chunk_files.py
 run_*.py
 graphify_step1.ps1
 merge_and_build.py
+
+# Hoplite platform runtime state (settings.json + setup.sh stay tracked)
+.context/
+.hoplite/archive/

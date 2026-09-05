@@ -64,11 +64,15 @@ export async function loginAction(email: string, password: string): Promise<Logi
     }
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {
+      // Jalur penolakan tanpa compare tetap membayar biaya bcrypt agar akun
+      // terkunci tidak bisa dibedakan dari akun tidak ada lewat timing.
+      await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
       return { success: false, error: "Akun dikunci sementara. Coba lagi nanti." };
     }
 
     // Compare password using bcrypt
     if (!user.password) {
+      await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
       return { success: false, error: "Email atau password salah." };
     }
     const valid = await bcrypt.compare(password, user.password);
