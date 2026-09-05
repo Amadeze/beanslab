@@ -3,12 +3,10 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { withSerializableRetry } from "@/lib/transaction-retry";
 import { revalidatePath } from "next/cache";
-import midtransClient from "midtrans-client";
 import { sendInvoiceEmail, sendInvoiceWhatsApp, sendNewOrderNotificationEmail, sendNewOrderNotificationWhatsApp } from "@/lib/notifications";
 import { getTenantAccessState } from "@/lib/subscription";
 import { recordAudit } from "@/lib/audit";
 import crypto from "crypto";
-import { decryptCredential } from "@/lib/credentials";
 import {
   enforceRateLimit,
   RateLimitError,
@@ -20,6 +18,8 @@ import {
   resolveClientIdentity,
 } from "@/lib/client-identity";
 import { planHasFeature } from "@/lib/plans";
+import { isFlagEnabled } from "@/lib/featureFlags";
+import { canIssueInvoice, loadCapacityUsage } from "@/lib/capacity";
 import {
   getRequestId,
   internalErrorResponse,
@@ -197,9 +197,28 @@ export async function POST(
 
     if (
       !tenant ||
-      getTenantAccessState(tenant) !== "ACTIVE" ||
-      !planHasFeature(tenant.subscriptionTier, "STOREFRONT")
+      getTenantAccessState(tenant) !== "ACTIVE"
     ) {
+      return NextResponse.json({ error: "Tenant tidak ditemukan" }, { status: 404 });
+    }
+    if (isFlagEnabled("capacity-only-gates")) {
+      const usage = await loadCapacityUsage(tenant.id);
+      const decision = await canIssueInvoice(
+        { tenantId: tenant.id, subscriptionTier: tenant.subscriptionTier },
+        usage,
+      );
+      if (!decision.allowed) {
+        return NextResponse.json(
+          {
+            error: "Monthly invoice capacity exceeded",
+            limit: decision.limit,
+            used: decision.used,
+            tier: decision.tier,
+          },
+          { status: 403 },
+        );
+      }
+    } else if (!planHasFeature(tenant.subscriptionTier, "STOREFRONT")) {
       return NextResponse.json({ error: "Tenant tidak ditemukan" }, { status: 404 });
     }
 
@@ -995,10 +1014,25 @@ let tax: number, shippingCost: number, grandTotal: number;
 
       // Persist recovered/initialized Midtrans result
       if (recovery.action !== "noop" && recovery.action !== "terminal" && recovery.paymentUrl) {
-        await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: { midtransOrderId: invoice.midtransOrderId, paymentUrl: recovery.paymentUrl },
-        });
+        try {
+          await prisma.invoice.update({
+            where: { id: invoice.id },
+            data: { midtransOrderId: invoice.midtransOrderId, paymentUrl: recovery.paymentUrl },
+          });
+        } catch (updateError) {
+          // Critical: Payment URL update failed but invoice was already created.
+          // Log this as a serious error for recovery/manual intervention.
+          logServerError("tenant.checkout.midtrans.persistence", updateError, {
+            requestId,
+            subdomain,
+            invoiceId: invoice.id,
+            midtransOrderId: invoice.midtransOrderId,
+            action: recovery.action,
+            severity: "CRITICAL - Invoice created but Midtrans payment URL not saved",
+          });
+          // Do not throw - invoice was already committed. Client already has success response.
+          // Next query of invoice will trigger recovery again via the loading pattern.
+        }
       }
 
       // Log recovery action for observability

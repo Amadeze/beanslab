@@ -462,8 +462,77 @@ try {
     ...journalViolations,
   ].filter((item) => item.count > 0);
 
-  console.log(JSON.stringify({ violations }, null, 2));
-  if (violations.length > 0) process.exitCode = 1;
+  const now = new Date();
+
+  const PLAN_LIMITS: Record<string, { maxUsers: number; maxMonthlyRoastBatches: number; maxMonthlyInvoices: number }> = {
+    TRIAL: { maxUsers: 5, maxMonthlyRoastBatches: 200, maxMonthlyInvoices: 500 },
+    BASIC: { maxUsers: 3, maxMonthlyRoastBatches: 80, maxMonthlyInvoices: 200 },
+    PRO: { maxUsers: 15, maxMonthlyRoastBatches: 1000, maxMonthlyInvoices: 5000 },
+    ENTERPRISE: { maxUsers: 100, maxMonthlyRoastBatches: 10000, maxMonthlyInvoices: 50000 },
+  };
+
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const tenants = await prisma.tenant.findMany({
+    select: { id: true, code: true, subscriptionTier: true },
+  });
+
+  interface CapacityDrift {
+    tenantId: string;
+    tenantCode: string;
+    tier: string;
+    dimension: "users" | "monthly_roast_batches" | "monthly_invoices";
+    used: number;
+    limit: number;
+  }
+  const capacityDrift: CapacityDrift[] = [];
+
+  for (const tenant of tenants) {
+    const limits = PLAN_LIMITS[tenant.subscriptionTier];
+    if (!limits) continue;
+    const [activeUsers, monthlyRoastBatches, monthlyInvoices] = await Promise.all([
+      prisma.user.count({ where: { tenantId: tenant.id, isActive: true } }),
+      prisma.parentRoastingBatch.count({
+        where: { tenantId: tenant.id, createdAt: { gte: monthStart, lt: monthEnd } },
+      }),
+      prisma.invoice.count({
+        where: { tenantId: tenant.id, createdAt: { gte: monthStart, lt: monthEnd } },
+      }),
+    ]);
+    if (activeUsers > limits.maxUsers) {
+      capacityDrift.push({
+        tenantId: tenant.id,
+        tenantCode: tenant.code,
+        tier: tenant.subscriptionTier,
+        dimension: "users",
+        used: activeUsers,
+        limit: limits.maxUsers,
+      });
+    }
+    if (monthlyRoastBatches > limits.maxMonthlyRoastBatches) {
+      capacityDrift.push({
+        tenantId: tenant.id,
+        tenantCode: tenant.code,
+        tier: tenant.subscriptionTier,
+        dimension: "monthly_roast_batches",
+        used: monthlyRoastBatches,
+        limit: limits.maxMonthlyRoastBatches,
+      });
+    }
+    if (monthlyInvoices > limits.maxMonthlyInvoices) {
+      capacityDrift.push({
+        tenantId: tenant.id,
+        tenantCode: tenant.code,
+        tier: tenant.subscriptionTier,
+        dimension: "monthly_invoices",
+        used: monthlyInvoices,
+        limit: limits.maxMonthlyInvoices,
+      });
+    }
+  }
+
+  console.log(JSON.stringify({ violations, capacityDrift }, null, 2));
+  if (violations.length > 0 || capacityDrift.length > 0) process.exitCode = 1;
 } finally {
   await prisma.$disconnect();
 }

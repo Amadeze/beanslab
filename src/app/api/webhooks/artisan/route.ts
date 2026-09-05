@@ -13,6 +13,8 @@ import {
   logServerError,
 } from "@/lib/api-observability";
 import { findTenantByArtisanWebhookToken } from "@/lib/artisan/webhook-auth";
+import { isFlagEnabled } from "@/lib/featureFlags";
+import { canRecordRoastBatch, loadCapacityUsage } from "@/lib/capacity";
 import { MACHINE_ID_SCHEMA } from "@/lib/artisan/types";
 
 const ArtisanPayloadSchema = z.object({
@@ -63,7 +65,24 @@ export async function POST(req: Request) {
     if (!tenant.isArtisanEnabled) {
       return NextResponse.json({ error: "Artisan integration is disabled" }, { status: 403 });
     }
-    if (!planHasFeature(tenant.subscriptionTier, "ARTISAN")) {
+    if (isFlagEnabled("capacity-only-gates")) {
+      const usage = await loadCapacityUsage(tenant.id);
+      const decision = await canRecordRoastBatch(
+        { tenantId: tenant.id, subscriptionTier: tenant.subscriptionTier },
+        usage,
+      );
+      if (!decision.allowed) {
+        return NextResponse.json(
+          {
+            error: "Monthly roast batch capacity exceeded",
+            limit: decision.limit,
+            used: decision.used,
+            tier: decision.tier,
+          },
+          { status: 403 },
+        );
+      }
+    } else if (!planHasFeature(tenant.subscriptionTier, "ARTISAN")) {
       return NextResponse.json({ error: "Artisan is not available on this plan" }, { status: 403 });
     }
 

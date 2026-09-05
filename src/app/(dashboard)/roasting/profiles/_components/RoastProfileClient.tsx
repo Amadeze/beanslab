@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { FlaskConical, Plus, Loader2, Copy, Archive, Edit3, Trash2, X } from "lucide-react";
+import { FlaskConical, Plus, Loader2, Copy, Archive, Edit3, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { StandardDrawer } from "@/components/StandardDrawer";
@@ -26,12 +26,11 @@ import { CompactHeader } from "@/components/layout/CompactHeader";
 import { WorkspaceNav } from "@/components/layout/WorkspaceNav";
 import {
   createRoastProfile,
+  createTenantRoastLevel,
   updateRoastProfile,
   duplicateRoastProfile,
   archiveRoastProfile,
-  createTenantRoastLevel,
   deleteTenantRoastLevel,
-  getMachineOptions,
 } from "../../actions";
 import type {
   ReusableRoastProfileRow,

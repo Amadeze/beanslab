@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { randomBytes } from "node:crypto";
 import { tenantSubdomainFromHost } from "@/lib/tenant-host";
+import {
+  FLAG_REQUEST_HEADER,
+  flagRequestHeaderValue,
+  type FeatureFlagSnapshot,
+  parseFlagRequestHeader,
+} from "@/lib/featureFlags";
+
+export function flagsFromRequestHeaders(headers: Headers): FeatureFlagSnapshot {
+  return parseFlagRequestHeader(headers.get(FLAG_REQUEST_HEADER));
+}
 
 const PUBLIC_ROUTES = [
   "/",
@@ -9,6 +19,10 @@ const PUBLIC_ROUTES = [
   "/register",
   "/forgot-password",
   "/reset-password",
+  "/pricing",
+  "/compare",
+  "/migrate",
+  "/status",
   "/api/health",
   "/api/cron",
   "/api/webhooks",
@@ -80,6 +94,7 @@ export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", csp);
+  requestHeaders.set(FLAG_REQUEST_HEADER, flagRequestHeaderValue());
 
   const { pathname } = request.nextUrl;
   const tenantSubdomain = tenantSubdomainFromHost(request.headers.get("host"));
@@ -95,15 +110,19 @@ export function proxy(request: NextRequest) {
       request: { headers: requestHeaders },
     });
     response.headers.set("x-roastd-tenant", tenantSubdomain);
+    response.headers.set(FLAG_REQUEST_HEADER, flagRequestHeaderValue());
   } else if (isPublicRoute(pathname)) {
     response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set(FLAG_REQUEST_HEADER, flagRequestHeaderValue());
   } else if (!request.cookies.get("ros_session")) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);
     response = NextResponse.redirect(loginUrl);
+    response.headers.set(FLAG_REQUEST_HEADER, flagRequestHeaderValue());
   } else {
     requestHeaders.set("x-pathname", pathname);
     response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set(FLAG_REQUEST_HEADER, flagRequestHeaderValue());
   }
 
   response.headers.set("x-nonce", nonce);

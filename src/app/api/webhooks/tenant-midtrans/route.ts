@@ -19,6 +19,7 @@ import {
   PermanentWebhookError,
   timingSafeEqualText,
 } from "@/lib/webhook-inbox";
+import { deriveMidtransEventId, isSuccessfulPayment } from "@/lib/midtransWebhookDedupe";
 
 type MidtransWebhookPayload = {
   order_id?: string;
@@ -30,12 +31,6 @@ type MidtransWebhookPayload = {
   payment_type?: string;
   transaction_id?: string;
 };
-
-function isSuccessfulPayment(transactionStatus?: string, fraudStatus?: string) {
-  if (transactionStatus === "settlement") return true;
-  if (transactionStatus === "capture") return fraudStatus === "accept";
-  return false;
-}
 
 function isTerminalFailure(transactionStatus?: string) {
   return ["expire", "cancel", "deny"].includes(transactionStatus ?? "");
@@ -88,7 +83,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
 
-    const eventId = `${orderId}:${transactionStatus || "unknown"}:${data.transaction_id || statusCode}`;
+    const eventId = deriveMidtransEventId({
+      orderId,
+      transactionStatus,
+      transactionId: data.transaction_id,
+      statusCode,
+    });
     const claim = await claimWebhookEvent(prisma, {
       tenantId: invoice.tenantId,
       provider: "MIDTRANS_TENANT",

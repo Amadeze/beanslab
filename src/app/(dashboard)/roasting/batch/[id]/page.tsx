@@ -249,9 +249,14 @@ export default async function BatchRecapPage({
         description={`${inputProduct?.name} → ${outputProduct?.name}`}
         stage="roasting"
         actions={
-          <Button variant="outline" render={<Link href={`/cupping?batchId=${batch.id}`} />}>
-            <FlaskConical size={14} /> Cup this roast
-          </Button>
+          <>
+            <Button variant="outline" render={<Link href={`/roasting/batch/${batch.id}/curve`} />}>
+              <FlaskConical size={14} /> Roast curve
+            </Button>
+            <Button variant="outline" render={<Link href={`/cupping?batchId=${batch.id}`} />}>
+              <FlaskConical size={14} /> Cup this roast
+            </Button>
+          </>
         }
       />
       <div className="custom-scrollbar flex-1 overflow-auto">

@@ -6,6 +6,14 @@ import { getTenantAccessState } from "./subscription";
 import { planHasFeature, type PlanFeature } from "./plans";
 import { cache } from "react";
 import { canAccessTenantRole } from "./roles";
+import { isFlagEnabled } from "./featureFlags";
+import {
+  canIssueInvoice,
+  canRecordRoastBatch,
+  hasWhiteLabel,
+  loadCapacityUsage,
+  type CapacityDecision,
+} from "./capacity";
 
 export const getTenantAccessRecord = cache(async (tenantId: string) =>
   prisma.tenant.findUnique({
@@ -116,6 +124,10 @@ export async function requireRole(...allowedRoles: SessionUser["role"][]) {
 }
 
 export async function requireFeature(feature: PlanFeature) {
+  if (isFlagEnabled("capacity-only-gates")) {
+    await requireFeatureOrCapacity(feature);
+    return (await getTenantAccessRecord((await requireCurrentUser()).tenantId))?.subscriptionTier;
+  }
   const user = await requireCurrentUser();
   const tenant = await getTenantAccessRecord(user.tenantId);
   if (!tenant || !tenant.isActive) {
@@ -152,4 +164,62 @@ export async function getTenantTimezone(): Promise<string> {
     select: { timezone: true },
   });
   return tenant?.timezone ?? "Asia/Jakarta";
+}
+
+type CapacityMapping =
+  | { kind: "issue-invoice" }
+  | { kind: "record-roast-batch" }
+  | { kind: "white-label" }
+  | { kind: "none" };
+
+const FEATURE_TO_CAPACITY: Record<PlanFeature, CapacityMapping> = {
+  CORE_OPERATIONS: { kind: "none" },
+  STOREFRONT: { kind: "issue-invoice" },
+  REPORT_EXPORTS: { kind: "none" },
+  ADVANCED_REPORTS: { kind: "none" },
+  MIDTRANS: { kind: "issue-invoice" },
+  ARTISAN: { kind: "record-roast-batch" },
+  CUSTOM_DOMAIN: { kind: "white-label" },
+};
+
+function throwCapacityExceeded(feature: PlanFeature, decision: CapacityDecision): never {
+  throw new Error(
+    `CAPACITY_EXCEEDED: feature=${feature} used=${decision.used} limit=${decision.limit} tier=${decision.tier}`,
+  );
+}
+
+export async function requireFeatureOrCapacity(feature: PlanFeature): Promise<void> {
+  if (!isFlagEnabled("capacity-only-gates")) {
+    await requireFeature(feature);
+    return;
+  }
+  const user = await requireCurrentUser();
+  const tenant = await getTenantAccessRecord(user.tenantId);
+  if (!tenant || !tenant.isActive) {
+    redirect("/login");
+  }
+  const mapping = FEATURE_TO_CAPACITY[feature];
+  if (mapping.kind === "none") {
+    return;
+  }
+  if (mapping.kind === "white-label") {
+    if (!hasWhiteLabel({ subscriptionTier: tenant.subscriptionTier })) {
+      throw new Error("FEATURE_NOT_AVAILABLE: white-label is a separate add-on");
+    }
+    return;
+  }
+  const usage = await loadCapacityUsage(user.tenantId);
+  const decision =
+    mapping.kind === "issue-invoice"
+      ? await canIssueInvoice(
+          { tenantId: user.tenantId, subscriptionTier: tenant.subscriptionTier },
+          usage,
+        )
+      : await canRecordRoastBatch(
+          { tenantId: user.tenantId, subscriptionTier: tenant.subscriptionTier },
+          usage,
+        );
+  if (!decision.allowed) {
+    throwCapacityExceeded(feature, decision);
+  }
 }
