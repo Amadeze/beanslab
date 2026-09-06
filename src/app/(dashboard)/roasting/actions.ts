@@ -1087,6 +1087,7 @@ export async function voidParentRoastingBatch(
         where: { id: batchId },
         data: {
           status: "VOID",
+          lifecycleStatus: "ABORTED",
           voidReason: reason.trim(),
           voidAt: getCurrentDate(),
         },
